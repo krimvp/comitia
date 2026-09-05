@@ -1,0 +1,55 @@
+# Security model
+
+## Scope
+
+Comitia controls access to its own coordination records. Its security claims are limited to authenticating accepted credentials, evaluating stored authorization policy, and preserving state through its configured storage boundary. The current v1 model is a single-owner service with multiple workspaces and contexts. Separate tenant isolation and explicit principal workspace membership are target features, not current claims.
+
+## Deployment boundary
+
+Embedded mode assumes the host process and filesystem are trusted. Code in the process can bypass the application API, and any user able to read or modify the SQLite file can inspect or alter coordination state. Embedded authentication cannot create isolation from that host.
+
+Daemon and shared-server modes create a meaningful mediation boundary only when clients cannot bypass the daemon to access the database or credential material, including stored token hashes. Operators must protect file permissions, process credentials, network endpoints, backups, and logs. In a future multi-tenant deployment, tenant or workspace isolation must be enforced by server-side authorization on every operation, never by client-side filtering.
+
+## Authorization invariants
+
+The current contract requires these invariants:
+
+1. A session acts only for its authenticated principal and only until it expires or is revoked.
+2. A context grant is bounded by its parent authority, scope, context, and expiry.
+3. Delegation can narrow authority but cannot widen it.
+4. Grant validity depends on a live issuing session. Revoking an ancestor or issuer session invalidates authority derived from it.
+5. Authorization is checked when an operation executes; a previously successful check is not a durable entitlement.
+6. Context-scoped storage operations retain the applicable context boundary so an unrelated identifier cannot grant access.
+
+The target multi-tenant model additionally requires explicit principal membership in a workspace before accessing that workspace's resources.
+
+Grant revocation in the initial API is restricted to an administrative principal. Delegated sessions can lose authority through expiry or through revocation of their session, issuer, or an ancestor grant, but they cannot directly invoke grant revocation.
+
+Initial bootstrap is a one-time local or offline operation. Network adapters must not expose it; doing so would turn possession of a bootstrap secret into a remote administrative enrollment path.
+
+## Credential proof
+
+Successful authentication means only that the request presented valid proof for a configured credential. The initial credential mechanism uses static, opaque scoped tokens; it does not implement OIDC. Authentication does not establish real-world identity, intent, software integrity, or the accuracy of claims in messages and task results. Deployments needing stronger identity assurance must bind credentials to an external identity process and document that process separately.
+
+Secrets must not be stored in resource references, messages intended for broad replay, command arguments visible to other local users, or logs. Error responses should contain enough detail to diagnose a request without revealing credentials or cross-workspace resource existence.
+
+## Replay and concurrency
+
+Message delivery is at least repeatable: reconnects and retries can expose the same message more than once. Deduplication keys prevent duplicate acceptance of a logical write, while consumer acknowledgements track replay progress. Neither mechanism makes external side effects exactly once; consumers must make those effects idempotent.
+
+Task leases require fencing. Every owner-only mutation must verify the current lease identity and validity in the same transaction as the mutation. Expired owners are untrusted for state changes even if they later reconnect.
+
+## Operational considerations
+
+- Use restrictive permissions for database, configuration, sockets, backups, and secret files.
+- Terminate and authenticate network connections according to the deployment's threat model.
+- Rotate credentials and revoke affected sessions and descendant grants after suspected compromise.
+- Avoid logging bearer credentials and sensitive message bodies.
+- Use a SQLite-supported consistent backup procedure and test restoration, including authorization ancestry and lease state. Copying live database and WAL files is not assumed to be safe.
+- Keep SQLite and the Comitia binary updated for security fixes.
+
+Owner access is time bounded. Before the current owner session expires, use its administrative authority to mint a replacement owner session and store the new credential securely. A live administrative credential can restore access by granting its replacement session the required contexts. If every administrative credential expires or is lost, the current API has no supported account-recovery or offline bypass; the existing coordination data remains inaccessible through Comitia.
+
+## Non-goals
+
+Comitia does not attest agent behavior, validate the safety of external resources, isolate code executed in the same embedded process, or provide end-to-end secrecy from an operator with database access. It also does not make external systems consistent with its state.
