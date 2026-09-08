@@ -1,0 +1,71 @@
+{
+  "independent-check": {
+    "8": null,
+    "9": null,
+    "10": {
+      "A": 0,
+      "B": 0,
+      "C": 5,
+      "D": 3,
+      "E": 2,
+      "F": 9
+    }
+  },
+  "transport-check": {
+    "http_reads_embedded_state": true,
+    "cross_context_rejected": 403,
+    "dedupe_preserves_id_sequence": true,
+    "conflicting_retry_rejected": 409,
+    "tasks": {
+      "tasks": [
+        {
+          "ID": "53b57da87eb84cfa49c3fe93d17fe6df",
+          "ContextID": "7a7266b63111ea788b624206222aab60",
+          "Title": "planner",
+          "Body": "Solve the assignment; propose to reviewer and respond to their question, then publish final agreement to owner.",
+          "Status": "leased",
+          "LeaseOwnerSessionID": "0526e7a6ea352f306eb94a9bd6fb68c0",
+          "LeaseVersion": 1,
+          "LeaseExpiresAt": "2026-09-08T21:49:28.875766489Z",
+          "CreatedAt": "2026-09-08T21:28:45.476593188Z",
+          "UpdatedAt": "2026-09-08T21:29:28.875766489Z"
+        },
+        {
+          "ID": "b786a09ed64f1608ae9665e57b3d7b3c",
+          "ContextID": "7a7266b63111ea788b624206222aab60",
+          "Title": "reviewer",
+          "Body": "Independently solve/check assignment, ask planner a substantive question, read the answer and publish verdict to owner and planner.",
+          "Status": "leased",
+          "LeaseOwnerSessionID": "6e9c45c8b4a2d0bb493caf75e5e82ec3",
+          "LeaseVersion": 1,
+          "LeaseExpiresAt": "2026-09-08T21:49:27.273951785Z",
+          "CreatedAt": "2026-09-08T21:28:45.482470979Z",
+          "UpdatedAt": "2026-09-08T21:29:27.273951785Z"
+        }
+      ]
+    }
+  },
+  "concurrency-check": {
+    "parallel_process_retries": 12,
+    "accepted_messages": 1,
+    "expired_lease_reclaimed": true,
+    "stale_owner_rejected": true
+  },
+  "final-check": {
+    "messages": 11,
+    "tasks": {
+      "planner": "completed",
+      "reviewer": "completed",
+      "lease-probe": "completed"
+    },
+    "ack_cursors": {
+      "planner": 10,
+      "reviewer": 7
+    },
+    "revocation_verified": {
+      "planner": true,
+      "reviewer": true
+    },
+    "reopened_database_verified": true
+  }
+}
