@@ -210,24 +210,42 @@ func run(ctx context.Context, args []string) error {
 	case "task-get":
 		fs := newFlags(cmd)
 		tid := fs.String("task-id", "", "task ID")
-		if err := fs.Parse(args); err != nil { return err }
-		if *tid == "" { return errors.New("task-id is required") }
+		if err := fs.Parse(args); err != nil {
+			return err
+		}
+		if *tid == "" {
+			return errors.New("task-id is required")
+		}
 		v, e := api.GetTask(ctx, needCredential(cfg), *tid)
-		if e != nil { return e }
+		if e != nil {
+			return e
+		}
 		return out.Encode(v)
 	case "task-list":
 		fs := newFlags(cmd)
 		cid := fs.String("context-id", "", "context ID")
 		status := fs.String("status", "", "task status (pending, leased, completed)")
 		limit := fs.Int("limit", 100, "maximum tasks (1-1000)")
-		if err := fs.Parse(args); err != nil { return err }
-		if *cid == "" { return errors.New("context-id is required") }
-		if *limit < 1 || *limit > 1000 { return comitia.ErrInvalid }
+		if err := fs.Parse(args); err != nil {
+			return err
+		}
+		if *cid == "" {
+			return errors.New("context-id is required")
+		}
+		if *limit < 1 || *limit > 1000 {
+			return comitia.ErrInvalid
+		}
 		st, e := parseTaskStatus(*status)
-		if e != nil { return e }
+		if e != nil {
+			return e
+		}
 		v, e := api.ListTasks(ctx, needCredential(cfg), *cid, st, *limit)
-		if e != nil { return e }
-		if v == nil { v = []comitia.Task{} }
+		if e != nil {
+			return e
+		}
+		if v == nil {
+			v = []comitia.Task{}
+		}
 		return out.Encode(v)
 	case "task-claim":
 		fs := newFlags(cmd)
@@ -316,11 +334,16 @@ func usage() error {
 
 func parseTaskStatus(s string) (comitia.TaskStatus, error) {
 	switch s {
-	case "": return "", nil
-	case string(comitia.TaskPending): return comitia.TaskPending, nil
-	case string(comitia.TaskLeased): return comitia.TaskLeased, nil
-	case string(comitia.TaskCompleted): return comitia.TaskCompleted, nil
-	default: return "", fmt.Errorf("invalid task status %q", s)
+	case "":
+		return "", nil
+	case string(comitia.TaskPending):
+		return comitia.TaskPending, nil
+	case string(comitia.TaskLeased):
+		return comitia.TaskLeased, nil
+	case string(comitia.TaskCompleted):
+		return comitia.TaskCompleted, nil
+	default:
+		return "", fmt.Errorf("invalid task status %q", s)
 	}
 }
 func parsePermissions(s string) (comitia.Permission, error) {

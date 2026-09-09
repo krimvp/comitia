@@ -338,16 +338,26 @@ func (s *Server) call(ctx context.Context, name string, raw json.RawMessage) (an
 	case "list_tasks":
 		var a struct {
 			ContextID string `json:"context_id"`
-			Status string `json:"status"`
-			Limit *int `json:"limit"`
+			Status    string `json:"status"`
+			Limit     *int   `json:"limit"`
 		}
-		if err := decode(raw, &a); err != nil { return nil, err }
-		if err := required(a.ContextID); err != nil { return nil, err }
+		if err := decode(raw, &a); err != nil {
+			return nil, err
+		}
+		if err := required(a.ContextID); err != nil {
+			return nil, err
+		}
 		limit := 100
-		if a.Limit != nil { limit = *a.Limit }
-		if limit < 1 || limit > 1000 { return nil, comitia.ErrInvalid }
+		if a.Limit != nil {
+			limit = *a.Limit
+		}
+		if limit < 1 || limit > 1000 {
+			return nil, comitia.ErrInvalid
+		}
 		status := comitia.TaskStatus(a.Status)
-		if a.Status != "" && status != comitia.TaskPending && status != comitia.TaskLeased && status != comitia.TaskCompleted { return nil, comitia.ErrInvalid }
+		if a.Status != "" && status != comitia.TaskPending && status != comitia.TaskLeased && status != comitia.TaskCompleted {
+			return nil, comitia.ErrInvalid
+		}
 		return s.API.ListTasks(ctx, s.Credential, a.ContextID, status, limit)
 	default:
 		return nil, comitia.ErrInvalid

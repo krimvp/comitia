@@ -1,0 +1,120 @@
+{
+  "models": {
+    "cli": "gpt-5.6-luna",
+    "mcp": "gpt-5.6-luna",
+    "security": "gpt-5.6-luna",
+    "recovery": "gpt-5.6-luna",
+    "workload": "gpt-5.6-luna",
+    "auditor": "gpt-5.6-luna"
+  },
+  "reasoning": "low",
+  "tasks": [
+    {
+      "Title": "cli",
+      "Status": "completed",
+      "CreatedAt": "2026-09-09T00:12:12.789214703Z",
+      "UpdatedAt": "2026-09-09T00:13:38.186748025Z"
+    },
+    {
+      "Title": "mcp",
+      "Status": "completed",
+      "CreatedAt": "2026-09-09T00:12:12.799688927Z",
+      "UpdatedAt": "2026-09-09T00:14:06.666439275Z"
+    },
+    {
+      "Title": "security",
+      "Status": "completed",
+      "CreatedAt": "2026-09-09T00:12:12.812755059Z",
+      "UpdatedAt": "2026-09-09T00:14:07.915118469Z"
+    },
+    {
+      "Title": "recovery",
+      "Status": "completed",
+      "CreatedAt": "2026-09-09T00:12:12.826130919Z",
+      "UpdatedAt": "2026-09-09T00:14:28.818181594Z"
+    },
+    {
+      "Title": "workload",
+      "Status": "completed",
+      "CreatedAt": "2026-09-09T00:12:12.836063417Z",
+      "UpdatedAt": "2026-09-09T00:14:55.598323373Z"
+    },
+    {
+      "Title": "auditor",
+      "Status": "completed",
+      "CreatedAt": "2026-09-09T00:12:12.843840243Z",
+      "UpdatedAt": "2026-09-09T00:14:31.708055424Z"
+    },
+    {
+      "Title": "cli-test-followup",
+      "Status": "completed",
+      "CreatedAt": "2026-09-09T00:14:12.076325812Z",
+      "UpdatedAt": "2026-09-09T00:15:06.22317321Z"
+    },
+    {
+      "Title": "mcp-quality-gate",
+      "Status": "completed",
+      "CreatedAt": "2026-09-09T00:14:51.198508029Z",
+      "UpdatedAt": "2026-09-09T00:15:37.83009208Z"
+    },
+    {
+      "Title": "recovery-quality-gate",
+      "Status": "completed",
+      "CreatedAt": "2026-09-09T00:14:51.206397383Z",
+      "UpdatedAt": "2026-09-09T00:15:54.340727952Z"
+    },
+    {
+      "Title": "security-quality-gate",
+      "Status": "completed",
+      "CreatedAt": "2026-09-09T00:14:51.213174059Z",
+      "UpdatedAt": "2026-09-09T00:16:00.287858834Z"
+    },
+    {
+      "Title": "workload-quality-gate",
+      "Status": "completed",
+      "CreatedAt": "2026-09-09T00:15:24.035892757Z",
+      "UpdatedAt": "2026-09-09T00:16:16.7796496Z"
+    },
+    {
+      "Title": "auditor-quality-gate",
+      "Status": "completed",
+      "CreatedAt": "2026-09-09T00:15:24.04321841Z",
+      "UpdatedAt": "2026-09-09T00:16:09.611643518Z"
+    }
+  ],
+  "ack_cursors": {
+    "cli": 35,
+    "mcp": 43,
+    "security": 46,
+    "recovery": 36,
+    "workload": 51,
+    "auditor": 47
+  },
+  "negative_control_detected": true,
+  "six_sessions_revoked": true,
+  "stress_24": {
+    "assertions": [
+      "exact writes and retry identities",
+      "full ordered replay and bodies",
+      "single task claim winner",
+      "expired lease reclaimed",
+      "stale completion rejected",
+      "cursor survives reopen"
+    ],
+    "messages_per_worker": 250,
+    "operations": {
+      "acks": 1,
+      "claim_wins": 1,
+      "claims": 24,
+      "dedupe_retries": 600,
+      "expiry_reclaims": 1,
+      "replays": 6000,
+      "stale_completions_rejected": 1,
+      "writes": 6000
+    },
+    "runtime_seconds": 7.323,
+    "workers": 24
+  },
+  "verified_code_commit": "2c5e6fe8be0b8c7817b137503c2985988d351ab6",
+  "ci_run": 34294802722
+}

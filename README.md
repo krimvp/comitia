@@ -68,4 +68,25 @@ The MCP adapter also uses embedded SQLite by default and binds one credential to
 COMITIA_CREDENTIAL="$agent_b_token" ./bin/comitia mcp
 ```
 
-MCP tools cover message replay, acknowledgement, and persisted cursor lookup plus task creation and leased task ownership. Comitia uses replay polling; it does not expose SSE or long polling.
+MCP tools cover message replay, acknowledgement, and persisted cursor lookup plus task creation, discovery, and leased task ownership. Comitia uses replay polling; it does not expose SSE or long polling.
+
+## Task discovery and concurrency validation
+
+Use `task-get --task-id ID` to inspect a task, or `task-list --context-id ID`
+to list tasks. Optional `--status pending|leased|completed` filters the list;
+`--limit` defaults to 100 and accepts 1–1000. An empty CLI result is `[]`.
+The equivalent MCP tools are `get_task` and `list_tasks`, with the same
+context authorization and bound session credential as other tools.
+
+Run the reproducible process-level stress harness after building:
+
+```sh
+python3 scripts/stress_agents.py --binary "$PWD/bin/comitia" --workers 12 --messages 100
+```
+
+`--messages` is the number of logical writes **per worker**. The harness uses a
+temporary database, checks retry identity, paginated replay, exclusive claims,
+expired-lease recovery and stale-completion rejection, and emits a JSON summary.
+These workers are subprocess clients, not language-model agents.
+See the [six-agent engineering trial](docs/release-readiness-20260909.md) for
+the separate real-agent collaboration results and their limitations.

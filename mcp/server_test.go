@@ -17,20 +17,31 @@ type fakeAPI struct {
 	credential  string
 	appendCalls int
 	err         error
-	getTask comitia.Task
-	listTasks []comitia.Task
-	listStatus comitia.TaskStatus
-	listLimit int
+	getTask     comitia.Task
+	listTasks   []comitia.Task
+	listStatus  comitia.TaskStatus
+	listLimit   int
 }
 
 func (f *fakeAPI) GetTask(_ context.Context, credential, id string) (comitia.Task, error) {
 	f.credential = credential
-	if f.err != nil { return comitia.Task{}, f.err }
-	t := f.getTask; if t.ID == "" { t.ID = id }; return t, nil
+	if f.err != nil {
+		return comitia.Task{}, f.err
+	}
+	t := f.getTask
+	if t.ID == "" {
+		t.ID = id
+	}
+	return t, nil
 }
 func (f *fakeAPI) ListTasks(_ context.Context, credential, cid string, status comitia.TaskStatus, limit int) ([]comitia.Task, error) {
-	f.credential = credential; f.listStatus = status; f.listLimit = limit
-	if f.err != nil { return nil, f.err }; return f.listTasks, nil
+	f.credential = credential
+	f.listStatus = status
+	f.listLimit = limit
+	if f.err != nil {
+		return nil, f.err
+	}
+	return f.listTasks, nil
 }
 
 func (f *fakeAPI) AppendMessage(_ context.Context, credential, contextID string, in comitia.MessageInput) (comitia.Message, error) {
@@ -140,15 +151,27 @@ func TestMessageCursorTool(t *testing.T) {
 }
 
 func TestTaskToolsValidationAndDefaults(t *testing.T) {
-	f := &fakeAPI{getTask: comitia.Task{ID:"t1", ContextID:"c1", Title:"safe"}, listTasks: []comitia.Task{{ID:"t1"}}}
-	s := &Server{API:f, Credential:"fixed-secret"}
-	v, err := s.call(context.Background(), "get_task", json.RawMessage(`{"task_id":"t1"}`)); if err != nil || v.(comitia.Task).ID != "t1" { t.Fatalf("get: %v %v",v,err) }
-	if _, err = s.call(context.Background(), "get_task", json.RawMessage(`{"task_id":""}`)); !errors.Is(err, comitia.ErrInvalid) { t.Fatalf("missing id: %v",err) }
-	if _, err = s.call(context.Background(), "list_tasks", json.RawMessage(`{"context_id":"c1","status":"completed"}`)); err != nil || f.listStatus != comitia.TaskCompleted || f.listLimit != 100 { t.Fatalf("list: %v status=%v limit=%d",err,f.listStatus,f.listLimit) }
-	for _, raw := range []string{`{"context_id":"c1","status":"bogus"}`, `{"context_id":"c1","limit":-1}`, `{"context_id":"c1","limit":1001}`, `{"context_id":"c1","limit":0}`, `{"context_id":"c1","credential":"x"}`} {
-		if _, err = s.call(context.Background(), "list_tasks", json.RawMessage(raw)); !errors.Is(err, comitia.ErrInvalid) { t.Fatalf("raw=%s err=%v",raw,err) }
+	f := &fakeAPI{getTask: comitia.Task{ID: "t1", ContextID: "c1", Title: "safe"}, listTasks: []comitia.Task{{ID: "t1"}}}
+	s := &Server{API: f, Credential: "fixed-secret"}
+	v, err := s.call(context.Background(), "get_task", json.RawMessage(`{"task_id":"t1"}`))
+	if err != nil || v.(comitia.Task).ID != "t1" {
+		t.Fatalf("get: %v %v", v, err)
 	}
-	f.err = comitia.ErrForbidden; if _, err = s.call(context.Background(), "get_task", json.RawMessage(`{"task_id":"t1"}`)); !errors.Is(err, comitia.ErrForbidden) { t.Fatalf("forbidden=%v",err) }
+	if _, err = s.call(context.Background(), "get_task", json.RawMessage(`{"task_id":""}`)); !errors.Is(err, comitia.ErrInvalid) {
+		t.Fatalf("missing id: %v", err)
+	}
+	if _, err = s.call(context.Background(), "list_tasks", json.RawMessage(`{"context_id":"c1","status":"completed"}`)); err != nil || f.listStatus != comitia.TaskCompleted || f.listLimit != 100 {
+		t.Fatalf("list: %v status=%v limit=%d", err, f.listStatus, f.listLimit)
+	}
+	for _, raw := range []string{`{"context_id":"c1","status":"bogus"}`, `{"context_id":"c1","limit":-1}`, `{"context_id":"c1","limit":1001}`, `{"context_id":"c1","limit":0}`, `{"context_id":"c1","credential":"x"}`} {
+		if _, err = s.call(context.Background(), "list_tasks", json.RawMessage(raw)); !errors.Is(err, comitia.ErrInvalid) {
+			t.Fatalf("raw=%s err=%v", raw, err)
+		}
+	}
+	f.err = comitia.ErrForbidden
+	if _, err = s.call(context.Background(), "get_task", json.RawMessage(`{"task_id":"t1"}`)); !errors.Is(err, comitia.ErrForbidden) {
+		t.Fatalf("forbidden=%v", err)
+	}
 }
 
 func TestTaskToolsProtocolAndSafeOutput(t *testing.T) {
@@ -157,18 +180,30 @@ func TestTaskToolsProtocolAndSafeOutput(t *testing.T) {
 		`{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"get_task","arguments":{"task_id":"t1"}}}` + "\n" +
 		`{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"list_tasks","arguments":{"context_id":"c1"}}}` + "\n"
 	got := serve(t, f, input)
-	if len(got) != 3 { t.Fatalf("responses: %d", len(got)) }
+	if len(got) != 3 {
+		t.Fatalf("responses: %d", len(got))
+	}
 	for _, response := range got[1:] {
 		result := response["result"].(map[string]any)
-		if result["isError"] != false { t.Fatalf("tool failed: %v", result) }
-		if _, ok := result["structuredContent"].(map[string]any); !ok { t.Fatal("non-object structured content") }
+		if result["isError"] != false {
+			t.Fatalf("tool failed: %v", result)
+		}
+		if _, ok := result["structuredContent"].(map[string]any); !ok {
+			t.Fatal("non-object structured content")
+		}
 	}
 	b, _ := json.Marshal(got)
-	if bytes.Contains(b, []byte("hidden-lease-hash")) || bytes.Contains(b, []byte("fixed-secret")) { t.Fatal("secret in response") }
+	if bytes.Contains(b, []byte("hidden-lease-hash")) || bytes.Contains(b, []byte("fixed-secret")) {
+		t.Fatal("secret in response")
+	}
 	s := &Server{API: f, Credential: "fixed-secret"}
 	for _, name := range []string{"get_task", "list_tasks"} {
-		if _, err := s.call(context.Background(), name, json.RawMessage(`{}`)); !errors.Is(err, comitia.ErrInvalid) { t.Fatalf("missing arguments for %s: %v", name, err) }
+		if _, err := s.call(context.Background(), name, json.RawMessage(`{}`)); !errors.Is(err, comitia.ErrInvalid) {
+			t.Fatalf("missing arguments for %s: %v", name, err)
+		}
 	}
 	f.err = comitia.ErrForbidden
-	if _, err := s.call(context.Background(), "list_tasks", json.RawMessage(`{"context_id":"c1"}`)); !errors.Is(err, comitia.ErrForbidden) { t.Fatalf("forbidden list: %v", err) }
+	if _, err := s.call(context.Background(), "list_tasks", json.RawMessage(`{"context_id":"c1"}`)); !errors.Is(err, comitia.ErrForbidden) {
+		t.Fatalf("forbidden list: %v", err)
+	}
 }
