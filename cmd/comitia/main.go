@@ -156,7 +156,9 @@ func run(ctx context.Context, args []string) error {
 			return err
 		}
 		envelope, e := readEnvelope(*envelopeFile)
-		if e != nil { return e }
+		if e != nil {
+			return e
+		}
 		v, e := api.AppendMessage(ctx, needCredential(cfg), *cid, comitia.MessageInput{DedupeKey: *key, Body: *body, Envelope: envelope})
 		if e != nil {
 			return e
@@ -166,9 +168,13 @@ func run(ctx context.Context, args []string) error {
 		fs := newFlags(cmd)
 		cid := fs.String("context-id", "", "work context ID")
 		limit := fs.Int("limit", 100, "maximum participants (1-1000)")
-		if err := fs.Parse(args); err != nil { return err }
+		if err := fs.Parse(args); err != nil {
+			return err
+		}
 		v, e := api.ListParticipants(ctx, needCredential(cfg), *cid, *limit)
-		if e != nil { return e }
+		if e != nil {
+			return e
+		}
 		return out.Encode(v)
 	case "replay":
 		fs := newFlags(cmd)
@@ -340,7 +346,7 @@ func newFlags(name string) *flag.FlagSet {
 	return f
 }
 func usage() error {
-	return errors.New("usage: comitia [--db PATH | --server-url URL] [--credential TOKEN] <bootstrap|workspace-create|context-create|reference-add|delegate|revoke|send|replay|ack|cursor|task-create|task-get|task-list|task-claim|task-renew|task-complete|serve|mcp> [flags]")
+	return errors.New("usage: comitia [--db PATH | --server-url URL] [--credential TOKEN] <bootstrap|workspace-create|context-create|reference-add|delegate|revoke|participants|send|replay|ack|cursor|task-create|task-get|task-list|task-claim|task-renew|task-complete|serve|mcp> [flags]")
 }
 
 func parseTaskStatus(s string) (comitia.TaskStatus, error) {

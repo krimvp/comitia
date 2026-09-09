@@ -72,6 +72,11 @@ MCP tools cover message replay, acknowledgement, and persisted cursor lookup plu
 
 ## Task discovery and concurrency validation
 
+Messages can carry a validated, versioned envelope in addition to free text.
+Use `participants --context-id ID` to discover agent session IDs, then address
+those IDs rather than display names. See [Message protocol and identity](docs/message-protocol.md)
+for payload types, CLI/MCP examples, extension points and shared-context visibility.
+
 Use `task-get --task-id ID` to inspect a task, or `task-list --context-id ID`
 to list tasks. Optional `--status pending|leased|completed` filters the list;
 `--limit` defaults to 100 and accepts 1–1000. An empty CLI result is `[]`.

@@ -272,7 +272,9 @@ func (x *sqlStore) RevokeGrantTree(root string, at time.Time) error {
 func (x *sqlStore) MessageByDedupe(cid, sid, key string) (Message, error) {
 	return scanMessage(x.q.QueryRow(messageSelect+" WHERE m.context_id=? AND m.session_id=? AND m.dedupe_key=?", cid, sid, key))
 }
+
 const messageSelect = "SELECT m.id,m.context_id,m.session_id,m.seq,m.dedupe_key,m.body,m.created_at,COALESCE(e.envelope,'') FROM messages m LEFT JOIN message_envelopes e ON e.message_id=m.id"
+
 func (x *sqlStore) Message(id string) (Message, error) {
 	return scanMessage(x.q.QueryRow(messageSelect+" WHERE m.id=?", id))
 }
@@ -280,7 +282,9 @@ func scanMessage(row interface{ Scan(...any) error }) (Message, error) {
 	var m Message
 	var c, envelope string
 	e := row.Scan(&m.ID, &m.ContextID, &m.SessionID, &m.Sequence, &m.DedupeKey, &m.Body, &c, &envelope)
-	if e == nil && envelope != "" { e = json.Unmarshal([]byte(envelope), &m.Envelope) }
+	if e == nil && envelope != "" {
+		e = json.Unmarshal([]byte(envelope), &m.Envelope)
+	}
 	m.CreatedAt = parse(c)
 	return m, dbErr(e)
 }
@@ -293,7 +297,9 @@ func (x *sqlStore) PutMessage(m Message) (Message, error) {
 	if e == nil && m.Envelope != nil {
 		var raw []byte
 		raw, e = json.Marshal(m.Envelope)
-		if e == nil { _, e = x.q.Exec("INSERT INTO message_envelopes VALUES(?,?)", m.ID, string(raw)) }
+		if e == nil {
+			_, e = x.q.Exec("INSERT INTO message_envelopes VALUES(?,?)", m.ID, string(raw))
+		}
 	}
 	return m, e
 }

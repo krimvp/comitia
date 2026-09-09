@@ -208,10 +208,10 @@ func (s *Server) call(ctx context.Context, name string, raw json.RawMessage) (an
 	switch name {
 	case "send_message":
 		var a struct {
-			ContextID string `json:"context_id"`
-			DedupeKey string `json:"dedupe_key"`
-			Body      string `json:"body"`
-			Envelope *comitia.MessageEnvelope `json:"envelope"`
+			ContextID string                   `json:"context_id"`
+			DedupeKey string                   `json:"dedupe_key"`
+			Body      string                   `json:"body"`
+			Envelope  *comitia.MessageEnvelope `json:"envelope"`
 		}
 		if err := decode(raw, &a); err != nil {
 			return nil, err
@@ -221,12 +221,23 @@ func (s *Server) call(ctx context.Context, name string, raw json.RawMessage) (an
 		}
 		return s.API.AppendMessage(ctx, s.Credential, a.ContextID, comitia.MessageInput{DedupeKey: a.DedupeKey, Body: a.Body, Envelope: a.Envelope})
 	case "list_participants":
-		var a struct { ContextID string `json:"context_id"`; Limit *int `json:"limit"` }
-		if err := decode(raw, &a); err != nil { return nil, err }
-		if err := required(a.ContextID); err != nil { return nil, err }
+		var a struct {
+			ContextID string `json:"context_id"`
+			Limit     *int   `json:"limit"`
+		}
+		if err := decode(raw, &a); err != nil {
+			return nil, err
+		}
+		if err := required(a.ContextID); err != nil {
+			return nil, err
+		}
 		limit := 100
-		if a.Limit != nil { limit = *a.Limit }
-		if limit < 1 || limit > 1000 { return nil, comitia.ErrInvalid }
+		if a.Limit != nil {
+			limit = *a.Limit
+		}
+		if limit < 1 || limit > 1000 {
+			return nil, comitia.ErrInvalid
+		}
 		return s.API.ListParticipants(ctx, s.Credential, a.ContextID, limit)
 	case "replay_messages":
 		var a struct {

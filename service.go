@@ -16,7 +16,7 @@ type Service struct {
 	store               Store
 	now                 Clock
 	bootstrapCredential string
-	messageSchemas map[string]PayloadValidator
+	messageSchemas      map[string]PayloadValidator
 }
 
 func New(cfg Config) (*Service, error) {
@@ -366,7 +366,9 @@ func (s *Service) AppendMessage(ctx context.Context, raw, cid string, in Message
 		return m, ErrInvalid
 	}
 	envelope, err := s.normalizeEnvelope(in.Envelope, in.Body)
-	if err != nil { return m, err }
+	if err != nil {
+		return m, err
+	}
 	e := s.store.Update(ctx, func(w WriteStore) error {
 		a, _, e := s.require(w, raw, cid, PermissionWrite)
 		if e != nil {
@@ -383,7 +385,9 @@ func (s *Service) AppendMessage(ctx context.Context, raw, cid string, in Message
 		if !errors.Is(e, ErrNotFound) {
 			return e
 		}
-		if e := s.validateEnvelopeReferences(w, cid, envelope); e != nil { return e }
+		if e := s.validateEnvelopeReferences(w, cid, envelope); e != nil {
+			return e
+		}
 		m = Message{ID: id(), ContextID: cid, SessionID: a.session.ID, DedupeKey: in.DedupeKey, Body: in.Body, CreatedAt: s.now().UTC(), Envelope: envelope}
 		m, e = w.PutMessage(m)
 		return e

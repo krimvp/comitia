@@ -114,19 +114,19 @@ type DelegateInput struct {
 }
 type MessageInput struct {
 	DedupeKey, Body string
-	Envelope *MessageEnvelope `json:"envelope,omitempty"`
+	Envelope        *MessageEnvelope `json:"envelope,omitempty"`
 }
 type MessageEnvelope struct {
-	Schema string `json:"schema"`
-	RecipientSessionIDs []string `json:"recipient_session_ids,omitempty"`
-	TaskID string `json:"task_id,omitempty"`
-	ReplyTo string `json:"reply_to,omitempty"`
-	Payload json.RawMessage `json:"payload"`
+	Schema              string          `json:"schema"`
+	RecipientSessionIDs []string        `json:"recipient_session_ids,omitempty"`
+	TaskID              string          `json:"task_id,omitempty"`
+	ReplyTo             string          `json:"reply_to,omitempty"`
+	Payload             json.RawMessage `json:"payload"`
 }
 type PayloadValidator func(json.RawMessage) error
 type Participant struct {
 	SessionID, PrincipalID, Name string
-	ExpiresAt time.Time
+	ExpiresAt                    time.Time
 }
 type TaskInput struct{ Title, Body string }
 
@@ -161,7 +161,7 @@ type Config struct {
 	Store               Store
 	Clock               Clock
 	BootstrapCredential string
-	MessageSchemas map[string]PayloadValidator
+	MessageSchemas      map[string]PayloadValidator
 }
 
 // Store supplies atomic persistence. Implementations must serialize concurrent Update calls.

@@ -48,19 +48,19 @@ type request struct {
 
 type response struct {
 	Participants []comitia.Participant `json:"participants,omitempty"`
-	Principal  *comitia.Principal   `json:"principal,omitempty"`
-	Credential *comitia.Credential  `json:"credential,omitempty"`
-	Workspace  *comitia.Workspace   `json:"workspace,omitempty"`
-	Context    *comitia.WorkContext `json:"context,omitempty"`
-	Reference  *comitia.Reference   `json:"reference,omitempty"`
-	Grant      *comitia.Grant       `json:"grant,omitempty"`
-	Grants     []comitia.Grant      `json:"grants,omitempty"`
-	Message    *comitia.Message     `json:"message,omitempty"`
-	Messages   []comitia.Message    `json:"messages,omitempty"`
-	Cursor     *int64               `json:"cursor,omitempty"`
-	Task       *comitia.Task        `json:"task,omitempty"`
-	Tasks      []comitia.Task       `json:"tasks,omitempty"`
-	Claim      *comitia.TaskClaim   `json:"claim,omitempty"`
+	Principal    *comitia.Principal    `json:"principal,omitempty"`
+	Credential   *comitia.Credential   `json:"credential,omitempty"`
+	Workspace    *comitia.Workspace    `json:"workspace,omitempty"`
+	Context      *comitia.WorkContext  `json:"context,omitempty"`
+	Reference    *comitia.Reference    `json:"reference,omitempty"`
+	Grant        *comitia.Grant        `json:"grant,omitempty"`
+	Grants       []comitia.Grant       `json:"grants,omitempty"`
+	Message      *comitia.Message      `json:"message,omitempty"`
+	Messages     []comitia.Message     `json:"messages,omitempty"`
+	Cursor       *int64                `json:"cursor,omitempty"`
+	Task         *comitia.Task         `json:"task,omitempty"`
+	Tasks        []comitia.Task        `json:"tasks,omitempty"`
+	Claim        *comitia.TaskClaim    `json:"claim,omitempty"`
 }
 
 type errorResponse struct {

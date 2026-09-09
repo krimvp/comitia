@@ -17,8 +17,8 @@ jobs:
         with:
           go-version-file: go.mod
           cache: true
-      - name: Go formatting review
-        run: gofmt -d .
+      - name: Go formatting check
+        run: test -z "$(gofmt -l .)"
       - run: go vet ./...
       - run: go test -race ./...
 
