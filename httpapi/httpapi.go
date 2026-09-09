@@ -47,6 +47,7 @@ type request struct {
 }
 
 type response struct {
+	Participants []comitia.Participant `json:"participants,omitempty"`
 	Principal  *comitia.Principal   `json:"principal,omitempty"`
 	Credential *comitia.Credential  `json:"credential,omitempty"`
 	Workspace  *comitia.Workspace   `json:"workspace,omitempty"`
@@ -103,6 +104,8 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	switch strings.TrimPrefix(r.URL.Path, "/v1/") {
+	case "participants/list":
+		out.Participants, err = h.api.ListParticipants(ctx, token, q.ContextID, q.Limit)
 	case "principals/create":
 		var v comitia.Principal
 		v, err = h.api.CreatePrincipal(ctx, token, q.Name)
@@ -466,6 +469,12 @@ func (c *Client) ListTasks(x context.Context, t, id string, status comitia.TaskS
 	var o response
 	e := c.call(x, t, "tasks/list", request{ContextID: id, Status: status, Limit: limit}, &o)
 	return o.Tasks, e
+}
+
+func (c *Client) ListParticipants(ctx context.Context, token, cid string, limit int) ([]comitia.Participant, error) {
+	var out response
+	err := c.call(ctx, token, "participants/list", request{ContextID: cid, Limit: limit}, &out)
+	return out.Participants, err
 }
 func (c *Client) ClaimTask(x context.Context, t, id string, d time.Duration) (comitia.TaskClaim, error) {
 	var o response

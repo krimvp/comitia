@@ -16,6 +16,7 @@ type Service struct {
 	store               Store
 	now                 Clock
 	bootstrapCredential string
+	messageSchemas map[string]PayloadValidator
 }
 
 func New(cfg Config) (*Service, error) {
@@ -25,7 +26,14 @@ func New(cfg Config) (*Service, error) {
 	if cfg.Clock == nil {
 		cfg.Clock = time.Now
 	}
-	return &Service{store: cfg.Store, now: cfg.Clock, bootstrapCredential: cfg.BootstrapCredential}, nil
+	schemas := builtinMessageSchemas()
+	for name, validator := range cfg.MessageSchemas {
+		if name == "" || strings.HasPrefix(name, "comitia.") || validator == nil {
+			return nil, fmt.Errorf("%w: invalid extension message schema", ErrInvalid)
+		}
+		schemas[name] = validator
+	}
+	return &Service{store: cfg.Store, now: cfg.Clock, bootstrapCredential: cfg.BootstrapCredential, messageSchemas: schemas}, nil
 }
 
 func id() string {
@@ -354,9 +362,11 @@ func (s *Service) GrantContext(ctx context.Context, raw string, in GrantInput) (
 
 func (s *Service) AppendMessage(ctx context.Context, raw, cid string, in MessageInput) (Message, error) {
 	var m Message
-	if in.DedupeKey == "" || in.Body == "" {
+	if in.DedupeKey == "" || (in.Envelope == nil && in.Body == "") {
 		return m, ErrInvalid
 	}
+	envelope, err := s.normalizeEnvelope(in.Envelope, in.Body)
+	if err != nil { return m, err }
 	e := s.store.Update(ctx, func(w WriteStore) error {
 		a, _, e := s.require(w, raw, cid, PermissionWrite)
 		if e != nil {
@@ -364,7 +374,7 @@ func (s *Service) AppendMessage(ctx context.Context, raw, cid string, in Message
 		}
 		old, e := w.MessageByDedupe(cid, a.session.ID, in.DedupeKey)
 		if e == nil {
-			if old.Body != in.Body {
+			if old.Body != in.Body || !sameEnvelope(old.Envelope, envelope) {
 				return ErrConflict
 			}
 			m = old
@@ -373,7 +383,8 @@ func (s *Service) AppendMessage(ctx context.Context, raw, cid string, in Message
 		if !errors.Is(e, ErrNotFound) {
 			return e
 		}
-		m = Message{ID: id(), ContextID: cid, SessionID: a.session.ID, DedupeKey: in.DedupeKey, Body: in.Body, CreatedAt: s.now().UTC()}
+		if e := s.validateEnvelopeReferences(w, cid, envelope); e != nil { return e }
+		m = Message{ID: id(), ContextID: cid, SessionID: a.session.ID, DedupeKey: in.DedupeKey, Body: in.Body, CreatedAt: s.now().UTC(), Envelope: envelope}
 		m, e = w.PutMessage(m)
 		return e
 	})

@@ -149,7 +149,8 @@ func tool(name, description string, input map[string]any) map[string]any {
 
 func tools() []map[string]any {
 	return []map[string]any{
-		tool("send_message", "Append an idempotent message to a context", schema(map[string]any{"context_id": str("Context ID"), "dedupe_key": str("Stable caller-chosen key"), "body": str("Message body")}, "context_id", "dedupe_key", "body")),
+		tool("send_message", "Append a message; optional validated envelope addresses session IDs, not names. Context readers can see all messages.", schema(map[string]any{"context_id": str("Context ID"), "dedupe_key": str("Stable caller-chosen key"), "body": str("Message explanation; required for untyped/discussion messages"), "envelope": envelopeSchema()}, "context_id", "dedupe_key")),
+		tool("list_participants", "Discover active readable sessions in a context. Names may repeat; address by SessionID.", schema(map[string]any{"context_id": str("Context ID"), "limit": integer("Maximum participants (default 100)")}, "context_id")),
 		tool("replay_messages", "Read context messages after a sequence", schema(map[string]any{"context_id": str("Context ID"), "after": integer("Exclusive sequence cursor"), "limit": integer("Maximum messages")}, "context_id")),
 		tool("ack_messages", "Record consumption through a sequence", schema(map[string]any{"context_id": str("Context ID"), "sequence": integer("Inclusive sequence")}, "context_id", "sequence")),
 		tool("message_cursor", "Read this session's persisted acknowledgement cursor", schema(map[string]any{"context_id": str("Context ID")}, "context_id")),
@@ -210,14 +211,23 @@ func (s *Server) call(ctx context.Context, name string, raw json.RawMessage) (an
 			ContextID string `json:"context_id"`
 			DedupeKey string `json:"dedupe_key"`
 			Body      string `json:"body"`
+			Envelope *comitia.MessageEnvelope `json:"envelope"`
 		}
 		if err := decode(raw, &a); err != nil {
 			return nil, err
 		}
-		if err := required(a.ContextID, a.DedupeKey, a.Body); err != nil {
+		if err := required(a.ContextID, a.DedupeKey); err != nil {
 			return nil, err
 		}
-		return s.API.AppendMessage(ctx, s.Credential, a.ContextID, comitia.MessageInput{DedupeKey: a.DedupeKey, Body: a.Body})
+		return s.API.AppendMessage(ctx, s.Credential, a.ContextID, comitia.MessageInput{DedupeKey: a.DedupeKey, Body: a.Body, Envelope: a.Envelope})
+	case "list_participants":
+		var a struct { ContextID string `json:"context_id"`; Limit *int `json:"limit"` }
+		if err := decode(raw, &a); err != nil { return nil, err }
+		if err := required(a.ContextID); err != nil { return nil, err }
+		limit := 100
+		if a.Limit != nil { limit = *a.Limit }
+		if limit < 1 || limit > 1000 { return nil, comitia.ErrInvalid }
+		return s.API.ListParticipants(ctx, s.Credential, a.ContextID, limit)
 	case "replay_messages":
 		var a struct {
 			ContextID string `json:"context_id"`

@@ -3,6 +3,7 @@ package comitia
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/url"
@@ -84,6 +85,7 @@ CREATE TABLE IF NOT EXISTS refs (id TEXT PRIMARY KEY, context_id TEXT NOT NULL R
 CREATE TABLE IF NOT EXISTS grants (id TEXT PRIMARY KEY, session_id TEXT NOT NULL REFERENCES sessions(id), context_id TEXT NOT NULL REFERENCES contexts(id), parent_grant_id TEXT REFERENCES grants(id), issuer_session_id TEXT NOT NULL REFERENCES sessions(id), permissions INTEGER NOT NULL, expires_at TEXT NOT NULL, revoked_at TEXT, created_at TEXT NOT NULL);
 CREATE INDEX IF NOT EXISTS grants_lookup ON grants(session_id,context_id);
 CREATE TABLE IF NOT EXISTS messages (id TEXT PRIMARY KEY, context_id TEXT NOT NULL REFERENCES contexts(id), session_id TEXT NOT NULL REFERENCES sessions(id), seq INTEGER NOT NULL, dedupe_key TEXT NOT NULL, body TEXT NOT NULL, created_at TEXT NOT NULL, UNIQUE(context_id,session_id,dedupe_key), UNIQUE(context_id,seq));
+CREATE TABLE IF NOT EXISTS message_envelopes (message_id TEXT PRIMARY KEY REFERENCES messages(id), envelope TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS acks (session_id TEXT NOT NULL REFERENCES sessions(id), context_id TEXT NOT NULL REFERENCES contexts(id), seq INTEGER NOT NULL, updated_at TEXT NOT NULL, PRIMARY KEY(session_id,context_id));
 CREATE TABLE IF NOT EXISTS tasks (id TEXT PRIMARY KEY, context_id TEXT NOT NULL REFERENCES contexts(id), title TEXT NOT NULL, body TEXT NOT NULL, status TEXT NOT NULL, lease_owner_session_id TEXT, lease_version INTEGER NOT NULL, lease_expires_at TEXT, lease_token_hash TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL);
 CREATE INDEX IF NOT EXISTS tasks_lookup ON tasks(context_id,status,created_at);
@@ -268,12 +270,17 @@ func (x *sqlStore) RevokeGrantTree(root string, at time.Time) error {
 	return nil
 }
 func (x *sqlStore) MessageByDedupe(cid, sid, key string) (Message, error) {
-	return scanMessage(x.q.QueryRow("SELECT id,context_id,session_id,seq,dedupe_key,body,created_at FROM messages WHERE context_id=? AND session_id=? AND dedupe_key=?", cid, sid, key))
+	return scanMessage(x.q.QueryRow(messageSelect+" WHERE m.context_id=? AND m.session_id=? AND m.dedupe_key=?", cid, sid, key))
+}
+const messageSelect = "SELECT m.id,m.context_id,m.session_id,m.seq,m.dedupe_key,m.body,m.created_at,COALESCE(e.envelope,'') FROM messages m LEFT JOIN message_envelopes e ON e.message_id=m.id"
+func (x *sqlStore) Message(id string) (Message, error) {
+	return scanMessage(x.q.QueryRow(messageSelect+" WHERE m.id=?", id))
 }
 func scanMessage(row interface{ Scan(...any) error }) (Message, error) {
 	var m Message
-	var c string
-	e := row.Scan(&m.ID, &m.ContextID, &m.SessionID, &m.Sequence, &m.DedupeKey, &m.Body, &c)
+	var c, envelope string
+	e := row.Scan(&m.ID, &m.ContextID, &m.SessionID, &m.Sequence, &m.DedupeKey, &m.Body, &c, &envelope)
+	if e == nil && envelope != "" { e = json.Unmarshal([]byte(envelope), &m.Envelope) }
 	m.CreatedAt = parse(c)
 	return m, dbErr(e)
 }
@@ -283,10 +290,15 @@ func (x *sqlStore) PutMessage(m Message) (Message, error) {
 		return m, e
 	}
 	_, e = x.q.Exec("INSERT INTO messages VALUES(?,?,?,?,?,?,?)", m.ID, m.ContextID, m.SessionID, m.Sequence, m.DedupeKey, m.Body, ts(m.CreatedAt))
+	if e == nil && m.Envelope != nil {
+		var raw []byte
+		raw, e = json.Marshal(m.Envelope)
+		if e == nil { _, e = x.q.Exec("INSERT INTO message_envelopes VALUES(?,?)", m.ID, string(raw)) }
+	}
 	return m, e
 }
 func (x *sqlStore) Messages(cid string, after int64, limit int) ([]Message, error) {
-	rows, e := x.q.Query("SELECT id,context_id,session_id,seq,dedupe_key,body,created_at FROM messages WHERE context_id=? AND seq>? ORDER BY seq LIMIT ?", cid, after, limit)
+	rows, e := x.q.Query(messageSelect+" WHERE m.context_id=? AND m.seq>? ORDER BY m.seq LIMIT ?", cid, after, limit)
 	if e != nil {
 		return nil, e
 	}

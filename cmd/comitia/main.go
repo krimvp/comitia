@@ -151,13 +151,24 @@ func run(ctx context.Context, args []string) error {
 		cid := fs.String("context-id", "", "context ID")
 		key := fs.String("dedupe-key", "", "stable deduplication key")
 		body := fs.String("body", "", "message body")
+		envelopeFile := fs.String("envelope-file", "", "validated message envelope JSON file")
 		if err := fs.Parse(args); err != nil {
 			return err
 		}
-		v, e := api.AppendMessage(ctx, needCredential(cfg), *cid, comitia.MessageInput{DedupeKey: *key, Body: *body})
+		envelope, e := readEnvelope(*envelopeFile)
+		if e != nil { return e }
+		v, e := api.AppendMessage(ctx, needCredential(cfg), *cid, comitia.MessageInput{DedupeKey: *key, Body: *body, Envelope: envelope})
 		if e != nil {
 			return e
 		}
+		return out.Encode(v)
+	case "participants":
+		fs := newFlags(cmd)
+		cid := fs.String("context-id", "", "work context ID")
+		limit := fs.Int("limit", 100, "maximum participants (1-1000)")
+		if err := fs.Parse(args); err != nil { return err }
+		v, e := api.ListParticipants(ctx, needCredential(cfg), *cid, *limit)
+		if e != nil { return e }
 		return out.Encode(v)
 	case "replay":
 		fs := newFlags(cmd)

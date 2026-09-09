@@ -3,6 +3,7 @@ package comitia
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"time"
 )
@@ -66,6 +67,7 @@ type Message struct {
 	ID, ContextID, SessionID, DedupeKey, Body string
 	Sequence                                  int64
 	CreatedAt                                 time.Time
+	Envelope                                  *MessageEnvelope `json:"envelope,omitempty"`
 }
 type TaskStatus string
 
@@ -110,11 +112,27 @@ type DelegateInput struct {
 	TTL           time.Duration
 	Grants        []DelegatedGrant
 }
-type MessageInput struct{ DedupeKey, Body string }
+type MessageInput struct {
+	DedupeKey, Body string
+	Envelope *MessageEnvelope `json:"envelope,omitempty"`
+}
+type MessageEnvelope struct {
+	Schema string `json:"schema"`
+	RecipientSessionIDs []string `json:"recipient_session_ids,omitempty"`
+	TaskID string `json:"task_id,omitempty"`
+	ReplyTo string `json:"reply_to,omitempty"`
+	Payload json.RawMessage `json:"payload"`
+}
+type PayloadValidator func(json.RawMessage) error
+type Participant struct {
+	SessionID, PrincipalID, Name string
+	ExpiresAt time.Time
+}
 type TaskInput struct{ Title, Body string }
 
 // API is the library-first application surface. Service and remote HTTP clients implement it.
 type API interface {
+	ListParticipants(context.Context, string, string, int) ([]Participant, error)
 	Bootstrap(context.Context, BootstrapInput) (Principal, Credential, error)
 	CreatePrincipal(context.Context, string, string) (Principal, error)
 	MintSession(context.Context, string, string, time.Duration) (Credential, error)
@@ -143,6 +161,7 @@ type Config struct {
 	Store               Store
 	Clock               Clock
 	BootstrapCredential string
+	MessageSchemas map[string]PayloadValidator
 }
 
 // Store supplies atomic persistence. Implementations must serialize concurrent Update calls.
@@ -152,6 +171,8 @@ type Store interface {
 	Close() error
 }
 type ReadStore interface {
+	Message(string) (Message, error)
+	Participants(string, time.Time, int) ([]Participant, error)
 	BootstrapDone() (bool, error)
 	Principal(string) (Principal, error)
 	Workspace(string) (Workspace, error)
