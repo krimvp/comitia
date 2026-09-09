@@ -459,6 +459,9 @@ func (s *Service) ListTasks(ctx context.Context, raw, cid string, status TaskSta
 	if limit < 1 || limit > 1000 {
 		return nil, ErrInvalid
 	}
+	if status != "" && status != TaskPending && status != TaskLeased && status != TaskCompleted {
+		return nil, ErrInvalid
+	}
 	e := s.store.View(ctx, func(r ReadStore) error {
 		if _, _, e := s.require(r, raw, cid, PermissionRead); e != nil {
 			return e

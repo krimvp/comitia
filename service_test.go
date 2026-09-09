@@ -211,3 +211,11 @@ func TestSessionRevocationInvalidatesGrantChain(t *testing.T) {
 		t.Fatalf("child session remains: %v", e)
 	}
 }
+
+func TestListTasksRejectsInvalidStatus(t *testing.T) {
+	f := setup(t, ":memory:")
+	defer f.store.Close()
+	if _, err := f.svc.ListTasks(context.Background(), f.admin.Token, f.context.ID, TaskStatus("unknown"), 100); !errors.Is(err, ErrInvalid) {
+		t.Fatalf("invalid task status accepted: %v", err)
+	}
+}

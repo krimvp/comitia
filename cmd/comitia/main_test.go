@@ -41,6 +41,36 @@ func command(t *testing.T, args ...string) map[string]any {
 	return commandAny(t, args...).(map[string]any)
 }
 
+func commandErr(t *testing.T, args ...string) error {
+	t.Helper()
+	return run(context.Background(), args)
+}
+
+func TestTaskGetListCommands(t *testing.T) {
+	db := filepath.Join(t.TempDir(), "tasks.db")
+	boot := command(t, "--db", db, "--bootstrap-credential", "once", "bootstrap")
+	cred := boot["credential"].(map[string]any)["Token"].(string)
+	w := command(t, "--db", db, "--credential", cred, "workspace-create", "--name", "w")
+	c := command(t, "--db", db, "--credential", cred, "context-create", "--workspace-id", w["ID"].(string), "--name", "c")
+	cid := c["ID"].(string)
+	task := command(t, "--db", db, "--credential", cred, "task-create", "--context-id", cid, "--title", "one", "--body", "b")
+	id := task["ID"].(string)
+	got := command(t, "--db", db, "--credential", cred, "task-get", "--task-id", id)
+	if got["ID"] != id { t.Fatalf("get=%v", got) }
+	list := commandAny(t, "--db", db, "--credential", cred, "task-list", "--context-id", cid).([]any)
+	if len(list) != 1 { t.Fatalf("list=%v", list) }
+	filtered := commandAny(t, "--db", db, "--credential", cred, "task-list", "--context-id", cid, "--status", "completed").([]any)
+	if len(filtered) != 0 { t.Fatalf("filtered=%v", filtered) }
+	c2 := command(t, "--db", db, "--credential", cred, "context-create", "--workspace-id", w["ID"].(string), "--name", "other")
+	d := command(t, "--db", db, "--credential", cred, "delegate", "--name", "reader", "--context-id", c2["ID"].(string), "--permissions", "read")
+	reader := d["credential"].(map[string]any)["Token"].(string)
+	if err := commandErr(t, "--db", db, "--credential", reader, "task-get", "--task-id", id); err == nil { t.Fatal("cross-context get unexpectedly allowed") }
+	if err := commandErr(t, "--db", db, "--credential", reader, "task-list", "--context-id", cid); err == nil { t.Fatal("cross-context list unexpectedly allowed") }
+	for _, a := range [][]string{{"task-get"}, {"task-list", "--context-id", cid, "--status", "bogus"}, {"task-list", "--context-id", cid, "--limit", "0"}, {"task-list", "--context-id", cid, "--limit", "1001"}, {"task-list"}} {
+		if err := commandErr(t, append([]string{"--db", db, "--credential", cred}, a...)...); err == nil { t.Fatalf("expected error for %v", a) }
+	}
+}
+
 func TestEmbeddedCommandsShareDurableState(t *testing.T) {
 	db := filepath.Join(t.TempDir(), "comitia.db")
 	boot := command(t, "--db", db, "--bootstrap-credential", "offline-once", "bootstrap", "--name", "owner")

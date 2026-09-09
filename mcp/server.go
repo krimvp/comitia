@@ -157,6 +157,8 @@ func tools() []map[string]any {
 		tool("claim_task", "Claim a pending task", schema(map[string]any{"task_id": str("Task ID"), "lease_seconds": integer("Lease duration in seconds")}, "task_id")),
 		tool("renew_task", "Renew a task claim", schema(map[string]any{"task_id": str("Task ID"), "claim_token": str("Opaque claim token"), "lease_version": integer("Current lease version"), "lease_seconds": integer("Lease duration in seconds")}, "task_id", "claim_token", "lease_version")),
 		tool("complete_task", "Complete a claimed task", schema(map[string]any{"task_id": str("Task ID"), "claim_token": str("Opaque claim token"), "lease_version": integer("Current lease version")}, "task_id", "claim_token", "lease_version")),
+		tool("get_task", "Get a task by ID", schema(map[string]any{"task_id": str("Task ID")}, "task_id")),
+		tool("list_tasks", "List tasks in a context", schema(map[string]any{"context_id": str("Context ID"), "status": map[string]any{"type": "string", "enum": []string{"pending", "leased", "completed"}}, "limit": integer("Maximum tasks")}, "context_id")),
 	}
 }
 
@@ -322,6 +324,31 @@ func (s *Server) call(ctx context.Context, name string, raw json.RawMessage) (an
 			return nil, err
 		}
 		return s.API.CompleteTask(ctx, s.Credential, a.TaskID, a.ClaimToken, a.LeaseVersion)
+	case "get_task":
+		var a struct {
+			TaskID string `json:"task_id"`
+		}
+		if err := decode(raw, &a); err != nil {
+			return nil, err
+		}
+		if err := required(a.TaskID); err != nil {
+			return nil, err
+		}
+		return s.API.GetTask(ctx, s.Credential, a.TaskID)
+	case "list_tasks":
+		var a struct {
+			ContextID string `json:"context_id"`
+			Status string `json:"status"`
+			Limit *int `json:"limit"`
+		}
+		if err := decode(raw, &a); err != nil { return nil, err }
+		if err := required(a.ContextID); err != nil { return nil, err }
+		limit := 100
+		if a.Limit != nil { limit = *a.Limit }
+		if limit < 1 || limit > 1000 { return nil, comitia.ErrInvalid }
+		status := comitia.TaskStatus(a.Status)
+		if a.Status != "" && status != comitia.TaskPending && status != comitia.TaskLeased && status != comitia.TaskCompleted { return nil, comitia.ErrInvalid }
+		return s.API.ListTasks(ctx, s.Credential, a.ContextID, status, limit)
 	default:
 		return nil, comitia.ErrInvalid
 	}
