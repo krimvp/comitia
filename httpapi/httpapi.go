@@ -23,9 +23,15 @@ var ErrBootstrapOffline = errors.New("bootstrap is available only to embedded cl
 type handler struct{ api comitia.API }
 
 // NewHandler returns an HTTP handler. Bootstrap is deliberately not routed.
-func NewHandler(api comitia.API) http.Handler { return &handler{api: api} }
+func NewHandler(api comitia.API) http.Handler {
+	mux := http.NewServeMux()
+	mux.Handle("/ui/", inspectorHandler())
+	mux.Handle("/", &handler{api: api})
+	return mux
+}
 
 type request struct {
+	AfterID       string                      `json:"after_id,omitempty"`
 	Name          string                      `json:"name,omitempty"`
 	PrincipalID   string                      `json:"principal_id,omitempty"`
 	SessionID     string                      `json:"session_id,omitempty"`
@@ -47,6 +53,7 @@ type request struct {
 }
 
 type response struct {
+	Contexts     []comitia.WorkContext `json:"contexts,omitempty"`
 	Participants []comitia.Participant `json:"participants,omitempty"`
 	Principal    *comitia.Principal    `json:"principal,omitempty"`
 	Credential   *comitia.Credential   `json:"credential,omitempty"`
@@ -70,6 +77,7 @@ type errorResponse struct {
 
 func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Cache-Control", "no-store")
 	if r.Method != http.MethodPost {
 		w.Header().Set("Allow", http.MethodPost)
 		writeError(w, comitia.ErrInvalid, http.StatusMethodNotAllowed)
@@ -104,6 +112,8 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	switch strings.TrimPrefix(r.URL.Path, "/v1/") {
+	case "contexts/list":
+		out.Contexts, err = h.api.ListContexts(ctx, token, q.AfterID, q.Limit)
 	case "participants/list":
 		out.Participants, err = h.api.ListParticipants(ctx, token, q.ContextID, q.Limit)
 	case "principals/create":
@@ -502,3 +512,9 @@ func (c *Client) CompleteTask(x context.Context, t, id, k string, v int64) (comi
 }
 
 var _ comitia.API = (*Client)(nil)
+
+func (c *Client) ListContexts(ctx context.Context, token, afterID string, limit int) ([]comitia.WorkContext, error) {
+	var out response
+	err := c.call(ctx, token, "contexts/list", request{AfterID: afterID, Limit: limit}, &out)
+	return out.Contexts, err
+}

@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>Comitia · Conversation inspector</title>
+  <link rel="stylesheet" href="./style.css">
+  <script type="module" src="./app.js"></script>
+</head>
+<body>
+  <a class="skip" href="#conversation">Skip to conversation</a>
+  <header class="topbar">
+    <a class="brand" href="./" aria-label="Comitia home"><span class="brandmark" aria-hidden="true">C</span> comitia <span class="product">/ Inspector</span></a>
+    <div class="top-actions"><span class="readonly">Read only</span><button id="disconnect" class="quiet" hidden>Disconnect</button></div>
+  </header>
+  <section id="connect-panel" class="connect-panel">
+    <div><p class="eyebrow">CONVERSATION INSPECTOR</p><h1>Follow the work.<br>Inspect the conversation.</h1><p class="intro">Browse agent handoffs, findings, and decisions across your work contexts.</p></div>
+    <form id="connect-form" class="connect-form">
+      <h2>Connect to Comitia</h2>
+      <label for="credential">Session credential</label>
+      <input id="credential" type="password" placeholder="ct_…" required autocomplete="off" spellcheck="false">
+      <p class="hint">Use a session with read access. Your credential stays in this tab’s memory and is cleared on disconnect or reload.</p>
+      <button id="connect" class="primary" type="submit">Open inspector <span aria-hidden="true">→</span></button>
+      <p id="connect-error" class="error" role="alert"></p>
+    </form>
+  </section>
+  <div id="workspace" class="workspace" hidden>
+    <aside class="sidebar" aria-label="Work navigation">
+      <div class="section-heading"><h2>Work contexts</h2><button id="refresh-contexts" class="icon-button" title="Refresh contexts" aria-label="Refresh contexts">↻</button></div>
+      <nav id="contexts" aria-label="Contexts"></nav>
+      <button id="more-contexts" class="sidebar-button" hidden>Load more contexts</button>
+      <p id="contexts-note" class="sidebar-note" role="status"></p>
+      <div class="section-heading task-heading"><h2>Tasks</h2><span id="task-count" class="counter">0</span></div>
+      <div id="tasks"></div>
+      <p id="tasks-note" class="sidebar-note"></p>
+      <div class="sidebar-footer">Shared context log<br><span>Addressed messages are visible to every authorized reader in this context.</span></div>
+    </aside>
+    <main id="conversation" class="conversation" tabindex="-1">
+      <div class="conversation-heading"><div><p id="workspace-label" class="eyebrow">WORK CONTEXT</p><h1 id="context-title">Choose a context</h1><p id="context-meta" class="hint"></p></div><div class="live-controls"><span id="sync-status" role="status">Not connected</span><button id="pause" class="quiet">Pause</button></div></div>
+      <div class="view-bar"><div class="view-switch" role="group" aria-label="Conversation view"><button id="show-map" class="active" aria-pressed="true">Interaction map</button><button id="show-timeline" aria-pressed="false">Timeline</button></div><span id="route-summary" class="route-summary" role="status">All interactions</span></div>
+      <section id="interaction-panel" class="interaction-panel" aria-label="Agent interaction map"><div class="map-heading"><div><h2>Who’s talking to whom</h2><p id="map-summary">Choose a context to explore its interactions.</p></div><span class="map-key"><span aria-hidden="true">→</span> Directed messages</span></div><div id="interaction-map" class="interaction-map"></div><div class="map-footer"><span id="map-note">Select an agent or a connection to follow the exchange.</span><button id="clear-route" class="text-button" hidden>Clear focus</button></div><details class="connection-list"><summary>Browse connections</summary><div id="connections"></div><div class="connection-paging"><button id="previous-connections" class="text-button" hidden>Previous</button><span id="connection-page"></span><button id="next-connections" class="text-button" hidden>Next</button></div></details></section>
+      <div class="filters" aria-label="Conversation filters">
+        <label class="search-label" for="search"><span class="sr-only">Search loaded messages</span><input id="search" type="search" placeholder="Search loaded messages…"></label>
+        <label><span class="sr-only">Agent: sender or recipient</span><select id="agent-filter"><option value="">All agents</option></select></label>
+        <label><span class="sr-only">Message type</span><select id="type-filter"><option value="">All types</option></select></label>
+        <label><span class="sr-only">Task</span><select id="task-filter"><option value="">All tasks</option></select></label>
+      </div>
+      <div class="timeline-toolbar"><span id="message-count">0 messages loaded</span><button id="clear-filters" class="text-button">Clear filters</button><button id="clear-thread" class="text-button" hidden>Show entire conversation</button></div>
+      <p id="timeline-error" class="error" role="alert"></p>
+      <div id="messages" class="messages"></div>
+      <div class="timeline-footer"><div class="page-controls"><button id="older-matches" class="text-button" hidden>← Earlier matches</button><button id="newer-matches" class="text-button" hidden>Later matches →</button></div><button id="load-more" class="secondary" hidden>Load next messages</button><button id="next-window" class="secondary" hidden>Continue to next window</button><p id="history-note" class="hint">Filters apply to loaded messages. Browsing does not acknowledge agent messages.</p></div>
+    </main>
+    <aside class="inspector" aria-label="Message details"><div class="section-heading"><h2>Message details</h2><span class="eyebrow">INSPECT</span></div><div id="details" class="details"><div class="empty-details"><span class="detail-symbol" aria-hidden="true">↗</span><h3>Look a little closer</h3><p>Select a message to see its recipients, task, replies, and structured payload.</p></div></div></aside>
+  </div>
+</body>
+</html>
