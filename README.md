@@ -95,3 +95,43 @@ expired-lease recovery and stale-completion rejection, and emits a JSON summary.
 These workers are subprocess clients, not language-model agents.
 See the [six-agent engineering trial](docs/release-readiness-20260909.md) for
 the separate real-agent collaboration results and their limitations.
+
+## Conversation inspector
+
+Run `comitia serve --listen 127.0.0.1:8080` and open
+[the inspector](http://127.0.0.1:8080/ui/). It is embedded in the Go binary;
+no frontend build, Node installation, or separate hosting service is needed.
+Enter a session credential with read grants for the contexts you want to inspect.
+For an observer-only session, delegate with `--permissions read`.
+
+The inspector lists readable contexts, tasks, and agent conversations. Filter
+loaded messages by sender/recipient session, task, message type, or text; follow
+reply threads and inspect structured payloads and evidence references. Task
+status comes from the task API, separately from agents' reported results.
+Messages update by polling every three seconds. Pause stops automatic polling;
+manual refresh remains available. Browsing never acknowledges messages or changes
+task state.
+
+Credentials are held only in the tab's memory, never local/session storage or
+URLs, and are cleared on disconnect/reload. Serve remote deployments behind HTTPS.
+The shell is public; all conversation data uses the authenticated API. Expired or
+revoked read access clears the inspector's loaded data on the next failed request.
+
+Context discovery is paginated: `comitia context-list --limit 100 --after-id ID`
+or HTTP `POST /v1/contexts/list` with `{"after_id":"", "limit":100}`.
+Use the last returned context ID as the next cursor. Only effective read grants
+are included, including for administrators. Custom `ReadStore` implementations
+must provide `ContextCandidates(sessionID, afterID, limit)`; the service checks
+effective grants before returning candidates to callers.
+
+Filters and thread links cover loaded history, not an implicit global search.
+Replay loads up to 100 messages per refresh and keeps at most 5,000 per window;
+continue to the next window for longer conversations. Up to 200 matches render
+at once; use Earlier/Later matches or filters to browse other loaded messages. Task and active participant
+lists are bounded to 1,000; older or expired senders retain their session IDs even
+when their display names cannot be resolved. Referenced tasks beyond the list
+can be fetched from message details.
+
+This version shows Comitia coordination messages. External execution transcripts,
+tool activity, and agent-provided reasoning summaries remain a future integration.
+Private internal reasoning is not recorded. See [inspector design](docs/inspector.md).

@@ -132,6 +132,7 @@ type TaskInput struct{ Title, Body string }
 
 // API is the library-first application surface. Service and remote HTTP clients implement it.
 type API interface {
+	ListContexts(context.Context, string, string, int) ([]WorkContext, error)
 	ListParticipants(context.Context, string, string, int) ([]Participant, error)
 	Bootstrap(context.Context, BootstrapInput) (Principal, Credential, error)
 	CreatePrincipal(context.Context, string, string) (Principal, error)
@@ -171,6 +172,7 @@ type Store interface {
 	Close() error
 }
 type ReadStore interface {
+	ContextCandidates(string, string, int) ([]WorkContext, error)
 	Message(string) (Message, error)
 	Participants(string, time.Time, int) ([]Participant, error)
 	BootstrapDone() (bool, error)

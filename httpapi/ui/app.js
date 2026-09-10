@@ -1,0 +1,310 @@
+import {ConversationState, PAGE_SIZE, WINDOW_LIMIT, shortID, messageType, typeLabel, filterMessages} from './model.mjs';
+
+const $ = id => document.getElementById(id);
+const state = new ConversationState();
+const apiBase = new URL('../v1/', location.href);
+let token = '', connection = 0, controller = new AbortController(), timer;
+let contexts = [], contextsAfter = '', contextsBusy = false;
+let participants = [], tasks = [], selected = '', thread = '', paused = false, busy = false, windowStart = 0, displayStart = null;
+
+function node(tag, text, className) {
+  const element = document.createElement(tag);
+  if (text !== undefined) element.textContent = String(text);
+  if (className) element.className = className;
+  return element;
+}
+function button(text, action, className = 'text-button') {
+  const element = node('button', text, className);
+  element.type = 'button'; element.addEventListener('click', action);
+  return element;
+}
+function empty(target, title, description) {
+  const box = node('div', undefined, 'empty');
+  box.append(node('h3', title), node('p', description));
+  target.replaceChildren(box);
+}
+function date(value) {
+  const d = new Date(value);
+  return Number.isNaN(d.valueOf()) ? 'Unknown time' : d.toLocaleString(undefined, {month:'short', day:'numeric', hour:'2-digit', minute:'2-digit', second:'2-digit'});
+}
+function participantName(id) {
+  return participants.find(p => p.SessionID === id)?.Name || 'Session';
+}
+function agentLabel(id) { return `${participantName(id)} · ${shortID(id)}`; }
+function filters() { return {query:$('search').value, agent:$('agent-filter').value, type:$('type-filter').value, task:$('task-filter').value, thread}; }
+
+async function request(path, body, signal = controller.signal) {
+  const abort = new AbortController();
+  const cancel = () => abort.abort();
+  signal.addEventListener('abort', cancel, {once:true});
+  if (signal.aborted) cancel();
+  let timedOut = false;
+  const deadline = setTimeout(() => { timedOut = true; abort.abort(); }, 15000);
+  try {
+  const response = await fetch(new URL(path, apiBase), {
+    method:'POST', headers:{'Content-Type':'application/json', Authorization:`Bearer ${token}`},
+    body:JSON.stringify(body), signal:abort.signal, cache:'no-store', credentials:'omit', redirect:'error'
+  });
+  if (!response.ok) {
+    const error = new Error(response.status === 401 ? 'Session expired or invalid. Connect with a valid credential.' : response.status === 403 ? 'Read access is no longer available. Connect with an authorized credential.' : `Request failed (${response.status}). Retry to continue.`);
+    error.status = response.status; throw error;
+  }
+  try { return await response.json(); } catch { throw new Error('Invalid server response. Retry to continue.'); }
+  } catch (error) {
+    if (timedOut) throw new Error('Request timed out. Retry to continue.');
+    throw error;
+  } finally { clearTimeout(deadline); signal.removeEventListener('abort', cancel); }
+}
+function disconnect(message = '') {
+  connection++; controller.abort(); controller = new AbortController(); clearTimeout(timer);
+  token = ''; state.reset(); displayStart = null; contexts = []; contextsAfter = ''; contextsBusy = false;
+  participants = []; tasks = []; selected = ''; thread = ''; busy = false;
+  $('credential').value = ''; $('connect-error').textContent = message;
+  $('connect-panel').hidden = false; $('workspace').hidden = true; $('disconnect').hidden = true;
+  for (const id of ['messages', 'contexts', 'tasks', 'details']) $(id).replaceChildren();
+  $('search').value = ''; for (const id of ['agent-filter','type-filter','task-filter']) $(id).replaceChildren();
+  $('context-title').textContent = 'Choose a context'; $('context-meta').textContent = '';
+  for (const id of ['workspace-label','tasks-note','contexts-note','timeline-error','history-note']) $(id).textContent = '';
+  $('credential').focus();
+}
+function fail(error, generation, target = 'timeline-error') {
+  if (error.name === 'AbortError' || generation !== state.generation) return;
+  if (error.status === 401 || error.status === 403) { disconnect(error.message); return; }
+  $(target).textContent = error.message || 'Unable to load data. Retry to continue.';
+  $('sync-status').textContent = 'Connection interrupted';
+}
+function options(id, entries, placeholder) {
+  const select = $(id), current = select.value;
+  select.replaceChildren(new Option(placeholder, ''));
+  for (const [value, text] of entries) select.add(new Option(text, value));
+  if (current && !entries.some(([value]) => value === current)) select.add(new Option(shortID(current), current));
+  select.value = current;
+}
+function refreshFilters() {
+  const ids = new Set(participants.map(p => p.SessionID));
+  const taskIDs = new Map(tasks.map(t => [t.ID, t.Title]));
+  for (const message of state.messages) {
+    ids.add(message.SessionID);
+    for (const id of message.envelope?.recipient_session_ids || []) ids.add(id);
+    if (message.envelope?.task_id && !taskIDs.has(message.envelope.task_id)) taskIDs.set(message.envelope.task_id, `Task · ${shortID(message.envelope.task_id)}`);
+  }
+  options('agent-filter', [...ids].map(id => [id, agentLabel(id)]), 'All agents');
+  options('type-filter', [...new Set(state.messages.map(messageType))].sort().map(t => [t, typeLabel(t)]), 'All types');
+  options('task-filter', [...taskIDs], 'All tasks');
+}
+function renderContexts() {
+  $('contexts').replaceChildren(...contexts.map(context => {
+    const item = button(context.Name, () => openContext(context.ID), `context-item${context.ID === state.contextID ? ' active' : ''}`);
+    item.append(node('small', shortID(context.ID))); item.title = context.ID;
+    if (context.ID === state.contextID) item.setAttribute('aria-current', 'page');
+    return item;
+  }));
+}
+async function loadContexts(refresh = false) {
+  if (contextsBusy) return;
+  contextsBusy = true;
+  const conn = connection;
+  // Context discovery has its own request lifetime so changing the selected
+  // conversation does not cancel a sidebar page already being loaded.
+  const credential = token;
+  const discoveryController = new AbortController();
+  
+  try {
+    if (refresh) { contextsAfter = ''; }
+    const result = await request('contexts/list', {after_id:contextsAfter, limit:100}, discoveryController.signal);
+    if (conn !== connection || credential !== token) return;
+    const page = result.contexts || [];
+    if (!Array.isArray(page)) throw new Error('Invalid contexts response.');
+    const all = new Map((refresh ? [] : contexts).map(c => [c.ID, c]));
+    page.forEach(c => all.set(c.ID, c)); contexts = [...all.values()];
+    if (page.length) contextsAfter = page.at(-1).ID;
+    $('more-contexts').hidden = page.length < 100;
+    $('contexts-note').textContent = contexts.length ? `${contexts.length} contexts available${page.length === 100 ? ' · more available' : ''}` : 'No contexts with read access.';
+    renderContexts();
+    if (!state.contextID && contexts.length) await openContext(contexts[0].ID);
+    // A refresh can remove a revoked context. Hide it immediately; access is
+    // checked again for every metadata/replay request.
+    else if (refresh && !contexts.some(c => c.ID === state.contextID)) {
+      if (contexts.length) await openContext(contexts[0].ID);
+      else clearContext();
+    }
+  } catch (error) {
+    if (conn === connection) fail(error, state.generation, 'contexts-note');
+  } finally { if (conn === connection) contextsBusy = false; }
+}
+function clearContext() {
+  controller.abort(); controller = new AbortController(); clearTimeout(timer); state.reset();
+  participants = []; tasks = []; selected = ''; thread = ''; busy = false;
+  $('context-title').textContent = 'Choose a context'; $('context-meta').textContent = '';
+  $('workspace-label').textContent = 'WORK CONTEXT'; $('sync-status').textContent = 'No context selected';
+  $('load-more').hidden = true; $('next-window').hidden = true;
+  $('search').value = ''; for (const id of ['agent-filter','type-filter','task-filter']) $(id).value = '';
+  displayStart = null; windowStart = 0; refreshFilters();
+  renderTasks(); renderMessages(); renderDetails();
+}
+async function openContext(id, after = 0) {
+  controller.abort(); controller = new AbortController(); clearTimeout(timer);
+  const generation = state.reset(id, after); windowStart = after; displayStart = null;
+  participants = []; tasks = []; selected = ''; thread = ''; busy = false; paused = false;
+  $('pause').textContent = 'Pause'; $('timeline-error').textContent = '';
+  $('search').value = ''; for (const id of ['agent-filter','type-filter','task-filter']) $(id).value = '';
+  $('context-title').textContent = contexts.find(c => c.ID === id)?.Name || 'Loading context…';
+  $('context-meta').textContent = id; $('sync-status').textContent = 'Loading';
+  renderContexts(); refreshFilters(); renderTasks(); renderMessages(); renderDetails();
+  try {
+    const result = await request('contexts/get', {context_id:id});
+    if (generation !== state.generation) return;
+    $('context-title').textContent = result.context.Name;
+    $('workspace-label').textContent = `WORKSPACE ${shortID(result.context.WorkspaceID)}`;
+    await sync(generation);
+  } catch(error) { fail(error, generation); }
+}
+async function sync(generation = state.generation) {
+  if (!token || !state.contextID || busy || generation !== state.generation) return;
+  busy = true; $('load-more').disabled = true; clearTimeout(timer);
+  const cid = state.contextID;
+  try {
+    const room = WINDOW_LIMIT - state.messages.length;
+    const [messageResult, participantResult, taskResult] = await Promise.all([
+      room > 0 ? request('messages/replay', {context_id:cid, after:state.after, limit:Math.min(PAGE_SIZE,room)}) : Promise.resolve({messages:[]}),
+      request('participants/list', {context_id:cid, limit:1000}),
+      request('tasks/list', {context_id:cid, limit:1000})
+    ]);
+    if (generation !== state.generation) return;
+    const incoming = messageResult.messages || [];
+    state.append(generation, incoming);
+    participants = participantResult.participants || []; tasks = taskResult.tasks || [];
+    if (!Array.isArray(participants) || !Array.isArray(tasks)) throw new Error('Invalid metadata response.');
+    $('timeline-error').textContent = '';
+    $('sync-status').textContent = paused ? 'Paused' : `Updated ${new Date().toLocaleTimeString()}`;
+    $('load-more').hidden = state.messages.length >= WINDOW_LIMIT;
+    $('load-more').textContent = incoming.length === PAGE_SIZE ? 'Load next messages' : 'Refresh messages';
+    $('next-window').hidden = state.messages.length < WINDOW_LIMIT;
+    if (state.messages.length >= WINDOW_LIMIT) { paused = true; $('pause').textContent = 'Resume'; $('sync-status').textContent = 'Window full'; }
+    refreshFilters(); renderTasks(); renderMessages(); renderDetails();
+  } catch(error) { fail(error, generation); }
+  finally {
+    if (generation === state.generation) {
+      busy = false; $('load-more').disabled = false;
+      if (!paused && token) timer = setTimeout(() => sync(generation), 3000);
+    }
+  }
+}
+function renderTasks() {
+  $('task-count').textContent = tasks.length;
+  $('tasks-note').textContent = !tasks.length ? 'No tasks in this context.' : tasks.length === 1000 ? 'First 1,000 tasks. Other referenced tasks can be opened from messages.' : '';
+  $('tasks').replaceChildren(...tasks.map(task => {
+    const item = button('', () => { $('task-filter').value = task.ID; displayStart = null; renderTasks(); renderMessages(); }, `task-item${$('task-filter').value === task.ID ? ' active' : ''}`);
+    item.append(node('span', task.Status === 'completed' ? '✓' : task.Status === 'leased' ? '◷' : '□', `task-marker ${task.Status}`), node('span', task.Title));
+    return item;
+  }));
+}
+function clearFilters() {
+  $('search').value = ''; for (const id of ['agent-filter','type-filter','task-filter']) $(id).value = '';
+  thread = ''; displayStart = null; renderTasks(); renderMessages();
+}
+function selectMessage(id) {
+  selected = id; renderMessages(); renderDetails();
+}
+function jumpMessage(id) {
+  if (!state.messages.some(m => m.ID === id)) return;
+  clearFilters(); selected = id; displayStart = Math.floor(state.messages.findIndex(m => m.ID === id) / 200) * 200; renderMessages(); renderDetails();
+  const card = document.getElementById(`message-${id}`);
+  card?.scrollIntoView({block:'center', behavior:'smooth'});
+  card?.querySelector('button')?.focus({preventScroll:true});
+}
+function renderMessages() {
+  const filtered = filterMessages(state.messages, filters());
+  // Keep DOM work bounded while every loaded message remains searchable.
+  const start = Math.min(displayStart ?? Math.max(0, filtered.length - 200), Math.max(0, filtered.length - 1));
+  const visible = filtered.slice(start, start + 200);
+  $('older-matches').hidden = start === 0;
+  $('newer-matches').hidden = start + visible.length >= filtered.length;
+  $('message-count').textContent = `${filtered.length} matching · ${state.messages.length} loaded`;
+  $('clear-thread').hidden = !thread;
+  $('history-note').textContent = `Filters cover loaded messages after #${windowStart}. ${filtered.length > visible.length ? `Showing matches ${start + 1}–${start + visible.length} of ${filtered.length}. ` : ''}${state.messages.length >= WINDOW_LIMIT ? '5,000-message window reached. Continue to load the next window. ' : ''}Browsing never acknowledges agent messages.`;
+  if (!state.contextID) { empty($('messages'),'Choose a work context','Conversations you can read will appear here.'); return; }
+  if (!filtered.length) { empty($('messages'), state.messages.length ? 'No matching messages' : 'No messages loaded', state.messages.length ? 'Try another filter or load more of the conversation.' : 'New agent messages will appear here as they arrive.'); return; }
+  const byID = new Map(state.messages.map(m => [m.ID,m]));
+  $('messages').replaceChildren(...visible.map(message => {
+    const envelope = message.envelope || {}, type = messageType(message);
+    const card = node('article', undefined, `message-card${selected === message.ID ? ' selected' : ''}`); card.id = `message-${message.ID}`;
+    let depth = 0, ancestor = message, seen = new Set();
+    while (thread && ancestor.envelope?.reply_to && byID.has(ancestor.envelope.reply_to) && depth < 3 && !seen.has(ancestor.ID)) {seen.add(ancestor.ID);depth++;ancestor=byID.get(ancestor.envelope.reply_to);}
+    card.dataset.depth = depth;
+    const main = button('', () => selectMessage(message.ID), 'message-select'); main.setAttribute('aria-label', `Inspect message ${message.Sequence} from ${agentLabel(message.SessionID)}`);
+    const top = node('div', undefined, 'message-top');
+    top.append(node('span', participantName(message.SessionID).slice(0,2).toUpperCase(), 'avatar'));
+    const sender = node('span', participantName(message.SessionID), 'sender'); sender.append(node('span', ` · ${shortID(message.SessionID)}`, 'session-short'));
+    top.append(sender, node('span', typeLabel(type), `badge ${type.replace(/^comitia\./,'').replace(/\.v\d+$/,'')}`), node('span', date(message.CreatedAt), 'message-time'));
+    main.append(top, node('p', message.Body || envelope.payload?.summary || envelope.payload?.instructions || 'Structured message', 'message-body'));
+    main.append(node('p', envelope.recipient_session_ids?.length ? `To ${envelope.recipient_session_ids.map(agentLabel).join(', ')}` : 'To everyone in this context', 'message-routing'));
+    card.append(main);
+    const actions = node('div', undefined, 'message-actions');
+    if (envelope.reply_to) actions.append(byID.has(envelope.reply_to) ? button(`Reply to #${byID.get(envelope.reply_to).Sequence}`, () => jumpMessage(envelope.reply_to)) : node('span', `Reply to ${shortID(envelope.reply_to)} · outside loaded window`));
+    actions.append(button('View thread', () => { thread = message.ID; selected = message.ID; displayStart = 0; renderMessages(); renderDetails(); }));
+    if (envelope.task_id) actions.append(button(tasks.find(t => t.ID === envelope.task_id)?.Title || `Task ${shortID(envelope.task_id)}`, () => {$('task-filter').value = envelope.task_id;displayStart=null;renderTasks();renderMessages();}));
+    actions.append(node('span', `#${message.Sequence}`, 'sequence')); card.append(actions);
+    return card;
+  }));
+}
+function renderTaskDetail(target, task) {
+  target.append(node('h3','Related task'), node('p',task.Title), node('span', task.Status === 'leased' && new Date(task.LeaseExpiresAt) <= new Date() ? 'Lease expired' : task.Status, 'badge'));
+  if (task.Body) target.append(node('p',task.Body));
+  if (task.LeaseOwnerSessionID) target.append(node('p',`Owner: ${agentLabel(task.LeaseOwnerSessionID)}`, 'hint'));
+  if (task.LeaseExpiresAt) target.append(node('p',`Lease ends: ${date(task.LeaseExpiresAt)}`, 'hint'));
+}
+function renderDetails() {
+  const target = $('details'), message = state.messages.find(m => m.ID === selected);
+  if (!message) {target.replaceChildren(node('div', 'Select a message to inspect its recipients, task, replies, and structured payload.', 'empty-details'));return;}
+  const envelope = message.envelope || {};
+  target.replaceChildren(node('span', typeLabel(messageType(message)), 'badge'), node('h3', `Message #${message.Sequence}`), node('p',message.Body || 'Structured message'));
+  const dl = node('dl');
+  for (const [key,value] of [['Message ID',message.ID],['Sender',`${participantName(message.SessionID)}\n${message.SessionID}`],['Created',date(message.CreatedAt)],['Recipients',envelope.recipient_session_ids?.map(id=>`${participantName(id)} · ${id}`).join('\n') || 'Everyone in this context'],['Context',message.ContextID]]) dl.append(node('dt',key),node('dd',value));
+  target.append(dl);
+  if (envelope.task_id) {
+    const task = tasks.find(t=>t.ID === envelope.task_id);
+    if (task) renderTaskDetail(target,task);
+    else target.append(button(`Load task ${shortID(envelope.task_id)}`, async () => {
+      const generation = state.generation, id = selected;
+      try {const result = await request('tasks/get',{task_id:envelope.task_id});if(generation !== state.generation || selected !== id) return;if(result.task.ContextID !== state.contextID) throw new Error('Task does not belong to this context.');tasks.push(result.task);refreshFilters();renderDetails();}
+      catch(error){fail(error,generation);}
+    }));
+  }
+  const replies = state.messages.filter(m => m.envelope?.reply_to === message.ID);
+  target.append(node('h3',`Replies · ${replies.length} loaded`));
+  if (envelope.reply_to) target.append(state.messages.some(m=>m.ID === envelope.reply_to) ? button('Open parent message',()=>jumpMessage(envelope.reply_to)) : node('p',`Parent ${envelope.reply_to} is outside the loaded window.`, 'hint'));
+  replies.forEach(reply=>target.append(button(`#${reply.Sequence} · ${agentLabel(reply.SessionID)}`,()=>jumpMessage(reply.ID))));
+  if (envelope.schema) {
+    target.append(node('h3','Structured payload'),node('pre',JSON.stringify(envelope,null,2)),node('p','Reported claims and evidence references are supplied by agents. They do not certify a result or change task status.', 'hint'));
+    const refs = [envelope.payload?.artifact_refs, envelope.payload?.evidence_refs].flatMap(value => Array.isArray(value) ? value : []);
+    if (refs.length) target.append(node('h3','References'));
+    for (const ref of refs) {
+      if (typeof ref !== 'string') continue;
+      let url; try {url = new URL(ref);} catch {}
+      if (url && ['https:','http:'].includes(url.protocol) && !url.username && !url.password) {const a = node('a',ref,'reference');a.href=url.href;a.target='_blank';a.rel='noopener noreferrer';target.append(a);}
+      else target.append(node('span',ref,'reference'));
+    }
+  } else target.append(node('p','Plain-text message · no structured envelope.', 'hint'));
+}
+$('connect-form').addEventListener('submit', async event => {
+  event.preventDefault(); const value = $('credential').value.trim(); if (!value) return;
+  disconnect(); token = value; connection++; const conn = connection;
+  $('connect').disabled = true; $('connect-error').textContent = '';
+  $('workspace').hidden = false; $('connect-panel').hidden = true; $('disconnect').hidden = false;
+  clearContext(); await loadContexts(true);
+  if (conn === connection && !contexts.length) renderMessages();
+  $('connect').disabled = false;
+});
+$('disconnect').addEventListener('click',()=>disconnect());
+$('refresh-contexts').addEventListener('click',()=>loadContexts(true));
+$('more-contexts').addEventListener('click',()=>loadContexts());
+$('pause').addEventListener('click',()=>{paused=!paused;$('pause').textContent=paused?'Resume':'Pause';$('sync-status').textContent=paused?'Paused':'Updating';if(paused)clearTimeout(timer);else sync();});
+$('load-more').addEventListener('click',()=>sync());
+$('next-window').addEventListener('click',()=>openContext(state.contextID,state.after));
+$('clear-filters').addEventListener('click',clearFilters);
+$('clear-thread').addEventListener('click',()=>{thread='';displayStart=null;renderMessages();});
+$('older-matches').addEventListener('click',()=>{const count=filterMessages(state.messages,filters()).length;displayStart=Math.max(0,(displayStart ?? Math.max(0,count-200))-200);renderMessages();});
+$('newer-matches').addEventListener('click',()=>{const count=filterMessages(state.messages,filters()).length;displayStart=Math.min(Math.max(0,count-200),(displayStart ?? 0)+200);renderMessages();});
+for (const id of ['search','agent-filter','type-filter','task-filter']) $(id).addEventListener(id === 'search' ? 'input' : 'change',()=>{displayStart=null;renderTasks();renderMessages();});
+window.addEventListener('pagehide',()=>disconnect());

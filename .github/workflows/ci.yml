@@ -18,7 +18,14 @@ jobs:
           go-version-file: go.mod
           cache: true
       - name: Go formatting check
-        run: test -z "$(gofmt -l .)"
+        run: |
+          gofmt -d .
+          test -z "$(gofmt -l .)"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Inspector state tests
+        run: node --test httpapi/ui-tests/*.test.mjs
       - run: go vet ./...
       - run: go test -race ./...
 
