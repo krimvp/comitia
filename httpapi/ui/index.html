@@ -54,7 +54,7 @@
         <div class="sequence-navigation"><button id="sequence-earlier" class="text-button">← Earlier time</button><span id="sequence-range"></span><button id="sequence-later" class="text-button">Later time →</button></div>
         <div id="sequence-canvas" class="sequence-canvas" tabindex="0" aria-label="Scrollable message flow diagram"></div>
         <div class="sequence-navigation"><button id="sequence-previous-lanes" class="text-button">Previous agents</button><span id="sequence-lanes"></span><button id="sequence-next-lanes" class="text-button">Next agents</button></div>
-        <p class="sequence-legend">Left → right follows the selected spacing. Event order uses log sequence numbers; equal numbers are recipients of the same message. Send time uses elapsed time. Read status is unknown.</p>
+        <p class="sequence-legend">Each circle is an agent occurrence. Thick arrows connect sender → addressed recipient. Left → right follows event order (or send time). Recipient circles are offset for readability, not receipt time. Read status is unknown.</p>
         <details class="sequence-route-list"><summary>Inspect individual routes · including overlapping arrows</summary><div id="sequence-routes" class="sequence-routes"></div></details>
         <div class="sequence-navigation"><button id="sequence-previous-arrows" class="text-button">Previous routes</button><span id="sequence-arrow-count"></span><button id="sequence-next-arrows" class="text-button">Next routes</button></div>
         <p id="sequence-note" class="sequence-legend"></p>

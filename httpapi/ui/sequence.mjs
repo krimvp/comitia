@@ -54,10 +54,16 @@ function svg(tag, attributes = {}, text) {
   if (text !== undefined) element.textContent = String(text);
   return element;
 }
+// Recipient occurrence is offset for readability, not a recorded receipt time.
+export function occurrenceLink(x, y1, y2) {
+  const targetX=x+64, radius=18;
+  const length=Math.hypot(targetX-x,y2-y1), dx=(targetX-x)/length, dy=(y2-y1)/length;
+  return {targetX,radius,d:`M ${x+dx*radius} ${y1+dy*radius} L ${targetX-dx*radius} ${y2-dy*radius}`};
+}
 export function renderSequence(container, layout, {selected = '', messages = [], onSelect} = {}) {
   const ordered = layout.spacing === 'order';
-  const width = Math.max(680,container.clientWidth || 920,ordered ? 220+Math.max(0,layout.routes.length-1)*76 : 0), left = 165, right = width-55, top = 75, gap = 65;
-  const routeX = new Map(layout.routes.map((route,i)=>[route,ordered ? left+i*76 : left+route.position*(right-left)]));
+  const width = Math.max(680,container.clientWidth || 920,ordered ? 290+Math.max(0,layout.routes.length-1)*140 : 0), left = 165, right = width-110, top = 90, gap = 88;
+  const routeX = new Map(layout.routes.map((route,i)=>[route,ordered ? left+i*140 : left+route.position*(right-left)]));
   const positions = new Map(layout.visible.map((lane,i) => [lane.id,top+i*gap]));
   const outsideY = top+layout.visible.length*gap;
   const hasOutside = layout.routes.some(route => !positions.has(route.source) || !positions.has(route.target));
@@ -93,12 +99,17 @@ export function renderSequence(container, layout, {selected = '', messages = [],
   const routes=[...layout.routes].sort((a,b)=>Number(a.message.ID===selected)-Number(b.message.ID===selected));
   for (const route of routes) {
     const x=routeX.get(route),y1=positions.get(route.source)??outsideY,y2=positions.get(route.target)??outsideY;
-    const self=route.source===route.target;
-    const d=self?`M ${x} ${y1} C ${x+30} ${y1-30} ${x+30} ${y1+30} ${x} ${y1}`:`M ${x} ${y1} L ${x} ${y2}`;
+    const {targetX,radius,d}=occurrenceLink(x,y1,y2);
     const isSelected=route.message.ID===selected;
     const routeID=`sequence-route-${encodeURIComponent(route.message.ID)}-${encodeURIComponent(route.target)}`;
     const group=svg('g',{id:routeID,'class':`sequence-message${isSelected?' selected':related.has(route.message.ID)?' related':''}`,role:'button',tabindex:0,'aria-pressed':String(isSelected),'aria-label':`Message ${route.message.Sequence}, ${route.source} to ${route.target===BROADCAST?'Everyone':route.target}, sent ${timeLabel(route.time)}`});
-    group.append(svg('title',{},`#${route.message.Sequence} · ${route.source} → ${route.target}\n${route.message.Body || 'Structured message'}\nSent ${new Date(route.time).toISOString()} · Read status unknown`),svg('path',{d,'class':'sequence-hit'}),svg('path',{d,'class':'sequence-arrow','marker-end':'url(#sequence-arrow)'}),svg('circle',{cx:x,cy:y1,r:3,'class':'sequence-origin'}));
+    group.append(svg('title',{},`#${route.message.Sequence} · ${route.source} → ${route.target}\n${route.message.Body || 'Structured message'}\nSent ${new Date(route.time).toISOString()} · Read status unknown`),svg('path',{d,'class':'sequence-hit'}),svg('path',{d,'class':'sequence-arrow','marker-end':'url(#sequence-arrow)'}));
+    for(const [id,cx,cy,role] of [[route.source,x,y1,'Sender'],[route.target,targetX,y2,'Recipient']]) {
+      const name=layout.lanes.find(lane=>lane.id===id)?.name || 'Session';
+      const circle=svg('circle',{cx,cy,r:radius,fill:agentColor(id),'class':'sequence-occurrence'});
+      circle.append(svg('title',{},`${role}: ${name} · ${id}`));
+      group.append(circle,svg('text',{x:cx,y:cy+4,'text-anchor':'middle','class':'sequence-occurrence-label','aria-hidden':'true'},id===BROADCAST?'All':name.slice(0,2).toUpperCase()));
+    }
     if(isSelected)group.append(svg('text',{x:x+8,y:(y1+y2)/2-7,'class':'sequence-selected-label'},`#${route.message.Sequence}`));
     const select=()=>{onSelect?.(route.message.ID);document.getElementById(routeID)?.focus({preventScroll:true});};
     group.addEventListener('click',select);

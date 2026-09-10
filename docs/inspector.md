@@ -37,6 +37,9 @@ refreshed alongside messages, including when no new messages arrive.
 ## Agent timeline
 
 Event order is the default spacing: each addressed route has its own column,
+with large sender and recipient occurrence circles linked by a thick direct
+arrow. Agents repeat for each exchange; recipient circles are offset to the
+right solely for readability, not to represent a receipt timestamp.
 labelled with the message's log sequence number and send time. Distinct events
 remain separated even when timestamps coincide. Multiple recipients repeat the
 same sequence number. Horizontal distance in this mode is not elapsed time;

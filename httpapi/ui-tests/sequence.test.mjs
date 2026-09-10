@@ -1,9 +1,21 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {sequenceLayout, LANE_LIMIT, ARROW_LIMIT} from '../ui/sequence.mjs';
+import {sequenceLayout, occurrenceLink, LANE_LIMIT, ARROW_LIMIT} from '../ui/sequence.mjs';
 import {BROADCAST} from '../ui/model.mjs';
 
 const message=(sequence,source,targets,time=sequence*1000)=>({ID:`m${sequence}`,Sequence:sequence,SessionID:source,CreatedAt:new Date(time).toISOString(),envelope:{recipient_session_ids:targets}});
+
+test('occurrence links run left to right and end at circle boundaries, including self messages',()=>{
+  for(const targetY of [0,88,176]) {
+    const link=occurrenceLink(200,88,targetY);
+    assert.equal(link.targetX,264);
+    assert.equal(link.radius,18);
+    const points=link.d.match(/-?\d+(?:\.\d+)?/g).map(Number);
+    assert.ok(points[2]>points[0]);
+    assert.ok(Math.abs(Math.hypot(points[0]-200,points[1]-88)-18)<1e-8);
+    assert.ok(Math.abs(Math.hypot(points[2]-264,points[3]-targetY)-18)<1e-8);
+  }
+});
 
 test('event order follows log sequence despite tied or reversed send timestamps',()=>{
   const messages=[message(3,'a',['b'],1000),message(1,'a',['b','c'],2000),message(2,'b',['a'],1000)];
