@@ -52,12 +52,24 @@ test('inspector controller uses only read endpoints, rejects stale contexts and 
     assert.equal(elements.get('connect-panel').hidden,true);
     assert.match(text(elements.get('messages')),/<img src=x onerror=bad\(\)>/);
     assert.equal(elements.get('context-title').textContent,'Context A');
+    assert.equal(elements.get('sequence-panel').hidden,false);
+    assert.equal(elements.get('interaction-panel').hidden,true);
+    assert.equal(elements.get('messages').hidden,true);
+    assert.match(text(elements.get('sequence-routes')),/Everyone/);
+    await elements.get('sequence-routes').children[0].fire('click');
+    assert.match(text(elements.get('details')),/Read status is unknown/);
+    assert.match(text(elements.get('details')),/<img src=x onerror=bad\(\)>/);
+    await elements.get('show-timeline').fire('click');
+    assert.equal(elements.get('messages').hidden,false);
+    assert.equal(elements.get('sequence-panel').hidden,true);
+    await elements.get('show-sequence').fire('click');
     const pending=elements.get('load-more').fire('click');await settle();assert.ok(delayed);
     const switchContext=elements.get('contexts').children[1].fire('click');await switchContext;
     assert.equal(elements.get('context-title').textContent,'Context B');
     delayed();await pending;
     assert.match(text(elements.get('messages')),/Current B message/);
     assert.doesNotMatch(text(elements.get('messages')),/stale A result/);
+    assert.doesNotMatch(text(elements.get('sequence-routes')),/stale A result/);
     assert.ok(calls.every(c=>['/v1/contexts/list','/v1/contexts/get','/v1/messages/replay','/v1/participants/list','/v1/tasks/list'].includes(c.path)));
     assert.equal(calls.find(c=>c.path.endsWith('/messages/replay')&&c.body.context_id==='b').body.after,0);
     expired=true;await elements.get('load-more').fire('click');
@@ -65,6 +77,7 @@ test('inspector controller uses only read endpoints, rejects stale contexts and 
     assert.equal(elements.get('connect-panel').hidden,false);
     assert.equal(elements.get('messages').children.length,0);
     assert.equal(elements.get('details').children.length,0);
+    for(const id of ['interaction-map','connections','sequence-canvas','sequence-routes'])assert.equal(elements.get(id).children.length,0,id);
     assert.match(elements.get('connect-error').textContent,/Read access/);
     assert.equal(timers.size,0);
   } finally {Object.assign(globalThis,saved);}

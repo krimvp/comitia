@@ -1,5 +1,6 @@
 import {ConversationState, PAGE_SIZE, WINDOW_LIMIT, shortID, messageType, typeLabel, filterMessages, interactionGraph, BROADCAST} from './model.mjs';
 import {renderInteractionMap} from './graph.mjs';
+import {sequenceLayout, renderSequence, LANE_LIMIT, ARROW_LIMIT, timeLabel} from './sequence.mjs';
 
 const $ = id => document.getElementById(id);
 const state = new ConversationState();
@@ -7,6 +8,7 @@ const apiBase = new URL('../v1/', location.href);
 let token = '', connection = 0, controller = new AbortController(), timer;
 let contexts = [], contextsAfter = '', contextsBusy = false;
 let participants = [], tasks = [], selected = '', thread = '', paused = false, busy = false, windowStart = 0, displayStart = null, route = null, connectionPage = 0;
+let view = 'sequence', sequenceOptions = {}, sequenceFilterKey = '', sequenceCurrent;
 
 function node(tag, text, className) {
   const element = document.createElement(tag);
@@ -62,7 +64,9 @@ function disconnect(message = '') {
   participants = []; tasks = []; selected = ''; thread = ''; route = null; connectionPage = 0; busy = false;
   $('credential').value = ''; $('connect-error').textContent = message;
   $('connect-panel').hidden = false; $('workspace').hidden = true; $('disconnect').hidden = true;
-  for (const id of ['messages', 'contexts', 'tasks', 'details']) $(id).replaceChildren();
+  for (const id of ['messages', 'contexts', 'tasks', 'details', 'interaction-map', 'connections', 'sequence-canvas', 'sequence-routes']) $(id).replaceChildren();
+  sequenceOptions = {}; sequenceCurrent = null; sequenceFilterKey = '';
+  for (const id of ['sequence-summary','sequence-range','sequence-lanes','sequence-arrow-count','sequence-note','route-summary','map-summary','map-note','connection-page']) $(id).textContent = '';
   $('search').value = ''; for (const id of ['agent-filter','type-filter','task-filter']) $(id).replaceChildren();
   $('context-title').textContent = 'Choose a context'; $('context-meta').textContent = '';
   for (const id of ['workspace-label','tasks-note','contexts-note','timeline-error','history-note']) $(id).textContent = '';
@@ -134,6 +138,7 @@ async function loadContexts(refresh = false) {
   } finally { if (conn === connection) contextsBusy = false; }
 }
 function clearContext() {
+  sequenceOptions = {}; sequenceFilterKey = '';
   controller.abort(); controller = new AbortController(); clearTimeout(timer); state.reset();
   participants = []; tasks = []; selected = ''; thread = ''; route = null; connectionPage = 0; busy = false;
   $('context-title').textContent = 'Choose a context'; $('context-meta').textContent = '';
@@ -144,6 +149,7 @@ function clearContext() {
   renderTasks(); renderMessages(); renderDetails();
 }
 async function openContext(id, after = 0) {
+  sequenceOptions = {}; sequenceFilterKey = '';
   controller.abort(); controller = new AbortController(); clearTimeout(timer);
   const generation = state.reset(id, after); windowStart = after; displayStart = null;
   participants = []; tasks = []; selected = ''; thread = ''; route = null; connectionPage = 0; busy = false; paused = false;
@@ -238,7 +244,7 @@ function selectMessage(id) {
 }
 function jumpMessage(id) {
   if (!state.messages.some(m => m.ID === id)) return;
-  clearFilters(); selected = id; displayStart = Math.floor(state.messages.findIndex(m => m.ID === id) / 200) * 200; renderMessages(); renderDetails();
+  clearFilters(); selected = id; sequenceOptions.seekMessage=id; displayStart = Math.floor(state.messages.findIndex(m => m.ID === id) / 200) * 200; renderMessages(); renderDetails();
   const card = document.getElementById(`message-${id}`);
   card?.scrollIntoView({block:'center', behavior:'smooth'});
   card?.querySelector('button')?.focus({preventScroll:true});
@@ -246,11 +252,12 @@ function jumpMessage(id) {
 function renderMessages() {
   renderMap();
   const filtered = filterMessages(state.messages, filters());
+  renderFlow(filtered);
   // Keep DOM work bounded while every loaded message remains searchable.
   const start = Math.min(displayStart ?? Math.max(0, filtered.length - 200), Math.max(0, filtered.length - 1));
   const visible = filtered.slice(start, start + 200);
-  $('older-matches').hidden = start === 0;
-  $('newer-matches').hidden = start + visible.length >= filtered.length;
+  $('older-matches').hidden = view==='sequence' || start === 0;
+  $('newer-matches').hidden = view==='sequence' || start + visible.length >= filtered.length;
   $('message-count').textContent = `${filtered.length} matching · ${state.messages.length} loaded`;
   $('clear-thread').hidden = !thread;
   $('history-note').textContent = `Filters cover loaded messages after #${windowStart}. ${filtered.length > visible.length ? `Showing matches ${start + 1}–${start + visible.length} of ${filtered.length}. ` : ''}${state.messages.length >= WINDOW_LIMIT ? '5,000-message window reached. Continue to load the next window. ' : ''}Browsing never acknowledges agent messages.`;
@@ -293,6 +300,7 @@ function renderDetails() {
   const dl = node('dl');
   for (const [key,value] of [['Message ID',message.ID],['Sender',`${participantName(message.SessionID)}\n${message.SessionID}`],['Created',date(message.CreatedAt)],['Recipients',envelope.recipient_session_ids?.map(id=>`${participantName(id)} · ${id}`).join('\n') || 'Everyone in this context'],['Context',message.ContextID]]) dl.append(node('dt',key),node('dd',value));
   target.append(dl);
+  target.append(node('p','Addressed recipients are shown above. Read status is unknown; browsing this inspector does not acknowledge messages.', 'hint'));
   if (envelope.task_id) {
     const task = tasks.find(t=>t.ID === envelope.task_id);
     if (task) renderTaskDetail(target,task);
@@ -340,15 +348,55 @@ $('newer-matches').addEventListener('click',()=>{const count=filterMessages(stat
 for (const id of ['search','agent-filter','type-filter','task-filter']) $(id).addEventListener(id === 'search' ? 'input' : 'change',()=>{route=null;displayStart=null;renderTasks();renderMessages();});
 window.addEventListener('pagehide',()=>disconnect());
 
-$('show-map').addEventListener('click',()=>setMapVisible(true));
-$('show-timeline').addEventListener('click',()=>setMapVisible(false));
+$('show-map').addEventListener('click',()=>setView('map'));
+$('show-timeline').addEventListener('click',()=>setView('timeline'));
+$('show-sequence').addEventListener('click',()=>setView('sequence'));
 $('clear-route').addEventListener('click',()=>{route=null;$('agent-filter').value='';displayStart=null;renderMessages();});
-function setMapVisible(visible) {
-  $('interaction-panel').hidden=!visible;
-  $('show-map').className=visible?'active':'';$('show-timeline').className=visible?'':'active';
-  $('show-map').setAttribute('aria-pressed',String(visible));$('show-timeline').setAttribute('aria-pressed',String(!visible));
-  if(visible)renderMap();
+function setView(next) {
+  view=next;
+  $('interaction-panel').hidden=view!=='map';
+  $('sequence-panel').hidden=view!=='sequence';
+  $('messages').hidden=view==='sequence';
+  for(const name of ['map','timeline','sequence']) {
+    $(`show-${name}`).className=view===name?'active':'';
+    $(`show-${name}`).setAttribute('aria-pressed',String(view===name));
+  }
+  renderMessages();
 }
 
 $('previous-connections').addEventListener('click',()=>{connectionPage=Math.max(0,connectionPage-1);renderMap();});
 $('next-connections').addEventListener('click',()=>{connectionPage++;renderMap();});
+
+function renderFlow(filtered) {
+  const key=JSON.stringify([state.contextID,windowStart,filters()]);
+  if(key!==sequenceFilterKey) {sequenceOptions={};sequenceFilterKey=key;}
+  sequenceCurrent=sequenceLayout(filtered,participants,{...sequenceOptions,span:Number($('sequence-span').value),spacing:$('sequence-spacing').value || 'order'});
+  sequenceOptions={...sequenceOptions,lanePage:sequenceCurrent.lanePage,arrowPage:sequenceCurrent.arrowPage,start:sequenceCurrent.from,seekMessage:''};
+  const flow=sequenceCurrent;
+  renderSequence($('sequence-canvas'),flow,{selected,messages:state.messages,onSelect:selectMessage});
+  $('sequence-summary').textContent=`${flow.lanes.filter(l=>l.id!==BROADCAST).length} agents · ${flow.inRange} messages in time range · ${filtered.length} matching loaded messages`;
+  $('sequence-range').textContent=flow.inRange?`${date(flow.from)} – ${date(flow.to)}`:'No messages in time range';
+  $('sequence-earlier').disabled=!Number($('sequence-span').value)||flow.from<=flow.min;
+  $('sequence-later').disabled=!Number($('sequence-span').value)||flow.to>=flow.max;
+  $('sequence-lanes').textContent=flow.lanes.length?`Lanes ${flow.lanePage*LANE_LIMIT+1}–${flow.lanePage*LANE_LIMIT+flow.visible.length} of ${flow.lanes.length}`:'No agent lanes';
+  $('sequence-previous-lanes').disabled=flow.lanePage===0;
+  $('sequence-next-lanes').disabled=(flow.lanePage+1)*LANE_LIMIT>=flow.lanes.length;
+  const routeName=id=>id===BROADCAST?'Everyone':agentLabel(id);
+  $('sequence-routes').replaceChildren(...flow.routes.map(item=>{
+    const control=button('',()=>selectMessage(item.message.ID),'sequence-route');
+    control.setAttribute('aria-pressed',String(selected===item.message.ID));
+    control.append(node('span',`#${item.message.Sequence} · ${timeLabel(item.time)}`,'sequence-route-time'),node('span',`${routeName(item.source)} → ${routeName(item.target)}`),node('span',item.message.Body || 'Structured message','sequence-route-preview'));
+    return control;
+  }));
+  $('sequence-arrow-count').textContent=flow.routeCount?`Routes ${flow.arrowPage*ARROW_LIMIT+1}–${flow.arrowPage*ARROW_LIMIT+flow.routes.length} of ${flow.routeCount}`:'No routes on these lanes';
+  $('sequence-previous-arrows').disabled=flow.arrowPage===0;
+  $('sequence-next-arrows').disabled=(flow.arrowPage+1)*ARROW_LIMIT>=flow.routeCount;
+  $('sequence-note').textContent=`Only the loaded message window is shown. Other lane pages may contain more messages. ${flow.routeCount>ARROW_LIMIT?'Use route pages to see all arrows on these lanes. ':''}${flow.unknownTimes?`${flow.unknownTimes} messages have no valid timestamp; open Message list to inspect them. `:''}Coincident arrows are individually selectable in the route list. Selected messages and their loaded reply thread are highlighted.`;
+}
+$('sequence-span').addEventListener('change',()=>{sequenceOptions.start=null;sequenceOptions.arrowPage=0;renderMessages();});
+$('sequence-spacing').addEventListener('change',()=>{sequenceOptions.arrowPage=0;renderMessages();});
+for(const [id,change] of [['sequence-earlier',-1],['sequence-later',1]]) $(id).addEventListener('click',()=>{if(!sequenceCurrent)return;sequenceOptions.start=sequenceCurrent.from+change*Number($('sequence-span').value);sequenceOptions.arrowPage=0;renderMessages();});
+for(const [id,change] of [['sequence-previous-lanes',-1],['sequence-next-lanes',1]]) $(id).addEventListener('click',()=>{sequenceOptions.lanePage=(sequenceOptions.lanePage||0)+change;sequenceOptions.arrowPage=0;renderMessages();});
+for(const [id,change] of [['sequence-previous-arrows',-1],['sequence-next-arrows',1]]) $(id).addEventListener('click',()=>{sequenceOptions.arrowPage=(sequenceOptions.arrowPage||0)+change;renderMessages();});
+setView('sequence');
+window.addEventListener('resize',()=>{if(view==='sequence'&&state.contextID)renderFlow(filterMessages(state.messages,filters()));});

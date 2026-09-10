@@ -34,6 +34,26 @@ state. Automatic polling is bounded to 100 messages per tick; memory and DOM
 windows are explicitly limited and described in the interface. Metadata is
 refreshed alongside messages, including when no new messages arrive.
 
+## Agent timeline
+
+Event order is the default spacing: each addressed route has its own column,
+labelled with the message's log sequence number and send time. Distinct events
+remain separated even when timestamps coincide. Multiple recipients repeat the
+same sequence number. Horizontal distance in this mode is not elapsed time;
+choose Send time for proportional timestamp spacing.
+
+The agent timeline shows addressed messages on session lanes against send time.
+Arrows identify intended recipients, not delivery latency or proof of reading.
+Broadcasts have an explicit shared destination; they are not expanded into
+invented individual readers. Selecting a message opens its existing details and
+reply navigation. Task, agent, type and text filters help isolate conversations.
+
+The timeline operates on the loaded replay window, not the entire database.
+Bounded diagram pages keep dense conversations navigable; use the message list
+and recipient details when an exchange extends beyond the visible lanes.
+Server-side time-range aggregation and recorded read receipts remain future
+work. Inspecting an arrow never advances an agent's acknowledgement cursor.
+
 ## Future execution view
 
 Keep imported execution events separate from the authoritative coordination log.

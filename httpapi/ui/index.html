@@ -38,7 +38,7 @@
     </aside>
     <main id="conversation" class="conversation" tabindex="-1">
       <div class="conversation-heading"><div><p id="workspace-label" class="eyebrow">WORK CONTEXT</p><h1 id="context-title">Choose a context</h1><p id="context-meta" class="hint"></p></div><div class="live-controls"><span id="sync-status" role="status">Not connected</span><button id="pause" class="quiet">Pause</button></div></div>
-      <div class="view-bar"><div class="view-switch" role="group" aria-label="Conversation view"><button id="show-map" class="active" aria-pressed="true">Interaction map</button><button id="show-timeline" aria-pressed="false">Timeline</button></div><span id="route-summary" class="route-summary" role="status">All interactions</span></div>
+      <div class="view-bar"><div class="view-switch" role="group" aria-label="Conversation view"><button id="show-sequence" class="active" aria-pressed="true">Message flow</button><button id="show-map" aria-pressed="false">Interaction map</button><button id="show-timeline" aria-pressed="false">Message list</button></div><span id="route-summary" class="route-summary" role="status">All interactions</span></div>
       <section id="interaction-panel" class="interaction-panel" aria-label="Agent interaction map"><div class="map-heading"><div><h2>Who’s talking to whom</h2><p id="map-summary">Choose a context to explore its interactions.</p></div><span class="map-key"><span aria-hidden="true">→</span> Directed messages</span></div><div id="interaction-map" class="interaction-map"></div><div class="map-footer"><span id="map-note">Select an agent or a connection to follow the exchange.</span><button id="clear-route" class="text-button" hidden>Clear focus</button></div><details class="connection-list"><summary>Browse connections</summary><div id="connections"></div><div class="connection-paging"><button id="previous-connections" class="text-button" hidden>Previous</button><span id="connection-page"></span><button id="next-connections" class="text-button" hidden>Next</button></div></details></section>
       <div class="filters" aria-label="Conversation filters">
         <label class="search-label" for="search"><span class="sr-only">Search loaded messages</span><input id="search" type="search" placeholder="Search loaded messages…"></label>
@@ -48,6 +48,17 @@
       </div>
       <div class="timeline-toolbar"><span id="message-count">0 messages loaded</span><button id="clear-filters" class="text-button">Clear filters</button><button id="clear-thread" class="text-button" hidden>Show entire conversation</button></div>
       <p id="timeline-error" class="error" role="alert"></p>
+      <section id="sequence-panel" class="sequence-panel" aria-label="Agent messages over time">
+        <label class="sequence-spacing">Spacing <select id="sequence-spacing"><option value="order">Event order · evenly spaced</option><option value="time">Send time · proportional</option></select></label>
+        <div class="sequence-heading"><div><h2>Messages over time</h2><p id="sequence-summary" class="hint"></p></div><label class="sequence-zoom">Time range<select id="sequence-span"><option value="0">Loaded range</option><option value="60000">1 minute</option><option value="300000">5 minutes</option><option value="3600000">1 hour</option></select></label></div>
+        <div class="sequence-navigation"><button id="sequence-earlier" class="text-button">← Earlier time</button><span id="sequence-range"></span><button id="sequence-later" class="text-button">Later time →</button></div>
+        <div id="sequence-canvas" class="sequence-canvas" tabindex="0" aria-label="Scrollable message flow diagram"></div>
+        <div class="sequence-navigation"><button id="sequence-previous-lanes" class="text-button">Previous agents</button><span id="sequence-lanes"></span><button id="sequence-next-lanes" class="text-button">Next agents</button></div>
+        <p class="sequence-legend">Left → right follows the selected spacing. Event order uses log sequence numbers; equal numbers are recipients of the same message. Send time uses elapsed time. Read status is unknown.</p>
+        <details class="sequence-route-list"><summary>Inspect individual routes · including overlapping arrows</summary><div id="sequence-routes" class="sequence-routes"></div></details>
+        <div class="sequence-navigation"><button id="sequence-previous-arrows" class="text-button">Previous routes</button><span id="sequence-arrow-count"></span><button id="sequence-next-arrows" class="text-button">Next routes</button></div>
+        <p id="sequence-note" class="sequence-legend"></p>
+      </section>
       <div id="messages" class="messages"></div>
       <div class="timeline-footer"><div class="page-controls"><button id="older-matches" class="text-button" hidden>← Earlier matches</button><button id="newer-matches" class="text-button" hidden>Later matches →</button></div><button id="load-more" class="secondary" hidden>Load next messages</button><button id="next-window" class="secondary" hidden>Continue to next window</button><p id="history-note" class="hint">Filters apply to loaded messages. Browsing does not acknowledge agent messages.</p></div>
     </main>
