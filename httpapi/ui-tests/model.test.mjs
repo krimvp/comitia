@@ -34,3 +34,23 @@ test('invalid page is atomic and cannot corrupt a replay cursor',()=>{
   assert.throws(()=>state.append(generation,[message('valid',2),message('bad',NaN)]));
   assert.equal(state.after,1);assert.equal(state.messages.length,1);
 });
+
+test('interaction graph preserves direction, broadcasts, duplicate names and multi-recipient counts',async()=>{
+  const {interactionGraph,BROADCAST}=await import('../ui/model.mjs');
+  const messages=[
+    {...message('a1',1,{recipient_session_ids:['b','c']}),SessionID:'a'},
+    {...message('b1',2,{recipient_session_ids:['a']}),SessionID:'b'},
+    {...message('a2',3),SessionID:'a'},
+    {...message('a3',4,{recipient_session_ids:['a']}),SessionID:'a'}
+  ];
+  const graph=interactionGraph(messages,[{SessionID:'a',Name:'Reviewer'},{SessionID:'b',Name:'Reviewer'}]);
+  assert.equal(graph.messageCount,4);assert.equal(graph.nodes.length,4);
+  assert.equal(graph.nodes.find(n=>n.id==='a').sent,3);
+  assert.equal(graph.edges.find(e=>e.source==='a'&&e.target==='b').count,1);
+  assert.equal(graph.edges.find(e=>e.source==='b'&&e.target==='a').count,1);
+  assert.equal(graph.edges.find(e=>e.target===BROADCAST).count,1);
+  assert.equal(graph.nodes.find(n=>n.id==='c').name,'Session');
+  assert.deepEqual(filterMessages(messages,{from:'a',to:'b'}).map(m=>m.ID),['a1']);
+  assert.deepEqual(filterMessages(messages,{to:BROADCAST}).map(m=>m.ID),['a2']);
+  assert.deepEqual(filterMessages(messages,{from:'a',to:'a'}).map(m=>m.ID),['a3']);
+});

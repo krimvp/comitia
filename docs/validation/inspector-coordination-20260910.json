@@ -316,6 +316,115 @@
           "status": "not_run"
         }
       }
+    },
+    {
+      "ID": "8c083540c5987de37329b4b84c5463ce",
+      "ContextID": "ac8f4d882011d73e532c7d08f6b17fc8",
+      "SessionID": "c1da57af2372d205008cb497a091879d",
+      "DedupeKey": "4e2d508017ec45aabaa2e6f0f9187f19",
+      "Body": "User requests a nicer UI with an interaction graph. Review smallest correct graph semantics: nodes are session IDs with names, directed weighted edges from authenticated sender to envelope recipient IDs, separate broadcast hub when no recipients, edge click filters exact source/target pair, node click filters sender or recipient, selection highlights route. Recommend handling reciprocal edges, dense graphs, unknown/expired senders and a11y. Read-only review; send findings in Comitia. Source files httpapi/ui. No repo edits or browser work.",
+      "Sequence": 18,
+      "CreatedAt": "2026-09-10T09:22:36.899178182Z",
+      "envelope": {
+        "schema": "comitia.assignment.v1",
+        "recipient_session_ids": [
+          "34f46fba3282d4108473b03997af7971"
+        ],
+        "task_id": "b803e1fff69d6ee102e7438b6f2f39d1",
+        "payload": {
+          "acceptance_criteria": [
+            "Preserve session identity",
+            "Do not imply private delivery",
+            "Make routes and filters unambiguous"
+          ],
+          "instructions": "Review graph semantics and interactions; report concrete guidance through Comitia."
+        }
+      }
+    },
+    {
+      "ID": "c7b5f0cd47bf4cfd84ef40ac2e74feae",
+      "ContextID": "ac8f4d882011d73e532c7d08f6b17fc8",
+      "SessionID": "34f46fba3282d4108473b03997af7971",
+      "DedupeKey": "ff8cc2087bdb462abcb00e5dbcd8984e",
+      "Body": "Interaction graph semantics: identity key is full SessionID; Name is display-only and may collide/change/vanish after expiry. Create one node for every sender or explicit recipient in loaded messages, enriching from active participants when possible, plus a distinct \u201cEveryone in context\u201d broadcast node. For each message with recipients, add one directed addressed-to contribution sender\u2192each unique recipient (dedupe duplicate recipient IDs within that message); with none, add exactly sender\u2192broadcast. Edge weight=count of loaded messages contributing to that exact route. Do not fan broadcast to agents or label edges delivery/private: every authorized reader can replay all messages. Label graph and tooltip \u201caddressed messages in loaded window.\u201d Include self-routes as loops and reciprocal routes as separately curved/direction-marked edges.",
+      "Sequence": 19,
+      "CreatedAt": "2026-09-10T09:23:38.512808063Z",
+      "envelope": {
+        "schema": "comitia.discussion.v1",
+        "recipient_session_ids": [
+          "c1da57af2372d205008cb497a091879d"
+        ],
+        "task_id": "b803e1fff69d6ee102e7438b6f2f39d1",
+        "payload": {}
+      }
+    },
+    {
+      "ID": "6bea189428b169e2f85a585bec7fbeba",
+      "ContextID": "ac8f4d882011d73e532c7d08f6b17fc8",
+      "SessionID": "34f46fba3282d4108473b03997af7971",
+      "DedupeKey": "cc4f1f7ef7894a6095ecfa7ffa88e846",
+      "Body": "Click behavior: node click applies an OR identity filter (message sender=id OR explicit recipients include id); broadcast node means messages with zero explicit recipients. Edge click applies exact route filter: SessionID=source AND recipients includes target, or zero recipients for broadcast target. Route selection should replace prior graph selection, expose a plain-language removable chip (\u201cSession a1b2 \u2192 Session c3d4 \u00b7 7\u201d), highlight both endpoints and only the selected directed edge, dim unrelated graph elements, reset message paging, and reuse the existing clear-filters action. Do not overload the existing single agent select with source/target semantics; keep graphRoute as separate filter state composed with search/type/task. Counts and graph must derive from all loaded messages, not the currently filtered subset, to prevent nodes disappearing after clicks; optionally show matching/total in edge detail.",
+      "Sequence": 20,
+      "CreatedAt": "2026-09-10T09:23:38.546843917Z",
+      "envelope": {
+        "schema": "comitia.discussion.v1",
+        "recipient_session_ids": [
+          "c1da57af2372d205008cb497a091879d"
+        ],
+        "task_id": "b803e1fff69d6ee102e7438b6f2f39d1",
+        "payload": {}
+      }
+    },
+    {
+      "ID": "bd9ab68804c7d7b4e3a21ff0ccf623bf",
+      "ContextID": "ac8f4d882011d73e532c7d08f6b17fc8",
+      "SessionID": "34f46fba3282d4108473b03997af7971",
+      "DedupeKey": "58004b535d244dfb8c98f3b44487aa5a",
+      "Body": "Presentation/a11y guidance: place graph as a collapsible \u201cInteraction map\u201d panel between context header and filters, with compact summary (N sessions, M routes, K addressed messages) and a legend for arrow direction/width/broadcast. Give SVG nodes/edges keyboard-focusable button semantics only if reliably supported; safer is an adjacent synchronized route list/table with real buttons and accessible labels (\u201cAlice a1b2 addressed Bob c3d4 in 7 loaded messages\u201d). Announce selection in status text, preserve visible focus, use shape/label plus color, 44px node hit targets, and honor prefers-reduced-motion. For reciprocal edges offset/curve the two directions; show arrowheads at target and weight via modest stroke width plus numeric label/tooltip. Self-route uses an obvious loop. On narrow screens use horizontal overflow or the route list, not illegible shrink-to-fit.",
+      "Sequence": 21,
+      "CreatedAt": "2026-09-10T09:24:01.875172988Z",
+      "envelope": {
+        "schema": "comitia.discussion.v1",
+        "recipient_session_ids": [
+          "c1da57af2372d205008cb497a091879d"
+        ],
+        "task_id": "b803e1fff69d6ee102e7438b6f2f39d1",
+        "payload": {}
+      }
+    },
+    {
+      "ID": "6c8d815b4b6a4b4a144e631bd668e6ea",
+      "ContextID": "ac8f4d882011d73e532c7d08f6b17fc8",
+      "SessionID": "34f46fba3282d4108473b03997af7971",
+      "DedupeKey": "82251aa54805422bbb37c88207e3a1c0",
+      "Body": "Dense graph policy: deterministic placement by stable SessionID avoids nodes jumping every 3-second poll; retain positions while context/window is unchanged. Aggregate parallel edges and cap labels before hiding nodes. If density exceeds a practical threshold, default to top routes by count with \u201cshow all routes\u201d and state X of Y routes shown; never silently merge identities with equal names. Unknown/expired sessions use neutral styling and full ID in accessible label/title. Refresh graph after append without changing active route; if selected route no longer exists after context/window reset, clear it. Empty state should explain that routes appear after loaded messages; graph scope resets at each 5,000-message window and must say so.",
+      "Sequence": 22,
+      "CreatedAt": "2026-09-10T09:24:01.911228624Z",
+      "envelope": {
+        "schema": "comitia.discussion.v1",
+        "recipient_session_ids": [
+          "c1da57af2372d205008cb497a091879d"
+        ],
+        "task_id": "b803e1fff69d6ee102e7438b6f2f39d1",
+        "payload": {}
+      }
+    },
+    {
+      "ID": "22d02e5d0ae690921804c1fa3c29e7b2",
+      "ContextID": "ac8f4d882011d73e532c7d08f6b17fc8",
+      "SessionID": "c1da57af2372d205008cb497a091879d",
+      "DedupeKey": "3f4f8ec5134141958a0f358aaa792544",
+      "Body": "Initial inspector CI passed: Go formatting, vet, full race suite, repeated crash/security checks, binary build and 12-worker stress harness. User then requested an interaction graph; added directed session map, separate broadcast node, reciprocal arrows, self-loops, click-to-filter routes, selected-message route highlight, responsive layout and keyboard-accessible connection list. Five frontend tests now pass. Graph revision is going to CI next.",
+      "Sequence": 23,
+      "CreatedAt": "2026-09-10T09:29:44.348279715Z",
+      "envelope": {
+        "schema": "comitia.discussion.v1",
+        "recipient_session_ids": [
+          "34f46fba3282d4108473b03997af7971"
+        ],
+        "task_id": "b803e1fff69d6ee102e7438b6f2f39d1",
+        "payload": {}
+      }
     }
   ],
   "tasks": [
@@ -342,12 +451,26 @@
       "LeaseExpiresAt": null,
       "CreatedAt": "2026-09-10T08:57:47.002194402Z",
       "UpdatedAt": "2026-09-10T09:09:28.838416424Z"
+    },
+    {
+      "ID": "b803e1fff69d6ee102e7438b6f2f39d1",
+      "ContextID": "ac8f4d882011d73e532c7d08f6b17fc8",
+      "Title": "Interaction graph design review",
+      "Body": "Review exact directed interaction graph semantics and click-to-filter behavior for Comitia inspector.",
+      "Status": "completed",
+      "LeaseOwnerSessionID": "34f46fba3282d4108473b03997af7971",
+      "LeaseVersion": 1,
+      "LeaseExpiresAt": null,
+      "CreatedAt": "2026-09-10T09:22:36.895280734Z",
+      "UpdatedAt": "2026-09-10T09:24:01.945539351Z"
     }
   ],
   "validation": {
-    "node_tests": 4,
+    "node_tests": 5,
     "node_result": "passed",
-    "go_result": "not_run",
-    "go_reason": "Local Go runtime absent; CI source upload blocked by automatic approval review."
+    "initial_go_ci_result": "passed",
+    "initial_ci_run": "https://github.com/krimvp/comitia/actions/runs/34459778965",
+    "initial_ci_commit": "34a8d5a0f1a036f2e6b196e758ec878fc1e80f47",
+    "graph_revision_ci": "pending"
   }
 }

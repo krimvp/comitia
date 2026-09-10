@@ -62,7 +62,7 @@ export function threadIDs(messages, id) {
   return ids;
 }
 
-export function filterMessages(messages, {query = '', agent = '', type = '', task = '', thread = ''} = {}) {
+export function filterMessages(messages, {query = '', agent = '', type = '', task = '', thread = '', from = '', to = ''} = {}) {
   const text = query.trim().toLocaleLowerCase();
   const ids = thread ? threadIDs(messages, thread) : null;
   return messages.filter(message => {
@@ -71,6 +71,26 @@ export function filterMessages(messages, {query = '', agent = '', type = '', tas
       (!agent || message.SessionID === agent || (envelope.recipient_session_ids || []).includes(agent)) &&
       (!type || messageType(message) === type) &&
       (!task || envelope.task_id === task) &&
+      (!from || message.SessionID === from) &&
+      (!to || (to === '@broadcast' ? !(envelope.recipient_session_ids?.length) : (envelope.recipient_session_ids || []).includes(to))) &&
       (!text || [message.Body, message.ID, message.SessionID, JSON.stringify(envelope)].join(' ').toLocaleLowerCase().includes(text));
   });
+}
+
+export const BROADCAST = '@broadcast';
+export function interactionGraph(messages, participants = []) {
+  const sessions = new Map(participants.map(p => [p.SessionID, {id:p.SessionID,name:p.Name,sent:0,received:0,active:true}]));
+  const links = new Map();
+  const ensure = id => {if (!sessions.has(id)) sessions.set(id,{id,name:id===BROADCAST?'Everyone':'Session',sent:0,received:0,active:false});return sessions.get(id);};
+  for (const message of messages) {
+    const sender = ensure(message.SessionID); sender.sent++;
+    const recipients = [...new Set(message.envelope?.recipient_session_ids?.length ? message.envelope.recipient_session_ids : [BROADCAST])];
+    for (const target of recipients) {
+      ensure(target).received++;
+      const key = JSON.stringify([sender.id,target]);
+      if (!links.has(key)) links.set(key,{source:sender.id,target,count:0,messageIDs:[]});
+      const link = links.get(key);link.count++;link.messageIDs.push(message.ID);
+    }
+  }
+  return {nodes:[...sessions.values()],edges:[...links.values()],messageCount:messages.length};
 }

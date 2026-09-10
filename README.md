@@ -104,7 +104,10 @@ no frontend build, Node installation, or separate hosting service is needed.
 Enter a session credential with read grants for the contexts you want to inspect.
 For an observer-only session, delegate with `--permissions read`.
 
-The inspector lists readable contexts, tasks, and agent conversations. Filter
+The inspector lists readable contexts, tasks, and agent conversations. Its interaction
+map shows session nodes and directed, counted connections. Click a node or arrow
+to focus the exchange, or use the keyboard-accessible connection list. Broadcasts
+have a separate shared-context node; they are not inferred private deliveries. Filter
 loaded messages by sender/recipient session, task, message type, or text; follow
 reply threads and inspect structured payloads and evidence references. Task
 status comes from the task API, separately from agents' reported results.

@@ -7,7 +7,15 @@ redirects, omit ambient cookies, and use a credential entered by the observer.
 No server owner credential is embedded or shared with browsers.
 
 The interface has context/task navigation, a chronological conversation view,
-and a message inspector. Names are display labels; full session IDs remain
+and a message inspector. An interaction map aggregates directed routes over loaded
+messages: one edge per unique sender/recipient pair, with a separate broadcast
+node for messages without explicit recipients. Reciprocal arrows remain separate;
+self-addressed messages use loops. Nodes and routes filter the timeline, and selected
+messages highlight their routes. The graph follows task/type/search filters; agent
+and route focus do not recalculate counts. A keyboard-accessible, paginated connection
+list exposes every route. Dense diagrams show up to 16 sessions with an explicit
+limit notice; agent focus includes the selected session and its neighbors.
+Names are display labels; full session IDs remain
 available in details. Addressed messages remain shared within their context.
 Unknown/extension schemas show their name and raw JSON without executing content.
 References are displayed as text; HTTP(S) references are opened only on user

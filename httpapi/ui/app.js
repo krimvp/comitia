@@ -1,11 +1,12 @@
-import {ConversationState, PAGE_SIZE, WINDOW_LIMIT, shortID, messageType, typeLabel, filterMessages} from './model.mjs';
+import {ConversationState, PAGE_SIZE, WINDOW_LIMIT, shortID, messageType, typeLabel, filterMessages, interactionGraph, BROADCAST} from './model.mjs';
+import {renderInteractionMap} from './graph.mjs';
 
 const $ = id => document.getElementById(id);
 const state = new ConversationState();
 const apiBase = new URL('../v1/', location.href);
 let token = '', connection = 0, controller = new AbortController(), timer;
 let contexts = [], contextsAfter = '', contextsBusy = false;
-let participants = [], tasks = [], selected = '', thread = '', paused = false, busy = false, windowStart = 0, displayStart = null;
+let participants = [], tasks = [], selected = '', thread = '', paused = false, busy = false, windowStart = 0, displayStart = null, route = null, connectionPage = 0;
 
 function node(tag, text, className) {
   const element = document.createElement(tag);
@@ -31,7 +32,7 @@ function participantName(id) {
   return participants.find(p => p.SessionID === id)?.Name || 'Session';
 }
 function agentLabel(id) { return `${participantName(id)} · ${shortID(id)}`; }
-function filters() { return {query:$('search').value, agent:$('agent-filter').value, type:$('type-filter').value, task:$('task-filter').value, thread}; }
+function filters() { return {query:$('search').value, agent:$('agent-filter').value, type:$('type-filter').value, task:$('task-filter').value, thread, from:route?.from || '', to:route?.to || ''}; }
 
 async function request(path, body, signal = controller.signal) {
   const abort = new AbortController();
@@ -58,7 +59,7 @@ async function request(path, body, signal = controller.signal) {
 function disconnect(message = '') {
   connection++; controller.abort(); controller = new AbortController(); clearTimeout(timer);
   token = ''; state.reset(); displayStart = null; contexts = []; contextsAfter = ''; contextsBusy = false;
-  participants = []; tasks = []; selected = ''; thread = ''; busy = false;
+  participants = []; tasks = []; selected = ''; thread = ''; route = null; connectionPage = 0; busy = false;
   $('credential').value = ''; $('connect-error').textContent = message;
   $('connect-panel').hidden = false; $('workspace').hidden = true; $('disconnect').hidden = true;
   for (const id of ['messages', 'contexts', 'tasks', 'details']) $(id).replaceChildren();
@@ -134,7 +135,7 @@ async function loadContexts(refresh = false) {
 }
 function clearContext() {
   controller.abort(); controller = new AbortController(); clearTimeout(timer); state.reset();
-  participants = []; tasks = []; selected = ''; thread = ''; busy = false;
+  participants = []; tasks = []; selected = ''; thread = ''; route = null; connectionPage = 0; busy = false;
   $('context-title').textContent = 'Choose a context'; $('context-meta').textContent = '';
   $('workspace-label').textContent = 'WORK CONTEXT'; $('sync-status').textContent = 'No context selected';
   $('load-more').hidden = true; $('next-window').hidden = true;
@@ -145,7 +146,7 @@ function clearContext() {
 async function openContext(id, after = 0) {
   controller.abort(); controller = new AbortController(); clearTimeout(timer);
   const generation = state.reset(id, after); windowStart = after; displayStart = null;
-  participants = []; tasks = []; selected = ''; thread = ''; busy = false; paused = false;
+  participants = []; tasks = []; selected = ''; thread = ''; route = null; connectionPage = 0; busy = false; paused = false;
   $('pause').textContent = 'Pause'; $('timeline-error').textContent = '';
   $('search').value = ''; for (const id of ['agent-filter','type-filter','task-filter']) $(id).value = '';
   $('context-title').textContent = contexts.find(c => c.ID === id)?.Name || 'Loading context…';
@@ -190,6 +191,35 @@ async function sync(generation = state.generation) {
     }
   }
 }
+function renderMap() {
+  const current = filters();
+  const mapped = filterMessages(state.messages, {query:current.query,type:current.type,task:current.task});
+  const graph = interactionGraph(mapped, participants);
+  const result = renderInteractionMap($('interaction-map'), graph, {
+    agent:current.agent,route,selectedMessage:state.messages.find(m=>m.ID===selected),
+    onAgent:id=>{route=null;thread='';$('agent-filter').value=$('agent-filter').value===id?'':id;displayStart=null;selected=filterMessages(state.messages,filters())[0]?.ID||'';renderMessages();renderDetails();document.getElementById(`map-node-${id}`)?.focus();},
+    onRoute:selectRoute
+  });
+  const sessionCount=graph.nodes.filter(n=>n.id!==BROADCAST).length;
+  $('map-summary').textContent=`${sessionCount} agent sessions · ${graph.messageCount} messages · ${graph.edges.length} directed connections`;
+  $('map-note').textContent=result.total>result.shown?`Showing ${result.shown} of ${result.total} sessions. Choose an agent to focus its connections.`:'Select an agent or an arrow to follow the exchange. Counts follow the filters below.';
+  $('route-summary').textContent=route?`${route.from?agentLabel(route.from):'Any sender'} → ${route.to===BROADCAST?'Everyone':agentLabel(route.to)}`:current.agent?`Involving ${agentLabel(current.agent)}`:'All interactions';
+  $('clear-route').hidden=!route&&!current.agent;
+  const edges=[...graph.edges].sort((a,b)=>b.count-a.count||a.source.localeCompare(b.source)||a.target.localeCompare(b.target));
+  connectionPage=Math.min(connectionPage,Math.max(0,Math.ceil(edges.length/12)-1));
+  $('connections').replaceChildren(...edges.slice(connectionPage*12,connectionPage*12+12).map(edge=>{
+    const item=button('',()=>selectRoute(edge.source,edge.target),'connection-item');
+    item.append(node('span',`${agentLabel(edge.source)} → ${edge.target===BROADCAST?'Everyone':agentLabel(edge.target)}`),node('strong',edge.count));
+    item.setAttribute('aria-pressed',String(route?.from===edge.source&&route?.to===edge.target));
+    return item;
+  }));
+  $('connection-page').textContent=edges.length?`${connectionPage*12+1}–${Math.min(edges.length,connectionPage*12+12)} of ${edges.length} connections`:'No connections yet';
+  $('previous-connections').hidden=connectionPage===0;$('next-connections').hidden=(connectionPage+1)*12>=edges.length;
+}
+function selectRoute(from,to) {
+  route=route?.from===from&&route?.to===to?null:{from,to};thread='';$('agent-filter').value='';displayStart=null;selected=filterMessages(state.messages,filters())[0]?.ID||'';renderMessages();renderDetails();
+}
+
 function renderTasks() {
   $('task-count').textContent = tasks.length;
   $('tasks-note').textContent = !tasks.length ? 'No tasks in this context.' : tasks.length === 1000 ? 'First 1,000 tasks. Other referenced tasks can be opened from messages.' : '';
@@ -201,7 +231,7 @@ function renderTasks() {
 }
 function clearFilters() {
   $('search').value = ''; for (const id of ['agent-filter','type-filter','task-filter']) $(id).value = '';
-  thread = ''; displayStart = null; renderTasks(); renderMessages();
+  thread = ''; route = null; displayStart = null; renderTasks(); renderMessages();
 }
 function selectMessage(id) {
   selected = id; renderMessages(); renderDetails();
@@ -214,6 +244,7 @@ function jumpMessage(id) {
   card?.querySelector('button')?.focus({preventScroll:true});
 }
 function renderMessages() {
+  renderMap();
   const filtered = filterMessages(state.messages, filters());
   // Keep DOM work bounded while every loaded message remains searchable.
   const start = Math.min(displayStart ?? Math.max(0, filtered.length - 200), Math.max(0, filtered.length - 1));
@@ -306,5 +337,18 @@ $('clear-filters').addEventListener('click',clearFilters);
 $('clear-thread').addEventListener('click',()=>{thread='';displayStart=null;renderMessages();});
 $('older-matches').addEventListener('click',()=>{const count=filterMessages(state.messages,filters()).length;displayStart=Math.max(0,(displayStart ?? Math.max(0,count-200))-200);renderMessages();});
 $('newer-matches').addEventListener('click',()=>{const count=filterMessages(state.messages,filters()).length;displayStart=Math.min(Math.max(0,count-200),(displayStart ?? 0)+200);renderMessages();});
-for (const id of ['search','agent-filter','type-filter','task-filter']) $(id).addEventListener(id === 'search' ? 'input' : 'change',()=>{displayStart=null;renderTasks();renderMessages();});
+for (const id of ['search','agent-filter','type-filter','task-filter']) $(id).addEventListener(id === 'search' ? 'input' : 'change',()=>{route=null;displayStart=null;renderTasks();renderMessages();});
 window.addEventListener('pagehide',()=>disconnect());
+
+$('show-map').addEventListener('click',()=>setMapVisible(true));
+$('show-timeline').addEventListener('click',()=>setMapVisible(false));
+$('clear-route').addEventListener('click',()=>{route=null;$('agent-filter').value='';displayStart=null;renderMessages();});
+function setMapVisible(visible) {
+  $('interaction-panel').hidden=!visible;
+  $('show-map').className=visible?'active':'';$('show-timeline').className=visible?'':'active';
+  $('show-map').setAttribute('aria-pressed',String(visible));$('show-timeline').setAttribute('aria-pressed',String(!visible));
+  if(visible)renderMap();
+}
+
+$('previous-connections').addEventListener('click',()=>{connectionPage=Math.max(0,connectionPage-1);renderMap();});
+$('next-connections').addEventListener('click',()=>{connectionPage++;renderMap();});

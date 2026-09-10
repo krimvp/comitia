@@ -21,7 +21,7 @@ const settle = async () => {for(let i=0;i<25;i++) await Promise.resolve();};
 test('inspector controller uses only read endpoints, rejects stale contexts and clears auth loss',async()=>{
   const html=await readFile(new URL('../ui/index.html',import.meta.url),'utf8');
   const elements=new Map([...html.matchAll(/id="([^"]+)"/g)].map(m=>[m[1],new Element()]));
-  const doc={getElementById:id=>elements.get(id),createElement:tag=>new Element(tag)};
+  const doc={getElementById:id=>elements.get(id),createElement:tag=>new Element(tag),createElementNS:(_ns,tag)=>new Element(tag)};
   let nextTimer=0; const timers=new Map(); const calls=[];
   const saved={document:globalThis.document,window:globalThis.window,location:globalThis.location,Option:globalThis.Option,fetch:globalThis.fetch,setTimeout:globalThis.setTimeout,clearTimeout:globalThis.clearTimeout};
   Object.assign(globalThis,{document:doc,window:new Element(),location:{href:'http://localhost:8080/ui/'},Option:class extends Element {constructor(label,value){super('option');this.textContent=label;this.value=value;}},setTimeout:(fn,delay)=>{timers.set(++nextTimer,{fn,delay});return nextTimer;},clearTimeout:id=>timers.delete(id)});
