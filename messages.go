@@ -115,6 +115,8 @@ func builtinMessageSchemas() map[string]PayloadValidator {
 			}
 			return nil
 		},
+		EvaluationResultSchema: validEvaluationResult,
+		ExecutionEventSchema:   validExecutionEvent,
 	}
 }
 
@@ -156,7 +158,7 @@ func (s *Service) normalizeEnvelope(in *MessageEnvelope, body string) (*MessageE
 		return nil, ErrInvalid
 	}
 	switch out.Schema {
-	case "comitia.assignment.v1", "comitia.review-request.v1", "comitia.blocker.v1", "comitia.work-submitted.v1", "comitia.verification-result.v1":
+	case "comitia.assignment.v1", "comitia.review-request.v1", "comitia.blocker.v1", "comitia.work-submitted.v1", "comitia.verification-result.v1", EvaluationResultSchema, ExecutionEventSchema:
 		if out.TaskID == "" {
 			return nil, fmt.Errorf("%w: task_id required", ErrInvalid)
 		}

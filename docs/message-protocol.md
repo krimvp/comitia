@@ -77,6 +77,8 @@ cross-context references, unknown schemas and invalid payloads are rejected.
 | `comitia.blocker.v1` | Yes | `reason`, nonempty `needs` string array |
 | `comitia.work-submitted.v1` | Yes | `summary`, nonempty `artifact_refs` string array |
 | `comitia.verification-result.v1` | Yes | `status`, nonempty `checks`; see below |
+| `comitia.evaluation-result.v1` | Yes | `evaluation_id`, `outcome`, `grader`, nonempty `criteria`; optional `cost`; see below |
+| `comitia.execution-event.v1` | Yes | `run_id`, positive `event_sequence`, `kind`, and kind-specific measurements; see [Execution telemetry](execution-telemetry.md) |
 
 Verification status is `passed`, `failed`, or `not_run`. Passed/failed results
 require nonempty `evidence_refs`; not-run results require a nonblank `reason`.
@@ -86,6 +88,60 @@ not artifacts fetched or verified by Comitia.
 These are structured claims, **not proof of correctness**. A verification-result
 message does not accept work, and a work-submitted message does not complete a
 task. Task state changes only through its existing authorized API operations.
+
+## Evidence-backed evaluation
+
+An evaluation result records a grader's acceptance decision without changing task
+state. Its payload uses this form:
+
+```json
+{
+  "evaluation_id": "release-gate-42",
+  "outcome": "accepted",
+  "grader": {"kind": "automated", "id": "ci/main"},
+  "criteria": [
+    {
+      "name": "test suite",
+      "outcome": "passed",
+      "evidence_refs": ["ci:run/1842"]
+    }
+  ],
+  "cost": {"amount_micros": 125000, "currency": "USD"}
+}
+```
+
+Grader kind is `human`, `agent`, or `automated`; its ID identifies the grader in
+the producer's own namespace. Criterion outcome is `passed`, `failed`, or
+`not_run`. Passed and failed criteria require evidence references. A not-run
+criterion requires a reason. Criterion names must be unique within one result.
+
+The overall outcome follows from the criteria: `accepted` requires every
+criterion to pass, `rejected` requires at least one failure, and `inconclusive`
+requires at least one not-run criterion and no failures. This prevents an
+accepted label from contradicting its supporting checks. Evidence references
+remain opaque; a consumer that needs stronger provenance must resolve or verify
+them independently.
+
+`cost` is optional because execution platforms do not always expose billing.
+`amount_micros` is a nonnegative integer in millionths of the named three-letter,
+uppercase currency. `BuildEvaluationReport` aggregates these messages, rejects
+duplicate evaluation IDs, and returns outcome and evidence counts. It reports
+cost per accepted result only when every included result has cost data and at
+least one result was accepted. Each currency’s numerator includes all evaluated
+attempts charged in that currency, including rejected and inconclusive work;
+its denominator counts all accepted results in the report. Currencies remain
+separate, and totals that exceed int64 are rejected.
+
+`ParseEvaluationResult` and `BuildEvaluationReport` are library helpers. The
+report schema is `comitia.evaluation-report.v1`; input messages with other schemas
+are ignored. Callers should pass a deliberate replay window because the report
+only describes the messages supplied to it.
+
+Execution events complement evaluation results: events describe how an external
+run used time, tokens, tools, and money, while an evaluation result records a
+grader's evidence-backed outcome. Both require a task reference, and neither
+changes task state. See [Execution telemetry](execution-telemetry.md) for the
+event kinds, validation rules, deduplication guidance, and an ingestion example.
 
 ## Sending
 

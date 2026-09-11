@@ -1,0 +1,166 @@
+{
+  "schema": "comitia.eval-spec.v1",
+  "seed": 20260911,
+  "repetitions": 2,
+  "bootstrap_samples": 500,
+  "runner_timeout_seconds": 10,
+  "modes": [
+    "single-agent",
+    "multi-agent",
+    "comitia"
+  ],
+  "cases": [
+    {
+      "id": "stale-lease-recovery",
+      "weight": 2,
+      "task": "Repair lease recovery so an expired task can be reclaimed while completion through the stale lease is rejected.",
+      "pass_score": 9,
+      "quality_checks": [
+        {
+          "name": "recovery-tests",
+          "points": 6
+        },
+        {
+          "name": "stale-completion-rejected",
+          "points": 3
+        },
+        {
+          "name": "scope-review",
+          "points": 1
+        }
+      ],
+      "fixture_quality_by_mode": {
+        "single-agent": [
+          {
+            "recovery-tests": 6,
+            "stale-completion-rejected": 2,
+            "scope-review": 1
+          },
+          {
+            "recovery-tests": 5,
+            "stale-completion-rejected": 2,
+            "scope-review": 1
+          }
+        ],
+        "multi-agent": [
+          {
+            "recovery-tests": 6,
+            "stale-completion-rejected": 3,
+            "scope-review": 1
+          },
+          {
+            "recovery-tests": 6,
+            "stale-completion-rejected": 2,
+            "scope-review": 1
+          }
+        ],
+        "comitia": [
+          {
+            "recovery-tests": 6,
+            "stale-completion-rejected": 3,
+            "scope-review": 1
+          },
+          {
+            "recovery-tests": 6,
+            "stale-completion-rejected": 3,
+            "scope-review": 1
+          }
+        ]
+      }
+    },
+    {
+      "id": "private-message-routing",
+      "weight": 1,
+      "task": "Implement private message replay so only the addressed recipient can read the message and replay order remains stable.",
+      "pass_score": 8,
+      "quality_checks": [
+        {
+          "name": "recipient-isolation",
+          "points": 5
+        },
+        {
+          "name": "replay-order",
+          "points": 3
+        },
+        {
+          "name": "scope-review",
+          "points": 2
+        }
+      ],
+      "fixture_quality_by_mode": {
+        "single-agent": [
+          {
+            "recipient-isolation": 5,
+            "replay-order": 2,
+            "scope-review": 1
+          },
+          {
+            "recipient-isolation": 4,
+            "replay-order": 2,
+            "scope-review": 1
+          }
+        ],
+        "multi-agent": [
+          {
+            "recipient-isolation": 5,
+            "replay-order": 3,
+            "scope-review": 1
+          },
+          {
+            "recipient-isolation": 5,
+            "replay-order": 2,
+            "scope-review": 1
+          }
+        ],
+        "comitia": [
+          {
+            "recipient-isolation": 5,
+            "replay-order": 3,
+            "scope-review": 2
+          },
+          {
+            "recipient-isolation": 5,
+            "replay-order": 3,
+            "scope-review": 1
+          }
+        ]
+      }
+    }
+  ],
+  "pricing_usd_per_million_tokens": {
+    "fixture/model-v1": {
+      "input": 1,
+      "cached_input": 0.25,
+      "output": 4
+    }
+  },
+  "fixture": {
+    "model": "fixture/model-v1",
+    "token_usage_by_mode": {
+      "single-agent": {
+        "input_tokens": 1000,
+        "cached_input_tokens": 100,
+        "output_tokens": 200
+      },
+      "multi-agent": {
+        "input_tokens": 1300,
+        "cached_input_tokens": 120,
+        "output_tokens": 250
+      },
+      "comitia": {
+        "input_tokens": 1600,
+        "cached_input_tokens": 140,
+        "output_tokens": 300
+      }
+    },
+    "per_case_input_tokens": 100,
+    "per_case_output_tokens": 25,
+    "per_replicate_input_tokens": 10,
+    "per_replicate_output_tokens": 5
+  },
+  "metadata": {
+    "purpose": "Deterministic, credential-free smoke test for the evaluation harness",
+    "fixture_only": true,
+    "pricing_note": "Synthetic prices for exercising cost calculations; not provider prices"
+  }
+}

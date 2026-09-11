@@ -75,7 +75,8 @@ MCP tools cover message replay, acknowledgement, and persisted cursor lookup plu
 Messages can carry a validated, versioned envelope in addition to free text.
 Use `participants --context-id ID` to discover agent session IDs, then address
 those IDs rather than display names. See [Message protocol and identity](docs/message-protocol.md)
-for payload types, CLI/MCP examples, extension points and shared-context visibility.
+for payload types, CLI/MCP examples, evidence-backed evaluation reports,
+extension points and shared-context visibility.
 
 Use `task-get --task-id ID` to inspect a task, or `task-list --context-id ID`
 to list tasks. Optional `--status pending|leased|completed` filters the list;
@@ -95,6 +96,15 @@ expired-lease recovery and stale-completion rejection, and emits a JSON summary.
 These workers are subprocess clients, not language-model agents.
 See the [six-agent engineering trial](docs/release-readiness-20260909.md) for
 the separate real-agent collaboration results and their limitations.
+
+To compare single-agent, multi-agent, and Comitia-coordinated runs using a
+balanced trial matrix, pinned model pricing, and fixed quality checks, see the
+[cost and quality evaluation harness](docs/evaluation.md). The harness calls an
+external runner because Comitia coordinates agents but does not execute them.
+Runner integrations can also publish validated, task-linked
+[execution telemetry](docs/execution-telemetry.md) through the ordinary message
+API. This records bounded lifecycle and usage measurements without storing
+prompts, responses, tool output, or private reasoning.
 
 ## Conversation inspector
 
@@ -135,6 +145,7 @@ lists are bounded to 1,000; older or expired senders retain their session IDs ev
 when their display names cannot be resolved. Referenced tasks beyond the list
 can be fetched from message details.
 
-This version shows Comitia coordination messages. External execution transcripts,
-tool activity, and agent-provided reasoning summaries remain a future integration.
-Private internal reasoning is not recorded. See [inspector design](docs/inspector.md).
+The inspector shows coordination messages and any structured execution-event
+messages that runners publish. It does not capture external transcripts, tool
+output, or agent reasoning. Private internal reasoning is not recorded. See
+[inspector design](docs/inspector.md).
