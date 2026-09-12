@@ -1,0 +1,30 @@
+{
+  "corrections": [
+    "extract_first_json_object",
+    "case_insensitive_entity_names",
+    "equivalent_outbox_entity_name"
+  ],
+  "checks": {
+    "design": {
+      "passed": true
+    },
+    "transaction": {
+      "passed": true
+    },
+    "key": {
+      "passed": true
+    },
+    "delivery": {
+      "passed": true
+    },
+    "effects": {
+      "passed": true
+    },
+    "calls": {
+      "passed": true
+    },
+    "rollback": {
+      "passed": true
+    }
+  }
+}

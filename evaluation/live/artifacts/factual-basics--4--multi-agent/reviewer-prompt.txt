@@ -1,0 +1,13 @@
+Independently review the worker answer against the task. Correct any defects you find. Return the final requested JSON, with no review commentary.
+
+TASK:
+Return JSON with these five keys and values: capital_of_japan (English city name), seconds_in_day (integer), binary_13 (string, no prefix), chemical_symbol_gold (string), smallest_prime (integer). No explanation.
+
+WORKER ANSWER:
+{
+  "capital_of_japan": "Tokyo",
+  "seconds_in_day": 86400,
+  "binary_13": "1101",
+  "chemical_symbol_gold": "Au",
+  "smallest_prime": 2
+}

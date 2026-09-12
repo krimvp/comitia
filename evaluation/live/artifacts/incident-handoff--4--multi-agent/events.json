@@ -1,0 +1,46 @@
+[
+  {
+    "stage": "worker",
+    "kind": "model",
+    "wall_seconds": 16.493047375,
+    "reported_cost_usd": 0.01015,
+    "model_usage": {
+      "claude-haiku-4-5-20251001": {
+        "inputTokens": 545,
+        "outputTokens": 1921,
+        "cacheReadInputTokens": 0,
+        "cacheCreationInputTokens": 0,
+        "webSearchRequests": 0,
+        "costUSD": 0.01015,
+        "contextWindow": 200000,
+        "maxOutputTokens": 32000,
+        "thinkingTokens": 1637,
+        "canonicalModel": "claude-haiku-4-5",
+        "provider": "firstParty",
+        "costBasis": "list"
+      }
+    }
+  },
+  {
+    "stage": "reviewer",
+    "kind": "model",
+    "wall_seconds": 73.589733833,
+    "reported_cost_usd": 0.039159,
+    "model_usage": {
+      "claude-haiku-4-5-20251001": {
+        "inputTokens": 864,
+        "outputTokens": 7659,
+        "cacheReadInputTokens": 0,
+        "cacheCreationInputTokens": 0,
+        "webSearchRequests": 0,
+        "costUSD": 0.039159,
+        "contextWindow": 200000,
+        "maxOutputTokens": 32000,
+        "thinkingTokens": 7374,
+        "canonicalModel": "claude-haiku-4-5",
+        "provider": "firstParty",
+        "costBasis": "list"
+      }
+    }
+  }
+]

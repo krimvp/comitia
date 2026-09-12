@@ -1,0 +1,5 @@
+```json
+{
+  "code": "class Cache:\n    def __init__(self):\n        self.data = {}\n    \n    def get(self, key, now, ttl, loader):\n        # Check if we have a valid cached value\n        if key in self.data:\n            value, expires = self.data[key]\n            if now < expires:\n                # Valid hit - return without calling loader\n                return value\n            # Expired, so remove it\n            del self.data[key]\n        \n        # Load new value\n        value = loader()\n        \n        # Only cache if ttl > 0\n        if ttl > 0:\n            self.data[key] = (value, now + ttl)\n        \n        return value"
+}
+```

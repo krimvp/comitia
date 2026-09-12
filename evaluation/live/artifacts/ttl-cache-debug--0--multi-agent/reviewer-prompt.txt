@@ -1,0 +1,26 @@
+Independently review the worker answer against the task. Correct any defects you find. Return the final requested JSON, with no review commentary.
+
+TASK:
+Fix this Python cache. Return JSON {"code":"..."} defining Cache with the same get(key, now, ttl, loader) signature. Requirements: a cached value (including 0, False, None, empty string) is valid iff now < expires; a hit must not call loader or extend expiry; expired entries must be removed before loading; if loader raises, propagate it and leave no expired entry; ttl <= 0 must call loader but must not keep its result (an existing valid hit is still returned); keys are strings, times numeric, loader takes no args. Instance data is a dict key -> (value, expires). Buggy code:
+class Cache:
+    def __init__(self): self.data = {}
+    def get(self, key, now, ttl, loader):
+        if key in self.data:
+            value, expires = self.data[key]
+            if value and now <= expires: return value
+        value = loader()
+        self.data[key] = (value, now + ttl)
+        return value
+
+WORKER ANSWER:
+```json
+{
+  "code": "class Cache:\n    def __init__(self):\n        self.data = {}\n    \n    def get(self, key, now, ttl, loader):\n        if key in self.data:\n            value, expires = self.data[key]\n            if now < expires:\n                return value\n            del self.data[key]\n        \n        value = loader()\n        if ttl > 0:\n            self.data[key] = (value, now + ttl)\n        return value"
+}
+```
+
+Key fixes:
+1. Changed condition from `if value and now <= expires` to `if now < expires` - correctly treats falsy values as valid and uses strict comparison
+2. Delete expired entries before calling loader to satisfy error propagation requirement
+3. Only store loaded result if `ttl > 0`, preventing storage of zero/negative ttl values while still calling loader
+4. Valid hits return immediately without calling loader or modifying state

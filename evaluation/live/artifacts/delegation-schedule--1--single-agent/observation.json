@@ -1,0 +1,54 @@
+{
+  "status": "completed",
+  "quality": [
+    {
+      "name": "all-tasks",
+      "earned": 0
+    },
+    {
+      "name": "workers",
+      "earned": 0
+    },
+    {
+      "name": "dependencies",
+      "earned": 0
+    },
+    {
+      "name": "file-conflict",
+      "earned": 0
+    },
+    {
+      "name": "optimal",
+      "earned": 0
+    },
+    {
+      "name": "stale-lease",
+      "earned": 0
+    },
+    {
+      "name": "handoff",
+      "earned": 0
+    }
+  ],
+  "model_calls": [
+    {
+      "model": "claude-haiku-4-5-20251001",
+      "input_tokens": 491,
+      "cached_input_tokens": 0,
+      "output_tokens": 10115
+    }
+  ],
+  "non_model_cost_usd": 0,
+  "cost_complete": true,
+  "metadata": {
+    "artifact": "/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/live/artifacts/delegation-schedule--1--single-agent",
+    "category": "Collaboration / orchestration",
+    "model_wall_seconds": 92.34296675,
+    "comitia_wall_seconds": 0.0,
+    "comitia_operations": 0,
+    "cli_reported_cost_usd": 0.051066,
+    "computed_cost_usd": 0.051066,
+    "model_sessions": 1
+  },
+  "error": "JSONDecodeError: Extra data: line 14 column 1 (char 390)"
+}

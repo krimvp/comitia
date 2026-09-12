@@ -1,0 +1,64 @@
+{
+  "case_id": "stable-refactor",
+  "cost_complete": true,
+  "metadata": {
+    "artifact": "/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/live/artifacts/stable-refactor--4--multi-agent",
+    "category": "Coding / refactoring",
+    "cli_reported_cost_usd": 0.016468999999999998,
+    "comitia_operations": 0,
+    "comitia_wall_seconds": 0.0,
+    "computed_cost_usd": 0.016469,
+    "model_sessions": 2,
+    "model_wall_seconds": 25.970037041999998
+  },
+  "mode": "multi-agent",
+  "model_calls": [
+    {
+      "cached_input_tokens": 0,
+      "input_tokens": 432,
+      "model": "claude-haiku-4-5-20251001",
+      "output_tokens": 1488
+    },
+    {
+      "cached_input_tokens": 0,
+      "input_tokens": 722,
+      "model": "claude-haiku-4-5-20251001",
+      "output_tokens": 1575
+    }
+  ],
+  "non_model_cost_usd": 0,
+  "quality": [
+    {
+      "earned": 1,
+      "name": "empty"
+    },
+    {
+      "earned": 1,
+      "name": "duplicates"
+    },
+    {
+      "earned": 1,
+      "name": "order"
+    },
+    {
+      "earned": 1,
+      "name": "signed"
+    },
+    {
+      "earned": 1,
+      "name": "immutable"
+    },
+    {
+      "earned": 1,
+      "name": "randomized"
+    },
+    {
+      "earned": 1,
+      "name": "linear-work"
+    }
+  ],
+  "replicate": 4,
+  "seed": 2077466389,
+  "status": "completed",
+  "wall_seconds": 26.14177
+}

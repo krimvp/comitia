@@ -1,0 +1,36 @@
+Independently review the worker answer against the task. Correct any defects you find. Return the final requested JSON, with no review commentary.
+
+TASK:
+Plan two workers w1,w2. Tasks: A duration 2 writes api.py no deps; B duration 3 writes api.py no deps; C duration 2 writes ui.py depends A; D duration 1 writes docs.md depends B and C; E duration 2 writes tests.py depends B. A and B cannot overlap because same file. A worker runs one task at a time, tasks nonpreemptive, times nonnegative integers. Minimize makespan, tie breaks irrelevant. Return JSON {"schedule":[{"task":"A","worker":"w1","start":0},...],"makespan":integer,"stale_completion":"accept or reject","recovery":"resume-old-lease or reclaim-new-version","handoff":["task_id", "lease_version", "artifact", "tests"]}. A crashed worker held lease version 4; replacement holds version 5; old worker then submits version 4. Pick the safe completion and recovery actions. Give each task once.
+
+WORKER ANSWER:
+```json
+{
+  "schedule": [
+    {"task": "A", "worker": "w1", "start": 0},
+    {"task": "B", "worker": "w2", "start": 0},
+    {"task": "C", "worker": "w1", "start": 2},
+    {"task": "D", "worker": "w1", "start": 4},
+    {"task": "E", "worker": "w2", "start": 3}
+  ],
+  "makespan": 5,
+  "stale_completion": "reject",
+  "recovery": "reclaim-new-version",
+  "handoff": ["A", "4", "api.py", "api_tests"]
+}
+```
+
+**Rationale:**
+
+**Schedule (makespan 5):**
+- w1 executes A(0-2)→C(2-4)→D(4-5); w2 executes B(0-3)→E(3-5)
+- A and B don't overlap (different workers); all dependencies satisfied
+- Both workers finish at time 5 (optimal given critical path A→C→D and B→E both requiring 5 units)
+
+**Stale completion: reject**
+- The old worker (v4) crashed and should not overwrite the replacement's work (v5)
+- Accepting v4 would lose the replacement's updates and violate consistency
+
+**Recovery: reclaim-new-version**
+- Use the replacement's newer version 5, discarding the stale v4
+- The replacement is the authoritative source after the original crash

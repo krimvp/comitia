@@ -1,0 +1,26 @@
+{
+  "corrections": [],
+  "checks": {
+    "empty": {
+      "passed": true
+    },
+    "duplicates": {
+      "passed": true
+    },
+    "order": {
+      "passed": true
+    },
+    "signed": {
+      "passed": true
+    },
+    "immutable": {
+      "passed": true
+    },
+    "randomized": {
+      "passed": true
+    },
+    "linear-work": {
+      "passed": true
+    }
+  }
+}

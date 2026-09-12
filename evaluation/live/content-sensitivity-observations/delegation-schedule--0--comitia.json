@@ -1,0 +1,48 @@
+{
+  "case_id": "delegation-schedule",
+  "cost_complete": false,
+  "error": "Command '['claude', '-p', '--model', 'claude-haiku-4-5-20251001', '--output-format', 'json', '--tools', '', '--strict-mcp-config', '--mcp-config', '{\"mcpServers\":{}}', '--disable-slash-commands', '--no-session-persistence', '--setting-sources', '', '--settings', '{\"disableAllHooks\":true}', '--system-prompt', 'Complete the provided bounded task. Return only the requested JSON object, no Markdown fences. Do not use tools. Do not claim tests were executed. Keep explanations concise.']' timed out after 100 seconds",
+  "metadata": {
+    "artifact": "/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/live/artifacts/delegation-schedule--0--comitia",
+    "category": "Collaboration / orchestration",
+    "cli_reported_cost_usd": 0.0,
+    "comitia_operations": 7,
+    "comitia_wall_seconds": 0.10689545999999998,
+    "computed_cost_usd": 0,
+    "model_sessions": 0,
+    "model_wall_seconds": 0.0
+  },
+  "mode": "comitia",
+  "model_calls": [],
+  "non_model_cost_usd": 0,
+  "quality": [
+    {
+      "earned": 0,
+      "name": "all-tasks"
+    },
+    {
+      "earned": 0,
+      "name": "workers"
+    },
+    {
+      "earned": 0,
+      "name": "dependencies"
+    },
+    {
+      "earned": 0,
+      "name": "file-conflict"
+    },
+    {
+      "earned": 0,
+      "name": "optimal"
+    },
+    {
+      "earned": 0,
+      "name": "stale-lease"
+    }
+  ],
+  "replicate": 0,
+  "seed": 865746021,
+  "status": "timeout",
+  "wall_seconds": 100.22256
+}

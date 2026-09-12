@@ -1,0 +1,59 @@
+{
+  "status": "completed",
+  "quality": [
+    {
+      "name": "impact-times",
+      "earned": 1
+    },
+    {
+      "name": "uncertainty",
+      "earned": 1
+    },
+    {
+      "name": "next-update",
+      "earned": 1
+    },
+    {
+      "name": "owners-deadlines",
+      "earned": 1
+    },
+    {
+      "name": "customer-facts",
+      "earned": 1
+    },
+    {
+      "name": "length",
+      "earned": 1
+    },
+    {
+      "name": "secret-omitted",
+      "earned": 1
+    }
+  ],
+  "model_calls": [
+    {
+      "model": "claude-haiku-4-5-20251001",
+      "input_tokens": 545,
+      "cached_input_tokens": 0,
+      "output_tokens": 1575
+    },
+    {
+      "model": "claude-haiku-4-5-20251001",
+      "input_tokens": 870,
+      "cached_input_tokens": 0,
+      "output_tokens": 1267
+    }
+  ],
+  "non_model_cost_usd": 0,
+  "cost_complete": true,
+  "metadata": {
+    "artifact": "/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/live/artifacts/incident-handoff--4--comitia",
+    "category": "Communication heavy",
+    "model_wall_seconds": 25.620333457999998,
+    "comitia_wall_seconds": 0.24821758499999813,
+    "comitia_operations": 16,
+    "cli_reported_cost_usd": 0.015625,
+    "computed_cost_usd": 0.015625,
+    "model_sessions": 2
+  }
+}

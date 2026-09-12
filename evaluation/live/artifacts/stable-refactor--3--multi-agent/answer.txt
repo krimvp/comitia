@@ -1,0 +1,1 @@
+{"code": "def summarize(rows):\n    users_dict = {}\n    for row in rows:\n        user = row[\"user\"]\n        if user not in users_dict:\n            users_dict[user] = {\"user\": user, \"total\": row[\"amount\"]}\n        else:\n            users_dict[user][\"total\"] += row[\"amount\"]\n    return list(users_dict.values())"}

@@ -1,0 +1,3 @@
+```json
+{"code": "def summarize(rows):\n    seen = {}\n    for row in rows:\n        user = row[\"user\"]\n        seen[user] = seen.get(user, 0) + row[\"amount\"]\n    return [{\"user\": user, \"total\": total} for user, total in seen.items()]"}
+```

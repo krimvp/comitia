@@ -1,0 +1,650 @@
+[
+  {
+    "trial": "order-system-clean--0--single-agent",
+    "draft": "ledger-0-raw.json",
+    "checks": {
+      "ledger_balances": {
+        "passed": true
+      },
+      "ledger_validation": {
+        "passed": false,
+        "error": "AssertionError: expected ValueError",
+        "trace": "Traceback (most recent call last):\n  File \"/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/recovery-long/grader.py\", line 127, in evaluate\n    try:local[n]();result[n]={'passed':True}\n  File \"/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/recovery-long/grader.py\", line 48, in ledger_validation\n    l=L();before=rt(l.snapshot());raises(lambda:l.apply(e));assert l.snapshot()==before\nAssertionError: expected ValueError\n"
+      },
+      "ledger_dedupe_atomicity": {
+        "passed": true
+      },
+      "ledger_snapshot": {
+        "passed": true
+      }
+    }
+  },
+  {
+    "trial": "order-system-clean--0--single-agent",
+    "draft": "outbox-0-raw.json",
+    "checks": {
+      "outbox_claims": {
+        "passed": true
+      },
+      "outbox_fencing": {
+        "passed": true
+      },
+      "outbox_dedupe_snapshot": {
+        "passed": true
+      }
+    }
+  },
+  {
+    "trial": "order-system-clean--1--comitia",
+    "draft": "ledger-0-raw.json",
+    "checks": {
+      "ledger_balances": {
+        "passed": true
+      },
+      "ledger_validation": {
+        "passed": true
+      },
+      "ledger_dedupe_atomicity": {
+        "passed": true
+      },
+      "ledger_snapshot": {
+        "passed": true
+      }
+    }
+  },
+  {
+    "trial": "order-system-clean--1--comitia",
+    "draft": "outbox-0-raw.json",
+    "checks": {
+      "outbox_claims": {
+        "passed": true
+      },
+      "outbox_fencing": {
+        "passed": true
+      },
+      "outbox_dedupe_snapshot": {
+        "passed": true
+      }
+    }
+  },
+  {
+    "trial": "order-system-clean--1--multi-agent",
+    "draft": "ledger-0-raw.json",
+    "checks": {
+      "ledger_balances": {
+        "passed": true
+      },
+      "ledger_validation": {
+        "passed": true
+      },
+      "ledger_dedupe_atomicity": {
+        "passed": true
+      },
+      "ledger_snapshot": {
+        "passed": true
+      }
+    }
+  },
+  {
+    "trial": "order-system-clean--1--multi-agent",
+    "draft": "outbox-0-raw.json",
+    "checks": {
+      "outbox_claims": {
+        "passed": true
+      },
+      "outbox_fencing": {
+        "passed": true
+      },
+      "outbox_dedupe_snapshot": {
+        "passed": true
+      }
+    }
+  },
+  {
+    "trial": "order-system-clean--1--single-agent",
+    "draft": "ledger-0-raw.json",
+    "checks": {
+      "ledger_balances": {
+        "passed": true
+      },
+      "ledger_validation": {
+        "passed": true
+      },
+      "ledger_dedupe_atomicity": {
+        "passed": true
+      },
+      "ledger_snapshot": {
+        "passed": true
+      }
+    }
+  },
+  {
+    "trial": "order-system-clean--1--single-agent",
+    "draft": "outbox-0-raw.json",
+    "checks": {
+      "outbox_claims": {
+        "passed": true
+      },
+      "outbox_fencing": {
+        "passed": true
+      },
+      "outbox_dedupe_snapshot": {
+        "passed": true
+      }
+    }
+  },
+  {
+    "trial": "order-system-handoff-crash--0--comitia",
+    "draft": "ledger-0-raw.json",
+    "checks": {
+      "ledger_balances": {
+        "passed": true
+      },
+      "ledger_validation": {
+        "passed": true
+      },
+      "ledger_dedupe_atomicity": {
+        "passed": true
+      },
+      "ledger_snapshot": {
+        "passed": true
+      }
+    }
+  },
+  {
+    "trial": "order-system-handoff-crash--0--comitia",
+    "draft": "outbox-0-raw.json",
+    "checks": {
+      "outbox_claims": {
+        "passed": true
+      },
+      "outbox_fencing": {
+        "passed": true
+      },
+      "outbox_dedupe_snapshot": {
+        "passed": true
+      }
+    }
+  },
+  {
+    "trial": "order-system-handoff-crash--0--multi-agent",
+    "draft": "ledger-0-raw.json",
+    "checks": {
+      "ledger_balances": {
+        "passed": true
+      },
+      "ledger_validation": {
+        "passed": true
+      },
+      "ledger_dedupe_atomicity": {
+        "passed": true
+      },
+      "ledger_snapshot": {
+        "passed": true
+      }
+    }
+  },
+  {
+    "trial": "order-system-handoff-crash--0--multi-agent",
+    "draft": "outbox-0-raw.json",
+    "checks": {
+      "outbox_claims": {
+        "passed": true
+      },
+      "outbox_fencing": {
+        "passed": true
+      },
+      "outbox_dedupe_snapshot": {
+        "passed": true
+      }
+    }
+  },
+  {
+    "trial": "order-system-handoff-crash--0--single-agent",
+    "draft": "ledger-0-raw.json",
+    "checks": {
+      "ledger_balances": {
+        "passed": true
+      },
+      "ledger_validation": {
+        "passed": true
+      },
+      "ledger_dedupe_atomicity": {
+        "passed": true
+      },
+      "ledger_snapshot": {
+        "passed": true
+      }
+    }
+  },
+  {
+    "trial": "order-system-handoff-crash--0--single-agent",
+    "draft": "outbox-0-raw.json",
+    "checks": {
+      "outbox_claims": {
+        "passed": true
+      },
+      "outbox_fencing": {
+        "passed": true
+      },
+      "outbox_dedupe_snapshot": {
+        "passed": true
+      }
+    }
+  },
+  {
+    "trial": "order-system-handoff-crash--1--comitia",
+    "draft": "ledger-0-raw.json",
+    "checks": {
+      "ledger_balances": {
+        "passed": true
+      },
+      "ledger_validation": {
+        "passed": true
+      },
+      "ledger_dedupe_atomicity": {
+        "passed": true
+      },
+      "ledger_snapshot": {
+        "passed": true
+      }
+    }
+  },
+  {
+    "trial": "order-system-handoff-crash--1--comitia",
+    "draft": "outbox-0-raw.json",
+    "checks": {
+      "outbox_claims": {
+        "passed": true
+      },
+      "outbox_fencing": {
+        "passed": true
+      },
+      "outbox_dedupe_snapshot": {
+        "passed": true
+      }
+    }
+  },
+  {
+    "trial": "order-system-handoff-crash--1--multi-agent",
+    "draft": "ledger-0-raw.json",
+    "checks": {
+      "ledger_balances": {
+        "passed": true
+      },
+      "ledger_validation": {
+        "passed": true
+      },
+      "ledger_dedupe_atomicity": {
+        "passed": true
+      },
+      "ledger_snapshot": {
+        "passed": true
+      }
+    }
+  },
+  {
+    "trial": "order-system-handoff-crash--1--multi-agent",
+    "draft": "outbox-0-raw.json",
+    "checks": {
+      "outbox_claims": {
+        "passed": true
+      },
+      "outbox_fencing": {
+        "passed": true
+      },
+      "outbox_dedupe_snapshot": {
+        "passed": true
+      }
+    }
+  },
+  {
+    "trial": "order-system-handoff-crash--1--single-agent",
+    "draft": "ledger-0-raw.json",
+    "checks": {
+      "ledger_balances": {
+        "passed": true
+      },
+      "ledger_validation": {
+        "passed": true
+      },
+      "ledger_dedupe_atomicity": {
+        "passed": true
+      },
+      "ledger_snapshot": {
+        "passed": true
+      }
+    }
+  },
+  {
+    "trial": "order-system-handoff-crash--1--single-agent",
+    "draft": "outbox-0-raw.json",
+    "checks": {
+      "outbox_claims": {
+        "passed": true
+      },
+      "outbox_fencing": {
+        "passed": true
+      },
+      "outbox_dedupe_snapshot": {
+        "passed": true
+      }
+    }
+  },
+  {
+    "trial": "order-system-lease-takeover--0--comitia",
+    "draft": "ledger-1-raw.json",
+    "checks": {
+      "ledger_balances": {
+        "passed": true
+      },
+      "ledger_validation": {
+        "passed": false,
+        "error": "AssertionError: expected ValueError",
+        "trace": "Traceback (most recent call last):\n  File \"/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/recovery-long/grader.py\", line 127, in evaluate\n    try:local[n]();result[n]={'passed':True}\n  File \"/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/recovery-long/grader.py\", line 48, in ledger_validation\n    l=L();before=rt(l.snapshot());raises(lambda:l.apply(e));assert l.snapshot()==before\nAssertionError: expected ValueError\n"
+      },
+      "ledger_dedupe_atomicity": {
+        "passed": true
+      },
+      "ledger_snapshot": {
+        "passed": true
+      }
+    }
+  },
+  {
+    "trial": "order-system-lease-takeover--0--comitia",
+    "draft": "ledger-0-raw.json",
+    "checks": {
+      "ledger_balances": {
+        "passed": true
+      },
+      "ledger_validation": {
+        "passed": false,
+        "error": "AssertionError: expected ValueError",
+        "trace": "Traceback (most recent call last):\n  File \"/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/recovery-long/grader.py\", line 127, in evaluate\n    try:local[n]();result[n]={'passed':True}\n  File \"/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/recovery-long/grader.py\", line 48, in ledger_validation\n    l=L();before=rt(l.snapshot());raises(lambda:l.apply(e));assert l.snapshot()==before\nAssertionError: expected ValueError\n"
+      },
+      "ledger_dedupe_atomicity": {
+        "passed": true
+      },
+      "ledger_snapshot": {
+        "passed": true
+      }
+    }
+  },
+  {
+    "trial": "order-system-lease-takeover--0--comitia",
+    "draft": "outbox-0-raw.json",
+    "checks": {
+      "outbox_claims": {
+        "passed": true
+      },
+      "outbox_fencing": {
+        "passed": true
+      },
+      "outbox_dedupe_snapshot": {
+        "passed": true
+      }
+    }
+  },
+  {
+    "trial": "order-system-lease-takeover--0--multi-agent",
+    "draft": "ledger-1-raw.json",
+    "checks": {
+      "ledger_balances": {
+        "passed": true
+      },
+      "ledger_validation": {
+        "passed": false,
+        "error": "AssertionError: expected ValueError",
+        "trace": "Traceback (most recent call last):\n  File \"/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/recovery-long/grader.py\", line 127, in evaluate\n    try:local[n]();result[n]={'passed':True}\n  File \"/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/recovery-long/grader.py\", line 48, in ledger_validation\n    l=L();before=rt(l.snapshot());raises(lambda:l.apply(e));assert l.snapshot()==before\nAssertionError: expected ValueError\n"
+      },
+      "ledger_dedupe_atomicity": {
+        "passed": true
+      },
+      "ledger_snapshot": {
+        "passed": true
+      }
+    }
+  },
+  {
+    "trial": "order-system-lease-takeover--0--multi-agent",
+    "draft": "ledger-0-raw.json",
+    "checks": {
+      "ledger_balances": {
+        "passed": true
+      },
+      "ledger_validation": {
+        "passed": true
+      },
+      "ledger_dedupe_atomicity": {
+        "passed": true
+      },
+      "ledger_snapshot": {
+        "passed": true
+      }
+    }
+  },
+  {
+    "trial": "order-system-lease-takeover--0--multi-agent",
+    "draft": "outbox-0-raw.json",
+    "checks": {
+      "outbox_claims": {
+        "passed": true
+      },
+      "outbox_fencing": {
+        "passed": true
+      },
+      "outbox_dedupe_snapshot": {
+        "passed": true
+      }
+    }
+  },
+  {
+    "trial": "order-system-lease-takeover--0--single-agent",
+    "draft": "ledger-1-raw.json",
+    "checks": {
+      "ledger_balances": {
+        "passed": true
+      },
+      "ledger_validation": {
+        "passed": true
+      },
+      "ledger_dedupe_atomicity": {
+        "passed": true
+      },
+      "ledger_snapshot": {
+        "passed": true
+      }
+    }
+  },
+  {
+    "trial": "order-system-lease-takeover--0--single-agent",
+    "draft": "ledger-0-raw.json",
+    "checks": {
+      "ledger_balances": {
+        "passed": true
+      },
+      "ledger_validation": {
+        "passed": true
+      },
+      "ledger_dedupe_atomicity": {
+        "passed": true
+      },
+      "ledger_snapshot": {
+        "passed": true
+      }
+    }
+  },
+  {
+    "trial": "order-system-lease-takeover--0--single-agent",
+    "draft": "outbox-0-raw.json",
+    "checks": {
+      "outbox_claims": {
+        "passed": true
+      },
+      "outbox_fencing": {
+        "passed": false,
+        "error": "AssertionError: ",
+        "trace": "Traceback (most recent call last):\n  File \"/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/recovery-long/grader.py\", line 127, in evaluate\n    try:local[n]();result[n]={'passed':True}\n  File \"/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/recovery-long/grader.py\", line 73, in outbox_fencing\n    assert q.complete('a','old',x['version'],5) is False\nAssertionError\n"
+      },
+      "outbox_dedupe_snapshot": {
+        "passed": false,
+        "error": "AssertionError: ",
+        "trace": "Traceback (most recent call last):\n  File \"/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/recovery-long/grader.py\", line 127, in evaluate\n    try:local[n]();result[n]={'passed':True}\n  File \"/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/recovery-long/grader.py\", line 87, in outbox_dedupe_snapshot\n    snap=rt(q.snapshot());other=Q(snap);assert other.claim('z',4,1) is None\nAssertionError\n"
+      }
+    }
+  },
+  {
+    "trial": "order-system-lease-takeover--1--comitia",
+    "draft": "ledger-1-raw.json",
+    "checks": {
+      "ledger_balances": {
+        "passed": true
+      },
+      "ledger_validation": {
+        "passed": true
+      },
+      "ledger_dedupe_atomicity": {
+        "passed": true
+      },
+      "ledger_snapshot": {
+        "passed": true
+      }
+    }
+  },
+  {
+    "trial": "order-system-lease-takeover--1--comitia",
+    "draft": "ledger-0-raw.json",
+    "checks": {
+      "ledger_balances": {
+        "passed": true
+      },
+      "ledger_validation": {
+        "passed": true
+      },
+      "ledger_dedupe_atomicity": {
+        "passed": true
+      },
+      "ledger_snapshot": {
+        "passed": true
+      }
+    }
+  },
+  {
+    "trial": "order-system-lease-takeover--1--comitia",
+    "draft": "outbox-0-raw.json",
+    "checks": {
+      "outbox_claims": {
+        "passed": true
+      },
+      "outbox_fencing": {
+        "passed": true
+      },
+      "outbox_dedupe_snapshot": {
+        "passed": true
+      }
+    }
+  },
+  {
+    "trial": "order-system-lease-takeover--1--multi-agent",
+    "draft": "ledger-1-raw.json",
+    "checks": {
+      "ledger_balances": {
+        "passed": true
+      },
+      "ledger_validation": {
+        "passed": true
+      },
+      "ledger_dedupe_atomicity": {
+        "passed": true
+      },
+      "ledger_snapshot": {
+        "passed": true
+      }
+    }
+  },
+  {
+    "trial": "order-system-lease-takeover--1--multi-agent",
+    "draft": "ledger-0-raw.json",
+    "checks": {
+      "ledger_balances": {
+        "passed": true
+      },
+      "ledger_validation": {
+        "passed": true
+      },
+      "ledger_dedupe_atomicity": {
+        "passed": true
+      },
+      "ledger_snapshot": {
+        "passed": true
+      }
+    }
+  },
+  {
+    "trial": "order-system-lease-takeover--1--multi-agent",
+    "draft": "outbox-0-raw.json",
+    "checks": {
+      "outbox_claims": {
+        "passed": true
+      },
+      "outbox_fencing": {
+        "passed": true
+      },
+      "outbox_dedupe_snapshot": {
+        "passed": true
+      }
+    }
+  },
+  {
+    "trial": "order-system-lease-takeover--1--single-agent",
+    "draft": "ledger-1-raw.json",
+    "checks": {
+      "ledger_balances": {
+        "passed": true
+      },
+      "ledger_validation": {
+        "passed": true
+      },
+      "ledger_dedupe_atomicity": {
+        "passed": true
+      },
+      "ledger_snapshot": {
+        "passed": true
+      }
+    }
+  },
+  {
+    "trial": "order-system-lease-takeover--1--single-agent",
+    "draft": "ledger-0-raw.json",
+    "checks": {
+      "ledger_balances": {
+        "passed": true
+      },
+      "ledger_validation": {
+        "passed": true
+      },
+      "ledger_dedupe_atomicity": {
+        "passed": true
+      },
+      "ledger_snapshot": {
+        "passed": true
+      }
+    }
+  },
+  {
+    "trial": "order-system-lease-takeover--1--single-agent",
+    "draft": "outbox-0-raw.json",
+    "checks": {
+      "outbox_claims": {
+        "passed": true
+      },
+      "outbox_fencing": {
+        "passed": true
+      },
+      "outbox_dedupe_snapshot": {
+        "passed": true
+      }
+    }
+  }
+]

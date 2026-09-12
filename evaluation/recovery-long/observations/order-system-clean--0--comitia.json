@@ -1,0 +1,77 @@
+{
+  "case_id": "order-system-clean",
+  "cost_complete": true,
+  "error": "RuntimeError: current completion rejected",
+  "metadata": {
+    "artifact": "/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/recovery-long/artifacts/order-system-clean--0--comitia",
+    "computed_cost_usd": 0.013375,
+    "model_sessions": 1,
+    "reported_cost_usd": 0.013374999999999998,
+    "restarts": 0,
+    "total_seconds": 39.965660041999996
+  },
+  "mode": "comitia",
+  "model_calls": [
+    {
+      "cached_input_tokens": 0,
+      "input_tokens": 2480,
+      "model": "claude-haiku-4-5-20251001",
+      "output_tokens": 2179
+    }
+  ],
+  "non_model_cost_usd": 0,
+  "quality": [
+    {
+      "earned": 0,
+      "name": "ledger_balances"
+    },
+    {
+      "earned": 0,
+      "name": "ledger_validation"
+    },
+    {
+      "earned": 0,
+      "name": "ledger_dedupe_atomicity"
+    },
+    {
+      "earned": 0,
+      "name": "ledger_snapshot"
+    },
+    {
+      "earned": 0,
+      "name": "outbox_claims"
+    },
+    {
+      "earned": 0,
+      "name": "outbox_fencing"
+    },
+    {
+      "earned": 0,
+      "name": "outbox_dedupe_snapshot"
+    },
+    {
+      "earned": 0,
+      "name": "service_ingest"
+    },
+    {
+      "earned": 0,
+      "name": "service_rollback"
+    },
+    {
+      "earned": 0,
+      "name": "service_crash_delivery"
+    },
+    {
+      "earned": 0,
+      "name": "service_snapshot"
+    },
+    {
+      "earned": 0,
+      "name": "handoff"
+    }
+  ],
+  "replicate": 0,
+  "seed": 545521947,
+  "status": "failed",
+  "wall_seconds": 40.108921
+}

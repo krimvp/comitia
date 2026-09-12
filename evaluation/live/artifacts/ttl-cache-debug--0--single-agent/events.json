@@ -1,0 +1,24 @@
+[
+  {
+    "stage": "worker",
+    "kind": "model",
+    "wall_seconds": 32.742534875000004,
+    "reported_cost_usd": 0.027087999999999997,
+    "model_usage": {
+      "claude-haiku-4-5-20251001": {
+        "inputTokens": 498,
+        "outputTokens": 5318,
+        "cacheReadInputTokens": 0,
+        "cacheCreationInputTokens": 0,
+        "webSearchRequests": 0,
+        "costUSD": 0.027087999999999997,
+        "contextWindow": 200000,
+        "maxOutputTokens": 32000,
+        "thinkingTokens": 5086,
+        "canonicalModel": "claude-haiku-4-5",
+        "provider": "firstParty",
+        "costBasis": "list"
+      }
+    }
+  }
+]

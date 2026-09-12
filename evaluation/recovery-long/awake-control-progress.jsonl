@@ -1,0 +1,3 @@
+{"mode": "single-agent", "status": "completed", "quality": 1.0, "wall_seconds": 442.038219}
+{"mode": "multi-agent", "status": "completed", "quality": 0.9166666666666666, "wall_seconds": 439.61232}
+{"mode": "comitia", "status": "completed", "quality": 0.8333333333333334, "wall_seconds": 404.440661}

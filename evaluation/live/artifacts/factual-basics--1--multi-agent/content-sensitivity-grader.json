@@ -1,0 +1,22 @@
+{
+  "corrections": [
+    "extract_first_json_object"
+  ],
+  "checks": {
+    "capital": {
+      "passed": true
+    },
+    "seconds": {
+      "passed": true
+    },
+    "binary": {
+      "passed": true
+    },
+    "gold": {
+      "passed": true
+    },
+    "prime": {
+      "passed": true
+    }
+  }
+}

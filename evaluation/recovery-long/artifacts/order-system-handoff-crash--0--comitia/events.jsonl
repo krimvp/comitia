@@ -1,0 +1,69 @@
+{"kind": "storage", "backend": "comitia", "operation": "bootstrap", "seconds": 0.037201833000000004, "success": true}
+{"kind": "storage", "backend": "comitia", "operation": "workspace-create", "seconds": 0.013833667000000008, "success": true}
+{"kind": "storage", "backend": "comitia", "operation": "context-create", "seconds": 0.015645458999999987, "success": true}
+{"kind": "storage", "backend": "comitia", "operation": "delegate", "seconds": 0.014028000000000013, "success": true}
+{"kind": "storage", "backend": "comitia", "operation": "delegate", "seconds": 0.014089375000000015, "success": true}
+{"kind": "storage", "backend": "comitia", "operation": "delegate", "seconds": 0.01356458399999999, "success": true}
+{"kind": "storage", "backend": "comitia", "operation": "delegate", "seconds": 0.013169583999999984, "success": true}
+{"kind": "storage", "backend": "comitia", "operation": "delegate", "seconds": 0.013339749999999984, "success": true}
+{"kind": "storage", "backend": "comitia", "operation": "delegate", "seconds": 0.013338875, "success": true}
+{"kind": "storage", "backend": "comitia", "operation": "task-create", "seconds": 0.014242792000000004, "success": true}
+{"kind": "storage", "backend": "comitia", "operation": "task-create", "seconds": 0.013814083000000005, "success": true}
+{"kind": "storage", "backend": "comitia", "operation": "task-create", "seconds": 0.015399374999999993, "success": true}
+{"kind": "storage", "backend": "comitia", "operation": "task-create", "seconds": 0.014880832999999982, "success": true}
+{"kind": "storage", "backend": "comitia", "operation": "task-create", "seconds": 0.013774832999999986, "success": true}
+{"kind": "engine_start", "pid": 58626, "resumed": false}
+{"kind": "storage", "backend": "comitia", "operation": "task-get", "seconds": 0.013282209000000003, "success": true}
+{"kind": "storage", "backend": "comitia", "operation": "task-get", "seconds": 0.012801458000000002, "success": true}
+{"kind": "storage", "backend": "comitia", "operation": "task-get", "seconds": 0.013725625000000005, "success": true}
+{"kind": "storage", "backend": "comitia", "operation": "task-get", "seconds": 0.013373166999999991, "success": true}
+{"kind": "storage", "backend": "comitia", "operation": "task-get", "seconds": 0.013000749999999991, "success": true}
+{"kind": "storage", "backend": "comitia", "operation": "task-claim", "seconds": 0.015079791999999995, "success": true}
+{"kind": "model", "stage": "architect", "attempt": 0, "started_at": 1789189527.1943429, "cost_complete": true, "seconds": 27.674308709}
+{"kind": "storage", "backend": "comitia", "operation": "send", "seconds": 0.01392637500000049, "success": true}
+{"kind": "storage", "backend": "comitia", "operation": "task-complete", "seconds": 0.013761750000000461, "success": true}
+{"kind": "injected_sigkill", "old_pid": 58626, "label": "published-before-ack", "at": 1789189555.0002759}
+{"kind": "engine_start", "pid": 58781, "resumed": true}
+{"kind": "storage", "backend": "comitia", "operation": "task-get", "seconds": 0.013373708999999998, "success": true}
+{"kind": "storage", "backend": "comitia", "operation": "replay", "seconds": 0.013012000000000003, "success": true}
+{"kind": "storage", "backend": "comitia", "operation": "task-get", "seconds": 0.01306541700000001, "success": true}
+{"kind": "storage", "backend": "comitia", "operation": "task-get", "seconds": 0.013220125, "success": true}
+{"kind": "storage", "backend": "comitia", "operation": "task-get", "seconds": 0.012934958999999996, "success": true}
+{"kind": "storage", "backend": "comitia", "operation": "task-get", "seconds": 0.013016708000000002, "success": true}
+{"kind": "recovered", "stages": ["architect"]}
+{"kind": "storage", "backend": "comitia", "operation": "replay", "seconds": 0.013146124999999995, "success": true}
+{"kind": "storage", "backend": "comitia", "operation": "ack", "seconds": 0.013630000000000003, "success": true}
+{"kind": "storage", "backend": "comitia", "operation": "task-claim", "seconds": 0.014078750000000001, "success": true}
+{"kind": "storage", "backend": "comitia", "operation": "task-claim", "seconds": 0.014870958000000017, "success": true}
+{"kind": "model", "stage": "outbox", "attempt": 0, "started_at": 1789189555.1835608, "cost_complete": true, "seconds": 75.722986666}
+{"kind": "storage", "backend": "comitia", "operation": "send", "seconds": 0.03668050000000278, "success": true}
+{"kind": "storage", "backend": "comitia", "operation": "task-complete", "seconds": 0.015101833000002785, "success": true}
+{"kind": "storage", "backend": "comitia", "operation": "replay", "seconds": 0.01463383300000487, "success": true}
+{"kind": "storage", "backend": "comitia", "operation": "ack", "seconds": 0.014207625000011603, "success": true}
+{"kind": "model", "stage": "ledger", "attempt": 0, "started_at": 1789189555.1828978, "cost_complete": true, "seconds": 78.945855166}
+{"kind": "storage", "backend": "comitia", "operation": "send", "seconds": 0.014933666000004564, "success": true}
+{"kind": "storage", "backend": "comitia", "operation": "task-complete", "seconds": 0.015232999999994945, "success": true}
+{"kind": "storage", "backend": "comitia", "operation": "replay", "seconds": 0.013991750000002412, "success": true}
+{"kind": "storage", "backend": "comitia", "operation": "ack", "seconds": 0.014137958000006279, "success": true}
+{"kind": "storage", "backend": "comitia", "operation": "task-get", "seconds": 0.013533332999998038, "success": true}
+{"kind": "storage", "backend": "comitia", "operation": "replay", "seconds": 0.013501458999996885, "success": true}
+{"kind": "storage", "backend": "comitia", "operation": "send", "seconds": 0.013728291999996145, "success": true}
+{"kind": "storage", "backend": "comitia", "operation": "task-complete", "seconds": 0.013751999999996656, "success": false}
+{"kind": "storage", "backend": "comitia", "operation": "task-get", "seconds": 0.013571417000008523, "success": true}
+{"kind": "storage", "backend": "comitia", "operation": "replay", "seconds": 0.013584707999996226, "success": true}
+{"kind": "delayed_completion", "fault": "handoff", "accepted": false, "authoritative_unchanged": true}
+{"kind": "storage", "backend": "comitia", "operation": "task-claim", "seconds": 0.013859832999997934, "success": true}
+{"kind": "model", "stage": "integrator", "attempt": 0, "started_at": 1789189634.2646, "cost_complete": true, "seconds": 188.19409349999998}
+{"kind": "storage", "backend": "comitia", "operation": "send", "seconds": 0.04010274999996, "success": true}
+{"kind": "storage", "backend": "comitia", "operation": "task-complete", "seconds": 0.014634166999996978, "success": true}
+{"kind": "storage", "backend": "comitia", "operation": "replay", "seconds": 0.014897708000034982, "success": true}
+{"kind": "storage", "backend": "comitia", "operation": "ack", "seconds": 0.015009125000005952, "success": true}
+{"kind": "storage", "backend": "comitia", "operation": "task-claim", "seconds": 0.015369582999994691, "success": true}
+{"kind": "model", "stage": "reviewer", "attempt": 0, "started_at": 1789189822.622719, "cost_complete": true, "seconds": 93.45402708299997}
+{"kind": "storage", "backend": "comitia", "operation": "send", "seconds": 0.037785541000005196, "success": true}
+{"kind": "storage", "backend": "comitia", "operation": "task-complete", "seconds": 0.01589858400001276, "success": true}
+{"kind": "storage", "backend": "comitia", "operation": "replay", "seconds": 0.015193249999981617, "success": true}
+{"kind": "storage", "backend": "comitia", "operation": "ack", "seconds": 0.014382207999972252, "success": true}
+{"kind": "storage", "backend": "comitia", "operation": "task-get", "seconds": 0.014465167000025758, "success": true}
+{"kind": "storage", "backend": "comitia", "operation": "replay", "seconds": 0.014659208000011859, "success": true}
+{"kind": "storage", "backend": "comitia", "operation": "task-list", "seconds": 0.014440499999977874, "success": true}

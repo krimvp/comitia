@@ -1,0 +1,98 @@
+{
+  "case_id": "stable-refactor",
+  "cost_complete": true,
+  "metadata": {
+    "artifact": "/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/live/artifacts/stable-refactor--1--multi-agent",
+    "category": "Coding / refactoring",
+    "cli_reported_cost_usd": 0.025335,
+    "comitia_operations": 0,
+    "comitia_wall_seconds": 0.0,
+    "computed_cost_usd": 0.025335,
+    "model_sessions": 2,
+    "model_wall_seconds": 46.318703375,
+    "score_audit": {
+      "evidence": "/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/live/artifacts/stable-refactor--1--multi-agent/content-sensitivity-grader.json",
+      "label": "content-sensitivity",
+      "original_quality": [
+        {
+          "earned": 1,
+          "name": "empty"
+        },
+        {
+          "earned": 1,
+          "name": "duplicates"
+        },
+        {
+          "earned": 1,
+          "name": "order"
+        },
+        {
+          "earned": 1,
+          "name": "signed"
+        },
+        {
+          "earned": 1,
+          "name": "immutable"
+        },
+        {
+          "earned": 1,
+          "name": "randomized"
+        },
+        {
+          "earned": 1,
+          "name": "linear-work"
+        }
+      ]
+    }
+  },
+  "mode": "multi-agent",
+  "model_calls": [
+    {
+      "cached_input_tokens": 0,
+      "input_tokens": 432,
+      "model": "claude-haiku-4-5-20251001",
+      "output_tokens": 2207
+    },
+    {
+      "cached_input_tokens": 0,
+      "input_tokens": 688,
+      "model": "claude-haiku-4-5-20251001",
+      "output_tokens": 2636
+    }
+  ],
+  "non_model_cost_usd": 0,
+  "quality": [
+    {
+      "earned": 1,
+      "name": "empty"
+    },
+    {
+      "earned": 1,
+      "name": "duplicates"
+    },
+    {
+      "earned": 1,
+      "name": "order"
+    },
+    {
+      "earned": 1,
+      "name": "signed"
+    },
+    {
+      "earned": 1,
+      "name": "immutable"
+    },
+    {
+      "earned": 1,
+      "name": "randomized"
+    },
+    {
+      "earned": 1,
+      "name": "linear-work"
+    }
+  ],
+  "replicate": 1,
+  "seed": 1621790048,
+  "status": "completed",
+  "wall_seconds": 46.481456
+}

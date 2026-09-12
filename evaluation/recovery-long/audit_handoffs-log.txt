@@ -1,0 +1,107 @@
+[
+  {
+    "trial": "order-system-clean--1--comitia",
+    "word_count": 324,
+    "whitespace_count": 330,
+    "length_pass": false,
+    "missing_topic_terms": []
+  },
+  {
+    "trial": "order-system-clean--1--multi-agent",
+    "word_count": 351,
+    "whitespace_count": 350,
+    "length_pass": false,
+    "missing_topic_terms": []
+  },
+  {
+    "trial": "order-system-clean--1--single-agent",
+    "word_count": 251,
+    "whitespace_count": 254,
+    "length_pass": false,
+    "missing_topic_terms": [
+      "database"
+    ]
+  },
+  {
+    "trial": "order-system-handoff-crash--0--comitia",
+    "word_count": 344,
+    "whitespace_count": 338,
+    "length_pass": false,
+    "missing_topic_terms": []
+  },
+  {
+    "trial": "order-system-handoff-crash--0--single-agent",
+    "word_count": 373,
+    "whitespace_count": 382,
+    "length_pass": false,
+    "missing_topic_terms": []
+  },
+  {
+    "trial": "order-system-handoff-crash--1--comitia",
+    "word_count": 205,
+    "whitespace_count": 202,
+    "length_pass": true,
+    "missing_topic_terms": []
+  },
+  {
+    "trial": "order-system-handoff-crash--1--multi-agent",
+    "word_count": 249,
+    "whitespace_count": 257,
+    "length_pass": false,
+    "missing_topic_terms": [
+      "database"
+    ]
+  },
+  {
+    "trial": "order-system-handoff-crash--1--single-agent",
+    "word_count": 223,
+    "whitespace_count": 215,
+    "length_pass": false,
+    "missing_topic_terms": [
+      "transaction",
+      "database"
+    ]
+  },
+  {
+    "trial": "order-system-lease-takeover--0--comitia",
+    "word_count": 325,
+    "whitespace_count": 325,
+    "length_pass": false,
+    "missing_topic_terms": []
+  },
+  {
+    "trial": "order-system-lease-takeover--0--multi-agent",
+    "word_count": 231,
+    "whitespace_count": 244,
+    "length_pass": false,
+    "missing_topic_terms": []
+  },
+  {
+    "trial": "order-system-lease-takeover--0--single-agent",
+    "word_count": 247,
+    "whitespace_count": 247,
+    "length_pass": false,
+    "missing_topic_terms": []
+  },
+  {
+    "trial": "order-system-lease-takeover--1--comitia",
+    "word_count": 247,
+    "whitespace_count": 257,
+    "length_pass": false,
+    "missing_topic_terms": []
+  },
+  {
+    "trial": "order-system-lease-takeover--1--multi-agent",
+    "word_count": 407,
+    "whitespace_count": 414,
+    "length_pass": false,
+    "missing_topic_terms": []
+  },
+  {
+    "trial": "order-system-lease-takeover--1--single-agent",
+    "word_count": 315,
+    "whitespace_count": 314,
+    "length_pass": false,
+    "missing_topic_terms": []
+  }
+]

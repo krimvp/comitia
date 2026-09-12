@@ -1,0 +1,17 @@
+{
+  "awake-control-artifacts/order-system-clean--0--comitia/architect-0-timing.json": 1789197375.4013658,
+  "awake-control-artifacts/order-system-clean--0--comitia/integrator-0-timing.json": 1789197655.8360968,
+  "awake-control-artifacts/order-system-clean--0--comitia/ledger-0-timing.json": 1789197478.3763428,
+  "awake-control-artifacts/order-system-clean--0--comitia/outbox-0-timing.json": 1789197474.811228,
+  "awake-control-artifacts/order-system-clean--0--comitia/reviewer-0-timing.json": 1789197759.4523964,
+  "awake-control-artifacts/order-system-clean--0--multi-agent/architect-0-timing.json": 1789196935.0180414,
+  "awake-control-artifacts/order-system-clean--0--multi-agent/integrator-0-timing.json": 1789197247.9511936,
+  "awake-control-artifacts/order-system-clean--0--multi-agent/ledger-0-timing.json": 1789197026.8509986,
+  "awake-control-artifacts/order-system-clean--0--multi-agent/outbox-0-timing.json": 1789197030.855689,
+  "awake-control-artifacts/order-system-clean--0--multi-agent/reviewer-0-timing.json": 1789197355.149707,
+  "awake-control-artifacts/order-system-clean--0--single-agent/architect-0-timing.json": 1789196499.0272405,
+  "awake-control-artifacts/order-system-clean--0--single-agent/integrator-0-timing.json": 1789196814.0780308,
+  "awake-control-artifacts/order-system-clean--0--single-agent/ledger-0-timing.json": 1789196564.1532521,
+  "awake-control-artifacts/order-system-clean--0--single-agent/outbox-0-timing.json": 1789196660.2220037,
+  "awake-control-artifacts/order-system-clean--0--single-agent/reviewer-0-timing.json": 1789196915.4030719
+}

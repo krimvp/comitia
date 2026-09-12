@@ -1,0 +1,89 @@
+{
+  "case_id": "order-system-handoff-crash",
+  "cost_complete": true,
+  "error": "RuntimeError: current completion rejected",
+  "metadata": {
+    "artifact": "/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/recovery-long/artifacts/order-system-handoff-crash--0--multi-agent",
+    "computed_cost_usd": 0.18192,
+    "model_sessions": 3,
+    "reported_cost_usd": 0.18192,
+    "restarts": 1,
+    "total_seconds": 365.95389512500003
+  },
+  "mode": "multi-agent",
+  "model_calls": [
+    {
+      "cached_input_tokens": 0,
+      "input_tokens": 2518,
+      "model": "claude-haiku-4-5-20251001",
+      "output_tokens": 1521
+    },
+    {
+      "cached_input_tokens": 0,
+      "input_tokens": 19866,
+      "model": "claude-haiku-4-5-20251001",
+      "output_tokens": 13069
+    },
+    {
+      "cached_input_tokens": 0,
+      "input_tokens": 19866,
+      "model": "claude-haiku-4-5-20251001",
+      "output_tokens": 13344
+    }
+  ],
+  "non_model_cost_usd": 0,
+  "quality": [
+    {
+      "earned": 0,
+      "name": "ledger_balances"
+    },
+    {
+      "earned": 0,
+      "name": "ledger_validation"
+    },
+    {
+      "earned": 0,
+      "name": "ledger_dedupe_atomicity"
+    },
+    {
+      "earned": 0,
+      "name": "ledger_snapshot"
+    },
+    {
+      "earned": 0,
+      "name": "outbox_claims"
+    },
+    {
+      "earned": 0,
+      "name": "outbox_fencing"
+    },
+    {
+      "earned": 0,
+      "name": "outbox_dedupe_snapshot"
+    },
+    {
+      "earned": 0,
+      "name": "service_ingest"
+    },
+    {
+      "earned": 0,
+      "name": "service_rollback"
+    },
+    {
+      "earned": 0,
+      "name": "service_crash_delivery"
+    },
+    {
+      "earned": 0,
+      "name": "service_snapshot"
+    },
+    {
+      "earned": 0,
+      "name": "handoff"
+    }
+  ],
+  "replicate": 0,
+  "seed": 678958570,
+  "status": "failed",
+  "wall_seconds": 366.069656
+}

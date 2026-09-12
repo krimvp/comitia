@@ -1,0 +1,538 @@
+{
+  "mode_order": [
+    "single-agent",
+    "multi-agent",
+    "comitia"
+  ],
+  "runs": [
+    {
+      "case_id": "stale-lease-recovery",
+      "cost_complete": true,
+      "metadata": {
+        "fixture": true,
+        "received_seed": 1161455789
+      },
+      "mode": "single-agent",
+      "model_calls": [
+        {
+          "cached_input_tokens": 100,
+          "input_tokens": 1000,
+          "model": "fixture/model-v1",
+          "output_tokens": 200
+        }
+      ],
+      "non_model_cost_usd": 0,
+      "quality": [
+        {
+          "earned": 6,
+          "name": "recovery-tests"
+        },
+        {
+          "earned": 2,
+          "name": "stale-completion-rejected"
+        },
+        {
+          "earned": 1,
+          "name": "scope-review"
+        }
+      ],
+      "replicate": 0,
+      "seed": 1161455789,
+      "status": "completed",
+      "wall_seconds": 0.078127
+    },
+    {
+      "case_id": "stale-lease-recovery",
+      "cost_complete": true,
+      "metadata": {
+        "fixture": true,
+        "received_seed": 1128757468
+      },
+      "mode": "single-agent",
+      "model_calls": [
+        {
+          "cached_input_tokens": 100,
+          "input_tokens": 1010,
+          "model": "fixture/model-v1",
+          "output_tokens": 205
+        }
+      ],
+      "non_model_cost_usd": 0,
+      "quality": [
+        {
+          "earned": 5,
+          "name": "recovery-tests"
+        },
+        {
+          "earned": 2,
+          "name": "stale-completion-rejected"
+        },
+        {
+          "earned": 1,
+          "name": "scope-review"
+        }
+      ],
+      "replicate": 1,
+      "seed": 1128757468,
+      "status": "completed",
+      "wall_seconds": 0.077977
+    },
+    {
+      "case_id": "private-message-routing",
+      "cost_complete": true,
+      "metadata": {
+        "fixture": true,
+        "received_seed": 189159478
+      },
+      "mode": "single-agent",
+      "model_calls": [
+        {
+          "cached_input_tokens": 100,
+          "input_tokens": 1100,
+          "model": "fixture/model-v1",
+          "output_tokens": 225
+        }
+      ],
+      "non_model_cost_usd": 0,
+      "quality": [
+        {
+          "earned": 5,
+          "name": "recipient-isolation"
+        },
+        {
+          "earned": 2,
+          "name": "replay-order"
+        },
+        {
+          "earned": 1,
+          "name": "scope-review"
+        }
+      ],
+      "replicate": 0,
+      "seed": 189159478,
+      "status": "completed",
+      "wall_seconds": 0.072535
+    },
+    {
+      "case_id": "private-message-routing",
+      "cost_complete": true,
+      "metadata": {
+        "fixture": true,
+        "received_seed": 1624142804
+      },
+      "mode": "single-agent",
+      "model_calls": [
+        {
+          "cached_input_tokens": 100,
+          "input_tokens": 1110,
+          "model": "fixture/model-v1",
+          "output_tokens": 230
+        }
+      ],
+      "non_model_cost_usd": 0,
+      "quality": [
+        {
+          "earned": 4,
+          "name": "recipient-isolation"
+        },
+        {
+          "earned": 2,
+          "name": "replay-order"
+        },
+        {
+          "earned": 1,
+          "name": "scope-review"
+        }
+      ],
+      "replicate": 1,
+      "seed": 1624142804,
+      "status": "completed",
+      "wall_seconds": 0.078236
+    },
+    {
+      "case_id": "stale-lease-recovery",
+      "cost_complete": true,
+      "metadata": {
+        "fixture": true,
+        "received_seed": 1363324189
+      },
+      "mode": "multi-agent",
+      "model_calls": [
+        {
+          "cached_input_tokens": 120,
+          "input_tokens": 1300,
+          "model": "fixture/model-v1",
+          "output_tokens": 250
+        }
+      ],
+      "non_model_cost_usd": 0,
+      "quality": [
+        {
+          "earned": 6,
+          "name": "recovery-tests"
+        },
+        {
+          "earned": 3,
+          "name": "stale-completion-rejected"
+        },
+        {
+          "earned": 1,
+          "name": "scope-review"
+        }
+      ],
+      "replicate": 0,
+      "seed": 1363324189,
+      "status": "completed",
+      "wall_seconds": 0.078123
+    },
+    {
+      "case_id": "stale-lease-recovery",
+      "cost_complete": true,
+      "metadata": {
+        "fixture": true,
+        "received_seed": 2001151689
+      },
+      "mode": "multi-agent",
+      "model_calls": [
+        {
+          "cached_input_tokens": 120,
+          "input_tokens": 1310,
+          "model": "fixture/model-v1",
+          "output_tokens": 255
+        }
+      ],
+      "non_model_cost_usd": 0,
+      "quality": [
+        {
+          "earned": 6,
+          "name": "recovery-tests"
+        },
+        {
+          "earned": 2,
+          "name": "stale-completion-rejected"
+        },
+        {
+          "earned": 1,
+          "name": "scope-review"
+        }
+      ],
+      "replicate": 1,
+      "seed": 2001151689,
+      "status": "completed",
+      "wall_seconds": 0.075565
+    },
+    {
+      "case_id": "private-message-routing",
+      "cost_complete": true,
+      "metadata": {
+        "fixture": true,
+        "received_seed": 1756641177
+      },
+      "mode": "multi-agent",
+      "model_calls": [
+        {
+          "cached_input_tokens": 120,
+          "input_tokens": 1400,
+          "model": "fixture/model-v1",
+          "output_tokens": 275
+        }
+      ],
+      "non_model_cost_usd": 0,
+      "quality": [
+        {
+          "earned": 5,
+          "name": "recipient-isolation"
+        },
+        {
+          "earned": 3,
+          "name": "replay-order"
+        },
+        {
+          "earned": 1,
+          "name": "scope-review"
+        }
+      ],
+      "replicate": 0,
+      "seed": 1756641177,
+      "status": "completed",
+      "wall_seconds": 0.073618
+    },
+    {
+      "case_id": "private-message-routing",
+      "cost_complete": true,
+      "metadata": {
+        "fixture": true,
+        "received_seed": 1659605577
+      },
+      "mode": "multi-agent",
+      "model_calls": [
+        {
+          "cached_input_tokens": 120,
+          "input_tokens": 1410,
+          "model": "fixture/model-v1",
+          "output_tokens": 280
+        }
+      ],
+      "non_model_cost_usd": 0,
+      "quality": [
+        {
+          "earned": 5,
+          "name": "recipient-isolation"
+        },
+        {
+          "earned": 2,
+          "name": "replay-order"
+        },
+        {
+          "earned": 1,
+          "name": "scope-review"
+        }
+      ],
+      "replicate": 1,
+      "seed": 1659605577,
+      "status": "completed",
+      "wall_seconds": 0.077494
+    },
+    {
+      "case_id": "stale-lease-recovery",
+      "cost_complete": true,
+      "metadata": {
+        "fixture": true,
+        "received_seed": 1020161716
+      },
+      "mode": "comitia",
+      "model_calls": [
+        {
+          "cached_input_tokens": 140,
+          "input_tokens": 1600,
+          "model": "fixture/model-v1",
+          "output_tokens": 300
+        }
+      ],
+      "non_model_cost_usd": 0,
+      "quality": [
+        {
+          "earned": 6,
+          "name": "recovery-tests"
+        },
+        {
+          "earned": 3,
+          "name": "stale-completion-rejected"
+        },
+        {
+          "earned": 1,
+          "name": "scope-review"
+        }
+      ],
+      "replicate": 0,
+      "seed": 1020161716,
+      "status": "completed",
+      "wall_seconds": 0.078302
+    },
+    {
+      "case_id": "stale-lease-recovery",
+      "cost_complete": true,
+      "metadata": {
+        "fixture": true,
+        "received_seed": 990441081
+      },
+      "mode": "comitia",
+      "model_calls": [
+        {
+          "cached_input_tokens": 140,
+          "input_tokens": 1610,
+          "model": "fixture/model-v1",
+          "output_tokens": 305
+        }
+      ],
+      "non_model_cost_usd": 0,
+      "quality": [
+        {
+          "earned": 6,
+          "name": "recovery-tests"
+        },
+        {
+          "earned": 3,
+          "name": "stale-completion-rejected"
+        },
+        {
+          "earned": 1,
+          "name": "scope-review"
+        }
+      ],
+      "replicate": 1,
+      "seed": 990441081,
+      "status": "completed",
+      "wall_seconds": 0.078163
+    },
+    {
+      "case_id": "private-message-routing",
+      "cost_complete": true,
+      "metadata": {
+        "fixture": true,
+        "received_seed": 1215057587
+      },
+      "mode": "comitia",
+      "model_calls": [
+        {
+          "cached_input_tokens": 140,
+          "input_tokens": 1700,
+          "model": "fixture/model-v1",
+          "output_tokens": 325
+        }
+      ],
+      "non_model_cost_usd": 0,
+      "quality": [
+        {
+          "earned": 5,
+          "name": "recipient-isolation"
+        },
+        {
+          "earned": 3,
+          "name": "replay-order"
+        },
+        {
+          "earned": 2,
+          "name": "scope-review"
+        }
+      ],
+      "replicate": 0,
+      "seed": 1215057587,
+      "status": "completed",
+      "wall_seconds": 0.073559
+    },
+    {
+      "case_id": "private-message-routing",
+      "cost_complete": true,
+      "metadata": {
+        "fixture": true,
+        "received_seed": 523722022
+      },
+      "mode": "comitia",
+      "model_calls": [
+        {
+          "cached_input_tokens": 140,
+          "input_tokens": 1710,
+          "model": "fixture/model-v1",
+          "output_tokens": 330
+        }
+      ],
+      "non_model_cost_usd": 0,
+      "quality": [
+        {
+          "earned": 5,
+          "name": "recipient-isolation"
+        },
+        {
+          "earned": 3,
+          "name": "replay-order"
+        },
+        {
+          "earned": 1,
+          "name": "scope-review"
+        }
+      ],
+      "replicate": 1,
+      "seed": 523722022,
+      "status": "completed",
+      "wall_seconds": 0.076231
+    }
+  ],
+  "schema": "comitia.eval-results.v1",
+  "spec_sha256": "28cf2096522b964f1a8ff407a4db89db05fcc081ae7cfcd029b5163fe87014aa",
+  "summary": {
+    "comparisons_to_single_agent": {
+      "comitia": {
+        "baseline": "single-agent",
+        "cost_delta_mean_usd": 0.00097,
+        "cost_delta_mean_usd_95ci": [
+          0.00097,
+          0.00097
+        ],
+        "paired_runs": 4,
+        "quality_delta_mean": 0.166667,
+        "quality_delta_mean_95ci": [
+          0.114286,
+          0.2
+        ],
+        "quality_ties": 0,
+        "quality_wins": 4
+      },
+      "multi-agent": {
+        "baseline": "single-agent",
+        "cost_delta_mean_usd": 0.000485,
+        "cost_delta_mean_usd_95ci": [
+          0.000485,
+          0.000485
+        ],
+        "paired_runs": 4,
+        "quality_delta_mean": 0.1,
+        "quality_delta_mean_95ci": [
+          0.1,
+          0.1
+        ],
+        "quality_ties": 0,
+        "quality_wins": 4
+      }
+    },
+    "modes": {
+      "comitia": {
+        "cached_input_tokens": 560,
+        "completed_runs": 4,
+        "cost_coverage": 1.0,
+        "cost_per_passing_run_usd": 0.00281,
+        "input_tokens": 6620,
+        "known_cost_usd": 0.01124,
+        "mean_cost_usd": 0.00281,
+        "mean_wall_seconds": 0.076564,
+        "output_tokens": 1260,
+        "passing_runs": 4,
+        "quality_mean": 0.983333,
+        "quality_mean_95ci": [
+          0.94,
+          1.0
+        ],
+        "quality_score_per_usd": 349.940688,
+        "runs": 4
+      },
+      "multi-agent": {
+        "cached_input_tokens": 480,
+        "completed_runs": 4,
+        "cost_coverage": 1.0,
+        "cost_per_passing_run_usd": 0.002325,
+        "input_tokens": 5420,
+        "known_cost_usd": 0.0093,
+        "mean_cost_usd": 0.002325,
+        "mean_wall_seconds": 0.0762,
+        "output_tokens": 1060,
+        "passing_runs": 4,
+        "quality_mean": 0.916667,
+        "quality_mean_95ci": [
+          0.85,
+          0.971429
+        ],
+        "quality_score_per_usd": 394.265233,
+        "runs": 4
+      },
+      "single-agent": {
+        "cached_input_tokens": 400,
+        "completed_runs": 4,
+        "cost_coverage": 1.0,
+        "cost_per_passing_run_usd": 0.00368,
+        "input_tokens": 4220,
+        "known_cost_usd": 0.00736,
+        "mean_cost_usd": 0.00184,
+        "mean_wall_seconds": 0.076719,
+        "output_tokens": 860,
+        "passing_runs": 2,
+        "quality_mean": 0.816667,
+        "quality_mean_95ci": [
+          0.74,
+          0.875
+        ],
+        "quality_score_per_usd": 443.84058,
+        "runs": 4
+      }
+    }
+  }
+}

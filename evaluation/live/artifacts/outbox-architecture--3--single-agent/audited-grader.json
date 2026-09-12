@@ -1,0 +1,28 @@
+{
+  "corrections": [
+    "case_insensitive_entity_names"
+  ],
+  "checks": {
+    "design": {
+      "passed": true
+    },
+    "transaction": {
+      "passed": true
+    },
+    "key": {
+      "passed": true
+    },
+    "delivery": {
+      "passed": true
+    },
+    "effects": {
+      "passed": true
+    },
+    "calls": {
+      "passed": true
+    },
+    "rollback": {
+      "passed": true
+    }
+  }
+}

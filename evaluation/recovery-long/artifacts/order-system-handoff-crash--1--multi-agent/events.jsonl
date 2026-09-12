@@ -1,0 +1,40 @@
+{"kind": "engine_start", "pid": 59861, "resumed": false}
+{"kind": "storage", "operation": "replay", "seconds": 0.0006130839999999999, "backend": "files"}
+{"kind": "storage", "operation": "replay", "seconds": 0.0004957079999999975, "backend": "files"}
+{"kind": "storage", "operation": "replay", "seconds": 0.0004976670000000002, "backend": "files"}
+{"kind": "storage", "operation": "replay", "seconds": 0.00044708400000000037, "backend": "files"}
+{"kind": "storage", "operation": "replay", "seconds": 0.0004356670000000007, "backend": "files"}
+{"kind": "storage", "operation": "claim", "seconds": 0.000459374999999998, "backend": "files"}
+{"kind": "model", "stage": "architect", "attempt": 0, "started_at": 1789194253.465525, "cost_complete": true, "seconds": 34.917129791}
+{"kind": "storage", "operation": "publish-and-complete", "seconds": 0.0005904169999979558, "backend": "files"}
+{"kind": "injected_sigkill", "old_pid": 59861, "label": "published-before-ack", "at": 1789194288.46317}
+{"kind": "engine_start", "pid": 60539, "resumed": true}
+{"kind": "storage", "operation": "replay", "seconds": 0.0007592080000000043, "backend": "files"}
+{"kind": "storage", "operation": "replay", "seconds": 0.0006505000000000052, "backend": "files"}
+{"kind": "storage", "operation": "replay", "seconds": 0.0005950840000000027, "backend": "files"}
+{"kind": "storage", "operation": "replay", "seconds": 0.0005160409999999949, "backend": "files"}
+{"kind": "storage", "operation": "replay", "seconds": 0.0005605409999999977, "backend": "files"}
+{"kind": "recovered", "stages": ["architect"]}
+{"kind": "storage", "operation": "ack", "seconds": 0.0006227499999999983, "backend": "files"}
+{"kind": "storage", "operation": "claim", "seconds": 0.0007868340000000001, "backend": "files"}
+{"kind": "storage", "operation": "claim", "seconds": 0.0015462080000000003, "backend": "files"}
+{"kind": "model", "stage": "ledger", "attempt": 0, "started_at": 1789194288.5332081, "cost_complete": true, "seconds": 56.436848333}
+{"kind": "storage", "operation": "publish-and-complete", "seconds": 0.0008706670000009353, "backend": "files"}
+{"kind": "storage", "operation": "ack", "seconds": 0.0007857919999949559, "backend": "files"}
+{"kind": "model", "stage": "outbox", "attempt": 0, "started_at": 1789194288.533967, "cost_complete": true, "seconds": 109.87660641699999}
+{"kind": "storage", "operation": "publish-and-complete", "seconds": 0.0009223750000018072, "backend": "files"}
+{"kind": "storage", "operation": "ack", "seconds": 0.0008752090000001544, "backend": "files"}
+{"kind": "storage", "operation": "replay", "seconds": 0.0008407080000125688, "backend": "files"}
+{"kind": "storage", "operation": "publish-and-complete", "seconds": 0.0008027909999981375, "backend": "files"}
+{"kind": "storage", "operation": "replay", "seconds": 0.0007710409999930334, "backend": "files"}
+{"kind": "delayed_completion", "fault": "handoff", "accepted": false, "authoritative_unchanged": true}
+{"kind": "storage", "operation": "claim", "seconds": 0.0007823330000036322, "backend": "files"}
+{"kind": "model", "stage": "integrator", "attempt": 0, "started_at": 1789194398.4182131, "cost_complete": true, "seconds": 154.100559959}
+{"kind": "storage", "operation": "publish-and-complete", "seconds": 0.0010777079999684247, "backend": "files"}
+{"kind": "storage", "operation": "ack", "seconds": 0.0008294159999877593, "backend": "files"}
+{"kind": "storage", "operation": "claim", "seconds": 0.00104537499998969, "backend": "files"}
+{"kind": "model", "stage": "reviewer", "attempt": 0, "started_at": 1789194552.577557, "cost_complete": true, "seconds": 112.57872062500002}
+{"kind": "storage", "operation": "publish-and-complete", "seconds": 0.001179374999992433, "backend": "files"}
+{"kind": "storage", "operation": "ack", "seconds": 0.0008800000000519503, "backend": "files"}
+{"kind": "storage", "operation": "replay", "seconds": 0.0008777080000186288, "backend": "files"}
+{"kind": "storage", "operation": "inspect", "seconds": 0.0011675829999830967, "backend": "files"}

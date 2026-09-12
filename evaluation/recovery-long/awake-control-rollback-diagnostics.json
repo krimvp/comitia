@@ -1,0 +1,85 @@
+[
+  {
+    "trial": "order-system-clean--0--comitia",
+    "checks": {
+      "reserve": {
+        "passed": true
+      },
+      "capture": {
+        "passed": true
+      },
+      "refund": {
+        "passed": true
+      },
+      "injected_ValueError_before_enqueue": {
+        "passed": true
+      },
+      "injected_ValueError_after_enqueue": {
+        "passed": false,
+        "error": "AssertionError: rollback changed state"
+      },
+      "injected_RuntimeError_before_enqueue": {
+        "passed": false,
+        "error": "AssertionError: rollback changed state"
+      },
+      "injected_RuntimeError_after_enqueue": {
+        "passed": false,
+        "error": "AssertionError: rollback changed state"
+      }
+    }
+  },
+  {
+    "trial": "order-system-clean--0--multi-agent",
+    "checks": {
+      "reserve": {
+        "passed": true
+      },
+      "capture": {
+        "passed": true
+      },
+      "refund": {
+        "passed": true
+      },
+      "injected_ValueError_before_enqueue": {
+        "passed": true
+      },
+      "injected_ValueError_after_enqueue": {
+        "passed": true
+      },
+      "injected_RuntimeError_before_enqueue": {
+        "passed": false,
+        "error": "AssertionError: rollback changed state"
+      },
+      "injected_RuntimeError_after_enqueue": {
+        "passed": false,
+        "error": "AssertionError: rollback changed state"
+      }
+    }
+  },
+  {
+    "trial": "order-system-clean--0--single-agent",
+    "checks": {
+      "reserve": {
+        "passed": true
+      },
+      "capture": {
+        "passed": true
+      },
+      "refund": {
+        "passed": true
+      },
+      "injected_ValueError_before_enqueue": {
+        "passed": true
+      },
+      "injected_ValueError_after_enqueue": {
+        "passed": true
+      },
+      "injected_RuntimeError_before_enqueue": {
+        "passed": true
+      },
+      "injected_RuntimeError_after_enqueue": {
+        "passed": true
+      }
+    }
+  }
+]

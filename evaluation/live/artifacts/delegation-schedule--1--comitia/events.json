@@ -1,0 +1,142 @@
+[
+  {
+    "kind": "comitia",
+    "command": "bootstrap",
+    "wall_seconds": 0.0184275,
+    "success": true
+  },
+  {
+    "kind": "comitia",
+    "command": "workspace-create",
+    "wall_seconds": 0.013939291999999992,
+    "success": true
+  },
+  {
+    "kind": "comitia",
+    "command": "context-create",
+    "wall_seconds": 0.01377629200000001,
+    "success": true
+  },
+  {
+    "kind": "comitia",
+    "command": "delegate",
+    "wall_seconds": 0.014063584000000004,
+    "success": true
+  },
+  {
+    "kind": "comitia",
+    "command": "delegate",
+    "wall_seconds": 0.014889665999999996,
+    "success": true
+  },
+  {
+    "kind": "comitia",
+    "command": "task-create",
+    "wall_seconds": 0.015532292000000017,
+    "success": true
+  },
+  {
+    "kind": "comitia",
+    "command": "task-claim",
+    "wall_seconds": 0.014416499999999999,
+    "success": true
+  },
+  {
+    "stage": "worker",
+    "kind": "model",
+    "wall_seconds": 84.28820120799999,
+    "reported_cost_usd": 0.045381,
+    "model_usage": {
+      "claude-haiku-4-5-20251001": {
+        "inputTokens": 491,
+        "outputTokens": 8978,
+        "cacheReadInputTokens": 0,
+        "cacheCreationInputTokens": 0,
+        "webSearchRequests": 0,
+        "costUSD": 0.045381,
+        "contextWindow": 200000,
+        "maxOutputTokens": 32000,
+        "thinkingTokens": 8655,
+        "canonicalModel": "claude-haiku-4-5",
+        "provider": "firstParty",
+        "costBasis": "list"
+      }
+    }
+  },
+  {
+    "kind": "comitia",
+    "command": "send",
+    "wall_seconds": 0.01455250000000774,
+    "success": true
+  },
+  {
+    "kind": "comitia",
+    "command": "replay",
+    "wall_seconds": 0.014817375000006905,
+    "success": true
+  },
+  {
+    "kind": "comitia",
+    "command": "ack",
+    "wall_seconds": 0.014022709000002465,
+    "success": true
+  },
+  {
+    "kind": "comitia",
+    "command": "task-complete",
+    "wall_seconds": 0.013816000000005602,
+    "success": true
+  },
+  {
+    "kind": "comitia",
+    "command": "task-create",
+    "wall_seconds": 0.014606791999995039,
+    "success": true
+  },
+  {
+    "kind": "comitia",
+    "command": "task-claim",
+    "wall_seconds": 0.0141777909999945,
+    "success": true
+  },
+  {
+    "stage": "reviewer",
+    "kind": "model",
+    "wall_seconds": 77.005946166,
+    "reported_cost_usd": 0.041205,
+    "model_usage": {
+      "claude-haiku-4-5-20251001": {
+        "inputTokens": 850,
+        "outputTokens": 8071,
+        "cacheReadInputTokens": 0,
+        "cacheCreationInputTokens": 0,
+        "webSearchRequests": 0,
+        "costUSD": 0.041205,
+        "contextWindow": 200000,
+        "maxOutputTokens": 32000,
+        "thinkingTokens": 7890,
+        "canonicalModel": "claude-haiku-4-5",
+        "provider": "firstParty",
+        "costBasis": "list"
+      }
+    }
+  },
+  {
+    "kind": "comitia",
+    "command": "send",
+    "wall_seconds": 0.01626920900000073,
+    "success": true
+  },
+  {
+    "kind": "comitia",
+    "command": "task-complete",
+    "wall_seconds": 0.014510624999985566,
+    "success": true
+  },
+  {
+    "kind": "comitia",
+    "command": "task-list",
+    "wall_seconds": 0.01371608399998081,
+    "success": true
+  }
+]

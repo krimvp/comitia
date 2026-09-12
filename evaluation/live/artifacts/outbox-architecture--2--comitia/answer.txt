@@ -1,0 +1,12 @@
+```json
+{
+  "choice": "C",
+  "atomic_writes": ["order", "outbox"],
+  "idempotency_key": "order_id",
+  "broker_delivery": "at-least-once",
+  "email_effect_count": 1,
+  "email_api_call_count": 3,
+  "rollback_email_count": 0,
+  "why": "Outbox pattern atomically persists order+outbox in same transaction. At-least-once broker and consumer crash before ACK causes m1 redelivery. Publisher crash before marking sent causes m2 republish. Idempotent email service keyed by order_id deduplicates all API calls to single effect. Exactly-once email effect achieved through service-side idempotency, not broker guarantee."
+}
+```

@@ -1,0 +1,5 @@
+```json
+{
+  "code": "def summarize(rows):\n    user_totals = {}\n    user_order = []\n    \n    for row in rows:\n        user = row[\"user\"]\n        if user not in user_totals:\n            user_totals[user] = 0\n            user_order.append(user)\n        user_totals[user] += row[\"amount\"]\n    \n    return [{\"user\": user, \"total\": user_totals[user]} for user in user_order]"
+}
+```

@@ -1,0 +1,98 @@
+{
+  "case_id": "incident-handoff",
+  "cost_complete": true,
+  "metadata": {
+    "artifact": "/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/live/artifacts/incident-handoff--2--comitia",
+    "category": "Communication heavy",
+    "cli_reported_cost_usd": 0.020475,
+    "comitia_operations": 16,
+    "comitia_wall_seconds": 0.23906291499999363,
+    "computed_cost_usd": 0.020475,
+    "model_sessions": 2,
+    "model_wall_seconds": 33.551807709,
+    "score_audit": {
+      "evidence": "/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/live/artifacts/incident-handoff--2--comitia/audited-grader.json",
+      "label": "audited",
+      "original_quality": [
+        {
+          "earned": 1,
+          "name": "impact-times"
+        },
+        {
+          "earned": 1,
+          "name": "uncertainty"
+        },
+        {
+          "earned": 1,
+          "name": "next-update"
+        },
+        {
+          "earned": 1,
+          "name": "owners-deadlines"
+        },
+        {
+          "earned": 1,
+          "name": "customer-facts"
+        },
+        {
+          "earned": 1,
+          "name": "length"
+        },
+        {
+          "earned": 1,
+          "name": "secret-omitted"
+        }
+      ]
+    }
+  },
+  "mode": "comitia",
+  "model_calls": [
+    {
+      "cached_input_tokens": 0,
+      "input_tokens": 545,
+      "model": "claude-haiku-4-5-20251001",
+      "output_tokens": 1357
+    },
+    {
+      "cached_input_tokens": 0,
+      "input_tokens": 855,
+      "model": "claude-haiku-4-5-20251001",
+      "output_tokens": 2458
+    }
+  ],
+  "non_model_cost_usd": 0,
+  "quality": [
+    {
+      "earned": 1,
+      "name": "impact-times"
+    },
+    {
+      "earned": 1,
+      "name": "uncertainty"
+    },
+    {
+      "earned": 1,
+      "name": "next-update"
+    },
+    {
+      "earned": 1,
+      "name": "owners-deadlines"
+    },
+    {
+      "earned": 1,
+      "name": "customer-facts"
+    },
+    {
+      "earned": 1,
+      "name": "length"
+    },
+    {
+      "earned": 1,
+      "name": "secret-omitted"
+    }
+  ],
+  "replicate": 2,
+  "seed": 119577647,
+  "status": "completed",
+  "wall_seconds": 33.962084
+}

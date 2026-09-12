@@ -1,0 +1,23 @@
+```json
+{
+  "customer_update": "Between 09:10 and 09:35 UTC, checkout errors affected approximately 12% of customer payment attempts. We detected the issue quickly, rolled back the recent deployment, and service was fully restored at 09:35 UTC. We're actively investigating the root cause and have found no evidence of data loss so far, though our investigation remains ongoing. We will provide another detailed update at 10:30 UTC.",
+  "impact_percent": 12,
+  "start_utc": "09:10",
+  "restored_utc": "09:35",
+  "root_cause_status": "unconfirmed",
+  "data_loss_status": "no-evidence-investigating",
+  "next_update_utc": "10:30",
+  "actions": [
+    {
+      "owner": "Maya",
+      "task": "Investigate new connection pool limit",
+      "due_utc": "10:15"
+    },
+    {
+      "owner": "Luis",
+      "task": "Compare release v42 to v41",
+      "due_utc": "10:20"
+    }
+  ]
+}
+```

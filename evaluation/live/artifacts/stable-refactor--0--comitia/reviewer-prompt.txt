@@ -1,0 +1,30 @@
+Independently review the worker answer against the task. Correct any defects you find. Return the final requested JSON, with no review commentary.
+
+TASK:
+Refactor this Python function to expected O(n) time, preserve first-seen user order and input data, and keep exactly the same output for valid inputs. Valid rows have hashable string user and integer amount (possibly negative or zero). Return JSON {"code": "..."} defining summarize(rows). No imports except standard library. Original:
+def summarize(rows):
+    result = []
+    for row in rows:
+        found = False
+        for item in result:
+            if item["user"] == row["user"]:
+                item["total"] += row["amount"]
+                found = True
+                break
+        if not found:
+            result.append({"user": row["user"], "total": row["amount"]})
+    return result
+
+WORKER ANSWER:
+```json
+{
+  "code": "def summarize(rows):\n    user_totals = {}\n    user_order = []\n    \n    for row in rows:\n        user = row[\"user\"]\n        if user not in user_totals:\n            user_totals[user] = 0\n            user_order.append(user)\n        user_totals[user] += row[\"amount\"]\n    \n    return [{\"user\": user, \"total\": user_totals[user]} for user in user_order]"
+}
+```
+
+**Key improvements:**
+- **Time complexity:** O(n) instead of O(n²) by using dict for O(1) user lookups
+- **First-seen order:** `user_order` list maintains insertion order
+- **Data preservation:** Input `rows` unchanged; only aggregates totals
+- **Same output:** Identical results for valid inputs as original
+- **Python 3.7+:** Leverages dict ordering guarantee

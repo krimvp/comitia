@@ -1,0 +1,234 @@
+{
+  "by_case": {
+    "order-system-clean": {
+      "multi-agent": {
+        "completed": 1,
+        "cost_complete": 1,
+        "cost_usd": 0.33223900000000006,
+        "discarded_draft_cost_usd": 0,
+        "discarded_draft_tokens": 0,
+        "input_tokens": 18469,
+        "mean_quality": 0.8333333333333334,
+        "mean_storage_seconds": 0.01929145999994738,
+        "mean_wall_seconds": 501.48308037500004,
+        "n": 1,
+        "output_tokens": 62754,
+        "passes": 0,
+        "recovery_requested": 0,
+        "recovery_verified": 0
+      },
+      "single-agent": {
+        "completed": 1,
+        "cost_complete": 1,
+        "cost_usd": 0.36224100000000004,
+        "discarded_draft_cost_usd": 0,
+        "discarded_draft_tokens": 0,
+        "input_tokens": 22916,
+        "mean_quality": 1.0,
+        "mean_storage_seconds": 0.017424628000039674,
+        "mean_wall_seconds": 601.755242,
+        "n": 1,
+        "output_tokens": 67865,
+        "passes": 1,
+        "recovery_requested": 0,
+        "recovery_verified": 0
+      }
+    },
+    "order-system-handoff-crash": {},
+    "order-system-lease-takeover": {}
+  },
+  "execution_hashes_unchanged": true,
+  "summary": {
+    "multi-agent": {
+      "completed": 1,
+      "cost_complete": 1,
+      "cost_usd": 0.33223900000000006,
+      "discarded_draft_cost_usd": 0,
+      "discarded_draft_tokens": 0,
+      "input_tokens": 18469,
+      "mean_quality": 0.8333333333333334,
+      "mean_storage_seconds": 0.01929145999994738,
+      "mean_wall_seconds": 501.48308037500004,
+      "n": 1,
+      "output_tokens": 62754,
+      "passes": 0,
+      "recovery_requested": 0,
+      "recovery_verified": 0
+    },
+    "single-agent": {
+      "completed": 1,
+      "cost_complete": 1,
+      "cost_usd": 0.36224100000000004,
+      "discarded_draft_cost_usd": 0,
+      "discarded_draft_tokens": 0,
+      "input_tokens": 22916,
+      "mean_quality": 1.0,
+      "mean_storage_seconds": 0.017424628000039674,
+      "mean_wall_seconds": 601.755242,
+      "n": 1,
+      "output_tokens": 67865,
+      "passes": 1,
+      "recovery_requested": 0,
+      "recovery_verified": 0
+    }
+  },
+  "trials": [
+    {
+      "artifact": "/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/recovery/artifacts/order-system-clean--0--multi-agent",
+      "case": "order-system-clean",
+      "cost_complete": true,
+      "cost_usd": 0.33223900000000006,
+      "delayed": [],
+      "discarded_draft_cost_usd": 0,
+      "discarded_draft_tokens": 0,
+      "error": null,
+      "failed_checks": {
+        "handoff": "AssertionError: word count 233",
+        "service_rollback": "AssertionError: "
+      },
+      "input_tokens": 18469,
+      "integration_score": 0.75,
+      "mode": "multi-agent",
+      "output_tokens": 62754,
+      "passed": false,
+      "quality": 0.8333333333333334,
+      "recovered_stages": [],
+      "recovery_verified": null,
+      "replicate": 0,
+      "restarts": 0,
+      "stages": [
+        {
+          "attempt": 0,
+          "cost_complete": true,
+          "cost_usd": 0.012845,
+          "input_tokens": 1240,
+          "output_tokens": 2321,
+          "seconds": 27.1339175,
+          "stage": "architect",
+          "started_at": 1789133365.271927
+        },
+        {
+          "attempt": 0,
+          "cost_complete": true,
+          "cost_usd": 0.10938,
+          "input_tokens": 5550,
+          "output_tokens": 20766,
+          "seconds": 202.5800255,
+          "stage": "integrator",
+          "started_at": 1789133516.406513
+        },
+        {
+          "attempt": 0,
+          "cost_complete": true,
+          "cost_usd": 0.060522,
+          "input_tokens": 1972,
+          "output_tokens": 11710,
+          "seconds": 99.3540095,
+          "stage": "ledger",
+          "started_at": 1789133392.408204
+        },
+        {
+          "attempt": 0,
+          "cost_complete": true,
+          "cost_usd": 0.071292,
+          "input_tokens": 1972,
+          "output_tokens": 13864,
+          "seconds": 123.99495945800001,
+          "stage": "outbox",
+          "started_at": 1789133392.411338
+        },
+        {
+          "attempt": 0,
+          "cost_complete": true,
+          "cost_usd": 0.0782,
+          "input_tokens": 7735,
+          "output_tokens": 14093,
+          "seconds": 147.51675058399996,
+          "stage": "reviewer",
+          "started_at": 1789133719.063328
+        }
+      ],
+      "status": "completed",
+      "storage_operations": 22,
+      "storage_seconds": 0.01929145999994738,
+      "wall_seconds": 501.48308037500004
+    },
+    {
+      "artifact": "/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/recovery/artifacts/order-system-clean--0--single-agent",
+      "case": "order-system-clean",
+      "cost_complete": true,
+      "cost_usd": 0.36224100000000004,
+      "delayed": [],
+      "discarded_draft_cost_usd": 0,
+      "discarded_draft_tokens": 0,
+      "error": null,
+      "failed_checks": {},
+      "input_tokens": 22916,
+      "integration_score": 0.9166666666666666,
+      "mode": "single-agent",
+      "output_tokens": 67865,
+      "passed": true,
+      "quality": 1.0,
+      "recovered_stages": [],
+      "recovery_verified": null,
+      "replicate": 0,
+      "restarts": 0,
+      "stages": [
+        {
+          "attempt": 0,
+          "cost_complete": true,
+          "cost_usd": 0.017172,
+          "input_tokens": 1237,
+          "output_tokens": 3187,
+          "seconds": 36.155121416,
+          "stage": "architect",
+          "started_at": 1789132765.201556
+        },
+        {
+          "attempt": 0,
+          "cost_complete": true,
+          "cost_usd": 0.095902,
+          "input_tokens": 5372,
+          "output_tokens": 18106,
+          "seconds": 180.50286716699998,
+          "stage": "integrator",
+          "started_at": 1789133037.6373272
+        },
+        {
+          "attempt": 0,
+          "cost_complete": true,
+          "cost_usd": 0.09063700000000001,
+          "input_tokens": 1942,
+          "output_tokens": 17739,
+          "seconds": 148.080642375,
+          "stage": "ledger",
+          "started_at": 1789132801.359175
+        },
+        {
+          "attempt": 0,
+          "cost_complete": true,
+          "cost_usd": 0.049481,
+          "input_tokens": 3861,
+          "output_tokens": 9124,
+          "seconds": 88.19819783300002,
+          "stage": "outbox",
+          "started_at": 1789132949.43825
+        },
+        {
+          "attempt": 0,
+          "cost_complete": true,
+          "cost_usd": 0.10904900000000001,
+          "input_tokens": 10504,
+          "output_tokens": 19709,
+          "seconds": 146.75686112500006,
+          "stage": "reviewer",
+          "started_at": 1789133218.212113
+        }
+      ],
+      "status": "completed",
+      "storage_operations": 22,
+      "storage_seconds": 0.017424628000039674,
+      "wall_seconds": 601.755242
+    }
+  ]
+}

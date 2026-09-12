@@ -1,0 +1,30 @@
+Independently review the worker answer against the task. Correct any defects you find. Return the final requested JSON, with no review commentary.
+
+TASK:
+Refactor this Python function to expected O(n) time, preserve first-seen user order and input data, and keep exactly the same output for valid inputs. Valid rows have hashable string user and integer amount (possibly negative or zero). Return JSON {"code": "..."} defining summarize(rows). No imports except standard library. Original:
+def summarize(rows):
+    result = []
+    for row in rows:
+        found = False
+        for item in result:
+            if item["user"] == row["user"]:
+                item["total"] += row["amount"]
+                found = True
+                break
+        if not found:
+            result.append({"user": row["user"], "total": row["amount"]})
+    return result
+
+WORKER ANSWER:
+```json
+{"code": "def summarize(rows):\n    users_dict = {}\n    for row in rows:\n        user = row[\"user\"]\n        if user not in users_dict:\n            users_dict[user] = {\"user\": user, \"total\": row[\"amount\"]}\n        else:\n            users_dict[user][\"total\"] += row[\"amount\"]\n    return list(users_dict.values())"}
+```
+
+**Key improvements:**
+- **O(n) complexity**: Single pass through rows with O(1) dict operations (lookup/insert/update)
+- **Order preservation**: Python 3.7+ dicts maintain insertion order, so first-seen users appear in sequence
+- **Input safety**: Original rows list and contents unchanged
+- **Identical output**: Returns the same list of {"user", "total"} dicts in the same order
+- **No imports needed**: Uses only built-in dict type
+
+The refactored version uses a dictionary for O(1) user lookups instead of the original's O(n) linear search per row.

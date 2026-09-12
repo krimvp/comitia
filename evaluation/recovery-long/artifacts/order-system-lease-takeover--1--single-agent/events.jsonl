@@ -1,0 +1,44 @@
+{"kind": "engine_start", "pid": 64080, "resumed": false}
+{"kind": "storage", "operation": "replay", "seconds": 0.0006540000000000018, "backend": "files"}
+{"kind": "storage", "operation": "replay", "seconds": 0.0005995840000000002, "backend": "files"}
+{"kind": "storage", "operation": "replay", "seconds": 0.00046449999999999964, "backend": "files"}
+{"kind": "storage", "operation": "replay", "seconds": 0.00044962499999999517, "backend": "files"}
+{"kind": "storage", "operation": "replay", "seconds": 0.00046674999999999495, "backend": "files"}
+{"kind": "storage", "operation": "claim", "seconds": 0.0005263329999999969, "backend": "files"}
+{"kind": "model", "stage": "architect", "attempt": 0, "started_at": 1789194665.4413419, "cost_complete": true, "seconds": 30.8083405}
+{"kind": "storage", "operation": "publish-and-complete", "seconds": 0.0006062080000006631, "backend": "files"}
+{"kind": "storage", "operation": "ack", "seconds": 0.0006266659999987212, "backend": "files"}
+{"kind": "storage", "operation": "claim", "seconds": 0.0005122499999998809, "backend": "files"}
+{"kind": "model", "stage": "ledger", "attempt": 0, "started_at": 1789194696.253094, "cost_complete": true, "seconds": 69.880789833}
+{"kind": "storage", "operation": "claim", "seconds": 0.000750083999989215, "backend": "files"}
+{"kind": "model", "stage": "outbox", "attempt": 0, "started_at": 1789194766.137093, "cost_complete": true, "seconds": 107.96150300000001}
+{"kind": "storage", "operation": "publish-and-complete", "seconds": 0.0009925829999986036, "backend": "files"}
+{"kind": "storage", "operation": "ack", "seconds": 0.0008359579999819289, "backend": "files"}
+{"kind": "injected_sigkill", "old_pid": 64080, "label": "worker-result-before-publish", "at": 1789194874.160164}
+{"kind": "engine_start", "pid": 71721, "resumed": true}
+{"kind": "storage", "operation": "replay", "seconds": 0.000897000000000002, "backend": "files"}
+{"kind": "storage", "operation": "replay", "seconds": 0.0007847079999999951, "backend": "files"}
+{"kind": "storage", "operation": "replay", "seconds": 0.0007794170000000045, "backend": "files"}
+{"kind": "storage", "operation": "replay", "seconds": 0.000796083000000003, "backend": "files"}
+{"kind": "storage", "operation": "replay", "seconds": 0.0008130419999999999, "backend": "files"}
+{"kind": "recovered", "stages": ["architect", "outbox"]}
+{"kind": "storage", "operation": "ack", "seconds": 0.0007972919999999911, "backend": "files"}
+{"kind": "storage", "operation": "claim", "seconds": 0.0007818339999999951, "backend": "files"}
+{"kind": "model", "stage": "ledger", "attempt": 1, "started_at": 1789194874.241469, "cost_complete": true, "seconds": 80.366269041}
+{"kind": "storage", "operation": "publish-and-complete", "seconds": 0.0010279170000018212, "backend": "files"}
+{"kind": "storage", "operation": "ack", "seconds": 0.0007296659999980193, "backend": "files"}
+{"kind": "storage", "operation": "ack", "seconds": 0.0007511249999936354, "backend": "files"}
+{"kind": "storage", "operation": "replay", "seconds": 0.0006507079999948928, "backend": "files"}
+{"kind": "storage", "operation": "publish-and-complete", "seconds": 0.0006392089999991413, "backend": "files"}
+{"kind": "storage", "operation": "replay", "seconds": 0.0007004160000008142, "backend": "files"}
+{"kind": "delayed_completion", "fault": "lease", "accepted": false, "authoritative_unchanged": true}
+{"kind": "storage", "operation": "claim", "seconds": 0.0007061670000041431, "backend": "files"}
+{"kind": "model", "stage": "integrator", "attempt": 0, "started_at": 1789194954.615475, "cost_complete": true, "seconds": 181.509536375}
+{"kind": "storage", "operation": "publish-and-complete", "seconds": 0.0012343749999672582, "backend": "files"}
+{"kind": "storage", "operation": "ack", "seconds": 0.0009276250000311848, "backend": "files"}
+{"kind": "storage", "operation": "claim", "seconds": 0.0011764590000211683, "backend": "files"}
+{"kind": "model", "stage": "reviewer", "attempt": 0, "started_at": 1789195136.2101812, "cost_complete": true, "seconds": 167.26958758299997}
+{"kind": "storage", "operation": "publish-and-complete", "seconds": 0.0012927500000046166, "backend": "files"}
+{"kind": "storage", "operation": "ack", "seconds": 0.0009858339999482268, "backend": "files"}
+{"kind": "storage", "operation": "replay", "seconds": 0.001056208000022707, "backend": "files"}
+{"kind": "storage", "operation": "inspect", "seconds": 0.0012600829999769303, "backend": "files"}

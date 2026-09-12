@@ -1,0 +1,13 @@
+{"trial": "order-system-clean--1--comitia", "checks": {"reserve": {"passed": true}, "capture": {"passed": true}, "refund": {"passed": true}}}
+{"trial": "order-system-clean--1--multi-agent", "checks": {"reserve": {"passed": true}, "capture": {"passed": true}, "refund": {"passed": true}}}
+{"trial": "order-system-clean--1--single-agent", "checks": {"reserve": {"passed": true}, "capture": {"passed": true}, "refund": {"passed": true}}}
+{"trial": "order-system-handoff-crash--0--comitia", "checks": {"reserve": {"passed": true}, "capture": {"passed": true}, "refund": {"passed": true}}}
+{"trial": "order-system-handoff-crash--0--single-agent", "checks": {"reserve": {"passed": true}, "capture": {"passed": true}, "refund": {"passed": true}}}
+{"trial": "order-system-handoff-crash--1--comitia", "checks": {"reserve": {"passed": true}, "capture": {"passed": true}, "refund": {"passed": true}}}
+{"trial": "order-system-handoff-crash--1--multi-agent", "checks": {"reserve": {"passed": true}, "capture": {"passed": true}, "refund": {"passed": true}}}
+{"trial": "order-system-handoff-crash--1--single-agent", "checks": {"reserve": {"passed": true}, "capture": {"passed": true}, "refund": {"passed": true}}}
+{"trial": "order-system-lease-takeover--0--comitia", "checks": {"reserve": {"passed": true}, "capture": {"passed": true}, "refund": {"passed": true}}}
+{"trial": "order-system-lease-takeover--0--multi-agent", "checks": {"reserve": {"passed": true}, "capture": {"passed": true}, "refund": {"passed": true}}}
+{"trial": "order-system-lease-takeover--0--single-agent", "checks": {"reserve": {"passed": true}, "capture": {"passed": true}, "refund": {"passed": true}}}
+{"trial": "order-system-lease-takeover--1--multi-agent", "checks": {"reserve": {"passed": true}, "capture": {"passed": true}, "refund": {"passed": true}}}
+{"trial": "order-system-lease-takeover--1--single-agent", "checks": {"reserve": {"passed": true}, "capture": {"passed": true}, "refund": {"passed": true}}}

@@ -1,0 +1,12 @@
+```json
+{
+  "choice": "C",
+  "atomic_writes": ["Order", "Outbox"],
+  "idempotency_key": "order_id",
+  "broker_delivery": "at-least-once",
+  "email_effect_count": 1,
+  "email_api_call_count": 3,
+  "rollback_email_count": 0,
+  "why": "Outbox pattern atomically writes order and message in single DB transaction, ensuring durability. Idempotency key (order_id) at email service prevents duplicate effects despite three API calls via message redeliveries. Exactly-once impossible: no atomic coordination between broker acknowledgment and database across crashes."
+}
+```

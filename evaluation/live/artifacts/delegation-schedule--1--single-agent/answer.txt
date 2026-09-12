@@ -1,0 +1,25 @@
+```json
+{
+  "schedule": [
+    {"task": "A", "worker": "w1", "start": 0},
+    {"task": "B", "worker": "w2", "start": 2},
+    {"task": "C", "worker": "w1", "start": 2},
+    {"task": "E", "worker": "w2", "start": 5},
+    {"task": "D", "worker": "w1", "start": 5}
+  ],
+  "makespan": 7,
+  "stale_completion": "reject",
+  "recovery": "reclaim-new-version",
+  "handoff": ["D", 5, "docs.md", "tests.py"]
+}
+```
+
+**Rationale:**
+- A and B conflict (same file api.py). Sequencing A→B minimizes makespan: A(0-2), B(2-5)
+- C depends on A: starts at 2, finishes at 4
+- E depends on B: starts at 5, finishes at 7
+- D depends on B∩C: starts at max(5,4)=5, finishes at 6
+- w1: A(0-2)→C(2-4)→D(5-6), w2: B(2-5)→E(5-7)
+- Makespan = 7
+
+For the crash scenario: reject the stale version 4 submission from the crashed worker; reclaim with the new version 5 from the replacement. The handoff captures task D (final dependency aggregator) being handed off with the new lease version, its output artifact, and associated tests.

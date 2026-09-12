@@ -1,0 +1,59 @@
+{
+  "status": "completed",
+  "quality": [
+    {
+      "name": "empty",
+      "earned": 1
+    },
+    {
+      "name": "duplicates",
+      "earned": 1
+    },
+    {
+      "name": "order",
+      "earned": 1
+    },
+    {
+      "name": "signed",
+      "earned": 1
+    },
+    {
+      "name": "immutable",
+      "earned": 1
+    },
+    {
+      "name": "randomized",
+      "earned": 1
+    },
+    {
+      "name": "linear-work",
+      "earned": 1
+    }
+  ],
+  "model_calls": [
+    {
+      "model": "claude-haiku-4-5-20251001",
+      "input_tokens": 432,
+      "cached_input_tokens": 0,
+      "output_tokens": 3662
+    },
+    {
+      "model": "claude-haiku-4-5-20251001",
+      "input_tokens": 709,
+      "cached_input_tokens": 0,
+      "output_tokens": 1106
+    }
+  ],
+  "non_model_cost_usd": 0,
+  "cost_complete": true,
+  "metadata": {
+    "artifact": "/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/live/artifacts/stable-refactor--4--comitia",
+    "category": "Coding / refactoring",
+    "model_wall_seconds": 45.726721041000005,
+    "comitia_wall_seconds": 0.24361608500001075,
+    "comitia_operations": 16,
+    "cli_reported_cost_usd": 0.024980999999999996,
+    "computed_cost_usd": 0.024980999999999996,
+    "model_sessions": 2
+  }
+}

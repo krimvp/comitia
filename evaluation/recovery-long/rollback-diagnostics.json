@@ -1,0 +1,385 @@
+[
+  {
+    "trial": "order-system-clean--1--comitia",
+    "checks": {
+      "reserve": {
+        "passed": true
+      },
+      "capture": {
+        "passed": true
+      },
+      "refund": {
+        "passed": true
+      },
+      "injected_ValueError_before_enqueue": {
+        "passed": true
+      },
+      "injected_ValueError_after_enqueue": {
+        "passed": false,
+        "error": "AssertionError: rollback changed state"
+      },
+      "injected_RuntimeError_before_enqueue": {
+        "passed": false,
+        "error": "AssertionError: rollback changed state"
+      },
+      "injected_RuntimeError_after_enqueue": {
+        "passed": false,
+        "error": "AssertionError: rollback changed state"
+      }
+    }
+  },
+  {
+    "trial": "order-system-clean--1--multi-agent",
+    "checks": {
+      "reserve": {
+        "passed": true
+      },
+      "capture": {
+        "passed": true
+      },
+      "refund": {
+        "passed": true
+      },
+      "injected_ValueError_before_enqueue": {
+        "passed": true
+      },
+      "injected_ValueError_after_enqueue": {
+        "passed": true
+      },
+      "injected_RuntimeError_before_enqueue": {
+        "passed": true
+      },
+      "injected_RuntimeError_after_enqueue": {
+        "passed": true
+      }
+    }
+  },
+  {
+    "trial": "order-system-clean--1--single-agent",
+    "checks": {
+      "reserve": {
+        "passed": true
+      },
+      "capture": {
+        "passed": true
+      },
+      "refund": {
+        "passed": true
+      },
+      "injected_ValueError_before_enqueue": {
+        "passed": true
+      },
+      "injected_ValueError_after_enqueue": {
+        "passed": false,
+        "error": "AssertionError: rollback changed state"
+      },
+      "injected_RuntimeError_before_enqueue": {
+        "passed": true
+      },
+      "injected_RuntimeError_after_enqueue": {
+        "passed": false,
+        "error": "AssertionError: rollback changed state"
+      }
+    }
+  },
+  {
+    "trial": "order-system-handoff-crash--0--comitia",
+    "checks": {
+      "reserve": {
+        "passed": true
+      },
+      "capture": {
+        "passed": true
+      },
+      "refund": {
+        "passed": true
+      },
+      "injected_ValueError_before_enqueue": {
+        "passed": true
+      },
+      "injected_ValueError_after_enqueue": {
+        "passed": false,
+        "error": "AssertionError: rollback changed state"
+      },
+      "injected_RuntimeError_before_enqueue": {
+        "passed": false,
+        "error": "AssertionError: rollback changed state"
+      },
+      "injected_RuntimeError_after_enqueue": {
+        "passed": false,
+        "error": "AssertionError: rollback changed state"
+      }
+    }
+  },
+  {
+    "trial": "order-system-handoff-crash--0--single-agent",
+    "checks": {
+      "reserve": {
+        "passed": true
+      },
+      "capture": {
+        "passed": true
+      },
+      "refund": {
+        "passed": true
+      },
+      "injected_ValueError_before_enqueue": {
+        "passed": true
+      },
+      "injected_ValueError_after_enqueue": {
+        "passed": true
+      },
+      "injected_RuntimeError_before_enqueue": {
+        "passed": true
+      },
+      "injected_RuntimeError_after_enqueue": {
+        "passed": true
+      }
+    }
+  },
+  {
+    "trial": "order-system-handoff-crash--1--comitia",
+    "checks": {
+      "reserve": {
+        "passed": true
+      },
+      "capture": {
+        "passed": true
+      },
+      "refund": {
+        "passed": true
+      },
+      "injected_ValueError_before_enqueue": {
+        "passed": true
+      },
+      "injected_ValueError_after_enqueue": {
+        "passed": true
+      },
+      "injected_RuntimeError_before_enqueue": {
+        "passed": true
+      },
+      "injected_RuntimeError_after_enqueue": {
+        "passed": true
+      }
+    }
+  },
+  {
+    "trial": "order-system-handoff-crash--1--multi-agent",
+    "checks": {
+      "reserve": {
+        "passed": true
+      },
+      "capture": {
+        "passed": true
+      },
+      "refund": {
+        "passed": true
+      },
+      "injected_ValueError_before_enqueue": {
+        "passed": true
+      },
+      "injected_ValueError_after_enqueue": {
+        "passed": false,
+        "error": "AssertionError: rollback changed state"
+      },
+      "injected_RuntimeError_before_enqueue": {
+        "passed": false,
+        "error": "AssertionError: rollback changed state"
+      },
+      "injected_RuntimeError_after_enqueue": {
+        "passed": false,
+        "error": "AssertionError: rollback changed state"
+      }
+    }
+  },
+  {
+    "trial": "order-system-handoff-crash--1--single-agent",
+    "checks": {
+      "reserve": {
+        "passed": true
+      },
+      "capture": {
+        "passed": true
+      },
+      "refund": {
+        "passed": true
+      },
+      "injected_ValueError_before_enqueue": {
+        "passed": true
+      },
+      "injected_ValueError_after_enqueue": {
+        "passed": true
+      },
+      "injected_RuntimeError_before_enqueue": {
+        "passed": true
+      },
+      "injected_RuntimeError_after_enqueue": {
+        "passed": true
+      }
+    }
+  },
+  {
+    "trial": "order-system-lease-takeover--0--comitia",
+    "checks": {
+      "reserve": {
+        "passed": true
+      },
+      "capture": {
+        "passed": true
+      },
+      "refund": {
+        "passed": true
+      },
+      "injected_ValueError_before_enqueue": {
+        "passed": true
+      },
+      "injected_ValueError_after_enqueue": {
+        "passed": true
+      },
+      "injected_RuntimeError_before_enqueue": {
+        "passed": true
+      },
+      "injected_RuntimeError_after_enqueue": {
+        "passed": true
+      }
+    }
+  },
+  {
+    "trial": "order-system-lease-takeover--0--multi-agent",
+    "checks": {
+      "reserve": {
+        "passed": true
+      },
+      "capture": {
+        "passed": true
+      },
+      "refund": {
+        "passed": true
+      },
+      "injected_ValueError_before_enqueue": {
+        "passed": true
+      },
+      "injected_ValueError_after_enqueue": {
+        "passed": true
+      },
+      "injected_RuntimeError_before_enqueue": {
+        "passed": false,
+        "error": "AssertionError: rollback changed state"
+      },
+      "injected_RuntimeError_after_enqueue": {
+        "passed": false,
+        "error": "AssertionError: rollback changed state"
+      }
+    }
+  },
+  {
+    "trial": "order-system-lease-takeover--0--single-agent",
+    "checks": {
+      "reserve": {
+        "passed": true
+      },
+      "capture": {
+        "passed": true
+      },
+      "refund": {
+        "passed": true
+      },
+      "injected_ValueError_before_enqueue": {
+        "passed": true
+      },
+      "injected_ValueError_after_enqueue": {
+        "passed": false,
+        "error": "AssertionError: rollback changed state"
+      },
+      "injected_RuntimeError_before_enqueue": {
+        "passed": false,
+        "error": "AssertionError: rollback changed state"
+      },
+      "injected_RuntimeError_after_enqueue": {
+        "passed": false,
+        "error": "AssertionError: rollback changed state"
+      }
+    }
+  },
+  {
+    "trial": "order-system-lease-takeover--1--comitia",
+    "checks": {
+      "reserve": {
+        "passed": true
+      },
+      "capture": {
+        "passed": true
+      },
+      "refund": {
+        "passed": true
+      },
+      "injected_ValueError_before_enqueue": {
+        "passed": true
+      },
+      "injected_ValueError_after_enqueue": {
+        "passed": false,
+        "error": "AssertionError: rollback changed state"
+      },
+      "injected_RuntimeError_before_enqueue": {
+        "passed": false,
+        "error": "AssertionError: rollback changed state"
+      },
+      "injected_RuntimeError_after_enqueue": {
+        "passed": false,
+        "error": "AssertionError: rollback changed state"
+      }
+    }
+  },
+  {
+    "trial": "order-system-lease-takeover--1--multi-agent",
+    "checks": {
+      "reserve": {
+        "passed": true
+      },
+      "capture": {
+        "passed": true
+      },
+      "refund": {
+        "passed": true
+      },
+      "injected_ValueError_before_enqueue": {
+        "passed": true
+      },
+      "injected_ValueError_after_enqueue": {
+        "passed": true
+      },
+      "injected_RuntimeError_before_enqueue": {
+        "passed": true
+      },
+      "injected_RuntimeError_after_enqueue": {
+        "passed": true
+      }
+    }
+  },
+  {
+    "trial": "order-system-lease-takeover--1--single-agent",
+    "checks": {
+      "reserve": {
+        "passed": true
+      },
+      "capture": {
+        "passed": true
+      },
+      "refund": {
+        "passed": true
+      },
+      "injected_ValueError_before_enqueue": {
+        "passed": true
+      },
+      "injected_ValueError_after_enqueue": {
+        "passed": true
+      },
+      "injected_RuntimeError_before_enqueue": {
+        "passed": true
+      },
+      "injected_RuntimeError_after_enqueue": {
+        "passed": true
+      }
+    }
+  }
+]

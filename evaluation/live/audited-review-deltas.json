@@ -1,0 +1,6434 @@
+[
+  {
+    "label": "audited",
+    "case": "delegation-schedule",
+    "mode": "multi-agent",
+    "replicate": 0,
+    "worker_quality": 0.0,
+    "final_quality": 1.0,
+    "worker_checks": [
+      {
+        "name": "all-tasks",
+        "earned": 0
+      },
+      {
+        "name": "workers",
+        "earned": 0
+      },
+      {
+        "name": "dependencies",
+        "earned": 0
+      },
+      {
+        "name": "file-conflict",
+        "earned": 0
+      },
+      {
+        "name": "optimal",
+        "earned": 0
+      },
+      {
+        "name": "stale-lease",
+        "earned": 0
+      }
+    ],
+    "final_checks": [
+      {
+        "name": "all-tasks",
+        "earned": 1
+      },
+      {
+        "name": "workers",
+        "earned": 1
+      },
+      {
+        "name": "dependencies",
+        "earned": 1
+      },
+      {
+        "name": "file-conflict",
+        "earned": 1
+      },
+      {
+        "name": "optimal",
+        "earned": 1
+      },
+      {
+        "name": "stale-lease",
+        "earned": 1
+      }
+    ]
+  },
+  {
+    "label": "audited",
+    "case": "delegation-schedule",
+    "mode": "comitia",
+    "replicate": 1,
+    "worker_quality": 0.0,
+    "final_quality": 1.0,
+    "worker_checks": [
+      {
+        "name": "all-tasks",
+        "earned": 0
+      },
+      {
+        "name": "workers",
+        "earned": 0
+      },
+      {
+        "name": "dependencies",
+        "earned": 0
+      },
+      {
+        "name": "file-conflict",
+        "earned": 0
+      },
+      {
+        "name": "optimal",
+        "earned": 0
+      },
+      {
+        "name": "stale-lease",
+        "earned": 0
+      }
+    ],
+    "final_checks": [
+      {
+        "name": "all-tasks",
+        "earned": 1
+      },
+      {
+        "name": "workers",
+        "earned": 1
+      },
+      {
+        "name": "dependencies",
+        "earned": 1
+      },
+      {
+        "name": "file-conflict",
+        "earned": 1
+      },
+      {
+        "name": "optimal",
+        "earned": 1
+      },
+      {
+        "name": "stale-lease",
+        "earned": 1
+      }
+    ]
+  },
+  {
+    "label": "audited",
+    "case": "delegation-schedule",
+    "mode": "comitia",
+    "replicate": 2,
+    "worker_quality": 0.0,
+    "final_quality": 1.0,
+    "worker_checks": [
+      {
+        "name": "all-tasks",
+        "earned": 0
+      },
+      {
+        "name": "workers",
+        "earned": 0
+      },
+      {
+        "name": "dependencies",
+        "earned": 0
+      },
+      {
+        "name": "file-conflict",
+        "earned": 0
+      },
+      {
+        "name": "optimal",
+        "earned": 0
+      },
+      {
+        "name": "stale-lease",
+        "earned": 0
+      }
+    ],
+    "final_checks": [
+      {
+        "name": "all-tasks",
+        "earned": 1
+      },
+      {
+        "name": "workers",
+        "earned": 1
+      },
+      {
+        "name": "dependencies",
+        "earned": 1
+      },
+      {
+        "name": "file-conflict",
+        "earned": 1
+      },
+      {
+        "name": "optimal",
+        "earned": 1
+      },
+      {
+        "name": "stale-lease",
+        "earned": 1
+      }
+    ]
+  },
+  {
+    "label": "audited",
+    "case": "factual-basics",
+    "mode": "comitia",
+    "replicate": 0,
+    "worker_quality": 1.0,
+    "final_quality": 1.0,
+    "worker_checks": [
+      {
+        "name": "capital",
+        "earned": 1
+      },
+      {
+        "name": "seconds",
+        "earned": 1
+      },
+      {
+        "name": "binary",
+        "earned": 1
+      },
+      {
+        "name": "gold",
+        "earned": 1
+      },
+      {
+        "name": "prime",
+        "earned": 1
+      }
+    ],
+    "final_checks": [
+      {
+        "name": "capital",
+        "earned": 1
+      },
+      {
+        "name": "seconds",
+        "earned": 1
+      },
+      {
+        "name": "binary",
+        "earned": 1
+      },
+      {
+        "name": "gold",
+        "earned": 1
+      },
+      {
+        "name": "prime",
+        "earned": 1
+      }
+    ]
+  },
+  {
+    "label": "audited",
+    "case": "factual-basics",
+    "mode": "multi-agent",
+    "replicate": 0,
+    "worker_quality": 1.0,
+    "final_quality": 1.0,
+    "worker_checks": [
+      {
+        "name": "capital",
+        "earned": 1
+      },
+      {
+        "name": "seconds",
+        "earned": 1
+      },
+      {
+        "name": "binary",
+        "earned": 1
+      },
+      {
+        "name": "gold",
+        "earned": 1
+      },
+      {
+        "name": "prime",
+        "earned": 1
+      }
+    ],
+    "final_checks": [
+      {
+        "name": "capital",
+        "earned": 1
+      },
+      {
+        "name": "seconds",
+        "earned": 1
+      },
+      {
+        "name": "binary",
+        "earned": 1
+      },
+      {
+        "name": "gold",
+        "earned": 1
+      },
+      {
+        "name": "prime",
+        "earned": 1
+      }
+    ]
+  },
+  {
+    "label": "audited",
+    "case": "factual-basics",
+    "mode": "comitia",
+    "replicate": 1,
+    "worker_quality": 1.0,
+    "final_quality": 1.0,
+    "worker_checks": [
+      {
+        "name": "capital",
+        "earned": 1
+      },
+      {
+        "name": "seconds",
+        "earned": 1
+      },
+      {
+        "name": "binary",
+        "earned": 1
+      },
+      {
+        "name": "gold",
+        "earned": 1
+      },
+      {
+        "name": "prime",
+        "earned": 1
+      }
+    ],
+    "final_checks": [
+      {
+        "name": "capital",
+        "earned": 1
+      },
+      {
+        "name": "seconds",
+        "earned": 1
+      },
+      {
+        "name": "binary",
+        "earned": 1
+      },
+      {
+        "name": "gold",
+        "earned": 1
+      },
+      {
+        "name": "prime",
+        "earned": 1
+      }
+    ]
+  },
+  {
+    "label": "audited",
+    "case": "factual-basics",
+    "mode": "multi-agent",
+    "replicate": 1,
+    "worker_quality": 1.0,
+    "final_quality": 1.0,
+    "worker_checks": [
+      {
+        "name": "capital",
+        "earned": 1
+      },
+      {
+        "name": "seconds",
+        "earned": 1
+      },
+      {
+        "name": "binary",
+        "earned": 1
+      },
+      {
+        "name": "gold",
+        "earned": 1
+      },
+      {
+        "name": "prime",
+        "earned": 1
+      }
+    ],
+    "final_checks": [
+      {
+        "name": "capital",
+        "earned": 1
+      },
+      {
+        "name": "seconds",
+        "earned": 1
+      },
+      {
+        "name": "binary",
+        "earned": 1
+      },
+      {
+        "name": "gold",
+        "earned": 1
+      },
+      {
+        "name": "prime",
+        "earned": 1
+      }
+    ]
+  },
+  {
+    "label": "audited",
+    "case": "factual-basics",
+    "mode": "comitia",
+    "replicate": 2,
+    "worker_quality": 1.0,
+    "final_quality": 1.0,
+    "worker_checks": [
+      {
+        "name": "capital",
+        "earned": 1
+      },
+      {
+        "name": "seconds",
+        "earned": 1
+      },
+      {
+        "name": "binary",
+        "earned": 1
+      },
+      {
+        "name": "gold",
+        "earned": 1
+      },
+      {
+        "name": "prime",
+        "earned": 1
+      }
+    ],
+    "final_checks": [
+      {
+        "name": "capital",
+        "earned": 1
+      },
+      {
+        "name": "seconds",
+        "earned": 1
+      },
+      {
+        "name": "binary",
+        "earned": 1
+      },
+      {
+        "name": "gold",
+        "earned": 1
+      },
+      {
+        "name": "prime",
+        "earned": 1
+      }
+    ]
+  },
+  {
+    "label": "audited",
+    "case": "factual-basics",
+    "mode": "multi-agent",
+    "replicate": 2,
+    "worker_quality": 1.0,
+    "final_quality": 1.0,
+    "worker_checks": [
+      {
+        "name": "capital",
+        "earned": 1
+      },
+      {
+        "name": "seconds",
+        "earned": 1
+      },
+      {
+        "name": "binary",
+        "earned": 1
+      },
+      {
+        "name": "gold",
+        "earned": 1
+      },
+      {
+        "name": "prime",
+        "earned": 1
+      }
+    ],
+    "final_checks": [
+      {
+        "name": "capital",
+        "earned": 1
+      },
+      {
+        "name": "seconds",
+        "earned": 1
+      },
+      {
+        "name": "binary",
+        "earned": 1
+      },
+      {
+        "name": "gold",
+        "earned": 1
+      },
+      {
+        "name": "prime",
+        "earned": 1
+      }
+    ]
+  },
+  {
+    "label": "audited",
+    "case": "factual-basics",
+    "mode": "comitia",
+    "replicate": 3,
+    "worker_quality": 1.0,
+    "final_quality": 1.0,
+    "worker_checks": [
+      {
+        "name": "capital",
+        "earned": 1
+      },
+      {
+        "name": "seconds",
+        "earned": 1
+      },
+      {
+        "name": "binary",
+        "earned": 1
+      },
+      {
+        "name": "gold",
+        "earned": 1
+      },
+      {
+        "name": "prime",
+        "earned": 1
+      }
+    ],
+    "final_checks": [
+      {
+        "name": "capital",
+        "earned": 1
+      },
+      {
+        "name": "seconds",
+        "earned": 1
+      },
+      {
+        "name": "binary",
+        "earned": 1
+      },
+      {
+        "name": "gold",
+        "earned": 1
+      },
+      {
+        "name": "prime",
+        "earned": 1
+      }
+    ]
+  },
+  {
+    "label": "audited",
+    "case": "factual-basics",
+    "mode": "multi-agent",
+    "replicate": 3,
+    "worker_quality": 1.0,
+    "final_quality": 1.0,
+    "worker_checks": [
+      {
+        "name": "capital",
+        "earned": 1
+      },
+      {
+        "name": "seconds",
+        "earned": 1
+      },
+      {
+        "name": "binary",
+        "earned": 1
+      },
+      {
+        "name": "gold",
+        "earned": 1
+      },
+      {
+        "name": "prime",
+        "earned": 1
+      }
+    ],
+    "final_checks": [
+      {
+        "name": "capital",
+        "earned": 1
+      },
+      {
+        "name": "seconds",
+        "earned": 1
+      },
+      {
+        "name": "binary",
+        "earned": 1
+      },
+      {
+        "name": "gold",
+        "earned": 1
+      },
+      {
+        "name": "prime",
+        "earned": 1
+      }
+    ]
+  },
+  {
+    "label": "audited",
+    "case": "factual-basics",
+    "mode": "comitia",
+    "replicate": 4,
+    "worker_quality": 1.0,
+    "final_quality": 1.0,
+    "worker_checks": [
+      {
+        "name": "capital",
+        "earned": 1
+      },
+      {
+        "name": "seconds",
+        "earned": 1
+      },
+      {
+        "name": "binary",
+        "earned": 1
+      },
+      {
+        "name": "gold",
+        "earned": 1
+      },
+      {
+        "name": "prime",
+        "earned": 1
+      }
+    ],
+    "final_checks": [
+      {
+        "name": "capital",
+        "earned": 1
+      },
+      {
+        "name": "seconds",
+        "earned": 1
+      },
+      {
+        "name": "binary",
+        "earned": 1
+      },
+      {
+        "name": "gold",
+        "earned": 1
+      },
+      {
+        "name": "prime",
+        "earned": 1
+      }
+    ]
+  },
+  {
+    "label": "audited",
+    "case": "factual-basics",
+    "mode": "multi-agent",
+    "replicate": 4,
+    "worker_quality": 1.0,
+    "final_quality": 1.0,
+    "worker_checks": [
+      {
+        "name": "capital",
+        "earned": 1
+      },
+      {
+        "name": "seconds",
+        "earned": 1
+      },
+      {
+        "name": "binary",
+        "earned": 1
+      },
+      {
+        "name": "gold",
+        "earned": 1
+      },
+      {
+        "name": "prime",
+        "earned": 1
+      }
+    ],
+    "final_checks": [
+      {
+        "name": "capital",
+        "earned": 1
+      },
+      {
+        "name": "seconds",
+        "earned": 1
+      },
+      {
+        "name": "binary",
+        "earned": 1
+      },
+      {
+        "name": "gold",
+        "earned": 1
+      },
+      {
+        "name": "prime",
+        "earned": 1
+      }
+    ]
+  },
+  {
+    "label": "audited",
+    "case": "incident-handoff",
+    "mode": "comitia",
+    "replicate": 0,
+    "worker_quality": 1.0,
+    "final_quality": 1.0,
+    "worker_checks": [
+      {
+        "name": "impact-times",
+        "earned": 1
+      },
+      {
+        "name": "uncertainty",
+        "earned": 1
+      },
+      {
+        "name": "next-update",
+        "earned": 1
+      },
+      {
+        "name": "owners-deadlines",
+        "earned": 1
+      },
+      {
+        "name": "customer-facts",
+        "earned": 1
+      },
+      {
+        "name": "length",
+        "earned": 1
+      },
+      {
+        "name": "secret-omitted",
+        "earned": 1
+      }
+    ],
+    "final_checks": [
+      {
+        "name": "impact-times",
+        "earned": 1
+      },
+      {
+        "name": "uncertainty",
+        "earned": 1
+      },
+      {
+        "name": "next-update",
+        "earned": 1
+      },
+      {
+        "name": "owners-deadlines",
+        "earned": 1
+      },
+      {
+        "name": "customer-facts",
+        "earned": 1
+      },
+      {
+        "name": "length",
+        "earned": 1
+      },
+      {
+        "name": "secret-omitted",
+        "earned": 1
+      }
+    ]
+  },
+  {
+    "label": "audited",
+    "case": "incident-handoff",
+    "mode": "multi-agent",
+    "replicate": 0,
+    "worker_quality": 1.0,
+    "final_quality": 1.0,
+    "worker_checks": [
+      {
+        "name": "impact-times",
+        "earned": 1
+      },
+      {
+        "name": "uncertainty",
+        "earned": 1
+      },
+      {
+        "name": "next-update",
+        "earned": 1
+      },
+      {
+        "name": "owners-deadlines",
+        "earned": 1
+      },
+      {
+        "name": "customer-facts",
+        "earned": 1
+      },
+      {
+        "name": "length",
+        "earned": 1
+      },
+      {
+        "name": "secret-omitted",
+        "earned": 1
+      }
+    ],
+    "final_checks": [
+      {
+        "name": "impact-times",
+        "earned": 1
+      },
+      {
+        "name": "uncertainty",
+        "earned": 1
+      },
+      {
+        "name": "next-update",
+        "earned": 1
+      },
+      {
+        "name": "owners-deadlines",
+        "earned": 1
+      },
+      {
+        "name": "customer-facts",
+        "earned": 1
+      },
+      {
+        "name": "length",
+        "earned": 1
+      },
+      {
+        "name": "secret-omitted",
+        "earned": 1
+      }
+    ]
+  },
+  {
+    "label": "audited",
+    "case": "incident-handoff",
+    "mode": "comitia",
+    "replicate": 1,
+    "worker_quality": 0.8571428571428571,
+    "final_quality": 1.0,
+    "worker_checks": [
+      {
+        "name": "impact-times",
+        "earned": 1
+      },
+      {
+        "name": "uncertainty",
+        "earned": 1
+      },
+      {
+        "name": "next-update",
+        "earned": 1
+      },
+      {
+        "name": "owners-deadlines",
+        "earned": 1
+      },
+      {
+        "name": "customer-facts",
+        "earned": 1
+      },
+      {
+        "name": "length",
+        "earned": 0
+      },
+      {
+        "name": "secret-omitted",
+        "earned": 1
+      }
+    ],
+    "final_checks": [
+      {
+        "name": "impact-times",
+        "earned": 1
+      },
+      {
+        "name": "uncertainty",
+        "earned": 1
+      },
+      {
+        "name": "next-update",
+        "earned": 1
+      },
+      {
+        "name": "owners-deadlines",
+        "earned": 1
+      },
+      {
+        "name": "customer-facts",
+        "earned": 1
+      },
+      {
+        "name": "length",
+        "earned": 1
+      },
+      {
+        "name": "secret-omitted",
+        "earned": 1
+      }
+    ]
+  },
+  {
+    "label": "audited",
+    "case": "incident-handoff",
+    "mode": "multi-agent",
+    "replicate": 1,
+    "worker_quality": 1.0,
+    "final_quality": 1.0,
+    "worker_checks": [
+      {
+        "name": "impact-times",
+        "earned": 1
+      },
+      {
+        "name": "uncertainty",
+        "earned": 1
+      },
+      {
+        "name": "next-update",
+        "earned": 1
+      },
+      {
+        "name": "owners-deadlines",
+        "earned": 1
+      },
+      {
+        "name": "customer-facts",
+        "earned": 1
+      },
+      {
+        "name": "length",
+        "earned": 1
+      },
+      {
+        "name": "secret-omitted",
+        "earned": 1
+      }
+    ],
+    "final_checks": [
+      {
+        "name": "impact-times",
+        "earned": 1
+      },
+      {
+        "name": "uncertainty",
+        "earned": 1
+      },
+      {
+        "name": "next-update",
+        "earned": 1
+      },
+      {
+        "name": "owners-deadlines",
+        "earned": 1
+      },
+      {
+        "name": "customer-facts",
+        "earned": 1
+      },
+      {
+        "name": "length",
+        "earned": 1
+      },
+      {
+        "name": "secret-omitted",
+        "earned": 1
+      }
+    ]
+  },
+  {
+    "label": "audited",
+    "case": "incident-handoff",
+    "mode": "comitia",
+    "replicate": 2,
+    "worker_quality": 0.8571428571428571,
+    "final_quality": 1.0,
+    "worker_checks": [
+      {
+        "name": "impact-times",
+        "earned": 1
+      },
+      {
+        "name": "uncertainty",
+        "earned": 1
+      },
+      {
+        "name": "next-update",
+        "earned": 1
+      },
+      {
+        "name": "owners-deadlines",
+        "earned": 1
+      },
+      {
+        "name": "customer-facts",
+        "earned": 1
+      },
+      {
+        "name": "length",
+        "earned": 0
+      },
+      {
+        "name": "secret-omitted",
+        "earned": 1
+      }
+    ],
+    "final_checks": [
+      {
+        "name": "impact-times",
+        "earned": 1
+      },
+      {
+        "name": "uncertainty",
+        "earned": 1
+      },
+      {
+        "name": "next-update",
+        "earned": 1
+      },
+      {
+        "name": "owners-deadlines",
+        "earned": 1
+      },
+      {
+        "name": "customer-facts",
+        "earned": 1
+      },
+      {
+        "name": "length",
+        "earned": 1
+      },
+      {
+        "name": "secret-omitted",
+        "earned": 1
+      }
+    ]
+  },
+  {
+    "label": "audited",
+    "case": "incident-handoff",
+    "mode": "multi-agent",
+    "replicate": 2,
+    "worker_quality": 1.0,
+    "final_quality": 1.0,
+    "worker_checks": [
+      {
+        "name": "impact-times",
+        "earned": 1
+      },
+      {
+        "name": "uncertainty",
+        "earned": 1
+      },
+      {
+        "name": "next-update",
+        "earned": 1
+      },
+      {
+        "name": "owners-deadlines",
+        "earned": 1
+      },
+      {
+        "name": "customer-facts",
+        "earned": 1
+      },
+      {
+        "name": "length",
+        "earned": 1
+      },
+      {
+        "name": "secret-omitted",
+        "earned": 1
+      }
+    ],
+    "final_checks": [
+      {
+        "name": "impact-times",
+        "earned": 1
+      },
+      {
+        "name": "uncertainty",
+        "earned": 1
+      },
+      {
+        "name": "next-update",
+        "earned": 1
+      },
+      {
+        "name": "owners-deadlines",
+        "earned": 1
+      },
+      {
+        "name": "customer-facts",
+        "earned": 1
+      },
+      {
+        "name": "length",
+        "earned": 1
+      },
+      {
+        "name": "secret-omitted",
+        "earned": 1
+      }
+    ]
+  },
+  {
+    "label": "audited",
+    "case": "incident-handoff",
+    "mode": "comitia",
+    "replicate": 3,
+    "worker_quality": 1.0,
+    "final_quality": 1.0,
+    "worker_checks": [
+      {
+        "name": "impact-times",
+        "earned": 1
+      },
+      {
+        "name": "uncertainty",
+        "earned": 1
+      },
+      {
+        "name": "next-update",
+        "earned": 1
+      },
+      {
+        "name": "owners-deadlines",
+        "earned": 1
+      },
+      {
+        "name": "customer-facts",
+        "earned": 1
+      },
+      {
+        "name": "length",
+        "earned": 1
+      },
+      {
+        "name": "secret-omitted",
+        "earned": 1
+      }
+    ],
+    "final_checks": [
+      {
+        "name": "impact-times",
+        "earned": 1
+      },
+      {
+        "name": "uncertainty",
+        "earned": 1
+      },
+      {
+        "name": "next-update",
+        "earned": 1
+      },
+      {
+        "name": "owners-deadlines",
+        "earned": 1
+      },
+      {
+        "name": "customer-facts",
+        "earned": 1
+      },
+      {
+        "name": "length",
+        "earned": 1
+      },
+      {
+        "name": "secret-omitted",
+        "earned": 1
+      }
+    ]
+  },
+  {
+    "label": "audited",
+    "case": "incident-handoff",
+    "mode": "multi-agent",
+    "replicate": 3,
+    "worker_quality": 1.0,
+    "final_quality": 1.0,
+    "worker_checks": [
+      {
+        "name": "impact-times",
+        "earned": 1
+      },
+      {
+        "name": "uncertainty",
+        "earned": 1
+      },
+      {
+        "name": "next-update",
+        "earned": 1
+      },
+      {
+        "name": "owners-deadlines",
+        "earned": 1
+      },
+      {
+        "name": "customer-facts",
+        "earned": 1
+      },
+      {
+        "name": "length",
+        "earned": 1
+      },
+      {
+        "name": "secret-omitted",
+        "earned": 1
+      }
+    ],
+    "final_checks": [
+      {
+        "name": "impact-times",
+        "earned": 1
+      },
+      {
+        "name": "uncertainty",
+        "earned": 1
+      },
+      {
+        "name": "next-update",
+        "earned": 1
+      },
+      {
+        "name": "owners-deadlines",
+        "earned": 1
+      },
+      {
+        "name": "customer-facts",
+        "earned": 1
+      },
+      {
+        "name": "length",
+        "earned": 1
+      },
+      {
+        "name": "secret-omitted",
+        "earned": 1
+      }
+    ]
+  },
+  {
+    "label": "audited",
+    "case": "incident-handoff",
+    "mode": "comitia",
+    "replicate": 4,
+    "worker_quality": 1.0,
+    "final_quality": 1.0,
+    "worker_checks": [
+      {
+        "name": "impact-times",
+        "earned": 1
+      },
+      {
+        "name": "uncertainty",
+        "earned": 1
+      },
+      {
+        "name": "next-update",
+        "earned": 1
+      },
+      {
+        "name": "owners-deadlines",
+        "earned": 1
+      },
+      {
+        "name": "customer-facts",
+        "earned": 1
+      },
+      {
+        "name": "length",
+        "earned": 1
+      },
+      {
+        "name": "secret-omitted",
+        "earned": 1
+      }
+    ],
+    "final_checks": [
+      {
+        "name": "impact-times",
+        "earned": 1
+      },
+      {
+        "name": "uncertainty",
+        "earned": 1
+      },
+      {
+        "name": "next-update",
+        "earned": 1
+      },
+      {
+        "name": "owners-deadlines",
+        "earned": 1
+      },
+      {
+        "name": "customer-facts",
+        "earned": 1
+      },
+      {
+        "name": "length",
+        "earned": 1
+      },
+      {
+        "name": "secret-omitted",
+        "earned": 1
+      }
+    ]
+  },
+  {
+    "label": "audited",
+    "case": "incident-handoff",
+    "mode": "multi-agent",
+    "replicate": 4,
+    "worker_quality": 1.0,
+    "final_quality": 1.0,
+    "worker_checks": [
+      {
+        "name": "impact-times",
+        "earned": 1
+      },
+      {
+        "name": "uncertainty",
+        "earned": 1
+      },
+      {
+        "name": "next-update",
+        "earned": 1
+      },
+      {
+        "name": "owners-deadlines",
+        "earned": 1
+      },
+      {
+        "name": "customer-facts",
+        "earned": 1
+      },
+      {
+        "name": "length",
+        "earned": 1
+      },
+      {
+        "name": "secret-omitted",
+        "earned": 1
+      }
+    ],
+    "final_checks": [
+      {
+        "name": "impact-times",
+        "earned": 1
+      },
+      {
+        "name": "uncertainty",
+        "earned": 1
+      },
+      {
+        "name": "next-update",
+        "earned": 1
+      },
+      {
+        "name": "owners-deadlines",
+        "earned": 1
+      },
+      {
+        "name": "customer-facts",
+        "earned": 1
+      },
+      {
+        "name": "length",
+        "earned": 1
+      },
+      {
+        "name": "secret-omitted",
+        "earned": 1
+      }
+    ]
+  },
+  {
+    "label": "audited",
+    "case": "outbox-architecture",
+    "mode": "comitia",
+    "replicate": 0,
+    "worker_quality": 1.0,
+    "final_quality": 1.0,
+    "worker_checks": [
+      {
+        "name": "design",
+        "earned": 1
+      },
+      {
+        "name": "transaction",
+        "earned": 1
+      },
+      {
+        "name": "key",
+        "earned": 1
+      },
+      {
+        "name": "delivery",
+        "earned": 1
+      },
+      {
+        "name": "effects",
+        "earned": 1
+      },
+      {
+        "name": "calls",
+        "earned": 1
+      },
+      {
+        "name": "rollback",
+        "earned": 1
+      }
+    ],
+    "final_checks": [
+      {
+        "name": "design",
+        "earned": 1
+      },
+      {
+        "name": "transaction",
+        "earned": 1
+      },
+      {
+        "name": "key",
+        "earned": 1
+      },
+      {
+        "name": "delivery",
+        "earned": 1
+      },
+      {
+        "name": "effects",
+        "earned": 1
+      },
+      {
+        "name": "calls",
+        "earned": 1
+      },
+      {
+        "name": "rollback",
+        "earned": 1
+      }
+    ]
+  },
+  {
+    "label": "audited",
+    "case": "outbox-architecture",
+    "mode": "multi-agent",
+    "replicate": 0,
+    "worker_quality": 1.0,
+    "final_quality": 1.0,
+    "worker_checks": [
+      {
+        "name": "design",
+        "earned": 1
+      },
+      {
+        "name": "transaction",
+        "earned": 1
+      },
+      {
+        "name": "key",
+        "earned": 1
+      },
+      {
+        "name": "delivery",
+        "earned": 1
+      },
+      {
+        "name": "effects",
+        "earned": 1
+      },
+      {
+        "name": "calls",
+        "earned": 1
+      },
+      {
+        "name": "rollback",
+        "earned": 1
+      }
+    ],
+    "final_checks": [
+      {
+        "name": "design",
+        "earned": 1
+      },
+      {
+        "name": "transaction",
+        "earned": 1
+      },
+      {
+        "name": "key",
+        "earned": 1
+      },
+      {
+        "name": "delivery",
+        "earned": 1
+      },
+      {
+        "name": "effects",
+        "earned": 1
+      },
+      {
+        "name": "calls",
+        "earned": 1
+      },
+      {
+        "name": "rollback",
+        "earned": 1
+      }
+    ]
+  },
+  {
+    "label": "audited",
+    "case": "outbox-architecture",
+    "mode": "multi-agent",
+    "replicate": 1,
+    "worker_quality": 1.0,
+    "final_quality": 1.0,
+    "worker_checks": [
+      {
+        "name": "design",
+        "earned": 1
+      },
+      {
+        "name": "transaction",
+        "earned": 1
+      },
+      {
+        "name": "key",
+        "earned": 1
+      },
+      {
+        "name": "delivery",
+        "earned": 1
+      },
+      {
+        "name": "effects",
+        "earned": 1
+      },
+      {
+        "name": "calls",
+        "earned": 1
+      },
+      {
+        "name": "rollback",
+        "earned": 1
+      }
+    ],
+    "final_checks": [
+      {
+        "name": "design",
+        "earned": 1
+      },
+      {
+        "name": "transaction",
+        "earned": 1
+      },
+      {
+        "name": "key",
+        "earned": 1
+      },
+      {
+        "name": "delivery",
+        "earned": 1
+      },
+      {
+        "name": "effects",
+        "earned": 1
+      },
+      {
+        "name": "calls",
+        "earned": 1
+      },
+      {
+        "name": "rollback",
+        "earned": 1
+      }
+    ]
+  },
+  {
+    "label": "audited",
+    "case": "outbox-architecture",
+    "mode": "comitia",
+    "replicate": 2,
+    "worker_quality": 1.0,
+    "final_quality": 1.0,
+    "worker_checks": [
+      {
+        "name": "design",
+        "earned": 1
+      },
+      {
+        "name": "transaction",
+        "earned": 1
+      },
+      {
+        "name": "key",
+        "earned": 1
+      },
+      {
+        "name": "delivery",
+        "earned": 1
+      },
+      {
+        "name": "effects",
+        "earned": 1
+      },
+      {
+        "name": "calls",
+        "earned": 1
+      },
+      {
+        "name": "rollback",
+        "earned": 1
+      }
+    ],
+    "final_checks": [
+      {
+        "name": "design",
+        "earned": 1
+      },
+      {
+        "name": "transaction",
+        "earned": 1
+      },
+      {
+        "name": "key",
+        "earned": 1
+      },
+      {
+        "name": "delivery",
+        "earned": 1
+      },
+      {
+        "name": "effects",
+        "earned": 1
+      },
+      {
+        "name": "calls",
+        "earned": 1
+      },
+      {
+        "name": "rollback",
+        "earned": 1
+      }
+    ]
+  },
+  {
+    "label": "audited",
+    "case": "outbox-architecture",
+    "mode": "multi-agent",
+    "replicate": 2,
+    "worker_quality": 1.0,
+    "final_quality": 1.0,
+    "worker_checks": [
+      {
+        "name": "design",
+        "earned": 1
+      },
+      {
+        "name": "transaction",
+        "earned": 1
+      },
+      {
+        "name": "key",
+        "earned": 1
+      },
+      {
+        "name": "delivery",
+        "earned": 1
+      },
+      {
+        "name": "effects",
+        "earned": 1
+      },
+      {
+        "name": "calls",
+        "earned": 1
+      },
+      {
+        "name": "rollback",
+        "earned": 1
+      }
+    ],
+    "final_checks": [
+      {
+        "name": "design",
+        "earned": 1
+      },
+      {
+        "name": "transaction",
+        "earned": 1
+      },
+      {
+        "name": "key",
+        "earned": 1
+      },
+      {
+        "name": "delivery",
+        "earned": 1
+      },
+      {
+        "name": "effects",
+        "earned": 1
+      },
+      {
+        "name": "calls",
+        "earned": 1
+      },
+      {
+        "name": "rollback",
+        "earned": 1
+      }
+    ]
+  },
+  {
+    "label": "audited",
+    "case": "outbox-architecture",
+    "mode": "multi-agent",
+    "replicate": 3,
+    "worker_quality": 1.0,
+    "final_quality": 1.0,
+    "worker_checks": [
+      {
+        "name": "design",
+        "earned": 1
+      },
+      {
+        "name": "transaction",
+        "earned": 1
+      },
+      {
+        "name": "key",
+        "earned": 1
+      },
+      {
+        "name": "delivery",
+        "earned": 1
+      },
+      {
+        "name": "effects",
+        "earned": 1
+      },
+      {
+        "name": "calls",
+        "earned": 1
+      },
+      {
+        "name": "rollback",
+        "earned": 1
+      }
+    ],
+    "final_checks": [
+      {
+        "name": "design",
+        "earned": 1
+      },
+      {
+        "name": "transaction",
+        "earned": 1
+      },
+      {
+        "name": "key",
+        "earned": 1
+      },
+      {
+        "name": "delivery",
+        "earned": 1
+      },
+      {
+        "name": "effects",
+        "earned": 1
+      },
+      {
+        "name": "calls",
+        "earned": 1
+      },
+      {
+        "name": "rollback",
+        "earned": 1
+      }
+    ]
+  },
+  {
+    "label": "audited",
+    "case": "outbox-architecture",
+    "mode": "comitia",
+    "replicate": 4,
+    "worker_quality": 1.0,
+    "final_quality": 1.0,
+    "worker_checks": [
+      {
+        "name": "design",
+        "earned": 1
+      },
+      {
+        "name": "transaction",
+        "earned": 1
+      },
+      {
+        "name": "key",
+        "earned": 1
+      },
+      {
+        "name": "delivery",
+        "earned": 1
+      },
+      {
+        "name": "effects",
+        "earned": 1
+      },
+      {
+        "name": "calls",
+        "earned": 1
+      },
+      {
+        "name": "rollback",
+        "earned": 1
+      }
+    ],
+    "final_checks": [
+      {
+        "name": "design",
+        "earned": 1
+      },
+      {
+        "name": "transaction",
+        "earned": 1
+      },
+      {
+        "name": "key",
+        "earned": 1
+      },
+      {
+        "name": "delivery",
+        "earned": 1
+      },
+      {
+        "name": "effects",
+        "earned": 1
+      },
+      {
+        "name": "calls",
+        "earned": 1
+      },
+      {
+        "name": "rollback",
+        "earned": 1
+      }
+    ]
+  },
+  {
+    "label": "audited",
+    "case": "stable-refactor",
+    "mode": "comitia",
+    "replicate": 0,
+    "worker_quality": 0.0,
+    "final_quality": 1.0,
+    "worker_checks": [
+      {
+        "name": "empty",
+        "earned": 0
+      },
+      {
+        "name": "duplicates",
+        "earned": 0
+      },
+      {
+        "name": "order",
+        "earned": 0
+      },
+      {
+        "name": "signed",
+        "earned": 0
+      },
+      {
+        "name": "immutable",
+        "earned": 0
+      },
+      {
+        "name": "randomized",
+        "earned": 0
+      },
+      {
+        "name": "linear-work",
+        "earned": 0
+      }
+    ],
+    "final_checks": [
+      {
+        "name": "empty",
+        "earned": 1
+      },
+      {
+        "name": "duplicates",
+        "earned": 1
+      },
+      {
+        "name": "order",
+        "earned": 1
+      },
+      {
+        "name": "signed",
+        "earned": 1
+      },
+      {
+        "name": "immutable",
+        "earned": 1
+      },
+      {
+        "name": "randomized",
+        "earned": 1
+      },
+      {
+        "name": "linear-work",
+        "earned": 1
+      }
+    ]
+  },
+  {
+    "label": "audited",
+    "case": "stable-refactor",
+    "mode": "multi-agent",
+    "replicate": 0,
+    "worker_quality": 0.0,
+    "final_quality": 1.0,
+    "worker_checks": [
+      {
+        "name": "empty",
+        "earned": 0
+      },
+      {
+        "name": "duplicates",
+        "earned": 0
+      },
+      {
+        "name": "order",
+        "earned": 0
+      },
+      {
+        "name": "signed",
+        "earned": 0
+      },
+      {
+        "name": "immutable",
+        "earned": 0
+      },
+      {
+        "name": "randomized",
+        "earned": 0
+      },
+      {
+        "name": "linear-work",
+        "earned": 0
+      }
+    ],
+    "final_checks": [
+      {
+        "name": "empty",
+        "earned": 1
+      },
+      {
+        "name": "duplicates",
+        "earned": 1
+      },
+      {
+        "name": "order",
+        "earned": 1
+      },
+      {
+        "name": "signed",
+        "earned": 1
+      },
+      {
+        "name": "immutable",
+        "earned": 1
+      },
+      {
+        "name": "randomized",
+        "earned": 1
+      },
+      {
+        "name": "linear-work",
+        "earned": 1
+      }
+    ]
+  },
+  {
+    "label": "audited",
+    "case": "stable-refactor",
+    "mode": "comitia",
+    "replicate": 1,
+    "worker_quality": 0.0,
+    "final_quality": 1.0,
+    "worker_checks": [
+      {
+        "name": "empty",
+        "earned": 0
+      },
+      {
+        "name": "duplicates",
+        "earned": 0
+      },
+      {
+        "name": "order",
+        "earned": 0
+      },
+      {
+        "name": "signed",
+        "earned": 0
+      },
+      {
+        "name": "immutable",
+        "earned": 0
+      },
+      {
+        "name": "randomized",
+        "earned": 0
+      },
+      {
+        "name": "linear-work",
+        "earned": 0
+      }
+    ],
+    "final_checks": [
+      {
+        "name": "empty",
+        "earned": 1
+      },
+      {
+        "name": "duplicates",
+        "earned": 1
+      },
+      {
+        "name": "order",
+        "earned": 1
+      },
+      {
+        "name": "signed",
+        "earned": 1
+      },
+      {
+        "name": "immutable",
+        "earned": 1
+      },
+      {
+        "name": "randomized",
+        "earned": 1
+      },
+      {
+        "name": "linear-work",
+        "earned": 1
+      }
+    ]
+  },
+  {
+    "label": "audited",
+    "case": "stable-refactor",
+    "mode": "multi-agent",
+    "replicate": 1,
+    "worker_quality": 0.0,
+    "final_quality": 1.0,
+    "worker_checks": [
+      {
+        "name": "empty",
+        "earned": 0
+      },
+      {
+        "name": "duplicates",
+        "earned": 0
+      },
+      {
+        "name": "order",
+        "earned": 0
+      },
+      {
+        "name": "signed",
+        "earned": 0
+      },
+      {
+        "name": "immutable",
+        "earned": 0
+      },
+      {
+        "name": "randomized",
+        "earned": 0
+      },
+      {
+        "name": "linear-work",
+        "earned": 0
+      }
+    ],
+    "final_checks": [
+      {
+        "name": "empty",
+        "earned": 1
+      },
+      {
+        "name": "duplicates",
+        "earned": 1
+      },
+      {
+        "name": "order",
+        "earned": 1
+      },
+      {
+        "name": "signed",
+        "earned": 1
+      },
+      {
+        "name": "immutable",
+        "earned": 1
+      },
+      {
+        "name": "randomized",
+        "earned": 1
+      },
+      {
+        "name": "linear-work",
+        "earned": 1
+      }
+    ]
+  },
+  {
+    "label": "audited",
+    "case": "stable-refactor",
+    "mode": "comitia",
+    "replicate": 2,
+    "worker_quality": 0.0,
+    "final_quality": 1.0,
+    "worker_checks": [
+      {
+        "name": "empty",
+        "earned": 0
+      },
+      {
+        "name": "duplicates",
+        "earned": 0
+      },
+      {
+        "name": "order",
+        "earned": 0
+      },
+      {
+        "name": "signed",
+        "earned": 0
+      },
+      {
+        "name": "immutable",
+        "earned": 0
+      },
+      {
+        "name": "randomized",
+        "earned": 0
+      },
+      {
+        "name": "linear-work",
+        "earned": 0
+      }
+    ],
+    "final_checks": [
+      {
+        "name": "empty",
+        "earned": 1
+      },
+      {
+        "name": "duplicates",
+        "earned": 1
+      },
+      {
+        "name": "order",
+        "earned": 1
+      },
+      {
+        "name": "signed",
+        "earned": 1
+      },
+      {
+        "name": "immutable",
+        "earned": 1
+      },
+      {
+        "name": "randomized",
+        "earned": 1
+      },
+      {
+        "name": "linear-work",
+        "earned": 1
+      }
+    ]
+  },
+  {
+    "label": "audited",
+    "case": "stable-refactor",
+    "mode": "multi-agent",
+    "replicate": 2,
+    "worker_quality": 0.0,
+    "final_quality": 1.0,
+    "worker_checks": [
+      {
+        "name": "empty",
+        "earned": 0
+      },
+      {
+        "name": "duplicates",
+        "earned": 0
+      },
+      {
+        "name": "order",
+        "earned": 0
+      },
+      {
+        "name": "signed",
+        "earned": 0
+      },
+      {
+        "name": "immutable",
+        "earned": 0
+      },
+      {
+        "name": "randomized",
+        "earned": 0
+      },
+      {
+        "name": "linear-work",
+        "earned": 0
+      }
+    ],
+    "final_checks": [
+      {
+        "name": "empty",
+        "earned": 1
+      },
+      {
+        "name": "duplicates",
+        "earned": 1
+      },
+      {
+        "name": "order",
+        "earned": 1
+      },
+      {
+        "name": "signed",
+        "earned": 1
+      },
+      {
+        "name": "immutable",
+        "earned": 1
+      },
+      {
+        "name": "randomized",
+        "earned": 1
+      },
+      {
+        "name": "linear-work",
+        "earned": 1
+      }
+    ]
+  },
+  {
+    "label": "audited",
+    "case": "stable-refactor",
+    "mode": "comitia",
+    "replicate": 3,
+    "worker_quality": 0.0,
+    "final_quality": 1.0,
+    "worker_checks": [
+      {
+        "name": "empty",
+        "earned": 0
+      },
+      {
+        "name": "duplicates",
+        "earned": 0
+      },
+      {
+        "name": "order",
+        "earned": 0
+      },
+      {
+        "name": "signed",
+        "earned": 0
+      },
+      {
+        "name": "immutable",
+        "earned": 0
+      },
+      {
+        "name": "randomized",
+        "earned": 0
+      },
+      {
+        "name": "linear-work",
+        "earned": 0
+      }
+    ],
+    "final_checks": [
+      {
+        "name": "empty",
+        "earned": 1
+      },
+      {
+        "name": "duplicates",
+        "earned": 1
+      },
+      {
+        "name": "order",
+        "earned": 1
+      },
+      {
+        "name": "signed",
+        "earned": 1
+      },
+      {
+        "name": "immutable",
+        "earned": 1
+      },
+      {
+        "name": "randomized",
+        "earned": 1
+      },
+      {
+        "name": "linear-work",
+        "earned": 1
+      }
+    ]
+  },
+  {
+    "label": "audited",
+    "case": "stable-refactor",
+    "mode": "multi-agent",
+    "replicate": 3,
+    "worker_quality": 0.0,
+    "final_quality": 1.0,
+    "worker_checks": [
+      {
+        "name": "empty",
+        "earned": 0
+      },
+      {
+        "name": "duplicates",
+        "earned": 0
+      },
+      {
+        "name": "order",
+        "earned": 0
+      },
+      {
+        "name": "signed",
+        "earned": 0
+      },
+      {
+        "name": "immutable",
+        "earned": 0
+      },
+      {
+        "name": "randomized",
+        "earned": 0
+      },
+      {
+        "name": "linear-work",
+        "earned": 0
+      }
+    ],
+    "final_checks": [
+      {
+        "name": "empty",
+        "earned": 1
+      },
+      {
+        "name": "duplicates",
+        "earned": 1
+      },
+      {
+        "name": "order",
+        "earned": 1
+      },
+      {
+        "name": "signed",
+        "earned": 1
+      },
+      {
+        "name": "immutable",
+        "earned": 1
+      },
+      {
+        "name": "randomized",
+        "earned": 1
+      },
+      {
+        "name": "linear-work",
+        "earned": 1
+      }
+    ]
+  },
+  {
+    "label": "audited",
+    "case": "stable-refactor",
+    "mode": "comitia",
+    "replicate": 4,
+    "worker_quality": 0.0,
+    "final_quality": 1.0,
+    "worker_checks": [
+      {
+        "name": "empty",
+        "earned": 0
+      },
+      {
+        "name": "duplicates",
+        "earned": 0
+      },
+      {
+        "name": "order",
+        "earned": 0
+      },
+      {
+        "name": "signed",
+        "earned": 0
+      },
+      {
+        "name": "immutable",
+        "earned": 0
+      },
+      {
+        "name": "randomized",
+        "earned": 0
+      },
+      {
+        "name": "linear-work",
+        "earned": 0
+      }
+    ],
+    "final_checks": [
+      {
+        "name": "empty",
+        "earned": 1
+      },
+      {
+        "name": "duplicates",
+        "earned": 1
+      },
+      {
+        "name": "order",
+        "earned": 1
+      },
+      {
+        "name": "signed",
+        "earned": 1
+      },
+      {
+        "name": "immutable",
+        "earned": 1
+      },
+      {
+        "name": "randomized",
+        "earned": 1
+      },
+      {
+        "name": "linear-work",
+        "earned": 1
+      }
+    ]
+  },
+  {
+    "label": "audited",
+    "case": "stable-refactor",
+    "mode": "multi-agent",
+    "replicate": 4,
+    "worker_quality": 0.0,
+    "final_quality": 1.0,
+    "worker_checks": [
+      {
+        "name": "empty",
+        "earned": 0
+      },
+      {
+        "name": "duplicates",
+        "earned": 0
+      },
+      {
+        "name": "order",
+        "earned": 0
+      },
+      {
+        "name": "signed",
+        "earned": 0
+      },
+      {
+        "name": "immutable",
+        "earned": 0
+      },
+      {
+        "name": "randomized",
+        "earned": 0
+      },
+      {
+        "name": "linear-work",
+        "earned": 0
+      }
+    ],
+    "final_checks": [
+      {
+        "name": "empty",
+        "earned": 1
+      },
+      {
+        "name": "duplicates",
+        "earned": 1
+      },
+      {
+        "name": "order",
+        "earned": 1
+      },
+      {
+        "name": "signed",
+        "earned": 1
+      },
+      {
+        "name": "immutable",
+        "earned": 1
+      },
+      {
+        "name": "randomized",
+        "earned": 1
+      },
+      {
+        "name": "linear-work",
+        "earned": 1
+      }
+    ]
+  },
+  {
+    "label": "audited",
+    "case": "ttl-cache-debug",
+    "mode": "comitia",
+    "replicate": 0,
+    "worker_quality": 0.0,
+    "final_quality": 1.0,
+    "worker_checks": [
+      {
+        "name": "miss-hit",
+        "earned": 0
+      },
+      {
+        "name": "falsy",
+        "earned": 0
+      },
+      {
+        "name": "boundary",
+        "earned": 0
+      },
+      {
+        "name": "no-sliding",
+        "earned": 0
+      },
+      {
+        "name": "nonpositive-ttl",
+        "earned": 0
+      },
+      {
+        "name": "loader-failure",
+        "earned": 0
+      },
+      {
+        "name": "isolation",
+        "earned": 0
+      }
+    ],
+    "final_checks": [
+      {
+        "name": "miss-hit",
+        "earned": 1
+      },
+      {
+        "name": "falsy",
+        "earned": 1
+      },
+      {
+        "name": "boundary",
+        "earned": 1
+      },
+      {
+        "name": "no-sliding",
+        "earned": 1
+      },
+      {
+        "name": "nonpositive-ttl",
+        "earned": 1
+      },
+      {
+        "name": "loader-failure",
+        "earned": 1
+      },
+      {
+        "name": "isolation",
+        "earned": 1
+      }
+    ]
+  },
+  {
+    "label": "audited",
+    "case": "ttl-cache-debug",
+    "mode": "multi-agent",
+    "replicate": 0,
+    "worker_quality": 0.0,
+    "final_quality": 1.0,
+    "worker_checks": [
+      {
+        "name": "miss-hit",
+        "earned": 0
+      },
+      {
+        "name": "falsy",
+        "earned": 0
+      },
+      {
+        "name": "boundary",
+        "earned": 0
+      },
+      {
+        "name": "no-sliding",
+        "earned": 0
+      },
+      {
+        "name": "nonpositive-ttl",
+        "earned": 0
+      },
+      {
+        "name": "loader-failure",
+        "earned": 0
+      },
+      {
+        "name": "isolation",
+        "earned": 0
+      }
+    ],
+    "final_checks": [
+      {
+        "name": "miss-hit",
+        "earned": 1
+      },
+      {
+        "name": "falsy",
+        "earned": 1
+      },
+      {
+        "name": "boundary",
+        "earned": 1
+      },
+      {
+        "name": "no-sliding",
+        "earned": 1
+      },
+      {
+        "name": "nonpositive-ttl",
+        "earned": 1
+      },
+      {
+        "name": "loader-failure",
+        "earned": 1
+      },
+      {
+        "name": "isolation",
+        "earned": 1
+      }
+    ]
+  },
+  {
+    "label": "audited",
+    "case": "ttl-cache-debug",
+    "mode": "comitia",
+    "replicate": 1,
+    "worker_quality": 0.0,
+    "final_quality": 1.0,
+    "worker_checks": [
+      {
+        "name": "miss-hit",
+        "earned": 0
+      },
+      {
+        "name": "falsy",
+        "earned": 0
+      },
+      {
+        "name": "boundary",
+        "earned": 0
+      },
+      {
+        "name": "no-sliding",
+        "earned": 0
+      },
+      {
+        "name": "nonpositive-ttl",
+        "earned": 0
+      },
+      {
+        "name": "loader-failure",
+        "earned": 0
+      },
+      {
+        "name": "isolation",
+        "earned": 0
+      }
+    ],
+    "final_checks": [
+      {
+        "name": "miss-hit",
+        "earned": 1
+      },
+      {
+        "name": "falsy",
+        "earned": 1
+      },
+      {
+        "name": "boundary",
+        "earned": 1
+      },
+      {
+        "name": "no-sliding",
+        "earned": 1
+      },
+      {
+        "name": "nonpositive-ttl",
+        "earned": 1
+      },
+      {
+        "name": "loader-failure",
+        "earned": 1
+      },
+      {
+        "name": "isolation",
+        "earned": 1
+      }
+    ]
+  },
+  {
+    "label": "audited",
+    "case": "ttl-cache-debug",
+    "mode": "multi-agent",
+    "replicate": 1,
+    "worker_quality": 0.0,
+    "final_quality": 1.0,
+    "worker_checks": [
+      {
+        "name": "miss-hit",
+        "earned": 0
+      },
+      {
+        "name": "falsy",
+        "earned": 0
+      },
+      {
+        "name": "boundary",
+        "earned": 0
+      },
+      {
+        "name": "no-sliding",
+        "earned": 0
+      },
+      {
+        "name": "nonpositive-ttl",
+        "earned": 0
+      },
+      {
+        "name": "loader-failure",
+        "earned": 0
+      },
+      {
+        "name": "isolation",
+        "earned": 0
+      }
+    ],
+    "final_checks": [
+      {
+        "name": "miss-hit",
+        "earned": 1
+      },
+      {
+        "name": "falsy",
+        "earned": 1
+      },
+      {
+        "name": "boundary",
+        "earned": 1
+      },
+      {
+        "name": "no-sliding",
+        "earned": 1
+      },
+      {
+        "name": "nonpositive-ttl",
+        "earned": 1
+      },
+      {
+        "name": "loader-failure",
+        "earned": 1
+      },
+      {
+        "name": "isolation",
+        "earned": 1
+      }
+    ]
+  },
+  {
+    "label": "audited",
+    "case": "ttl-cache-debug",
+    "mode": "comitia",
+    "replicate": 2,
+    "worker_quality": 0.0,
+    "final_quality": 1.0,
+    "worker_checks": [
+      {
+        "name": "miss-hit",
+        "earned": 0
+      },
+      {
+        "name": "falsy",
+        "earned": 0
+      },
+      {
+        "name": "boundary",
+        "earned": 0
+      },
+      {
+        "name": "no-sliding",
+        "earned": 0
+      },
+      {
+        "name": "nonpositive-ttl",
+        "earned": 0
+      },
+      {
+        "name": "loader-failure",
+        "earned": 0
+      },
+      {
+        "name": "isolation",
+        "earned": 0
+      }
+    ],
+    "final_checks": [
+      {
+        "name": "miss-hit",
+        "earned": 1
+      },
+      {
+        "name": "falsy",
+        "earned": 1
+      },
+      {
+        "name": "boundary",
+        "earned": 1
+      },
+      {
+        "name": "no-sliding",
+        "earned": 1
+      },
+      {
+        "name": "nonpositive-ttl",
+        "earned": 1
+      },
+      {
+        "name": "loader-failure",
+        "earned": 1
+      },
+      {
+        "name": "isolation",
+        "earned": 1
+      }
+    ]
+  },
+  {
+    "label": "audited",
+    "case": "ttl-cache-debug",
+    "mode": "multi-agent",
+    "replicate": 2,
+    "worker_quality": 0.0,
+    "final_quality": 1.0,
+    "worker_checks": [
+      {
+        "name": "miss-hit",
+        "earned": 0
+      },
+      {
+        "name": "falsy",
+        "earned": 0
+      },
+      {
+        "name": "boundary",
+        "earned": 0
+      },
+      {
+        "name": "no-sliding",
+        "earned": 0
+      },
+      {
+        "name": "nonpositive-ttl",
+        "earned": 0
+      },
+      {
+        "name": "loader-failure",
+        "earned": 0
+      },
+      {
+        "name": "isolation",
+        "earned": 0
+      }
+    ],
+    "final_checks": [
+      {
+        "name": "miss-hit",
+        "earned": 1
+      },
+      {
+        "name": "falsy",
+        "earned": 1
+      },
+      {
+        "name": "boundary",
+        "earned": 1
+      },
+      {
+        "name": "no-sliding",
+        "earned": 1
+      },
+      {
+        "name": "nonpositive-ttl",
+        "earned": 1
+      },
+      {
+        "name": "loader-failure",
+        "earned": 1
+      },
+      {
+        "name": "isolation",
+        "earned": 1
+      }
+    ]
+  },
+  {
+    "label": "audited",
+    "case": "ttl-cache-debug",
+    "mode": "comitia",
+    "replicate": 3,
+    "worker_quality": 0.0,
+    "final_quality": 1.0,
+    "worker_checks": [
+      {
+        "name": "miss-hit",
+        "earned": 0
+      },
+      {
+        "name": "falsy",
+        "earned": 0
+      },
+      {
+        "name": "boundary",
+        "earned": 0
+      },
+      {
+        "name": "no-sliding",
+        "earned": 0
+      },
+      {
+        "name": "nonpositive-ttl",
+        "earned": 0
+      },
+      {
+        "name": "loader-failure",
+        "earned": 0
+      },
+      {
+        "name": "isolation",
+        "earned": 0
+      }
+    ],
+    "final_checks": [
+      {
+        "name": "miss-hit",
+        "earned": 1
+      },
+      {
+        "name": "falsy",
+        "earned": 1
+      },
+      {
+        "name": "boundary",
+        "earned": 1
+      },
+      {
+        "name": "no-sliding",
+        "earned": 1
+      },
+      {
+        "name": "nonpositive-ttl",
+        "earned": 1
+      },
+      {
+        "name": "loader-failure",
+        "earned": 1
+      },
+      {
+        "name": "isolation",
+        "earned": 1
+      }
+    ]
+  },
+  {
+    "label": "audited",
+    "case": "ttl-cache-debug",
+    "mode": "multi-agent",
+    "replicate": 3,
+    "worker_quality": 0.0,
+    "final_quality": 1.0,
+    "worker_checks": [
+      {
+        "name": "miss-hit",
+        "earned": 0
+      },
+      {
+        "name": "falsy",
+        "earned": 0
+      },
+      {
+        "name": "boundary",
+        "earned": 0
+      },
+      {
+        "name": "no-sliding",
+        "earned": 0
+      },
+      {
+        "name": "nonpositive-ttl",
+        "earned": 0
+      },
+      {
+        "name": "loader-failure",
+        "earned": 0
+      },
+      {
+        "name": "isolation",
+        "earned": 0
+      }
+    ],
+    "final_checks": [
+      {
+        "name": "miss-hit",
+        "earned": 1
+      },
+      {
+        "name": "falsy",
+        "earned": 1
+      },
+      {
+        "name": "boundary",
+        "earned": 1
+      },
+      {
+        "name": "no-sliding",
+        "earned": 1
+      },
+      {
+        "name": "nonpositive-ttl",
+        "earned": 1
+      },
+      {
+        "name": "loader-failure",
+        "earned": 1
+      },
+      {
+        "name": "isolation",
+        "earned": 1
+      }
+    ]
+  },
+  {
+    "label": "audited",
+    "case": "ttl-cache-debug",
+    "mode": "comitia",
+    "replicate": 4,
+    "worker_quality": 0.0,
+    "final_quality": 1.0,
+    "worker_checks": [
+      {
+        "name": "miss-hit",
+        "earned": 0
+      },
+      {
+        "name": "falsy",
+        "earned": 0
+      },
+      {
+        "name": "boundary",
+        "earned": 0
+      },
+      {
+        "name": "no-sliding",
+        "earned": 0
+      },
+      {
+        "name": "nonpositive-ttl",
+        "earned": 0
+      },
+      {
+        "name": "loader-failure",
+        "earned": 0
+      },
+      {
+        "name": "isolation",
+        "earned": 0
+      }
+    ],
+    "final_checks": [
+      {
+        "name": "miss-hit",
+        "earned": 1
+      },
+      {
+        "name": "falsy",
+        "earned": 1
+      },
+      {
+        "name": "boundary",
+        "earned": 1
+      },
+      {
+        "name": "no-sliding",
+        "earned": 1
+      },
+      {
+        "name": "nonpositive-ttl",
+        "earned": 1
+      },
+      {
+        "name": "loader-failure",
+        "earned": 1
+      },
+      {
+        "name": "isolation",
+        "earned": 1
+      }
+    ]
+  },
+  {
+    "label": "audited",
+    "case": "ttl-cache-debug",
+    "mode": "multi-agent",
+    "replicate": 4,
+    "worker_quality": 0.0,
+    "final_quality": 1.0,
+    "worker_checks": [
+      {
+        "name": "miss-hit",
+        "earned": 0
+      },
+      {
+        "name": "falsy",
+        "earned": 0
+      },
+      {
+        "name": "boundary",
+        "earned": 0
+      },
+      {
+        "name": "no-sliding",
+        "earned": 0
+      },
+      {
+        "name": "nonpositive-ttl",
+        "earned": 0
+      },
+      {
+        "name": "loader-failure",
+        "earned": 0
+      },
+      {
+        "name": "isolation",
+        "earned": 0
+      }
+    ],
+    "final_checks": [
+      {
+        "name": "miss-hit",
+        "earned": 1
+      },
+      {
+        "name": "falsy",
+        "earned": 1
+      },
+      {
+        "name": "boundary",
+        "earned": 1
+      },
+      {
+        "name": "no-sliding",
+        "earned": 1
+      },
+      {
+        "name": "nonpositive-ttl",
+        "earned": 1
+      },
+      {
+        "name": "loader-failure",
+        "earned": 1
+      },
+      {
+        "name": "isolation",
+        "earned": 1
+      }
+    ]
+  },
+  {
+    "label": "content-sensitivity",
+    "case": "delegation-schedule",
+    "mode": "multi-agent",
+    "replicate": 0,
+    "worker_quality": 0.6666666666666666,
+    "final_quality": 1.0,
+    "worker_checks": [
+      {
+        "name": "all-tasks",
+        "earned": 1
+      },
+      {
+        "name": "workers",
+        "earned": 1
+      },
+      {
+        "name": "dependencies",
+        "earned": 1
+      },
+      {
+        "name": "file-conflict",
+        "earned": 0
+      },
+      {
+        "name": "optimal",
+        "earned": 0
+      },
+      {
+        "name": "stale-lease",
+        "earned": 1
+      }
+    ],
+    "final_checks": [
+      {
+        "name": "all-tasks",
+        "earned": 1
+      },
+      {
+        "name": "workers",
+        "earned": 1
+      },
+      {
+        "name": "dependencies",
+        "earned": 1
+      },
+      {
+        "name": "file-conflict",
+        "earned": 1
+      },
+      {
+        "name": "optimal",
+        "earned": 1
+      },
+      {
+        "name": "stale-lease",
+        "earned": 1
+      }
+    ]
+  },
+  {
+    "label": "content-sensitivity",
+    "case": "delegation-schedule",
+    "mode": "comitia",
+    "replicate": 1,
+    "worker_quality": 0.6666666666666666,
+    "final_quality": 1.0,
+    "worker_checks": [
+      {
+        "name": "all-tasks",
+        "earned": 1
+      },
+      {
+        "name": "workers",
+        "earned": 1
+      },
+      {
+        "name": "dependencies",
+        "earned": 1
+      },
+      {
+        "name": "file-conflict",
+        "earned": 0
+      },
+      {
+        "name": "optimal",
+        "earned": 0
+      },
+      {
+        "name": "stale-lease",
+        "earned": 1
+      }
+    ],
+    "final_checks": [
+      {
+        "name": "all-tasks",
+        "earned": 1
+      },
+      {
+        "name": "workers",
+        "earned": 1
+      },
+      {
+        "name": "dependencies",
+        "earned": 1
+      },
+      {
+        "name": "file-conflict",
+        "earned": 1
+      },
+      {
+        "name": "optimal",
+        "earned": 1
+      },
+      {
+        "name": "stale-lease",
+        "earned": 1
+      }
+    ]
+  },
+  {
+    "label": "content-sensitivity",
+    "case": "delegation-schedule",
+    "mode": "comitia",
+    "replicate": 2,
+    "worker_quality": 1.0,
+    "final_quality": 1.0,
+    "worker_checks": [
+      {
+        "name": "all-tasks",
+        "earned": 1
+      },
+      {
+        "name": "workers",
+        "earned": 1
+      },
+      {
+        "name": "dependencies",
+        "earned": 1
+      },
+      {
+        "name": "file-conflict",
+        "earned": 1
+      },
+      {
+        "name": "optimal",
+        "earned": 1
+      },
+      {
+        "name": "stale-lease",
+        "earned": 1
+      }
+    ],
+    "final_checks": [
+      {
+        "name": "all-tasks",
+        "earned": 1
+      },
+      {
+        "name": "workers",
+        "earned": 1
+      },
+      {
+        "name": "dependencies",
+        "earned": 1
+      },
+      {
+        "name": "file-conflict",
+        "earned": 1
+      },
+      {
+        "name": "optimal",
+        "earned": 1
+      },
+      {
+        "name": "stale-lease",
+        "earned": 1
+      }
+    ]
+  },
+  {
+    "label": "content-sensitivity",
+    "case": "factual-basics",
+    "mode": "comitia",
+    "replicate": 0,
+    "worker_quality": 1.0,
+    "final_quality": 1.0,
+    "worker_checks": [
+      {
+        "name": "capital",
+        "earned": 1
+      },
+      {
+        "name": "seconds",
+        "earned": 1
+      },
+      {
+        "name": "binary",
+        "earned": 1
+      },
+      {
+        "name": "gold",
+        "earned": 1
+      },
+      {
+        "name": "prime",
+        "earned": 1
+      }
+    ],
+    "final_checks": [
+      {
+        "name": "capital",
+        "earned": 1
+      },
+      {
+        "name": "seconds",
+        "earned": 1
+      },
+      {
+        "name": "binary",
+        "earned": 1
+      },
+      {
+        "name": "gold",
+        "earned": 1
+      },
+      {
+        "name": "prime",
+        "earned": 1
+      }
+    ]
+  },
+  {
+    "label": "content-sensitivity",
+    "case": "factual-basics",
+    "mode": "multi-agent",
+    "replicate": 0,
+    "worker_quality": 1.0,
+    "final_quality": 1.0,
+    "worker_checks": [
+      {
+        "name": "capital",
+        "earned": 1
+      },
+      {
+        "name": "seconds",
+        "earned": 1
+      },
+      {
+        "name": "binary",
+        "earned": 1
+      },
+      {
+        "name": "gold",
+        "earned": 1
+      },
+      {
+        "name": "prime",
+        "earned": 1
+      }
+    ],
+    "final_checks": [
+      {
+        "name": "capital",
+        "earned": 1
+      },
+      {
+        "name": "seconds",
+        "earned": 1
+      },
+      {
+        "name": "binary",
+        "earned": 1
+      },
+      {
+        "name": "gold",
+        "earned": 1
+      },
+      {
+        "name": "prime",
+        "earned": 1
+      }
+    ]
+  },
+  {
+    "label": "content-sensitivity",
+    "case": "factual-basics",
+    "mode": "comitia",
+    "replicate": 1,
+    "worker_quality": 1.0,
+    "final_quality": 1.0,
+    "worker_checks": [
+      {
+        "name": "capital",
+        "earned": 1
+      },
+      {
+        "name": "seconds",
+        "earned": 1
+      },
+      {
+        "name": "binary",
+        "earned": 1
+      },
+      {
+        "name": "gold",
+        "earned": 1
+      },
+      {
+        "name": "prime",
+        "earned": 1
+      }
+    ],
+    "final_checks": [
+      {
+        "name": "capital",
+        "earned": 1
+      },
+      {
+        "name": "seconds",
+        "earned": 1
+      },
+      {
+        "name": "binary",
+        "earned": 1
+      },
+      {
+        "name": "gold",
+        "earned": 1
+      },
+      {
+        "name": "prime",
+        "earned": 1
+      }
+    ]
+  },
+  {
+    "label": "content-sensitivity",
+    "case": "factual-basics",
+    "mode": "multi-agent",
+    "replicate": 1,
+    "worker_quality": 1.0,
+    "final_quality": 1.0,
+    "worker_checks": [
+      {
+        "name": "capital",
+        "earned": 1
+      },
+      {
+        "name": "seconds",
+        "earned": 1
+      },
+      {
+        "name": "binary",
+        "earned": 1
+      },
+      {
+        "name": "gold",
+        "earned": 1
+      },
+      {
+        "name": "prime",
+        "earned": 1
+      }
+    ],
+    "final_checks": [
+      {
+        "name": "capital",
+        "earned": 1
+      },
+      {
+        "name": "seconds",
+        "earned": 1
+      },
+      {
+        "name": "binary",
+        "earned": 1
+      },
+      {
+        "name": "gold",
+        "earned": 1
+      },
+      {
+        "name": "prime",
+        "earned": 1
+      }
+    ]
+  },
+  {
+    "label": "content-sensitivity",
+    "case": "factual-basics",
+    "mode": "comitia",
+    "replicate": 2,
+    "worker_quality": 1.0,
+    "final_quality": 1.0,
+    "worker_checks": [
+      {
+        "name": "capital",
+        "earned": 1
+      },
+      {
+        "name": "seconds",
+        "earned": 1
+      },
+      {
+        "name": "binary",
+        "earned": 1
+      },
+      {
+        "name": "gold",
+        "earned": 1
+      },
+      {
+        "name": "prime",
+        "earned": 1
+      }
+    ],
+    "final_checks": [
+      {
+        "name": "capital",
+        "earned": 1
+      },
+      {
+        "name": "seconds",
+        "earned": 1
+      },
+      {
+        "name": "binary",
+        "earned": 1
+      },
+      {
+        "name": "gold",
+        "earned": 1
+      },
+      {
+        "name": "prime",
+        "earned": 1
+      }
+    ]
+  },
+  {
+    "label": "content-sensitivity",
+    "case": "factual-basics",
+    "mode": "multi-agent",
+    "replicate": 2,
+    "worker_quality": 1.0,
+    "final_quality": 1.0,
+    "worker_checks": [
+      {
+        "name": "capital",
+        "earned": 1
+      },
+      {
+        "name": "seconds",
+        "earned": 1
+      },
+      {
+        "name": "binary",
+        "earned": 1
+      },
+      {
+        "name": "gold",
+        "earned": 1
+      },
+      {
+        "name": "prime",
+        "earned": 1
+      }
+    ],
+    "final_checks": [
+      {
+        "name": "capital",
+        "earned": 1
+      },
+      {
+        "name": "seconds",
+        "earned": 1
+      },
+      {
+        "name": "binary",
+        "earned": 1
+      },
+      {
+        "name": "gold",
+        "earned": 1
+      },
+      {
+        "name": "prime",
+        "earned": 1
+      }
+    ]
+  },
+  {
+    "label": "content-sensitivity",
+    "case": "factual-basics",
+    "mode": "comitia",
+    "replicate": 3,
+    "worker_quality": 1.0,
+    "final_quality": 1.0,
+    "worker_checks": [
+      {
+        "name": "capital",
+        "earned": 1
+      },
+      {
+        "name": "seconds",
+        "earned": 1
+      },
+      {
+        "name": "binary",
+        "earned": 1
+      },
+      {
+        "name": "gold",
+        "earned": 1
+      },
+      {
+        "name": "prime",
+        "earned": 1
+      }
+    ],
+    "final_checks": [
+      {
+        "name": "capital",
+        "earned": 1
+      },
+      {
+        "name": "seconds",
+        "earned": 1
+      },
+      {
+        "name": "binary",
+        "earned": 1
+      },
+      {
+        "name": "gold",
+        "earned": 1
+      },
+      {
+        "name": "prime",
+        "earned": 1
+      }
+    ]
+  },
+  {
+    "label": "content-sensitivity",
+    "case": "factual-basics",
+    "mode": "multi-agent",
+    "replicate": 3,
+    "worker_quality": 1.0,
+    "final_quality": 1.0,
+    "worker_checks": [
+      {
+        "name": "capital",
+        "earned": 1
+      },
+      {
+        "name": "seconds",
+        "earned": 1
+      },
+      {
+        "name": "binary",
+        "earned": 1
+      },
+      {
+        "name": "gold",
+        "earned": 1
+      },
+      {
+        "name": "prime",
+        "earned": 1
+      }
+    ],
+    "final_checks": [
+      {
+        "name": "capital",
+        "earned": 1
+      },
+      {
+        "name": "seconds",
+        "earned": 1
+      },
+      {
+        "name": "binary",
+        "earned": 1
+      },
+      {
+        "name": "gold",
+        "earned": 1
+      },
+      {
+        "name": "prime",
+        "earned": 1
+      }
+    ]
+  },
+  {
+    "label": "content-sensitivity",
+    "case": "factual-basics",
+    "mode": "comitia",
+    "replicate": 4,
+    "worker_quality": 1.0,
+    "final_quality": 1.0,
+    "worker_checks": [
+      {
+        "name": "capital",
+        "earned": 1
+      },
+      {
+        "name": "seconds",
+        "earned": 1
+      },
+      {
+        "name": "binary",
+        "earned": 1
+      },
+      {
+        "name": "gold",
+        "earned": 1
+      },
+      {
+        "name": "prime",
+        "earned": 1
+      }
+    ],
+    "final_checks": [
+      {
+        "name": "capital",
+        "earned": 1
+      },
+      {
+        "name": "seconds",
+        "earned": 1
+      },
+      {
+        "name": "binary",
+        "earned": 1
+      },
+      {
+        "name": "gold",
+        "earned": 1
+      },
+      {
+        "name": "prime",
+        "earned": 1
+      }
+    ]
+  },
+  {
+    "label": "content-sensitivity",
+    "case": "factual-basics",
+    "mode": "multi-agent",
+    "replicate": 4,
+    "worker_quality": 1.0,
+    "final_quality": 1.0,
+    "worker_checks": [
+      {
+        "name": "capital",
+        "earned": 1
+      },
+      {
+        "name": "seconds",
+        "earned": 1
+      },
+      {
+        "name": "binary",
+        "earned": 1
+      },
+      {
+        "name": "gold",
+        "earned": 1
+      },
+      {
+        "name": "prime",
+        "earned": 1
+      }
+    ],
+    "final_checks": [
+      {
+        "name": "capital",
+        "earned": 1
+      },
+      {
+        "name": "seconds",
+        "earned": 1
+      },
+      {
+        "name": "binary",
+        "earned": 1
+      },
+      {
+        "name": "gold",
+        "earned": 1
+      },
+      {
+        "name": "prime",
+        "earned": 1
+      }
+    ]
+  },
+  {
+    "label": "content-sensitivity",
+    "case": "incident-handoff",
+    "mode": "comitia",
+    "replicate": 0,
+    "worker_quality": 1.0,
+    "final_quality": 1.0,
+    "worker_checks": [
+      {
+        "name": "impact-times",
+        "earned": 1
+      },
+      {
+        "name": "uncertainty",
+        "earned": 1
+      },
+      {
+        "name": "next-update",
+        "earned": 1
+      },
+      {
+        "name": "owners-deadlines",
+        "earned": 1
+      },
+      {
+        "name": "customer-facts",
+        "earned": 1
+      },
+      {
+        "name": "length",
+        "earned": 1
+      },
+      {
+        "name": "secret-omitted",
+        "earned": 1
+      }
+    ],
+    "final_checks": [
+      {
+        "name": "impact-times",
+        "earned": 1
+      },
+      {
+        "name": "uncertainty",
+        "earned": 1
+      },
+      {
+        "name": "next-update",
+        "earned": 1
+      },
+      {
+        "name": "owners-deadlines",
+        "earned": 1
+      },
+      {
+        "name": "customer-facts",
+        "earned": 1
+      },
+      {
+        "name": "length",
+        "earned": 1
+      },
+      {
+        "name": "secret-omitted",
+        "earned": 1
+      }
+    ]
+  },
+  {
+    "label": "content-sensitivity",
+    "case": "incident-handoff",
+    "mode": "multi-agent",
+    "replicate": 0,
+    "worker_quality": 1.0,
+    "final_quality": 1.0,
+    "worker_checks": [
+      {
+        "name": "impact-times",
+        "earned": 1
+      },
+      {
+        "name": "uncertainty",
+        "earned": 1
+      },
+      {
+        "name": "next-update",
+        "earned": 1
+      },
+      {
+        "name": "owners-deadlines",
+        "earned": 1
+      },
+      {
+        "name": "customer-facts",
+        "earned": 1
+      },
+      {
+        "name": "length",
+        "earned": 1
+      },
+      {
+        "name": "secret-omitted",
+        "earned": 1
+      }
+    ],
+    "final_checks": [
+      {
+        "name": "impact-times",
+        "earned": 1
+      },
+      {
+        "name": "uncertainty",
+        "earned": 1
+      },
+      {
+        "name": "next-update",
+        "earned": 1
+      },
+      {
+        "name": "owners-deadlines",
+        "earned": 1
+      },
+      {
+        "name": "customer-facts",
+        "earned": 1
+      },
+      {
+        "name": "length",
+        "earned": 1
+      },
+      {
+        "name": "secret-omitted",
+        "earned": 1
+      }
+    ]
+  },
+  {
+    "label": "content-sensitivity",
+    "case": "incident-handoff",
+    "mode": "comitia",
+    "replicate": 1,
+    "worker_quality": 0.8571428571428571,
+    "final_quality": 1.0,
+    "worker_checks": [
+      {
+        "name": "impact-times",
+        "earned": 1
+      },
+      {
+        "name": "uncertainty",
+        "earned": 1
+      },
+      {
+        "name": "next-update",
+        "earned": 1
+      },
+      {
+        "name": "owners-deadlines",
+        "earned": 1
+      },
+      {
+        "name": "customer-facts",
+        "earned": 1
+      },
+      {
+        "name": "length",
+        "earned": 0
+      },
+      {
+        "name": "secret-omitted",
+        "earned": 1
+      }
+    ],
+    "final_checks": [
+      {
+        "name": "impact-times",
+        "earned": 1
+      },
+      {
+        "name": "uncertainty",
+        "earned": 1
+      },
+      {
+        "name": "next-update",
+        "earned": 1
+      },
+      {
+        "name": "owners-deadlines",
+        "earned": 1
+      },
+      {
+        "name": "customer-facts",
+        "earned": 1
+      },
+      {
+        "name": "length",
+        "earned": 1
+      },
+      {
+        "name": "secret-omitted",
+        "earned": 1
+      }
+    ]
+  },
+  {
+    "label": "content-sensitivity",
+    "case": "incident-handoff",
+    "mode": "multi-agent",
+    "replicate": 1,
+    "worker_quality": 1.0,
+    "final_quality": 1.0,
+    "worker_checks": [
+      {
+        "name": "impact-times",
+        "earned": 1
+      },
+      {
+        "name": "uncertainty",
+        "earned": 1
+      },
+      {
+        "name": "next-update",
+        "earned": 1
+      },
+      {
+        "name": "owners-deadlines",
+        "earned": 1
+      },
+      {
+        "name": "customer-facts",
+        "earned": 1
+      },
+      {
+        "name": "length",
+        "earned": 1
+      },
+      {
+        "name": "secret-omitted",
+        "earned": 1
+      }
+    ],
+    "final_checks": [
+      {
+        "name": "impact-times",
+        "earned": 1
+      },
+      {
+        "name": "uncertainty",
+        "earned": 1
+      },
+      {
+        "name": "next-update",
+        "earned": 1
+      },
+      {
+        "name": "owners-deadlines",
+        "earned": 1
+      },
+      {
+        "name": "customer-facts",
+        "earned": 1
+      },
+      {
+        "name": "length",
+        "earned": 1
+      },
+      {
+        "name": "secret-omitted",
+        "earned": 1
+      }
+    ]
+  },
+  {
+    "label": "content-sensitivity",
+    "case": "incident-handoff",
+    "mode": "comitia",
+    "replicate": 2,
+    "worker_quality": 0.8571428571428571,
+    "final_quality": 1.0,
+    "worker_checks": [
+      {
+        "name": "impact-times",
+        "earned": 1
+      },
+      {
+        "name": "uncertainty",
+        "earned": 1
+      },
+      {
+        "name": "next-update",
+        "earned": 1
+      },
+      {
+        "name": "owners-deadlines",
+        "earned": 1
+      },
+      {
+        "name": "customer-facts",
+        "earned": 1
+      },
+      {
+        "name": "length",
+        "earned": 0
+      },
+      {
+        "name": "secret-omitted",
+        "earned": 1
+      }
+    ],
+    "final_checks": [
+      {
+        "name": "impact-times",
+        "earned": 1
+      },
+      {
+        "name": "uncertainty",
+        "earned": 1
+      },
+      {
+        "name": "next-update",
+        "earned": 1
+      },
+      {
+        "name": "owners-deadlines",
+        "earned": 1
+      },
+      {
+        "name": "customer-facts",
+        "earned": 1
+      },
+      {
+        "name": "length",
+        "earned": 1
+      },
+      {
+        "name": "secret-omitted",
+        "earned": 1
+      }
+    ]
+  },
+  {
+    "label": "content-sensitivity",
+    "case": "incident-handoff",
+    "mode": "multi-agent",
+    "replicate": 2,
+    "worker_quality": 1.0,
+    "final_quality": 1.0,
+    "worker_checks": [
+      {
+        "name": "impact-times",
+        "earned": 1
+      },
+      {
+        "name": "uncertainty",
+        "earned": 1
+      },
+      {
+        "name": "next-update",
+        "earned": 1
+      },
+      {
+        "name": "owners-deadlines",
+        "earned": 1
+      },
+      {
+        "name": "customer-facts",
+        "earned": 1
+      },
+      {
+        "name": "length",
+        "earned": 1
+      },
+      {
+        "name": "secret-omitted",
+        "earned": 1
+      }
+    ],
+    "final_checks": [
+      {
+        "name": "impact-times",
+        "earned": 1
+      },
+      {
+        "name": "uncertainty",
+        "earned": 1
+      },
+      {
+        "name": "next-update",
+        "earned": 1
+      },
+      {
+        "name": "owners-deadlines",
+        "earned": 1
+      },
+      {
+        "name": "customer-facts",
+        "earned": 1
+      },
+      {
+        "name": "length",
+        "earned": 1
+      },
+      {
+        "name": "secret-omitted",
+        "earned": 1
+      }
+    ]
+  },
+  {
+    "label": "content-sensitivity",
+    "case": "incident-handoff",
+    "mode": "comitia",
+    "replicate": 3,
+    "worker_quality": 1.0,
+    "final_quality": 1.0,
+    "worker_checks": [
+      {
+        "name": "impact-times",
+        "earned": 1
+      },
+      {
+        "name": "uncertainty",
+        "earned": 1
+      },
+      {
+        "name": "next-update",
+        "earned": 1
+      },
+      {
+        "name": "owners-deadlines",
+        "earned": 1
+      },
+      {
+        "name": "customer-facts",
+        "earned": 1
+      },
+      {
+        "name": "length",
+        "earned": 1
+      },
+      {
+        "name": "secret-omitted",
+        "earned": 1
+      }
+    ],
+    "final_checks": [
+      {
+        "name": "impact-times",
+        "earned": 1
+      },
+      {
+        "name": "uncertainty",
+        "earned": 1
+      },
+      {
+        "name": "next-update",
+        "earned": 1
+      },
+      {
+        "name": "owners-deadlines",
+        "earned": 1
+      },
+      {
+        "name": "customer-facts",
+        "earned": 1
+      },
+      {
+        "name": "length",
+        "earned": 1
+      },
+      {
+        "name": "secret-omitted",
+        "earned": 1
+      }
+    ]
+  },
+  {
+    "label": "content-sensitivity",
+    "case": "incident-handoff",
+    "mode": "multi-agent",
+    "replicate": 3,
+    "worker_quality": 1.0,
+    "final_quality": 1.0,
+    "worker_checks": [
+      {
+        "name": "impact-times",
+        "earned": 1
+      },
+      {
+        "name": "uncertainty",
+        "earned": 1
+      },
+      {
+        "name": "next-update",
+        "earned": 1
+      },
+      {
+        "name": "owners-deadlines",
+        "earned": 1
+      },
+      {
+        "name": "customer-facts",
+        "earned": 1
+      },
+      {
+        "name": "length",
+        "earned": 1
+      },
+      {
+        "name": "secret-omitted",
+        "earned": 1
+      }
+    ],
+    "final_checks": [
+      {
+        "name": "impact-times",
+        "earned": 1
+      },
+      {
+        "name": "uncertainty",
+        "earned": 1
+      },
+      {
+        "name": "next-update",
+        "earned": 1
+      },
+      {
+        "name": "owners-deadlines",
+        "earned": 1
+      },
+      {
+        "name": "customer-facts",
+        "earned": 1
+      },
+      {
+        "name": "length",
+        "earned": 1
+      },
+      {
+        "name": "secret-omitted",
+        "earned": 1
+      }
+    ]
+  },
+  {
+    "label": "content-sensitivity",
+    "case": "incident-handoff",
+    "mode": "comitia",
+    "replicate": 4,
+    "worker_quality": 1.0,
+    "final_quality": 1.0,
+    "worker_checks": [
+      {
+        "name": "impact-times",
+        "earned": 1
+      },
+      {
+        "name": "uncertainty",
+        "earned": 1
+      },
+      {
+        "name": "next-update",
+        "earned": 1
+      },
+      {
+        "name": "owners-deadlines",
+        "earned": 1
+      },
+      {
+        "name": "customer-facts",
+        "earned": 1
+      },
+      {
+        "name": "length",
+        "earned": 1
+      },
+      {
+        "name": "secret-omitted",
+        "earned": 1
+      }
+    ],
+    "final_checks": [
+      {
+        "name": "impact-times",
+        "earned": 1
+      },
+      {
+        "name": "uncertainty",
+        "earned": 1
+      },
+      {
+        "name": "next-update",
+        "earned": 1
+      },
+      {
+        "name": "owners-deadlines",
+        "earned": 1
+      },
+      {
+        "name": "customer-facts",
+        "earned": 1
+      },
+      {
+        "name": "length",
+        "earned": 1
+      },
+      {
+        "name": "secret-omitted",
+        "earned": 1
+      }
+    ]
+  },
+  {
+    "label": "content-sensitivity",
+    "case": "incident-handoff",
+    "mode": "multi-agent",
+    "replicate": 4,
+    "worker_quality": 1.0,
+    "final_quality": 1.0,
+    "worker_checks": [
+      {
+        "name": "impact-times",
+        "earned": 1
+      },
+      {
+        "name": "uncertainty",
+        "earned": 1
+      },
+      {
+        "name": "next-update",
+        "earned": 1
+      },
+      {
+        "name": "owners-deadlines",
+        "earned": 1
+      },
+      {
+        "name": "customer-facts",
+        "earned": 1
+      },
+      {
+        "name": "length",
+        "earned": 1
+      },
+      {
+        "name": "secret-omitted",
+        "earned": 1
+      }
+    ],
+    "final_checks": [
+      {
+        "name": "impact-times",
+        "earned": 1
+      },
+      {
+        "name": "uncertainty",
+        "earned": 1
+      },
+      {
+        "name": "next-update",
+        "earned": 1
+      },
+      {
+        "name": "owners-deadlines",
+        "earned": 1
+      },
+      {
+        "name": "customer-facts",
+        "earned": 1
+      },
+      {
+        "name": "length",
+        "earned": 1
+      },
+      {
+        "name": "secret-omitted",
+        "earned": 1
+      }
+    ]
+  },
+  {
+    "label": "content-sensitivity",
+    "case": "outbox-architecture",
+    "mode": "comitia",
+    "replicate": 0,
+    "worker_quality": 1.0,
+    "final_quality": 1.0,
+    "worker_checks": [
+      {
+        "name": "design",
+        "earned": 1
+      },
+      {
+        "name": "transaction",
+        "earned": 1
+      },
+      {
+        "name": "key",
+        "earned": 1
+      },
+      {
+        "name": "delivery",
+        "earned": 1
+      },
+      {
+        "name": "effects",
+        "earned": 1
+      },
+      {
+        "name": "calls",
+        "earned": 1
+      },
+      {
+        "name": "rollback",
+        "earned": 1
+      }
+    ],
+    "final_checks": [
+      {
+        "name": "design",
+        "earned": 1
+      },
+      {
+        "name": "transaction",
+        "earned": 1
+      },
+      {
+        "name": "key",
+        "earned": 1
+      },
+      {
+        "name": "delivery",
+        "earned": 1
+      },
+      {
+        "name": "effects",
+        "earned": 1
+      },
+      {
+        "name": "calls",
+        "earned": 1
+      },
+      {
+        "name": "rollback",
+        "earned": 1
+      }
+    ]
+  },
+  {
+    "label": "content-sensitivity",
+    "case": "outbox-architecture",
+    "mode": "multi-agent",
+    "replicate": 0,
+    "worker_quality": 1.0,
+    "final_quality": 1.0,
+    "worker_checks": [
+      {
+        "name": "design",
+        "earned": 1
+      },
+      {
+        "name": "transaction",
+        "earned": 1
+      },
+      {
+        "name": "key",
+        "earned": 1
+      },
+      {
+        "name": "delivery",
+        "earned": 1
+      },
+      {
+        "name": "effects",
+        "earned": 1
+      },
+      {
+        "name": "calls",
+        "earned": 1
+      },
+      {
+        "name": "rollback",
+        "earned": 1
+      }
+    ],
+    "final_checks": [
+      {
+        "name": "design",
+        "earned": 1
+      },
+      {
+        "name": "transaction",
+        "earned": 1
+      },
+      {
+        "name": "key",
+        "earned": 1
+      },
+      {
+        "name": "delivery",
+        "earned": 1
+      },
+      {
+        "name": "effects",
+        "earned": 1
+      },
+      {
+        "name": "calls",
+        "earned": 1
+      },
+      {
+        "name": "rollback",
+        "earned": 1
+      }
+    ]
+  },
+  {
+    "label": "content-sensitivity",
+    "case": "outbox-architecture",
+    "mode": "multi-agent",
+    "replicate": 1,
+    "worker_quality": 1.0,
+    "final_quality": 1.0,
+    "worker_checks": [
+      {
+        "name": "design",
+        "earned": 1
+      },
+      {
+        "name": "transaction",
+        "earned": 1
+      },
+      {
+        "name": "key",
+        "earned": 1
+      },
+      {
+        "name": "delivery",
+        "earned": 1
+      },
+      {
+        "name": "effects",
+        "earned": 1
+      },
+      {
+        "name": "calls",
+        "earned": 1
+      },
+      {
+        "name": "rollback",
+        "earned": 1
+      }
+    ],
+    "final_checks": [
+      {
+        "name": "design",
+        "earned": 1
+      },
+      {
+        "name": "transaction",
+        "earned": 1
+      },
+      {
+        "name": "key",
+        "earned": 1
+      },
+      {
+        "name": "delivery",
+        "earned": 1
+      },
+      {
+        "name": "effects",
+        "earned": 1
+      },
+      {
+        "name": "calls",
+        "earned": 1
+      },
+      {
+        "name": "rollback",
+        "earned": 1
+      }
+    ]
+  },
+  {
+    "label": "content-sensitivity",
+    "case": "outbox-architecture",
+    "mode": "comitia",
+    "replicate": 2,
+    "worker_quality": 1.0,
+    "final_quality": 1.0,
+    "worker_checks": [
+      {
+        "name": "design",
+        "earned": 1
+      },
+      {
+        "name": "transaction",
+        "earned": 1
+      },
+      {
+        "name": "key",
+        "earned": 1
+      },
+      {
+        "name": "delivery",
+        "earned": 1
+      },
+      {
+        "name": "effects",
+        "earned": 1
+      },
+      {
+        "name": "calls",
+        "earned": 1
+      },
+      {
+        "name": "rollback",
+        "earned": 1
+      }
+    ],
+    "final_checks": [
+      {
+        "name": "design",
+        "earned": 1
+      },
+      {
+        "name": "transaction",
+        "earned": 1
+      },
+      {
+        "name": "key",
+        "earned": 1
+      },
+      {
+        "name": "delivery",
+        "earned": 1
+      },
+      {
+        "name": "effects",
+        "earned": 1
+      },
+      {
+        "name": "calls",
+        "earned": 1
+      },
+      {
+        "name": "rollback",
+        "earned": 1
+      }
+    ]
+  },
+  {
+    "label": "content-sensitivity",
+    "case": "outbox-architecture",
+    "mode": "multi-agent",
+    "replicate": 2,
+    "worker_quality": 1.0,
+    "final_quality": 1.0,
+    "worker_checks": [
+      {
+        "name": "design",
+        "earned": 1
+      },
+      {
+        "name": "transaction",
+        "earned": 1
+      },
+      {
+        "name": "key",
+        "earned": 1
+      },
+      {
+        "name": "delivery",
+        "earned": 1
+      },
+      {
+        "name": "effects",
+        "earned": 1
+      },
+      {
+        "name": "calls",
+        "earned": 1
+      },
+      {
+        "name": "rollback",
+        "earned": 1
+      }
+    ],
+    "final_checks": [
+      {
+        "name": "design",
+        "earned": 1
+      },
+      {
+        "name": "transaction",
+        "earned": 1
+      },
+      {
+        "name": "key",
+        "earned": 1
+      },
+      {
+        "name": "delivery",
+        "earned": 1
+      },
+      {
+        "name": "effects",
+        "earned": 1
+      },
+      {
+        "name": "calls",
+        "earned": 1
+      },
+      {
+        "name": "rollback",
+        "earned": 1
+      }
+    ]
+  },
+  {
+    "label": "content-sensitivity",
+    "case": "outbox-architecture",
+    "mode": "multi-agent",
+    "replicate": 3,
+    "worker_quality": 1.0,
+    "final_quality": 1.0,
+    "worker_checks": [
+      {
+        "name": "design",
+        "earned": 1
+      },
+      {
+        "name": "transaction",
+        "earned": 1
+      },
+      {
+        "name": "key",
+        "earned": 1
+      },
+      {
+        "name": "delivery",
+        "earned": 1
+      },
+      {
+        "name": "effects",
+        "earned": 1
+      },
+      {
+        "name": "calls",
+        "earned": 1
+      },
+      {
+        "name": "rollback",
+        "earned": 1
+      }
+    ],
+    "final_checks": [
+      {
+        "name": "design",
+        "earned": 1
+      },
+      {
+        "name": "transaction",
+        "earned": 1
+      },
+      {
+        "name": "key",
+        "earned": 1
+      },
+      {
+        "name": "delivery",
+        "earned": 1
+      },
+      {
+        "name": "effects",
+        "earned": 1
+      },
+      {
+        "name": "calls",
+        "earned": 1
+      },
+      {
+        "name": "rollback",
+        "earned": 1
+      }
+    ]
+  },
+  {
+    "label": "content-sensitivity",
+    "case": "outbox-architecture",
+    "mode": "comitia",
+    "replicate": 4,
+    "worker_quality": 1.0,
+    "final_quality": 1.0,
+    "worker_checks": [
+      {
+        "name": "design",
+        "earned": 1
+      },
+      {
+        "name": "transaction",
+        "earned": 1
+      },
+      {
+        "name": "key",
+        "earned": 1
+      },
+      {
+        "name": "delivery",
+        "earned": 1
+      },
+      {
+        "name": "effects",
+        "earned": 1
+      },
+      {
+        "name": "calls",
+        "earned": 1
+      },
+      {
+        "name": "rollback",
+        "earned": 1
+      }
+    ],
+    "final_checks": [
+      {
+        "name": "design",
+        "earned": 1
+      },
+      {
+        "name": "transaction",
+        "earned": 1
+      },
+      {
+        "name": "key",
+        "earned": 1
+      },
+      {
+        "name": "delivery",
+        "earned": 1
+      },
+      {
+        "name": "effects",
+        "earned": 1
+      },
+      {
+        "name": "calls",
+        "earned": 1
+      },
+      {
+        "name": "rollback",
+        "earned": 1
+      }
+    ]
+  },
+  {
+    "label": "content-sensitivity",
+    "case": "stable-refactor",
+    "mode": "comitia",
+    "replicate": 0,
+    "worker_quality": 1.0,
+    "final_quality": 1.0,
+    "worker_checks": [
+      {
+        "name": "empty",
+        "earned": 1
+      },
+      {
+        "name": "duplicates",
+        "earned": 1
+      },
+      {
+        "name": "order",
+        "earned": 1
+      },
+      {
+        "name": "signed",
+        "earned": 1
+      },
+      {
+        "name": "immutable",
+        "earned": 1
+      },
+      {
+        "name": "randomized",
+        "earned": 1
+      },
+      {
+        "name": "linear-work",
+        "earned": 1
+      }
+    ],
+    "final_checks": [
+      {
+        "name": "empty",
+        "earned": 1
+      },
+      {
+        "name": "duplicates",
+        "earned": 1
+      },
+      {
+        "name": "order",
+        "earned": 1
+      },
+      {
+        "name": "signed",
+        "earned": 1
+      },
+      {
+        "name": "immutable",
+        "earned": 1
+      },
+      {
+        "name": "randomized",
+        "earned": 1
+      },
+      {
+        "name": "linear-work",
+        "earned": 1
+      }
+    ]
+  },
+  {
+    "label": "content-sensitivity",
+    "case": "stable-refactor",
+    "mode": "multi-agent",
+    "replicate": 0,
+    "worker_quality": 1.0,
+    "final_quality": 1.0,
+    "worker_checks": [
+      {
+        "name": "empty",
+        "earned": 1
+      },
+      {
+        "name": "duplicates",
+        "earned": 1
+      },
+      {
+        "name": "order",
+        "earned": 1
+      },
+      {
+        "name": "signed",
+        "earned": 1
+      },
+      {
+        "name": "immutable",
+        "earned": 1
+      },
+      {
+        "name": "randomized",
+        "earned": 1
+      },
+      {
+        "name": "linear-work",
+        "earned": 1
+      }
+    ],
+    "final_checks": [
+      {
+        "name": "empty",
+        "earned": 1
+      },
+      {
+        "name": "duplicates",
+        "earned": 1
+      },
+      {
+        "name": "order",
+        "earned": 1
+      },
+      {
+        "name": "signed",
+        "earned": 1
+      },
+      {
+        "name": "immutable",
+        "earned": 1
+      },
+      {
+        "name": "randomized",
+        "earned": 1
+      },
+      {
+        "name": "linear-work",
+        "earned": 1
+      }
+    ]
+  },
+  {
+    "label": "content-sensitivity",
+    "case": "stable-refactor",
+    "mode": "comitia",
+    "replicate": 1,
+    "worker_quality": 1.0,
+    "final_quality": 1.0,
+    "worker_checks": [
+      {
+        "name": "empty",
+        "earned": 1
+      },
+      {
+        "name": "duplicates",
+        "earned": 1
+      },
+      {
+        "name": "order",
+        "earned": 1
+      },
+      {
+        "name": "signed",
+        "earned": 1
+      },
+      {
+        "name": "immutable",
+        "earned": 1
+      },
+      {
+        "name": "randomized",
+        "earned": 1
+      },
+      {
+        "name": "linear-work",
+        "earned": 1
+      }
+    ],
+    "final_checks": [
+      {
+        "name": "empty",
+        "earned": 1
+      },
+      {
+        "name": "duplicates",
+        "earned": 1
+      },
+      {
+        "name": "order",
+        "earned": 1
+      },
+      {
+        "name": "signed",
+        "earned": 1
+      },
+      {
+        "name": "immutable",
+        "earned": 1
+      },
+      {
+        "name": "randomized",
+        "earned": 1
+      },
+      {
+        "name": "linear-work",
+        "earned": 1
+      }
+    ]
+  },
+  {
+    "label": "content-sensitivity",
+    "case": "stable-refactor",
+    "mode": "multi-agent",
+    "replicate": 1,
+    "worker_quality": 1.0,
+    "final_quality": 1.0,
+    "worker_checks": [
+      {
+        "name": "empty",
+        "earned": 1
+      },
+      {
+        "name": "duplicates",
+        "earned": 1
+      },
+      {
+        "name": "order",
+        "earned": 1
+      },
+      {
+        "name": "signed",
+        "earned": 1
+      },
+      {
+        "name": "immutable",
+        "earned": 1
+      },
+      {
+        "name": "randomized",
+        "earned": 1
+      },
+      {
+        "name": "linear-work",
+        "earned": 1
+      }
+    ],
+    "final_checks": [
+      {
+        "name": "empty",
+        "earned": 1
+      },
+      {
+        "name": "duplicates",
+        "earned": 1
+      },
+      {
+        "name": "order",
+        "earned": 1
+      },
+      {
+        "name": "signed",
+        "earned": 1
+      },
+      {
+        "name": "immutable",
+        "earned": 1
+      },
+      {
+        "name": "randomized",
+        "earned": 1
+      },
+      {
+        "name": "linear-work",
+        "earned": 1
+      }
+    ]
+  },
+  {
+    "label": "content-sensitivity",
+    "case": "stable-refactor",
+    "mode": "comitia",
+    "replicate": 2,
+    "worker_quality": 1.0,
+    "final_quality": 1.0,
+    "worker_checks": [
+      {
+        "name": "empty",
+        "earned": 1
+      },
+      {
+        "name": "duplicates",
+        "earned": 1
+      },
+      {
+        "name": "order",
+        "earned": 1
+      },
+      {
+        "name": "signed",
+        "earned": 1
+      },
+      {
+        "name": "immutable",
+        "earned": 1
+      },
+      {
+        "name": "randomized",
+        "earned": 1
+      },
+      {
+        "name": "linear-work",
+        "earned": 1
+      }
+    ],
+    "final_checks": [
+      {
+        "name": "empty",
+        "earned": 1
+      },
+      {
+        "name": "duplicates",
+        "earned": 1
+      },
+      {
+        "name": "order",
+        "earned": 1
+      },
+      {
+        "name": "signed",
+        "earned": 1
+      },
+      {
+        "name": "immutable",
+        "earned": 1
+      },
+      {
+        "name": "randomized",
+        "earned": 1
+      },
+      {
+        "name": "linear-work",
+        "earned": 1
+      }
+    ]
+  },
+  {
+    "label": "content-sensitivity",
+    "case": "stable-refactor",
+    "mode": "multi-agent",
+    "replicate": 2,
+    "worker_quality": 1.0,
+    "final_quality": 1.0,
+    "worker_checks": [
+      {
+        "name": "empty",
+        "earned": 1
+      },
+      {
+        "name": "duplicates",
+        "earned": 1
+      },
+      {
+        "name": "order",
+        "earned": 1
+      },
+      {
+        "name": "signed",
+        "earned": 1
+      },
+      {
+        "name": "immutable",
+        "earned": 1
+      },
+      {
+        "name": "randomized",
+        "earned": 1
+      },
+      {
+        "name": "linear-work",
+        "earned": 1
+      }
+    ],
+    "final_checks": [
+      {
+        "name": "empty",
+        "earned": 1
+      },
+      {
+        "name": "duplicates",
+        "earned": 1
+      },
+      {
+        "name": "order",
+        "earned": 1
+      },
+      {
+        "name": "signed",
+        "earned": 1
+      },
+      {
+        "name": "immutable",
+        "earned": 1
+      },
+      {
+        "name": "randomized",
+        "earned": 1
+      },
+      {
+        "name": "linear-work",
+        "earned": 1
+      }
+    ]
+  },
+  {
+    "label": "content-sensitivity",
+    "case": "stable-refactor",
+    "mode": "comitia",
+    "replicate": 3,
+    "worker_quality": 1.0,
+    "final_quality": 1.0,
+    "worker_checks": [
+      {
+        "name": "empty",
+        "earned": 1
+      },
+      {
+        "name": "duplicates",
+        "earned": 1
+      },
+      {
+        "name": "order",
+        "earned": 1
+      },
+      {
+        "name": "signed",
+        "earned": 1
+      },
+      {
+        "name": "immutable",
+        "earned": 1
+      },
+      {
+        "name": "randomized",
+        "earned": 1
+      },
+      {
+        "name": "linear-work",
+        "earned": 1
+      }
+    ],
+    "final_checks": [
+      {
+        "name": "empty",
+        "earned": 1
+      },
+      {
+        "name": "duplicates",
+        "earned": 1
+      },
+      {
+        "name": "order",
+        "earned": 1
+      },
+      {
+        "name": "signed",
+        "earned": 1
+      },
+      {
+        "name": "immutable",
+        "earned": 1
+      },
+      {
+        "name": "randomized",
+        "earned": 1
+      },
+      {
+        "name": "linear-work",
+        "earned": 1
+      }
+    ]
+  },
+  {
+    "label": "content-sensitivity",
+    "case": "stable-refactor",
+    "mode": "multi-agent",
+    "replicate": 3,
+    "worker_quality": 1.0,
+    "final_quality": 1.0,
+    "worker_checks": [
+      {
+        "name": "empty",
+        "earned": 1
+      },
+      {
+        "name": "duplicates",
+        "earned": 1
+      },
+      {
+        "name": "order",
+        "earned": 1
+      },
+      {
+        "name": "signed",
+        "earned": 1
+      },
+      {
+        "name": "immutable",
+        "earned": 1
+      },
+      {
+        "name": "randomized",
+        "earned": 1
+      },
+      {
+        "name": "linear-work",
+        "earned": 1
+      }
+    ],
+    "final_checks": [
+      {
+        "name": "empty",
+        "earned": 1
+      },
+      {
+        "name": "duplicates",
+        "earned": 1
+      },
+      {
+        "name": "order",
+        "earned": 1
+      },
+      {
+        "name": "signed",
+        "earned": 1
+      },
+      {
+        "name": "immutable",
+        "earned": 1
+      },
+      {
+        "name": "randomized",
+        "earned": 1
+      },
+      {
+        "name": "linear-work",
+        "earned": 1
+      }
+    ]
+  },
+  {
+    "label": "content-sensitivity",
+    "case": "stable-refactor",
+    "mode": "comitia",
+    "replicate": 4,
+    "worker_quality": 1.0,
+    "final_quality": 1.0,
+    "worker_checks": [
+      {
+        "name": "empty",
+        "earned": 1
+      },
+      {
+        "name": "duplicates",
+        "earned": 1
+      },
+      {
+        "name": "order",
+        "earned": 1
+      },
+      {
+        "name": "signed",
+        "earned": 1
+      },
+      {
+        "name": "immutable",
+        "earned": 1
+      },
+      {
+        "name": "randomized",
+        "earned": 1
+      },
+      {
+        "name": "linear-work",
+        "earned": 1
+      }
+    ],
+    "final_checks": [
+      {
+        "name": "empty",
+        "earned": 1
+      },
+      {
+        "name": "duplicates",
+        "earned": 1
+      },
+      {
+        "name": "order",
+        "earned": 1
+      },
+      {
+        "name": "signed",
+        "earned": 1
+      },
+      {
+        "name": "immutable",
+        "earned": 1
+      },
+      {
+        "name": "randomized",
+        "earned": 1
+      },
+      {
+        "name": "linear-work",
+        "earned": 1
+      }
+    ]
+  },
+  {
+    "label": "content-sensitivity",
+    "case": "stable-refactor",
+    "mode": "multi-agent",
+    "replicate": 4,
+    "worker_quality": 1.0,
+    "final_quality": 1.0,
+    "worker_checks": [
+      {
+        "name": "empty",
+        "earned": 1
+      },
+      {
+        "name": "duplicates",
+        "earned": 1
+      },
+      {
+        "name": "order",
+        "earned": 1
+      },
+      {
+        "name": "signed",
+        "earned": 1
+      },
+      {
+        "name": "immutable",
+        "earned": 1
+      },
+      {
+        "name": "randomized",
+        "earned": 1
+      },
+      {
+        "name": "linear-work",
+        "earned": 1
+      }
+    ],
+    "final_checks": [
+      {
+        "name": "empty",
+        "earned": 1
+      },
+      {
+        "name": "duplicates",
+        "earned": 1
+      },
+      {
+        "name": "order",
+        "earned": 1
+      },
+      {
+        "name": "signed",
+        "earned": 1
+      },
+      {
+        "name": "immutable",
+        "earned": 1
+      },
+      {
+        "name": "randomized",
+        "earned": 1
+      },
+      {
+        "name": "linear-work",
+        "earned": 1
+      }
+    ]
+  },
+  {
+    "label": "content-sensitivity",
+    "case": "ttl-cache-debug",
+    "mode": "comitia",
+    "replicate": 0,
+    "worker_quality": 1.0,
+    "final_quality": 1.0,
+    "worker_checks": [
+      {
+        "name": "miss-hit",
+        "earned": 1
+      },
+      {
+        "name": "falsy",
+        "earned": 1
+      },
+      {
+        "name": "boundary",
+        "earned": 1
+      },
+      {
+        "name": "no-sliding",
+        "earned": 1
+      },
+      {
+        "name": "nonpositive-ttl",
+        "earned": 1
+      },
+      {
+        "name": "loader-failure",
+        "earned": 1
+      },
+      {
+        "name": "isolation",
+        "earned": 1
+      }
+    ],
+    "final_checks": [
+      {
+        "name": "miss-hit",
+        "earned": 1
+      },
+      {
+        "name": "falsy",
+        "earned": 1
+      },
+      {
+        "name": "boundary",
+        "earned": 1
+      },
+      {
+        "name": "no-sliding",
+        "earned": 1
+      },
+      {
+        "name": "nonpositive-ttl",
+        "earned": 1
+      },
+      {
+        "name": "loader-failure",
+        "earned": 1
+      },
+      {
+        "name": "isolation",
+        "earned": 1
+      }
+    ]
+  },
+  {
+    "label": "content-sensitivity",
+    "case": "ttl-cache-debug",
+    "mode": "multi-agent",
+    "replicate": 0,
+    "worker_quality": 1.0,
+    "final_quality": 1.0,
+    "worker_checks": [
+      {
+        "name": "miss-hit",
+        "earned": 1
+      },
+      {
+        "name": "falsy",
+        "earned": 1
+      },
+      {
+        "name": "boundary",
+        "earned": 1
+      },
+      {
+        "name": "no-sliding",
+        "earned": 1
+      },
+      {
+        "name": "nonpositive-ttl",
+        "earned": 1
+      },
+      {
+        "name": "loader-failure",
+        "earned": 1
+      },
+      {
+        "name": "isolation",
+        "earned": 1
+      }
+    ],
+    "final_checks": [
+      {
+        "name": "miss-hit",
+        "earned": 1
+      },
+      {
+        "name": "falsy",
+        "earned": 1
+      },
+      {
+        "name": "boundary",
+        "earned": 1
+      },
+      {
+        "name": "no-sliding",
+        "earned": 1
+      },
+      {
+        "name": "nonpositive-ttl",
+        "earned": 1
+      },
+      {
+        "name": "loader-failure",
+        "earned": 1
+      },
+      {
+        "name": "isolation",
+        "earned": 1
+      }
+    ]
+  },
+  {
+    "label": "content-sensitivity",
+    "case": "ttl-cache-debug",
+    "mode": "comitia",
+    "replicate": 1,
+    "worker_quality": 1.0,
+    "final_quality": 1.0,
+    "worker_checks": [
+      {
+        "name": "miss-hit",
+        "earned": 1
+      },
+      {
+        "name": "falsy",
+        "earned": 1
+      },
+      {
+        "name": "boundary",
+        "earned": 1
+      },
+      {
+        "name": "no-sliding",
+        "earned": 1
+      },
+      {
+        "name": "nonpositive-ttl",
+        "earned": 1
+      },
+      {
+        "name": "loader-failure",
+        "earned": 1
+      },
+      {
+        "name": "isolation",
+        "earned": 1
+      }
+    ],
+    "final_checks": [
+      {
+        "name": "miss-hit",
+        "earned": 1
+      },
+      {
+        "name": "falsy",
+        "earned": 1
+      },
+      {
+        "name": "boundary",
+        "earned": 1
+      },
+      {
+        "name": "no-sliding",
+        "earned": 1
+      },
+      {
+        "name": "nonpositive-ttl",
+        "earned": 1
+      },
+      {
+        "name": "loader-failure",
+        "earned": 1
+      },
+      {
+        "name": "isolation",
+        "earned": 1
+      }
+    ]
+  },
+  {
+    "label": "content-sensitivity",
+    "case": "ttl-cache-debug",
+    "mode": "multi-agent",
+    "replicate": 1,
+    "worker_quality": 1.0,
+    "final_quality": 1.0,
+    "worker_checks": [
+      {
+        "name": "miss-hit",
+        "earned": 1
+      },
+      {
+        "name": "falsy",
+        "earned": 1
+      },
+      {
+        "name": "boundary",
+        "earned": 1
+      },
+      {
+        "name": "no-sliding",
+        "earned": 1
+      },
+      {
+        "name": "nonpositive-ttl",
+        "earned": 1
+      },
+      {
+        "name": "loader-failure",
+        "earned": 1
+      },
+      {
+        "name": "isolation",
+        "earned": 1
+      }
+    ],
+    "final_checks": [
+      {
+        "name": "miss-hit",
+        "earned": 1
+      },
+      {
+        "name": "falsy",
+        "earned": 1
+      },
+      {
+        "name": "boundary",
+        "earned": 1
+      },
+      {
+        "name": "no-sliding",
+        "earned": 1
+      },
+      {
+        "name": "nonpositive-ttl",
+        "earned": 1
+      },
+      {
+        "name": "loader-failure",
+        "earned": 1
+      },
+      {
+        "name": "isolation",
+        "earned": 1
+      }
+    ]
+  },
+  {
+    "label": "content-sensitivity",
+    "case": "ttl-cache-debug",
+    "mode": "comitia",
+    "replicate": 2,
+    "worker_quality": 1.0,
+    "final_quality": 1.0,
+    "worker_checks": [
+      {
+        "name": "miss-hit",
+        "earned": 1
+      },
+      {
+        "name": "falsy",
+        "earned": 1
+      },
+      {
+        "name": "boundary",
+        "earned": 1
+      },
+      {
+        "name": "no-sliding",
+        "earned": 1
+      },
+      {
+        "name": "nonpositive-ttl",
+        "earned": 1
+      },
+      {
+        "name": "loader-failure",
+        "earned": 1
+      },
+      {
+        "name": "isolation",
+        "earned": 1
+      }
+    ],
+    "final_checks": [
+      {
+        "name": "miss-hit",
+        "earned": 1
+      },
+      {
+        "name": "falsy",
+        "earned": 1
+      },
+      {
+        "name": "boundary",
+        "earned": 1
+      },
+      {
+        "name": "no-sliding",
+        "earned": 1
+      },
+      {
+        "name": "nonpositive-ttl",
+        "earned": 1
+      },
+      {
+        "name": "loader-failure",
+        "earned": 1
+      },
+      {
+        "name": "isolation",
+        "earned": 1
+      }
+    ]
+  },
+  {
+    "label": "content-sensitivity",
+    "case": "ttl-cache-debug",
+    "mode": "multi-agent",
+    "replicate": 2,
+    "worker_quality": 1.0,
+    "final_quality": 1.0,
+    "worker_checks": [
+      {
+        "name": "miss-hit",
+        "earned": 1
+      },
+      {
+        "name": "falsy",
+        "earned": 1
+      },
+      {
+        "name": "boundary",
+        "earned": 1
+      },
+      {
+        "name": "no-sliding",
+        "earned": 1
+      },
+      {
+        "name": "nonpositive-ttl",
+        "earned": 1
+      },
+      {
+        "name": "loader-failure",
+        "earned": 1
+      },
+      {
+        "name": "isolation",
+        "earned": 1
+      }
+    ],
+    "final_checks": [
+      {
+        "name": "miss-hit",
+        "earned": 1
+      },
+      {
+        "name": "falsy",
+        "earned": 1
+      },
+      {
+        "name": "boundary",
+        "earned": 1
+      },
+      {
+        "name": "no-sliding",
+        "earned": 1
+      },
+      {
+        "name": "nonpositive-ttl",
+        "earned": 1
+      },
+      {
+        "name": "loader-failure",
+        "earned": 1
+      },
+      {
+        "name": "isolation",
+        "earned": 1
+      }
+    ]
+  },
+  {
+    "label": "content-sensitivity",
+    "case": "ttl-cache-debug",
+    "mode": "comitia",
+    "replicate": 3,
+    "worker_quality": 1.0,
+    "final_quality": 1.0,
+    "worker_checks": [
+      {
+        "name": "miss-hit",
+        "earned": 1
+      },
+      {
+        "name": "falsy",
+        "earned": 1
+      },
+      {
+        "name": "boundary",
+        "earned": 1
+      },
+      {
+        "name": "no-sliding",
+        "earned": 1
+      },
+      {
+        "name": "nonpositive-ttl",
+        "earned": 1
+      },
+      {
+        "name": "loader-failure",
+        "earned": 1
+      },
+      {
+        "name": "isolation",
+        "earned": 1
+      }
+    ],
+    "final_checks": [
+      {
+        "name": "miss-hit",
+        "earned": 1
+      },
+      {
+        "name": "falsy",
+        "earned": 1
+      },
+      {
+        "name": "boundary",
+        "earned": 1
+      },
+      {
+        "name": "no-sliding",
+        "earned": 1
+      },
+      {
+        "name": "nonpositive-ttl",
+        "earned": 1
+      },
+      {
+        "name": "loader-failure",
+        "earned": 1
+      },
+      {
+        "name": "isolation",
+        "earned": 1
+      }
+    ]
+  },
+  {
+    "label": "content-sensitivity",
+    "case": "ttl-cache-debug",
+    "mode": "multi-agent",
+    "replicate": 3,
+    "worker_quality": 1.0,
+    "final_quality": 1.0,
+    "worker_checks": [
+      {
+        "name": "miss-hit",
+        "earned": 1
+      },
+      {
+        "name": "falsy",
+        "earned": 1
+      },
+      {
+        "name": "boundary",
+        "earned": 1
+      },
+      {
+        "name": "no-sliding",
+        "earned": 1
+      },
+      {
+        "name": "nonpositive-ttl",
+        "earned": 1
+      },
+      {
+        "name": "loader-failure",
+        "earned": 1
+      },
+      {
+        "name": "isolation",
+        "earned": 1
+      }
+    ],
+    "final_checks": [
+      {
+        "name": "miss-hit",
+        "earned": 1
+      },
+      {
+        "name": "falsy",
+        "earned": 1
+      },
+      {
+        "name": "boundary",
+        "earned": 1
+      },
+      {
+        "name": "no-sliding",
+        "earned": 1
+      },
+      {
+        "name": "nonpositive-ttl",
+        "earned": 1
+      },
+      {
+        "name": "loader-failure",
+        "earned": 1
+      },
+      {
+        "name": "isolation",
+        "earned": 1
+      }
+    ]
+  },
+  {
+    "label": "content-sensitivity",
+    "case": "ttl-cache-debug",
+    "mode": "comitia",
+    "replicate": 4,
+    "worker_quality": 1.0,
+    "final_quality": 1.0,
+    "worker_checks": [
+      {
+        "name": "miss-hit",
+        "earned": 1
+      },
+      {
+        "name": "falsy",
+        "earned": 1
+      },
+      {
+        "name": "boundary",
+        "earned": 1
+      },
+      {
+        "name": "no-sliding",
+        "earned": 1
+      },
+      {
+        "name": "nonpositive-ttl",
+        "earned": 1
+      },
+      {
+        "name": "loader-failure",
+        "earned": 1
+      },
+      {
+        "name": "isolation",
+        "earned": 1
+      }
+    ],
+    "final_checks": [
+      {
+        "name": "miss-hit",
+        "earned": 1
+      },
+      {
+        "name": "falsy",
+        "earned": 1
+      },
+      {
+        "name": "boundary",
+        "earned": 1
+      },
+      {
+        "name": "no-sliding",
+        "earned": 1
+      },
+      {
+        "name": "nonpositive-ttl",
+        "earned": 1
+      },
+      {
+        "name": "loader-failure",
+        "earned": 1
+      },
+      {
+        "name": "isolation",
+        "earned": 1
+      }
+    ]
+  },
+  {
+    "label": "content-sensitivity",
+    "case": "ttl-cache-debug",
+    "mode": "multi-agent",
+    "replicate": 4,
+    "worker_quality": 1.0,
+    "final_quality": 1.0,
+    "worker_checks": [
+      {
+        "name": "miss-hit",
+        "earned": 1
+      },
+      {
+        "name": "falsy",
+        "earned": 1
+      },
+      {
+        "name": "boundary",
+        "earned": 1
+      },
+      {
+        "name": "no-sliding",
+        "earned": 1
+      },
+      {
+        "name": "nonpositive-ttl",
+        "earned": 1
+      },
+      {
+        "name": "loader-failure",
+        "earned": 1
+      },
+      {
+        "name": "isolation",
+        "earned": 1
+      }
+    ],
+    "final_checks": [
+      {
+        "name": "miss-hit",
+        "earned": 1
+      },
+      {
+        "name": "falsy",
+        "earned": 1
+      },
+      {
+        "name": "boundary",
+        "earned": 1
+      },
+      {
+        "name": "no-sliding",
+        "earned": 1
+      },
+      {
+        "name": "nonpositive-ttl",
+        "earned": 1
+      },
+      {
+        "name": "loader-failure",
+        "earned": 1
+      },
+      {
+        "name": "isolation",
+        "earned": 1
+      }
+    ]
+  }
+]

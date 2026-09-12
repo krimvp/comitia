@@ -1,0 +1,89 @@
+{
+  "case_id": "delegation-schedule",
+  "cost_complete": true,
+  "error": "JSONDecodeError: Extra data: line 14 column 1 (char 391)",
+  "metadata": {
+    "artifact": "/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/live/artifacts/delegation-schedule--0--single-agent",
+    "category": "Collaboration / orchestration",
+    "cli_reported_cost_usd": 0.059821,
+    "comitia_operations": 0,
+    "comitia_wall_seconds": 0.0,
+    "computed_cost_usd": 0.059821,
+    "model_sessions": 1,
+    "model_wall_seconds": 81.429678375,
+    "score_audit": {
+      "evidence": "/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/live/artifacts/delegation-schedule--0--single-agent/audited-grader.json",
+      "label": "audited",
+      "original_quality": [
+        {
+          "earned": 0,
+          "name": "all-tasks"
+        },
+        {
+          "earned": 0,
+          "name": "workers"
+        },
+        {
+          "earned": 0,
+          "name": "dependencies"
+        },
+        {
+          "earned": 0,
+          "name": "file-conflict"
+        },
+        {
+          "earned": 0,
+          "name": "optimal"
+        },
+        {
+          "earned": 0,
+          "name": "stale-lease"
+        },
+        {
+          "earned": 0,
+          "name": "handoff"
+        }
+      ]
+    }
+  },
+  "mode": "single-agent",
+  "model_calls": [
+    {
+      "cached_input_tokens": 0,
+      "input_tokens": 491,
+      "model": "claude-haiku-4-5-20251001",
+      "output_tokens": 11866
+    }
+  ],
+  "non_model_cost_usd": 0,
+  "quality": [
+    {
+      "earned": 0,
+      "name": "all-tasks"
+    },
+    {
+      "earned": 0,
+      "name": "workers"
+    },
+    {
+      "earned": 0,
+      "name": "dependencies"
+    },
+    {
+      "earned": 0,
+      "name": "file-conflict"
+    },
+    {
+      "earned": 0,
+      "name": "optimal"
+    },
+    {
+      "earned": 0,
+      "name": "stale-lease"
+    }
+  ],
+  "replicate": 0,
+  "seed": 1617623896,
+  "status": "completed",
+  "wall_seconds": 81.597221
+}

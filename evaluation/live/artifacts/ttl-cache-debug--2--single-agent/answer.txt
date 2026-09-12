@@ -1,0 +1,11 @@
+```json
+{"code":"class Cache:\n    def __init__(self):\n        self.data = {}\n    \n    def get(self, key, now, ttl, loader):\n        if key in self.data:\n            value, expires = self.data[key]\n            if now < expires:\n                return value\n            del self.data[key]\n        value = loader()\n        if ttl > 0:\n            self.data[key] = (value, now + ttl)\n        return value"}
+```
+
+**Key fixes:**
+1. **Falsy values**: Changed `if value and now <= expires` to `if now < expires` (doesn't check truthiness)
+2. **Time comparison**: Use `<` not `<=` (entry expired when now >= expires)
+3. **Expired removal**: Delete expired entry before calling loader
+4. **Hit returns early**: Valid hits return immediately without calling loader
+5. **TTL <= 0**: Only store result if `ttl > 0`; loader is still called but result discarded
+6. **Error safety**: Expired entry deleted before loader call, so if loader raises, no stale entry remains

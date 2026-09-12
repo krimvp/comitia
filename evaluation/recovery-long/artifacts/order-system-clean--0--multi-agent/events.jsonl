@@ -1,0 +1,9 @@
+{"kind": "engine_start", "pid": 57704, "resumed": false}
+{"kind": "storage", "operation": "replay", "seconds": 0.0006535829999999992, "backend": "files"}
+{"kind": "storage", "operation": "replay", "seconds": 0.0004740839999999996, "backend": "files"}
+{"kind": "storage", "operation": "replay", "seconds": 0.0004457089999999955, "backend": "files"}
+{"kind": "storage", "operation": "replay", "seconds": 0.000432624999999999, "backend": "files"}
+{"kind": "storage", "operation": "replay", "seconds": 0.0004316250000000049, "backend": "files"}
+{"kind": "storage", "operation": "claim", "seconds": 0.0004518749999999974, "backend": "files"}
+{"kind": "model", "stage": "architect", "attempt": 0, "started_at": 1789165526.695155, "cost_complete": true, "seconds": 50.579553541}
+{"kind": "storage", "operation": "publish-and-complete", "seconds": 0.0007076249999968809, "backend": "files"}

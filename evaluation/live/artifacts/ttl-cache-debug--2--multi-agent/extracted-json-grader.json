@@ -1,0 +1,25 @@
+{
+  "checks": {
+    "miss-hit": {
+      "passed": true
+    },
+    "falsy": {
+      "passed": true
+    },
+    "boundary": {
+      "passed": true
+    },
+    "no-sliding": {
+      "passed": true
+    },
+    "nonpositive-ttl": {
+      "passed": true
+    },
+    "loader-failure": {
+      "passed": true
+    },
+    "isolation": {
+      "passed": true
+    }
+  }
+}

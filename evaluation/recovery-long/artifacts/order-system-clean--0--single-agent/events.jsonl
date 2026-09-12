@@ -1,0 +1,20 @@
+{"kind": "engine_start", "pid": 51666, "resumed": false}
+{"kind": "storage", "operation": "replay", "seconds": 0.0006211250000000001, "backend": "files"}
+{"kind": "storage", "operation": "replay", "seconds": 0.0004851670000000016, "backend": "files"}
+{"kind": "storage", "operation": "replay", "seconds": 0.0004975830000000028, "backend": "files"}
+{"kind": "storage", "operation": "replay", "seconds": 0.00044175000000000464, "backend": "files"}
+{"kind": "storage", "operation": "replay", "seconds": 0.00042766699999999963, "backend": "files"}
+{"kind": "storage", "operation": "claim", "seconds": 0.00043895900000000265, "backend": "files"}
+{"kind": "model", "stage": "architect", "attempt": 0, "started_at": 1789133898.776662, "cost_complete": true, "seconds": 19.899709958}
+{"kind": "storage", "operation": "publish-and-complete", "seconds": 0.0006782919999999137, "backend": "files"}
+{"kind": "storage", "operation": "ack", "seconds": 0.0008563330000015412, "backend": "files"}
+{"kind": "storage", "operation": "claim", "seconds": 0.00064433300000033, "backend": "files"}
+{"kind": "model", "stage": "ledger", "attempt": 0, "started_at": 1789133918.6794739, "cost_complete": true, "seconds": 72.0887655}
+{"kind": "storage", "operation": "publish-and-complete", "seconds": 0.0008375000000029331, "backend": "files"}
+{"kind": "storage", "operation": "ack", "seconds": 0.0007569999999930133, "backend": "files"}
+{"kind": "storage", "operation": "claim", "seconds": 0.0008702089999985674, "backend": "files"}
+{"kind": "model", "stage": "outbox", "attempt": 0, "started_at": 1789133990.770232, "cost_complete": true, "seconds": 103.94349087499998}
+{"kind": "storage", "operation": "publish-and-complete", "seconds": 0.0012243749999925058, "backend": "files"}
+{"kind": "storage", "operation": "ack", "seconds": 0.001030667000009089, "backend": "files"}
+{"kind": "storage", "operation": "claim", "seconds": 0.001001583999993727, "backend": "files"}
+{"kind": "model", "stage": "integrator", "attempt": 0, "started_at": 1789134094.7157729, "cost_complete": false, "error": "TimeoutError: model call exceeded 600s", "seconds": 600.028560875}

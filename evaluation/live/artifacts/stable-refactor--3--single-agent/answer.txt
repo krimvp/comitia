@@ -1,0 +1,9 @@
+```json
+{"code": "def summarize(rows):\n    seen = {}\n    for row in rows:\n        user = row[\"user\"]\n        if user in seen:\n            seen[user][\"total\"] += row[\"amount\"]\n        else:\n            seen[user] = {\"user\": user, \"total\": row[\"amount\"]}\n    return list(seen.values())"}
+```
+
+**Approach:** Replace the O(n²) nested loop search with a single-pass dictionary lookup:
+- **O(1) user lookup:** `if user in seen` replaces the inner loop
+- **First-seen order:** Python 3.7+ guarantees dict insertion order; items are added in first-occurrence sequence
+- **Same output:** Accumulates totals identically; `list(seen.values())` preserves insertion order
+- **No input mutation:** Only reads from rows parameter

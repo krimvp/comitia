@@ -1,0 +1,8 @@
+state/
+observer.json
+*.db*
+__pycache__/
+artifacts/
+result.json
+errors.txt
+inspector-events.jsonl

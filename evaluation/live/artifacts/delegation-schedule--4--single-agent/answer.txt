@@ -1,0 +1,21 @@
+```json
+{
+  "schedule": [
+    {"task": "A", "worker": "w1", "start": 0},
+    {"task": "B", "worker": "w1", "start": 2},
+    {"task": "C", "worker": "w2", "start": 2},
+    {"task": "D", "worker": "w1", "start": 5},
+    {"task": "E", "worker": "w2", "start": 5}
+  ],
+  "makespan": 7,
+  "stale_completion": "reject",
+  "recovery": "reclaim-new-version",
+  "handoff": [null, 5, null, null]
+}
+```
+
+**Scheduling rationale:** A and B must serialize (same file). Starting A first allows C to begin at time 2. B completes at time 5, enabling both D and E. This achieves makespan 7, which is optimal given the constraints and dependencies.
+
+**Safety decisions:** 
+- **reject** the stale submission from lease version 4 to prevent conflicts with replacement work
+- **reclaim-new-version** (version 5) to maintain consistency with the replacement worker's active lease

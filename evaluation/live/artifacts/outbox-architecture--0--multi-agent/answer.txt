@@ -1,0 +1,12 @@
+```json
+{
+  "choice": "C",
+  "atomic_writes": ["order", "outbox"],
+  "idempotency_key": "order_id",
+  "broker_delivery": "at-least-once",
+  "email_effect_count": 1,
+  "email_api_call_count": 3,
+  "rollback_email_count": 0,
+  "why": "Outbox pattern (C) writes order+outbox atomically—if process crashes after commit, outbox persists for retry. Outbox processor keeps republishing until successfully marking sent. Email service uses order_id as idempotency key, so redeliveries from at-least-once broker don't create duplicate effects. This combines transaction durability + broker retry + idempotent API to achieve exactly-once email per committed order."
+}
+```

@@ -1,0 +1,100 @@
+{
+  "case_id": "order-system-handoff-crash",
+  "cost_complete": true,
+  "metadata": {
+    "artifact": "/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/recovery-long/artifacts/order-system-handoff-crash--0--comitia",
+    "computed_cost_usd": 0.31472799999999995,
+    "model_sessions": 5,
+    "reported_cost_usd": 0.31472799999999995,
+    "restarts": 1,
+    "total_seconds": 389.53758875
+  },
+  "mode": "comitia",
+  "model_calls": [
+    {
+      "cached_input_tokens": 0,
+      "input_tokens": 1240,
+      "model": "claude-haiku-4-5-20251001",
+      "output_tokens": 2220
+    },
+    {
+      "cached_input_tokens": 0,
+      "input_tokens": 1969,
+      "model": "claude-haiku-4-5-20251001",
+      "output_tokens": 14012
+    },
+    {
+      "cached_input_tokens": 0,
+      "input_tokens": 7333,
+      "model": "claude-haiku-4-5-20251001",
+      "output_tokens": 12252
+    },
+    {
+      "cached_input_tokens": 0,
+      "input_tokens": 5562,
+      "model": "claude-haiku-4-5-20251001",
+      "output_tokens": 18664
+    },
+    {
+      "cached_input_tokens": 0,
+      "input_tokens": 1969,
+      "model": "claude-haiku-4-5-20251001",
+      "output_tokens": 12183
+    }
+  ],
+  "non_model_cost_usd": 0,
+  "quality": [
+    {
+      "earned": 1,
+      "name": "ledger_balances"
+    },
+    {
+      "earned": 1,
+      "name": "ledger_validation"
+    },
+    {
+      "earned": 1,
+      "name": "ledger_dedupe_atomicity"
+    },
+    {
+      "earned": 1,
+      "name": "ledger_snapshot"
+    },
+    {
+      "earned": 1,
+      "name": "outbox_claims"
+    },
+    {
+      "earned": 1,
+      "name": "outbox_fencing"
+    },
+    {
+      "earned": 1,
+      "name": "outbox_dedupe_snapshot"
+    },
+    {
+      "earned": 1,
+      "name": "service_ingest"
+    },
+    {
+      "earned": 1,
+      "name": "service_rollback"
+    },
+    {
+      "earned": 1,
+      "name": "service_crash_delivery"
+    },
+    {
+      "earned": 1,
+      "name": "service_snapshot"
+    },
+    {
+      "earned": 0,
+      "name": "handoff"
+    }
+  ],
+  "replicate": 0,
+  "seed": 76515458,
+  "status": "completed",
+  "wall_seconds": 389.654655
+}

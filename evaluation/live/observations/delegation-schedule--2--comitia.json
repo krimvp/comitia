@@ -1,0 +1,64 @@
+{
+  "case_id": "delegation-schedule",
+  "cost_complete": true,
+  "metadata": {
+    "artifact": "/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/live/artifacts/delegation-schedule--2--comitia",
+    "category": "Collaboration / orchestration",
+    "cli_reported_cost_usd": 0.101911,
+    "comitia_operations": 16,
+    "comitia_wall_seconds": 0.2271628769999885,
+    "computed_cost_usd": 0.101911,
+    "model_sessions": 2,
+    "model_wall_seconds": 190.658690875
+  },
+  "mode": "comitia",
+  "model_calls": [
+    {
+      "cached_input_tokens": 0,
+      "input_tokens": 491,
+      "model": "claude-haiku-4-5-20251001",
+      "output_tokens": 10450
+    },
+    {
+      "cached_input_tokens": 0,
+      "input_tokens": 880,
+      "model": "claude-haiku-4-5-20251001",
+      "output_tokens": 9658
+    }
+  ],
+  "non_model_cost_usd": 0,
+  "quality": [
+    {
+      "earned": 1,
+      "name": "all-tasks"
+    },
+    {
+      "earned": 1,
+      "name": "workers"
+    },
+    {
+      "earned": 1,
+      "name": "dependencies"
+    },
+    {
+      "earned": 1,
+      "name": "file-conflict"
+    },
+    {
+      "earned": 1,
+      "name": "optimal"
+    },
+    {
+      "earned": 1,
+      "name": "stale-lease"
+    },
+    {
+      "earned": 0,
+      "name": "handoff"
+    }
+  ],
+  "replicate": 2,
+  "seed": 1737299767,
+  "status": "completed",
+  "wall_seconds": 191.038184
+}

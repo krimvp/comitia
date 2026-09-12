@@ -1,0 +1,54 @@
+{
+  "status": "timeout",
+  "quality": [
+    {
+      "name": "all-tasks",
+      "earned": 0
+    },
+    {
+      "name": "workers",
+      "earned": 0
+    },
+    {
+      "name": "dependencies",
+      "earned": 0
+    },
+    {
+      "name": "file-conflict",
+      "earned": 0
+    },
+    {
+      "name": "optimal",
+      "earned": 0
+    },
+    {
+      "name": "stale-lease",
+      "earned": 0
+    },
+    {
+      "name": "handoff",
+      "earned": 0
+    }
+  ],
+  "model_calls": [
+    {
+      "model": "claude-haiku-4-5-20251001",
+      "input_tokens": 491,
+      "cached_input_tokens": 0,
+      "output_tokens": 6549
+    }
+  ],
+  "non_model_cost_usd": 0,
+  "cost_complete": false,
+  "metadata": {
+    "artifact": "/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/live/artifacts/delegation-schedule--3--multi-agent",
+    "category": "Collaboration / orchestration",
+    "model_wall_seconds": 44.429845834000005,
+    "comitia_wall_seconds": 0.0,
+    "comitia_operations": 0,
+    "cli_reported_cost_usd": 0.033236,
+    "computed_cost_usd": 0.033236,
+    "model_sessions": 1
+  },
+  "error": "Command '['claude', '-p', '--model', 'claude-haiku-4-5-20251001', '--output-format', 'json', '--tools', '', '--strict-mcp-config', '--mcp-config', '{\"mcpServers\":{}}', '--disable-slash-commands', '--no-session-persistence', '--setting-sources', '', '--settings', '{\"disableAllHooks\":true}', '--system-prompt', 'Complete the provided bounded task. Return only the requested JSON object, no Markdown fences. Do not use tools. Do not claim tests were executed. Keep explanations concise.']' timed out after 100 seconds"
+}

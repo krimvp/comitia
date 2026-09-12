@@ -1,0 +1,5 @@
+```json
+{"code": "def summarize(rows):\n    seen = {}\n    order = []\n    for row in rows:\n        user = row[\"user\"]\n        if user not in seen:\n            seen[user] = 0\n            order.append(user)\n        seen[user] += row[\"amount\"]\n    return [{\"user\": user, \"total\": seen[user]} for user in order]"}
+```
+
+**Optimization:** Uses a dictionary for O(1) lookup instead of scanning the result list. Maintains first-seen order via a separate list. Single pass through rows gives O(n) time. Dictionary keys are hashable strings, values are accumulated integers—identical output structure for valid inputs.

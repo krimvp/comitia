@@ -1,0 +1,27 @@
+{
+  "corrections": [],
+  "checks": {
+    "design": {
+      "passed": true
+    },
+    "transaction": {
+      "passed": true
+    },
+    "key": {
+      "passed": true
+    },
+    "delivery": {
+      "passed": false,
+      "error": "condition not met"
+    },
+    "effects": {
+      "passed": true
+    },
+    "calls": {
+      "passed": true
+    },
+    "rollback": {
+      "passed": true
+    }
+  }
+}

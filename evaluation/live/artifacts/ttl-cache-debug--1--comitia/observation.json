@@ -1,0 +1,59 @@
+{
+  "status": "completed",
+  "quality": [
+    {
+      "name": "miss-hit",
+      "earned": 1
+    },
+    {
+      "name": "falsy",
+      "earned": 1
+    },
+    {
+      "name": "boundary",
+      "earned": 1
+    },
+    {
+      "name": "no-sliding",
+      "earned": 1
+    },
+    {
+      "name": "nonpositive-ttl",
+      "earned": 1
+    },
+    {
+      "name": "loader-failure",
+      "earned": 1
+    },
+    {
+      "name": "isolation",
+      "earned": 1
+    }
+  ],
+  "model_calls": [
+    {
+      "model": "claude-haiku-4-5-20251001",
+      "input_tokens": 498,
+      "cached_input_tokens": 0,
+      "output_tokens": 2449
+    },
+    {
+      "model": "claude-haiku-4-5-20251001",
+      "input_tokens": 783,
+      "cached_input_tokens": 0,
+      "output_tokens": 3106
+    }
+  ],
+  "non_model_cost_usd": 0,
+  "cost_complete": true,
+  "metadata": {
+    "artifact": "/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/live/artifacts/ttl-cache-debug--1--comitia",
+    "category": "Debugging",
+    "model_wall_seconds": 52.91973191700001,
+    "comitia_wall_seconds": 0.24118074900000136,
+    "comitia_operations": 16,
+    "cli_reported_cost_usd": 0.029056,
+    "computed_cost_usd": 0.029056000000000002,
+    "model_sessions": 2
+  }
+}

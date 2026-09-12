@@ -1,0 +1,88 @@
+{
+  "case_id": "delegation-schedule",
+  "cost_complete": true,
+  "metadata": {
+    "artifact": "/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/live/artifacts/delegation-schedule--2--single-agent",
+    "category": "Collaboration / orchestration",
+    "cli_reported_cost_usd": 0.04876099999999999,
+    "comitia_operations": 0,
+    "comitia_wall_seconds": 0.0,
+    "computed_cost_usd": 0.048761,
+    "model_sessions": 1,
+    "model_wall_seconds": 91.18434574999999,
+    "score_audit": {
+      "evidence": "/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/live/artifacts/delegation-schedule--2--single-agent/content-sensitivity-grader.json",
+      "label": "content-sensitivity",
+      "original_quality": [
+        {
+          "earned": 1,
+          "name": "all-tasks"
+        },
+        {
+          "earned": 1,
+          "name": "workers"
+        },
+        {
+          "earned": 1,
+          "name": "dependencies"
+        },
+        {
+          "earned": 1,
+          "name": "file-conflict"
+        },
+        {
+          "earned": 1,
+          "name": "optimal"
+        },
+        {
+          "earned": 1,
+          "name": "stale-lease"
+        },
+        {
+          "earned": 0,
+          "name": "handoff"
+        }
+      ]
+    }
+  },
+  "mode": "single-agent",
+  "model_calls": [
+    {
+      "cached_input_tokens": 0,
+      "input_tokens": 491,
+      "model": "claude-haiku-4-5-20251001",
+      "output_tokens": 9654
+    }
+  ],
+  "non_model_cost_usd": 0,
+  "quality": [
+    {
+      "earned": 1,
+      "name": "all-tasks"
+    },
+    {
+      "earned": 1,
+      "name": "workers"
+    },
+    {
+      "earned": 1,
+      "name": "dependencies"
+    },
+    {
+      "earned": 1,
+      "name": "file-conflict"
+    },
+    {
+      "earned": 1,
+      "name": "optimal"
+    },
+    {
+      "earned": 1,
+      "name": "stale-lease"
+    }
+  ],
+  "replicate": 2,
+  "seed": 2031588944,
+  "status": "completed",
+  "wall_seconds": 91.32419
+}

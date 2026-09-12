@@ -1,0 +1,15 @@
+```json
+{
+  "schedule": [
+    {"task": "A", "worker": "w1", "start": 0},
+    {"task": "B", "worker": "w2", "start": 2},
+    {"task": "C", "worker": "w1", "start": 2},
+    {"task": "D", "worker": "w1", "start": 5},
+    {"task": "E", "worker": "w2", "start": 5}
+  ],
+  "makespan": 7,
+  "stale_completion": "reject",
+  "recovery": "reclaim-new-version",
+  "handoff": null
+}
+```

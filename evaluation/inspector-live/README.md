@@ -1,0 +1,1 @@
+Live inspector demonstration, separate from the completed comparison. The copied runner retains its local database so the real Comitia inspector can observe it. Same workload, model and limits. Credentials are local, gitignored, and the server binds localhost only.

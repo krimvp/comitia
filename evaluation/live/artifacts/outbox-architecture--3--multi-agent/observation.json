@@ -1,0 +1,59 @@
+{
+  "status": "completed",
+  "quality": [
+    {
+      "name": "design",
+      "earned": 1
+    },
+    {
+      "name": "transaction",
+      "earned": 1
+    },
+    {
+      "name": "key",
+      "earned": 1
+    },
+    {
+      "name": "delivery",
+      "earned": 1
+    },
+    {
+      "name": "effects",
+      "earned": 1
+    },
+    {
+      "name": "calls",
+      "earned": 1
+    },
+    {
+      "name": "rollback",
+      "earned": 1
+    }
+  ],
+  "model_calls": [
+    {
+      "model": "claude-haiku-4-5-20251001",
+      "input_tokens": 511,
+      "cached_input_tokens": 0,
+      "output_tokens": 7752
+    },
+    {
+      "model": "claude-haiku-4-5-20251001",
+      "input_tokens": 736,
+      "cached_input_tokens": 0,
+      "output_tokens": 3043
+    }
+  ],
+  "non_model_cost_usd": 0,
+  "cost_complete": true,
+  "metadata": {
+    "artifact": "/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/live/artifacts/outbox-architecture--3--multi-agent",
+    "category": "Architecture / reasoning",
+    "model_wall_seconds": 103.252666834,
+    "comitia_wall_seconds": 0.0,
+    "comitia_operations": 0,
+    "cli_reported_cost_usd": 0.055222,
+    "computed_cost_usd": 0.055222,
+    "model_sessions": 2
+  }
+}

@@ -1,0 +1,210 @@
+[
+  {
+    "case": "delegation-schedule",
+    "mode": "comitia",
+    "replicate": 0,
+    "stage": "worker",
+    "wall_seconds": 100.22256,
+    "board_operations": 7,
+    "captured_cost_usd": 0.0,
+    "error": "Command '['claude', '-p', '--model', 'claude-haiku-4-5-20251001', '--output-format', 'json', '--tools', '', '--strict-mcp-config', '--mcp-config', '{\"mcpServers\":{}}', '--disable-slash-commands', '--no-session-persistence', '--setting-sources', '', '--settings', '{\"disableAllHooks\":true}', '--system-prompt', 'Complete the provided bounded task. Return only the requested JSON object, no Markdown fences. Do not use tools. Do not claim tests were executed. Keep explanations concise.']' timed out after 100 seconds"
+  },
+  {
+    "case": "delegation-schedule",
+    "mode": "multi-agent",
+    "replicate": 1,
+    "stage": "reviewer",
+    "wall_seconds": 164.227642,
+    "board_operations": 0,
+    "captured_cost_usd": 0.034351,
+    "error": "Command '['claude', '-p', '--model', 'claude-haiku-4-5-20251001', '--output-format', 'json', '--tools', '', '--strict-mcp-config', '--mcp-config', '{\"mcpServers\":{}}', '--disable-slash-commands', '--no-session-persistence', '--setting-sources', '', '--settings', '{\"disableAllHooks\":true}', '--system-prompt', 'Complete the provided bounded task. Return only the requested JSON object, no Markdown fences. Do not use tools. Do not claim tests were executed. Keep explanations concise.']' timed out after 100 seconds",
+    "returned_worker_content_score": 0.6666666666666666,
+    "returned_worker_checks": [
+      {
+        "name": "all-tasks",
+        "earned": 1
+      },
+      {
+        "name": "workers",
+        "earned": 1
+      },
+      {
+        "name": "dependencies",
+        "earned": 1
+      },
+      {
+        "name": "file-conflict",
+        "earned": 0
+      },
+      {
+        "name": "optimal",
+        "earned": 0
+      },
+      {
+        "name": "stale-lease",
+        "earned": 1
+      }
+    ]
+  },
+  {
+    "case": "delegation-schedule",
+    "mode": "multi-agent",
+    "replicate": 2,
+    "stage": "worker",
+    "wall_seconds": 100.145819,
+    "board_operations": 0,
+    "captured_cost_usd": 0.0,
+    "error": "Command '['claude', '-p', '--model', 'claude-haiku-4-5-20251001', '--output-format', 'json', '--tools', '', '--strict-mcp-config', '--mcp-config', '{\"mcpServers\":{}}', '--disable-slash-commands', '--no-session-persistence', '--setting-sources', '', '--settings', '{\"disableAllHooks\":true}', '--system-prompt', 'Complete the provided bounded task. Return only the requested JSON object, no Markdown fences. Do not use tools. Do not claim tests were executed. Keep explanations concise.']' timed out after 100 seconds"
+  },
+  {
+    "case": "delegation-schedule",
+    "mode": "comitia",
+    "replicate": 3,
+    "stage": "reviewer",
+    "wall_seconds": 163.209949,
+    "board_operations": 13,
+    "captured_cost_usd": 0.034691,
+    "error": "Command '['claude', '-p', '--model', 'claude-haiku-4-5-20251001', '--output-format', 'json', '--tools', '', '--strict-mcp-config', '--mcp-config', '{\"mcpServers\":{}}', '--disable-slash-commands', '--no-session-persistence', '--setting-sources', '', '--settings', '{\"disableAllHooks\":true}', '--system-prompt', 'Complete the provided bounded task. Return only the requested JSON object, no Markdown fences. Do not use tools. Do not claim tests were executed. Keep explanations concise.']' timed out after 100 seconds",
+    "returned_worker_content_score": 0.6666666666666666,
+    "returned_worker_checks": [
+      {
+        "name": "all-tasks",
+        "earned": 1
+      },
+      {
+        "name": "workers",
+        "earned": 1
+      },
+      {
+        "name": "dependencies",
+        "earned": 1
+      },
+      {
+        "name": "file-conflict",
+        "earned": 0
+      },
+      {
+        "name": "optimal",
+        "earned": 0
+      },
+      {
+        "name": "stale-lease",
+        "earned": 1
+      }
+    ]
+  },
+  {
+    "case": "delegation-schedule",
+    "mode": "multi-agent",
+    "replicate": 3,
+    "stage": "reviewer",
+    "wall_seconds": 144.563745,
+    "board_operations": 0,
+    "captured_cost_usd": 0.033236,
+    "error": "Command '['claude', '-p', '--model', 'claude-haiku-4-5-20251001', '--output-format', 'json', '--tools', '', '--strict-mcp-config', '--mcp-config', '{\"mcpServers\":{}}', '--disable-slash-commands', '--no-session-persistence', '--setting-sources', '', '--settings', '{\"disableAllHooks\":true}', '--system-prompt', 'Complete the provided bounded task. Return only the requested JSON object, no Markdown fences. Do not use tools. Do not claim tests were executed. Keep explanations concise.']' timed out after 100 seconds",
+    "returned_worker_content_score": 1.0,
+    "returned_worker_checks": [
+      {
+        "name": "all-tasks",
+        "earned": 1
+      },
+      {
+        "name": "workers",
+        "earned": 1
+      },
+      {
+        "name": "dependencies",
+        "earned": 1
+      },
+      {
+        "name": "file-conflict",
+        "earned": 1
+      },
+      {
+        "name": "optimal",
+        "earned": 1
+      },
+      {
+        "name": "stale-lease",
+        "earned": 1
+      }
+    ]
+  },
+  {
+    "case": "delegation-schedule",
+    "mode": "comitia",
+    "replicate": 4,
+    "stage": "worker",
+    "wall_seconds": 100.248664,
+    "board_operations": 7,
+    "captured_cost_usd": 0.0,
+    "error": "Command '['claude', '-p', '--model', 'claude-haiku-4-5-20251001', '--output-format', 'json', '--tools', '', '--strict-mcp-config', '--mcp-config', '{\"mcpServers\":{}}', '--disable-slash-commands', '--no-session-persistence', '--setting-sources', '', '--settings', '{\"disableAllHooks\":true}', '--system-prompt', 'Complete the provided bounded task. Return only the requested JSON object, no Markdown fences. Do not use tools. Do not claim tests were executed. Keep explanations concise.']' timed out after 100 seconds"
+  },
+  {
+    "case": "delegation-schedule",
+    "mode": "multi-agent",
+    "replicate": 4,
+    "stage": "reviewer",
+    "wall_seconds": 162.369968,
+    "board_operations": 0,
+    "captured_cost_usd": 0.046356,
+    "error": "Command '['claude', '-p', '--model', 'claude-haiku-4-5-20251001', '--output-format', 'json', '--tools', '', '--strict-mcp-config', '--mcp-config', '{\"mcpServers\":{}}', '--disable-slash-commands', '--no-session-persistence', '--setting-sources', '', '--settings', '{\"disableAllHooks\":true}', '--system-prompt', 'Complete the provided bounded task. Return only the requested JSON object, no Markdown fences. Do not use tools. Do not claim tests were executed. Keep explanations concise.']' timed out after 100 seconds",
+    "returned_worker_content_score": 1.0,
+    "returned_worker_checks": [
+      {
+        "name": "all-tasks",
+        "earned": 1
+      },
+      {
+        "name": "workers",
+        "earned": 1
+      },
+      {
+        "name": "dependencies",
+        "earned": 1
+      },
+      {
+        "name": "file-conflict",
+        "earned": 1
+      },
+      {
+        "name": "optimal",
+        "earned": 1
+      },
+      {
+        "name": "stale-lease",
+        "earned": 1
+      }
+    ]
+  },
+  {
+    "case": "outbox-architecture",
+    "mode": "comitia",
+    "replicate": 1,
+    "stage": "worker",
+    "wall_seconds": 100.207631,
+    "board_operations": 7,
+    "captured_cost_usd": 0.0,
+    "error": "Command '['claude', '-p', '--model', 'claude-haiku-4-5-20251001', '--output-format', 'json', '--tools', '', '--strict-mcp-config', '--mcp-config', '{\"mcpServers\":{}}', '--disable-slash-commands', '--no-session-persistence', '--setting-sources', '', '--settings', '{\"disableAllHooks\":true}', '--system-prompt', 'Complete the provided bounded task. Return only the requested JSON object, no Markdown fences. Do not use tools. Do not claim tests were executed. Keep explanations concise.']' timed out after 100 seconds"
+  },
+  {
+    "case": "outbox-architecture",
+    "mode": "comitia",
+    "replicate": 3,
+    "stage": "worker",
+    "wall_seconds": 100.239372,
+    "board_operations": 7,
+    "captured_cost_usd": 0.0,
+    "error": "Command '['claude', '-p', '--model', 'claude-haiku-4-5-20251001', '--output-format', 'json', '--tools', '', '--strict-mcp-config', '--mcp-config', '{\"mcpServers\":{}}', '--disable-slash-commands', '--no-session-persistence', '--setting-sources', '', '--settings', '{\"disableAllHooks\":true}', '--system-prompt', 'Complete the provided bounded task. Return only the requested JSON object, no Markdown fences. Do not use tools. Do not claim tests were executed. Keep explanations concise.']' timed out after 100 seconds"
+  },
+  {
+    "case": "outbox-architecture",
+    "mode": "multi-agent",
+    "replicate": 4,
+    "stage": "worker",
+    "wall_seconds": 100.12158,
+    "board_operations": 0,
+    "captured_cost_usd": 0.0,
+    "error": "Command '['claude', '-p', '--model', 'claude-haiku-4-5-20251001', '--output-format', 'json', '--tools', '', '--strict-mcp-config', '--mcp-config', '{\"mcpServers\":{}}', '--disable-slash-commands', '--no-session-persistence', '--setting-sources', '', '--settings', '{\"disableAllHooks\":true}', '--system-prompt', 'Complete the provided bounded task. Return only the requested JSON object, no Markdown fences. Do not use tools. Do not claim tests were executed. Keep explanations concise.']' timed out after 100 seconds"
+  }
+]

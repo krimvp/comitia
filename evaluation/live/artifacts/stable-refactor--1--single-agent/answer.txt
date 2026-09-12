@@ -1,0 +1,5 @@
+```json
+{"code": "def summarize(rows):\n    seen = {}\n    result = []\n    for row in rows:\n        user = row[\"user\"]\n        if user in seen:\n            result[seen[user]][\"total\"] += row[\"amount\"]\n        else:\n            seen[user] = len(result)\n            result.append({\"user\": user, \"total\": row[\"amount\"]})\n    return result"}
+```
+
+**Explanation:** Uses a dictionary `seen` to map users to their result indices for O(1) lookups instead of scanning the result list each iteration. This reduces time complexity from O(n²) to O(n) while maintaining first-encounter order through append sequence and preserving identical output format.

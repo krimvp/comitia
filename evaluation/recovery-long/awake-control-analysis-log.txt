@@ -1,0 +1,32 @@
+{
+  "single-agent": {
+    "review_no_file_changes": 0,
+    "mean_code_quality": 1.0,
+    "code_full_passes": 1,
+    "handoff_passes": 1,
+    "thinking_tokens": 48121,
+    "thinking_coverage_calls": 5,
+    "model_calls_started": 5,
+    "host_sleep_affected": 0,
+    "reviewer_improved": 1,
+    "reviewer_regressed": 0,
+    "reviewer_tied": 0,
+    "implementation_overlap_seconds": 0.0,
+    "recovery_to_next_call_seconds": [],
+    "retained_work_tokens": 0,
+    "n": 1,
+    "mean_quality": 1.0,
+    "passes": 1,
+    "completed": 1,
+    "cost_usd": 0.30281300000000005,
+    "cost_complete": 1,
+    "input_tokens": 18518,
+    "output_tokens": 56859,
+    "mean_wall_seconds": 442.038219,
+    "mean_storage_seconds": 0.017672955999968022,
+    "recovery_verified": 0,
+    "recovery_requested": 0,
+    "discarded_draft_tokens": 0,
+    "discarded_draft_cost_usd": 0
+  }
+}

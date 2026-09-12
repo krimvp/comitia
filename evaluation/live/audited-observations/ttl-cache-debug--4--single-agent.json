@@ -1,0 +1,93 @@
+{
+  "case_id": "ttl-cache-debug",
+  "cost_complete": true,
+  "error": "JSONDecodeError: Extra data: line 2 column 1 (char 411)",
+  "metadata": {
+    "artifact": "/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/live/artifacts/ttl-cache-debug--4--single-agent",
+    "category": "Debugging",
+    "cli_reported_cost_usd": 0.014288,
+    "comitia_operations": 0,
+    "comitia_wall_seconds": 0.0,
+    "computed_cost_usd": 0.014288,
+    "model_sessions": 1,
+    "model_wall_seconds": 25.539446625,
+    "score_audit": {
+      "evidence": "/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/live/artifacts/ttl-cache-debug--4--single-agent/audited-grader.json",
+      "label": "audited",
+      "original_quality": [
+        {
+          "earned": 0,
+          "name": "miss-hit"
+        },
+        {
+          "earned": 0,
+          "name": "falsy"
+        },
+        {
+          "earned": 0,
+          "name": "boundary"
+        },
+        {
+          "earned": 0,
+          "name": "no-sliding"
+        },
+        {
+          "earned": 0,
+          "name": "nonpositive-ttl"
+        },
+        {
+          "earned": 0,
+          "name": "loader-failure"
+        },
+        {
+          "earned": 0,
+          "name": "isolation"
+        }
+      ]
+    }
+  },
+  "mode": "single-agent",
+  "model_calls": [
+    {
+      "cached_input_tokens": 0,
+      "input_tokens": 498,
+      "model": "claude-haiku-4-5-20251001",
+      "output_tokens": 2758
+    }
+  ],
+  "non_model_cost_usd": 0,
+  "quality": [
+    {
+      "earned": 0,
+      "name": "miss-hit"
+    },
+    {
+      "earned": 0,
+      "name": "falsy"
+    },
+    {
+      "earned": 0,
+      "name": "boundary"
+    },
+    {
+      "earned": 0,
+      "name": "no-sliding"
+    },
+    {
+      "earned": 0,
+      "name": "nonpositive-ttl"
+    },
+    {
+      "earned": 0,
+      "name": "loader-failure"
+    },
+    {
+      "earned": 0,
+      "name": "isolation"
+    }
+  ],
+  "replicate": 4,
+  "seed": 1748351985,
+  "status": "completed",
+  "wall_seconds": 25.695227
+}

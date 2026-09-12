@@ -1,0 +1,59 @@
+{
+  "status": "completed",
+  "quality": [
+    {
+      "name": "all-tasks",
+      "earned": 1
+    },
+    {
+      "name": "workers",
+      "earned": 1
+    },
+    {
+      "name": "dependencies",
+      "earned": 1
+    },
+    {
+      "name": "file-conflict",
+      "earned": 1
+    },
+    {
+      "name": "optimal",
+      "earned": 1
+    },
+    {
+      "name": "stale-lease",
+      "earned": 1
+    },
+    {
+      "name": "handoff",
+      "earned": 0
+    }
+  ],
+  "model_calls": [
+    {
+      "model": "claude-haiku-4-5-20251001",
+      "input_tokens": 491,
+      "cached_input_tokens": 0,
+      "output_tokens": 10450
+    },
+    {
+      "model": "claude-haiku-4-5-20251001",
+      "input_tokens": 880,
+      "cached_input_tokens": 0,
+      "output_tokens": 9658
+    }
+  ],
+  "non_model_cost_usd": 0,
+  "cost_complete": true,
+  "metadata": {
+    "artifact": "/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/live/artifacts/delegation-schedule--2--comitia",
+    "category": "Collaboration / orchestration",
+    "model_wall_seconds": 190.658690875,
+    "comitia_wall_seconds": 0.2271628769999885,
+    "comitia_operations": 16,
+    "cli_reported_cost_usd": 0.101911,
+    "computed_cost_usd": 0.101911,
+    "model_sessions": 2
+  }
+}

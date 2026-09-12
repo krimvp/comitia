@@ -1,0 +1,25 @@
+[
+  {
+    "trial": "order-system-clean--0--comitia",
+    "word_count": 217,
+    "whitespace_count": 229,
+    "length_pass": true,
+    "missing_topic_terms": [
+      "database"
+    ]
+  },
+  {
+    "trial": "order-system-clean--0--multi-agent",
+    "word_count": 226,
+    "whitespace_count": 228,
+    "length_pass": false,
+    "missing_topic_terms": []
+  },
+  {
+    "trial": "order-system-clean--0--single-agent",
+    "word_count": 198,
+    "whitespace_count": 197,
+    "length_pass": true,
+    "missing_topic_terms": []
+  }
+]

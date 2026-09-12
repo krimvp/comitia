@@ -1,0 +1,31 @@
+{
+  "corrections": [
+    "extract_first_json_object"
+  ],
+  "checks": {
+    "all-tasks": {
+      "passed": true
+    },
+    "workers": {
+      "passed": true
+    },
+    "dependencies": {
+      "passed": true
+    },
+    "file-conflict": {
+      "passed": false,
+      "error": "condition not met"
+    },
+    "optimal": {
+      "passed": false,
+      "error": "condition not met"
+    },
+    "stale-lease": {
+      "passed": true
+    },
+    "handoff": {
+      "passed": false,
+      "error": "condition not met"
+    }
+  }
+}

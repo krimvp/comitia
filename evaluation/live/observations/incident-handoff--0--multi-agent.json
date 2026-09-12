@@ -1,0 +1,64 @@
+{
+  "case_id": "incident-handoff",
+  "cost_complete": true,
+  "metadata": {
+    "artifact": "/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/live/artifacts/incident-handoff--0--multi-agent",
+    "category": "Communication heavy",
+    "cli_reported_cost_usd": 0.020006000000000003,
+    "comitia_operations": 0,
+    "comitia_wall_seconds": 0.0,
+    "computed_cost_usd": 0.020006000000000003,
+    "model_sessions": 2,
+    "model_wall_seconds": 33.054978167
+  },
+  "mode": "multi-agent",
+  "model_calls": [
+    {
+      "cached_input_tokens": 0,
+      "input_tokens": 545,
+      "model": "claude-haiku-4-5-20251001",
+      "output_tokens": 2576
+    },
+    {
+      "cached_input_tokens": 0,
+      "input_tokens": 861,
+      "model": "claude-haiku-4-5-20251001",
+      "output_tokens": 1144
+    }
+  ],
+  "non_model_cost_usd": 0,
+  "quality": [
+    {
+      "earned": 1,
+      "name": "impact-times"
+    },
+    {
+      "earned": 1,
+      "name": "uncertainty"
+    },
+    {
+      "earned": 1,
+      "name": "next-update"
+    },
+    {
+      "earned": 1,
+      "name": "owners-deadlines"
+    },
+    {
+      "earned": 1,
+      "name": "customer-facts"
+    },
+    {
+      "earned": 1,
+      "name": "length"
+    },
+    {
+      "earned": 1,
+      "name": "secret-omitted"
+    }
+  ],
+  "replicate": 0,
+  "seed": 1114988603,
+  "status": "completed",
+  "wall_seconds": 33.166783
+}

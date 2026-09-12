@@ -1,0 +1,54 @@
+{
+  "status": "completed",
+  "quality": [
+    {
+      "name": "empty",
+      "earned": 0
+    },
+    {
+      "name": "duplicates",
+      "earned": 0
+    },
+    {
+      "name": "order",
+      "earned": 0
+    },
+    {
+      "name": "signed",
+      "earned": 0
+    },
+    {
+      "name": "immutable",
+      "earned": 0
+    },
+    {
+      "name": "randomized",
+      "earned": 0
+    },
+    {
+      "name": "linear-work",
+      "earned": 0
+    }
+  ],
+  "model_calls": [
+    {
+      "model": "claude-haiku-4-5-20251001",
+      "input_tokens": 432,
+      "cached_input_tokens": 0,
+      "output_tokens": 1847
+    }
+  ],
+  "non_model_cost_usd": 0,
+  "cost_complete": true,
+  "metadata": {
+    "artifact": "/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/live/artifacts/stable-refactor--0--single-agent",
+    "category": "Coding / refactoring",
+    "model_wall_seconds": 17.565648709,
+    "comitia_wall_seconds": 0.0,
+    "comitia_operations": 0,
+    "cli_reported_cost_usd": 0.009667,
+    "computed_cost_usd": 0.009667,
+    "model_sessions": 1
+  },
+  "error": "JSONDecodeError: Extra data: line 4 column 1 (char 424)"
+}

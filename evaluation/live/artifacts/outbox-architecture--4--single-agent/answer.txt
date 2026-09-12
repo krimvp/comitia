@@ -1,0 +1,12 @@
+```json
+{
+  "choice": "C",
+  "atomic_writes": ["order", "outbox"],
+  "idempotency_key": "order_id",
+  "broker_delivery": "at-least-once",
+  "email_effect_count": 1,
+  "email_api_call_count": 3,
+  "rollback_email_count": 0,
+  "why": "Crash gaps: Atomic order+outbox commit prevents email for rolled-back orders. Broker's at-least-once handles consumer crashes via retries. Outbox retry persists past publisher crashes. Email idempotency with order_id key prevents duplicate effects. Limit: exactly-once requires email service implementing proper deduplication; if not, duplicates occur."
+}
+```

@@ -1,0 +1,30 @@
+Independently review the worker answer against the task. Correct any defects you find. Return the final requested JSON, with no review commentary.
+
+TASK:
+Fix this Python cache. Return JSON {"code":"..."} defining Cache with the same get(key, now, ttl, loader) signature. Requirements: a cached value (including 0, False, None, empty string) is valid iff now < expires; a hit must not call loader or extend expiry; expired entries must be removed before loading; if loader raises, propagate it and leave no expired entry; ttl <= 0 must call loader but must not keep its result (an existing valid hit is still returned); keys are strings, times numeric, loader takes no args. Instance data is a dict key -> (value, expires). Buggy code:
+class Cache:
+    def __init__(self): self.data = {}
+    def get(self, key, now, ttl, loader):
+        if key in self.data:
+            value, expires = self.data[key]
+            if value and now <= expires: return value
+        value = loader()
+        self.data[key] = (value, now + ttl)
+        return value
+
+WORKER ANSWER:
+```json
+{
+  "code": "class Cache:\n    def __init__(self):\n        self.data = {}\n    \n    def get(self, key, now, ttl, loader):\n        if key in self.data:\n            value, expires = self.data[key]\n            if now < expires:\n                return value\n            del self.data[key]\n        \n        value = loader()\n        if ttl > 0:\n            self.data[key] = (value, now + ttl)\n        return value"
+}
+```
+
+**Fixes applied:**
+
+1. **Removed `if value` check** – Original falsely rejected falsy cached values (0, False, None, ""). Now all values are cached.
+
+2. **Changed `now <= expires` to `now < expires`** – Strict inequality ensures expired entries are properly invalidated.
+
+3. **Added `del self.data[key]` before loading** – Expired entries are removed before calling loader, satisfying the requirement and ensuring loader exceptions don't leave stale entries.
+
+4. **Added `if ttl > 0` gate** – Results are stored only when ttl > 0; when ttl ≤ 0, loader is called but result isn't cached (existing valid hits still return).

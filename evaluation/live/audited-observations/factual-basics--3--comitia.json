@@ -1,0 +1,82 @@
+{
+  "case_id": "factual-basics",
+  "cost_complete": true,
+  "metadata": {
+    "artifact": "/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/live/artifacts/factual-basics--3--comitia",
+    "category": "Factual / low complexity",
+    "cli_reported_cost_usd": 0.003816,
+    "comitia_operations": 16,
+    "comitia_wall_seconds": 0.2546109179999998,
+    "computed_cost_usd": 0.003816,
+    "model_sessions": 2,
+    "model_wall_seconds": 8.427963708,
+    "score_audit": {
+      "evidence": "/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/live/artifacts/factual-basics--3--comitia/audited-grader.json",
+      "label": "audited",
+      "original_quality": [
+        {
+          "earned": 1,
+          "name": "capital"
+        },
+        {
+          "earned": 1,
+          "name": "seconds"
+        },
+        {
+          "earned": 1,
+          "name": "binary"
+        },
+        {
+          "earned": 1,
+          "name": "gold"
+        },
+        {
+          "earned": 1,
+          "name": "prime"
+        }
+      ]
+    }
+  },
+  "mode": "comitia",
+  "model_calls": [
+    {
+      "cached_input_tokens": 0,
+      "input_tokens": 320,
+      "model": "claude-haiku-4-5-20251001",
+      "output_tokens": 279
+    },
+    {
+      "cached_input_tokens": 0,
+      "input_tokens": 426,
+      "model": "claude-haiku-4-5-20251001",
+      "output_tokens": 335
+    }
+  ],
+  "non_model_cost_usd": 0,
+  "quality": [
+    {
+      "earned": 1,
+      "name": "capital"
+    },
+    {
+      "earned": 1,
+      "name": "seconds"
+    },
+    {
+      "earned": 1,
+      "name": "binary"
+    },
+    {
+      "earned": 1,
+      "name": "gold"
+    },
+    {
+      "earned": 1,
+      "name": "prime"
+    }
+  ],
+  "replicate": 3,
+  "seed": 545011312,
+  "status": "completed",
+  "wall_seconds": 8.849669
+}

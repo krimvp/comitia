@@ -1,0 +1,9 @@
+```json
+{
+  "capital_of_japan": "Tokyo",
+  "seconds_in_day": 86400,
+  "binary_13": "1101",
+  "chemical_symbol_gold": "Au",
+  "smallest_prime": 2
+}
+```

@@ -1,0 +1,10 @@
+Fix this Python cache. Return JSON {"code":"..."} defining Cache with the same get(key, now, ttl, loader) signature. Requirements: a cached value (including 0, False, None, empty string) is valid iff now < expires; a hit must not call loader or extend expiry; expired entries must be removed before loading; if loader raises, propagate it and leave no expired entry; ttl <= 0 must call loader but must not keep its result (an existing valid hit is still returned); keys are strings, times numeric, loader takes no args. Instance data is a dict key -> (value, expires). Buggy code:
+class Cache:
+    def __init__(self): self.data = {}
+    def get(self, key, now, ttl, loader):
+        if key in self.data:
+            value, expires = self.data[key]
+            if value and now <= expires: return value
+        value = loader()
+        self.data[key] = (value, now + ttl)
+        return value

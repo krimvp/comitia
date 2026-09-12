@@ -1,0 +1,32 @@
+{
+  "recorded_at": "2026-09-11T08:15:52.936322+00:00",
+  "commit": "570583b0d6cd2ce8ba8e05f1cce6d61b710db611",
+  "platform": "macOS-26.6.2-arm64-arm-64bit",
+  "python": "3.9.6",
+  "go": "go version go1.25.5 darwin/arm64",
+  "claude": "2.1.263 (Claude Code)",
+  "sha256": {
+    "scripts/evaluate_agents.py": "5121ca672be133d56108705576271d277fcfd76555b005fe005faa56d1a96e13",
+    "scripts/evaluation_fixture_runner.py": "b5bf84c9cc732861d4407ae941293009d60e9e44850f9bcabb1b7203d4657236",
+    "evaluation/live/benchmark.json": "0a4f54117625a5f55a6d90b07d938c09852dec0d320ee00e15cad6caf8019a08",
+    "evaluation/live/runner.py": "34af41af74aef7b5bf996b0036492ace203621ec05d621df087ceb2c54bfc3eb",
+    "evaluation/live/grader.py": "14f3b55c892bee0da13830597af99a8613ddaae5e1aa27d4a76aa0a767ac8380",
+    "evaluation/live/run_matrix.py": "5cf872a6bcc4de7457032518f322f132e599fed042ace35c6baf2c903e54c255",
+    "evaluation/live/test_grader.py": "93ac0a1703d9fca61ae05c55797b964a68b329faf6ab839769f0219039f26c98"
+  },
+  "finalized_at": "2026-09-11T10:14:08.597517+00:00",
+  "post_run_analysis_sha256": {
+    "evaluation/live/analyze.py": "970c24af148a51f0090cf16a72c74854d3f0dfc0903771aeff2d9d8afce38e25",
+    "evaluation/live/audit_scores.py": "40749af341d5e81f54053174cf21f1f5158c611a905d3a0fe33fbb7f88cc5a61",
+    "evaluation/live/client_metrics.py": "effac3c26ad6597548a430817086ea909d9f8ab8df3e8018d53c48519804488a",
+    "evaluation/live/create_spec.py": "9c664faf43b84f2a3eff588818fa1ab239ab88ddc3533b1aac1c21db646c7507",
+    "evaluation/live/grader.py": "14f3b55c892bee0da13830597af99a8613ddaae5e1aa27d4a76aa0a767ac8380",
+    "evaluation/live/inspect_timeouts.py": "81064e9c137e0c165669db6f14fedd2c9a5fd2bd6ff96073f90a767802efeadb",
+    "evaluation/live/make_report.py": "5d73781a5ed94aa5681d121600845d9e0896670670798b592903dfc012838cbb",
+    "evaluation/live/run_matrix.py": "5cf872a6bcc4de7457032518f322f132e599fed042ace35c6baf2c903e54c255",
+    "evaluation/live/runner.py": "34af41af74aef7b5bf996b0036492ace203621ec05d621df087ceb2c54bfc3eb",
+    "evaluation/live/test_audit_scores.py": "98b84895afffd2506cb567a897a6109522c8f25db9c72c5484bd1b4c2cf3ec1b",
+    "evaluation/live/test_grader.py": "93ac0a1703d9fca61ae05c55797b964a68b329faf6ab839769f0219039f26c98"
+  },
+  "execution_hashes_unchanged": true
+}

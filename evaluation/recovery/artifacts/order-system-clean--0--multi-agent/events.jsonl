@@ -1,0 +1,28 @@
+{"kind": "engine_start", "pid": 28943, "resumed": false}
+{"kind": "storage", "operation": "replay", "seconds": 0.0006172919999999985, "backend": "files"}
+{"kind": "storage", "operation": "replay", "seconds": 0.0005103750000000004, "backend": "files"}
+{"kind": "storage", "operation": "replay", "seconds": 0.00046533400000000474, "backend": "files"}
+{"kind": "storage", "operation": "replay", "seconds": 0.0004395000000000024, "backend": "files"}
+{"kind": "storage", "operation": "replay", "seconds": 0.0004394580000000037, "backend": "files"}
+{"kind": "storage", "operation": "claim", "seconds": 0.0004433339999999966, "backend": "files"}
+{"kind": "model", "stage": "architect", "attempt": 0, "started_at": 1789133365.271927, "cost_complete": true, "seconds": 27.1339175}
+{"kind": "storage", "operation": "publish-and-complete", "seconds": 0.0005991250000008108, "backend": "files"}
+{"kind": "storage", "operation": "ack", "seconds": 0.0005713750000033713, "backend": "files"}
+{"kind": "storage", "operation": "claim", "seconds": 0.0006155000000021005, "backend": "files"}
+{"kind": "storage", "operation": "claim", "seconds": 0.0014367499999998756, "backend": "files"}
+{"kind": "model", "stage": "ledger", "attempt": 0, "started_at": 1789133392.408204, "cost_complete": true, "seconds": 99.3540095}
+{"kind": "storage", "operation": "publish-and-complete", "seconds": 0.0008512090000039052, "backend": "files"}
+{"kind": "storage", "operation": "ack", "seconds": 0.0009173750000002201, "backend": "files"}
+{"kind": "model", "stage": "outbox", "attempt": 0, "started_at": 1789133392.411338, "cost_complete": true, "seconds": 123.99495945800001}
+{"kind": "storage", "operation": "publish-and-complete", "seconds": 0.001161542000005511, "backend": "files"}
+{"kind": "storage", "operation": "ack", "seconds": 0.0008825000000172167, "backend": "files"}
+{"kind": "storage", "operation": "claim", "seconds": 0.0007981249999886586, "backend": "files"}
+{"kind": "model", "stage": "integrator", "attempt": 0, "started_at": 1789133516.406513, "cost_complete": true, "seconds": 202.5800255}
+{"kind": "storage", "operation": "publish-and-complete", "seconds": 0.0010550829999829148, "backend": "files"}
+{"kind": "storage", "operation": "ack", "seconds": 0.0009104160000106276, "backend": "files"}
+{"kind": "storage", "operation": "claim", "seconds": 0.0012227919999645565, "backend": "files"}
+{"kind": "model", "stage": "reviewer", "attempt": 0, "started_at": 1789133719.063328, "cost_complete": true, "seconds": 147.51675058399996}
+{"kind": "storage", "operation": "publish-and-complete", "seconds": 0.0014967079999905764, "backend": "files"}
+{"kind": "storage", "operation": "ack", "seconds": 0.0011255000000005566, "backend": "files"}
+{"kind": "storage", "operation": "replay", "seconds": 0.001229500000022199, "backend": "files"}
+{"kind": "storage", "operation": "inspect", "seconds": 0.0015026669999542719, "backend": "files"}

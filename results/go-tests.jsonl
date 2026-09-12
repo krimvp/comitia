@@ -1,0 +1,332 @@
+{"Time":"2026-09-11T10:04:36.78191+02:00","Action":"start","Package":"github.com/krimvp/comitia"}
+{"Time":"2026-09-11T10:04:36.816634+02:00","Action":"start","Package":"github.com/krimvp/comitia/cmd/comitia"}
+{"Time":"2026-09-11T10:04:36.816732+02:00","Action":"start","Package":"github.com/krimvp/comitia/httpapi"}
+{"Time":"2026-09-11T10:04:36.816842+02:00","Action":"start","Package":"github.com/krimvp/comitia/mcp"}
+{"Time":"2026-09-11T10:04:37.759979+02:00","Action":"run","Package":"github.com/krimvp/comitia","Test":"TestListContextsScopePaginationAndRevocation"}
+{"Time":"2026-09-11T10:04:37.760088+02:00","Action":"output","Package":"github.com/krimvp/comitia","Test":"TestListContextsScopePaginationAndRevocation","Output":"=== RUN   TestListContextsScopePaginationAndRevocation\n"}
+{"Time":"2026-09-11T10:04:37.765082+02:00","Action":"output","Package":"github.com/krimvp/comitia","Test":"TestListContextsScopePaginationAndRevocation","Output":"--- PASS: TestListContextsScopePaginationAndRevocation (0.01s)\n"}
+{"Time":"2026-09-11T10:04:37.765169+02:00","Action":"pass","Package":"github.com/krimvp/comitia","Test":"TestListContextsScopePaginationAndRevocation","Elapsed":0.01}
+{"Time":"2026-09-11T10:04:37.765552+02:00","Action":"run","Package":"github.com/krimvp/comitia","Test":"TestListContextsSkipsUnreadableCandidatePages"}
+{"Time":"2026-09-11T10:04:37.765568+02:00","Action":"output","Package":"github.com/krimvp/comitia","Test":"TestListContextsSkipsUnreadableCandidatePages","Output":"=== RUN   TestListContextsSkipsUnreadableCandidatePages\n"}
+{"Time":"2026-09-11T10:04:37.77951+02:00","Action":"output","Package":"github.com/krimvp/comitia","Test":"TestListContextsSkipsUnreadableCandidatePages","Output":"--- PASS: TestListContextsSkipsUnreadableCandidatePages (0.01s)\n"}
+{"Time":"2026-09-11T10:04:37.779566+02:00","Action":"pass","Package":"github.com/krimvp/comitia","Test":"TestListContextsSkipsUnreadableCandidatePages","Elapsed":0.01}
+{"Time":"2026-09-11T10:04:37.779576+02:00","Action":"run","Package":"github.com/krimvp/comitia","Test":"TestListContextsGrantExpiryDoesNotLeakContext"}
+{"Time":"2026-09-11T10:04:37.779582+02:00","Action":"output","Package":"github.com/krimvp/comitia","Test":"TestListContextsGrantExpiryDoesNotLeakContext","Output":"=== RUN   TestListContextsGrantExpiryDoesNotLeakContext\n"}
+{"Time":"2026-09-11T10:04:37.781055+02:00","Action":"output","Package":"github.com/krimvp/comitia","Test":"TestListContextsGrantExpiryDoesNotLeakContext","Output":"--- PASS: TestListContextsGrantExpiryDoesNotLeakContext (0.00s)\n"}
+{"Time":"2026-09-11T10:04:37.781098+02:00","Action":"pass","Package":"github.com/krimvp/comitia","Test":"TestListContextsGrantExpiryDoesNotLeakContext","Elapsed":0}
+{"Time":"2026-09-11T10:04:37.781127+02:00","Action":"run","Package":"github.com/krimvp/comitia","Test":"TestCrashRecoveryCommittedState"}
+{"Time":"2026-09-11T10:04:37.78114+02:00","Action":"output","Package":"github.com/krimvp/comitia","Test":"TestCrashRecoveryCommittedState","Output":"=== RUN   TestCrashRecoveryCommittedState\n"}
+{"Time":"2026-09-11T10:04:37.805466+02:00","Action":"output","Package":"github.com/krimvp/comitia","Test":"TestCrashRecoveryCommittedState","Output":"--- PASS: TestCrashRecoveryCommittedState (0.02s)\n"}
+{"Time":"2026-09-11T10:04:37.805494+02:00","Action":"pass","Package":"github.com/krimvp/comitia","Test":"TestCrashRecoveryCommittedState","Elapsed":0.02}
+{"Time":"2026-09-11T10:04:37.805506+02:00","Action":"run","Package":"github.com/krimvp/comitia","Test":"TestEvaluationResultValidation"}
+{"Time":"2026-09-11T10:04:37.805511+02:00","Action":"output","Package":"github.com/krimvp/comitia","Test":"TestEvaluationResultValidation","Output":"=== RUN   TestEvaluationResultValidation\n"}
+{"Time":"2026-09-11T10:04:37.805517+02:00","Action":"run","Package":"github.com/krimvp/comitia","Test":"TestEvaluationResultValidation/accepted"}
+{"Time":"2026-09-11T10:04:37.805521+02:00","Action":"output","Package":"github.com/krimvp/comitia","Test":"TestEvaluationResultValidation/accepted","Output":"=== RUN   TestEvaluationResultValidation/accepted\n"}
+{"Time":"2026-09-11T10:04:37.805675+02:00","Action":"output","Package":"github.com/krimvp/comitia","Test":"TestEvaluationResultValidation/accepted","Output":"--- PASS: TestEvaluationResultValidation/accepted (0.00s)\n"}
+{"Time":"2026-09-11T10:04:37.805682+02:00","Action":"pass","Package":"github.com/krimvp/comitia","Test":"TestEvaluationResultValidation/accepted","Elapsed":0}
+{"Time":"2026-09-11T10:04:37.805688+02:00","Action":"run","Package":"github.com/krimvp/comitia","Test":"TestEvaluationResultValidation/rejected"}
+{"Time":"2026-09-11T10:04:37.805691+02:00","Action":"output","Package":"github.com/krimvp/comitia","Test":"TestEvaluationResultValidation/rejected","Output":"=== RUN   TestEvaluationResultValidation/rejected\n"}
+{"Time":"2026-09-11T10:04:37.805745+02:00","Action":"output","Package":"github.com/krimvp/comitia","Test":"TestEvaluationResultValidation/rejected","Output":"--- PASS: TestEvaluationResultValidation/rejected (0.00s)\n"}
+{"Time":"2026-09-11T10:04:37.805751+02:00","Action":"pass","Package":"github.com/krimvp/comitia","Test":"TestEvaluationResultValidation/rejected","Elapsed":0}
+{"Time":"2026-09-11T10:04:37.805771+02:00","Action":"run","Package":"github.com/krimvp/comitia","Test":"TestEvaluationResultValidation/inconclusive"}
+{"Time":"2026-09-11T10:04:37.805775+02:00","Action":"output","Package":"github.com/krimvp/comitia","Test":"TestEvaluationResultValidation/inconclusive","Output":"=== RUN   TestEvaluationResultValidation/inconclusive\n"}
+{"Time":"2026-09-11T10:04:37.805779+02:00","Action":"output","Package":"github.com/krimvp/comitia","Test":"TestEvaluationResultValidation/inconclusive","Output":"--- PASS: TestEvaluationResultValidation/inconclusive (0.00s)\n"}
+{"Time":"2026-09-11T10:04:37.805783+02:00","Action":"pass","Package":"github.com/krimvp/comitia","Test":"TestEvaluationResultValidation/inconclusive","Elapsed":0}
+{"Time":"2026-09-11T10:04:37.805823+02:00","Action":"output","Package":"github.com/krimvp/comitia","Test":"TestEvaluationResultValidation","Output":"--- PASS: TestEvaluationResultValidation (0.00s)\n"}
+{"Time":"2026-09-11T10:04:37.805829+02:00","Action":"pass","Package":"github.com/krimvp/comitia","Test":"TestEvaluationResultValidation","Elapsed":0}
+{"Time":"2026-09-11T10:04:37.805833+02:00","Action":"run","Package":"github.com/krimvp/comitia","Test":"TestEvaluationEnvelopeRequiresTask"}
+{"Time":"2026-09-11T10:04:37.805837+02:00","Action":"output","Package":"github.com/krimvp/comitia","Test":"TestEvaluationEnvelopeRequiresTask","Output":"=== RUN   TestEvaluationEnvelopeRequiresTask\n"}
+{"Time":"2026-09-11T10:04:37.80773+02:00","Action":"output","Package":"github.com/krimvp/comitia","Test":"TestEvaluationEnvelopeRequiresTask","Output":"--- PASS: TestEvaluationEnvelopeRequiresTask (0.00s)\n"}
+{"Time":"2026-09-11T10:04:37.807756+02:00","Action":"pass","Package":"github.com/krimvp/comitia","Test":"TestEvaluationEnvelopeRequiresTask","Elapsed":0}
+{"Time":"2026-09-11T10:04:37.807763+02:00","Action":"run","Package":"github.com/krimvp/comitia","Test":"TestBuildEvaluationReportRequiresCompleteCostCoverage"}
+{"Time":"2026-09-11T10:04:37.807766+02:00","Action":"output","Package":"github.com/krimvp/comitia","Test":"TestBuildEvaluationReportRequiresCompleteCostCoverage","Output":"=== RUN   TestBuildEvaluationReportRequiresCompleteCostCoverage\n"}
+{"Time":"2026-09-11T10:04:37.807855+02:00","Action":"output","Package":"github.com/krimvp/comitia","Test":"TestBuildEvaluationReportRequiresCompleteCostCoverage","Output":"--- PASS: TestBuildEvaluationReportRequiresCompleteCostCoverage (0.00s)\n"}
+{"Time":"2026-09-11T10:04:37.807869+02:00","Action":"pass","Package":"github.com/krimvp/comitia","Test":"TestBuildEvaluationReportRequiresCompleteCostCoverage","Elapsed":0}
+{"Time":"2026-09-11T10:04:37.807877+02:00","Action":"run","Package":"github.com/krimvp/comitia","Test":"TestBuildEvaluationReportRejectsDuplicateEvaluationID"}
+{"Time":"2026-09-11T10:04:37.807882+02:00","Action":"output","Package":"github.com/krimvp/comitia","Test":"TestBuildEvaluationReportRejectsDuplicateEvaluationID","Output":"=== RUN   TestBuildEvaluationReportRejectsDuplicateEvaluationID\n"}
+{"Time":"2026-09-11T10:04:37.807931+02:00","Action":"output","Package":"github.com/krimvp/comitia","Test":"TestBuildEvaluationReportRejectsDuplicateEvaluationID","Output":"--- PASS: TestBuildEvaluationReportRejectsDuplicateEvaluationID (0.00s)\n"}
+{"Time":"2026-09-11T10:04:37.807938+02:00","Action":"pass","Package":"github.com/krimvp/comitia","Test":"TestBuildEvaluationReportRejectsDuplicateEvaluationID","Elapsed":0}
+{"Time":"2026-09-11T10:04:37.807943+02:00","Action":"run","Package":"github.com/krimvp/comitia","Test":"TestBuildEvaluationReportRejectsCostOverflow"}
+{"Time":"2026-09-11T10:04:37.807949+02:00","Action":"output","Package":"github.com/krimvp/comitia","Test":"TestBuildEvaluationReportRejectsCostOverflow","Output":"=== RUN   TestBuildEvaluationReportRejectsCostOverflow\n"}
+{"Time":"2026-09-11T10:04:37.80796+02:00","Action":"output","Package":"github.com/krimvp/comitia","Test":"TestBuildEvaluationReportRejectsCostOverflow","Output":"--- PASS: TestBuildEvaluationReportRejectsCostOverflow (0.00s)\n"}
+{"Time":"2026-09-11T10:04:37.807972+02:00","Action":"pass","Package":"github.com/krimvp/comitia","Test":"TestBuildEvaluationReportRejectsCostOverflow","Elapsed":0}
+{"Time":"2026-09-11T10:04:37.807977+02:00","Action":"run","Package":"github.com/krimvp/comitia","Test":"TestTypedMessagesDuplicateNamesAndPersistence"}
+{"Time":"2026-09-11T10:04:37.80798+02:00","Action":"output","Package":"github.com/krimvp/comitia","Test":"TestTypedMessagesDuplicateNamesAndPersistence","Output":"=== RUN   TestTypedMessagesDuplicateNamesAndPersistence\n"}
+{"Time":"2026-09-11T10:04:37.818105+02:00","Action":"output","Package":"github.com/krimvp/comitia","Test":"TestTypedMessagesDuplicateNamesAndPersistence","Output":"--- PASS: TestTypedMessagesDuplicateNamesAndPersistence (0.01s)\n"}
+{"Time":"2026-09-11T10:04:37.818129+02:00","Action":"pass","Package":"github.com/krimvp/comitia","Test":"TestTypedMessagesDuplicateNamesAndPersistence","Elapsed":0.01}
+{"Time":"2026-09-11T10:04:37.81814+02:00","Action":"run","Package":"github.com/krimvp/comitia","Test":"TestEnvelopeScopeRevocationAndValidation"}
+{"Time":"2026-09-11T10:04:37.818146+02:00","Action":"output","Package":"github.com/krimvp/comitia","Test":"TestEnvelopeScopeRevocationAndValidation","Output":"=== RUN   TestEnvelopeScopeRevocationAndValidation\n"}
+{"Time":"2026-09-11T10:04:37.820119+02:00","Action":"run","Package":"github.com/krimvp/comitia","Test":"TestEnvelopeScopeRevocationAndValidation/name_is_not_ID"}
+{"Time":"2026-09-11T10:04:37.820129+02:00","Action":"output","Package":"github.com/krimvp/comitia","Test":"TestEnvelopeScopeRevocationAndValidation/name_is_not_ID","Output":"=== RUN   TestEnvelopeScopeRevocationAndValidation/name_is_not_ID\n"}
+{"Time":"2026-09-11T10:04:37.820511+02:00","Action":"output","Package":"github.com/krimvp/comitia","Test":"TestEnvelopeScopeRevocationAndValidation/name_is_not_ID","Output":"--- PASS: TestEnvelopeScopeRevocationAndValidation/name_is_not_ID (0.00s)\n"}
+{"Time":"2026-09-11T10:04:37.820522+02:00","Action":"pass","Package":"github.com/krimvp/comitia","Test":"TestEnvelopeScopeRevocationAndValidation/name_is_not_ID","Elapsed":0}
+{"Time":"2026-09-11T10:04:37.820529+02:00","Action":"run","Package":"github.com/krimvp/comitia","Test":"TestEnvelopeScopeRevocationAndValidation/outside_recipient"}
+{"Time":"2026-09-11T10:04:37.820533+02:00","Action":"output","Package":"github.com/krimvp/comitia","Test":"TestEnvelopeScopeRevocationAndValidation/outside_recipient","Output":"=== RUN   TestEnvelopeScopeRevocationAndValidation/outside_recipient\n"}
+{"Time":"2026-09-11T10:04:37.820795+02:00","Action":"output","Package":"github.com/krimvp/comitia","Test":"TestEnvelopeScopeRevocationAndValidation/outside_recipient","Output":"--- PASS: TestEnvelopeScopeRevocationAndValidation/outside_recipient (0.00s)\n"}
+{"Time":"2026-09-11T10:04:37.820817+02:00","Action":"pass","Package":"github.com/krimvp/comitia","Test":"TestEnvelopeScopeRevocationAndValidation/outside_recipient","Elapsed":0}
+{"Time":"2026-09-11T10:04:37.820823+02:00","Action":"run","Package":"github.com/krimvp/comitia","Test":"TestEnvelopeScopeRevocationAndValidation/outside_task"}
+{"Time":"2026-09-11T10:04:37.820834+02:00","Action":"output","Package":"github.com/krimvp/comitia","Test":"TestEnvelopeScopeRevocationAndValidation/outside_task","Output":"=== RUN   TestEnvelopeScopeRevocationAndValidation/outside_task\n"}
+{"Time":"2026-09-11T10:04:37.821012+02:00","Action":"output","Package":"github.com/krimvp/comitia","Test":"TestEnvelopeScopeRevocationAndValidation/outside_task","Output":"--- PASS: TestEnvelopeScopeRevocationAndValidation/outside_task (0.00s)\n"}
+{"Time":"2026-09-11T10:04:37.821028+02:00","Action":"pass","Package":"github.com/krimvp/comitia","Test":"TestEnvelopeScopeRevocationAndValidation/outside_task","Elapsed":0}
+{"Time":"2026-09-11T10:04:37.821036+02:00","Action":"run","Package":"github.com/krimvp/comitia","Test":"TestEnvelopeScopeRevocationAndValidation/outside_reply"}
+{"Time":"2026-09-11T10:04:37.821048+02:00","Action":"output","Package":"github.com/krimvp/comitia","Test":"TestEnvelopeScopeRevocationAndValidation/outside_reply","Output":"=== RUN   TestEnvelopeScopeRevocationAndValidation/outside_reply\n"}
+{"Time":"2026-09-11T10:04:37.82122+02:00","Action":"output","Package":"github.com/krimvp/comitia","Test":"TestEnvelopeScopeRevocationAndValidation/outside_reply","Output":"--- PASS: TestEnvelopeScopeRevocationAndValidation/outside_reply (0.00s)\n"}
+{"Time":"2026-09-11T10:04:37.821228+02:00","Action":"pass","Package":"github.com/krimvp/comitia","Test":"TestEnvelopeScopeRevocationAndValidation/outside_reply","Elapsed":0}
+{"Time":"2026-09-11T10:04:37.821232+02:00","Action":"run","Package":"github.com/krimvp/comitia","Test":"TestEnvelopeScopeRevocationAndValidation/unknown_schema"}
+{"Time":"2026-09-11T10:04:37.821236+02:00","Action":"output","Package":"github.com/krimvp/comitia","Test":"TestEnvelopeScopeRevocationAndValidation/unknown_schema","Output":"=== RUN   TestEnvelopeScopeRevocationAndValidation/unknown_schema\n"}
+{"Time":"2026-09-11T10:04:37.821241+02:00","Action":"output","Package":"github.com/krimvp/comitia","Test":"TestEnvelopeScopeRevocationAndValidation/unknown_schema","Output":"--- PASS: TestEnvelopeScopeRevocationAndValidation/unknown_schema (0.00s)\n"}
+{"Time":"2026-09-11T10:04:37.821245+02:00","Action":"pass","Package":"github.com/krimvp/comitia","Test":"TestEnvelopeScopeRevocationAndValidation/unknown_schema","Elapsed":0}
+{"Time":"2026-09-11T10:04:37.821249+02:00","Action":"run","Package":"github.com/krimvp/comitia","Test":"TestEnvelopeScopeRevocationAndValidation/unknown_field"}
+{"Time":"2026-09-11T10:04:37.821252+02:00","Action":"output","Package":"github.com/krimvp/comitia","Test":"TestEnvelopeScopeRevocationAndValidation/unknown_field","Output":"=== RUN   TestEnvelopeScopeRevocationAndValidation/unknown_field\n"}
+{"Time":"2026-09-11T10:04:37.821257+02:00","Action":"output","Package":"github.com/krimvp/comitia","Test":"TestEnvelopeScopeRevocationAndValidation/unknown_field","Output":"--- PASS: TestEnvelopeScopeRevocationAndValidation/unknown_field (0.00s)\n"}
+{"Time":"2026-09-11T10:04:37.821262+02:00","Action":"pass","Package":"github.com/krimvp/comitia","Test":"TestEnvelopeScopeRevocationAndValidation/unknown_field","Elapsed":0}
+{"Time":"2026-09-11T10:04:37.821266+02:00","Action":"run","Package":"github.com/krimvp/comitia","Test":"TestEnvelopeScopeRevocationAndValidation/missing_evidence"}
+{"Time":"2026-09-11T10:04:37.82127+02:00","Action":"output","Package":"github.com/krimvp/comitia","Test":"TestEnvelopeScopeRevocationAndValidation/missing_evidence","Output":"=== RUN   TestEnvelopeScopeRevocationAndValidation/missing_evidence\n"}
+{"Time":"2026-09-11T10:04:37.821297+02:00","Action":"output","Package":"github.com/krimvp/comitia","Test":"TestEnvelopeScopeRevocationAndValidation/missing_evidence","Output":"--- PASS: TestEnvelopeScopeRevocationAndValidation/missing_evidence (0.00s)\n"}
+{"Time":"2026-09-11T10:04:37.821306+02:00","Action":"pass","Package":"github.com/krimvp/comitia","Test":"TestEnvelopeScopeRevocationAndValidation/missing_evidence","Elapsed":0}
+{"Time":"2026-09-11T10:04:37.821347+02:00","Action":"run","Package":"github.com/krimvp/comitia","Test":"TestEnvelopeScopeRevocationAndValidation/duplicate_recipient"}
+{"Time":"2026-09-11T10:04:37.821352+02:00","Action":"output","Package":"github.com/krimvp/comitia","Test":"TestEnvelopeScopeRevocationAndValidation/duplicate_recipient","Output":"=== RUN   TestEnvelopeScopeRevocationAndValidation/duplicate_recipient\n"}
+{"Time":"2026-09-11T10:04:37.821357+02:00","Action":"output","Package":"github.com/krimvp/comitia","Test":"TestEnvelopeScopeRevocationAndValidation/duplicate_recipient","Output":"--- PASS: TestEnvelopeScopeRevocationAndValidation/duplicate_recipient (0.00s)\n"}
+{"Time":"2026-09-11T10:04:37.821361+02:00","Action":"pass","Package":"github.com/krimvp/comitia","Test":"TestEnvelopeScopeRevocationAndValidation/duplicate_recipient","Elapsed":0}
+{"Time":"2026-09-11T10:04:37.821842+02:00","Action":"output","Package":"github.com/krimvp/comitia","Test":"TestEnvelopeScopeRevocationAndValidation","Output":"--- PASS: TestEnvelopeScopeRevocationAndValidation (0.00s)\n"}
+{"Time":"2026-09-11T10:04:37.821849+02:00","Action":"pass","Package":"github.com/krimvp/comitia","Test":"TestEnvelopeScopeRevocationAndValidation","Elapsed":0}
+{"Time":"2026-09-11T10:04:37.821854+02:00","Action":"run","Package":"github.com/krimvp/comitia","Test":"TestLegacyMessageDatabaseAndExtension"}
+{"Time":"2026-09-11T10:04:37.821858+02:00","Action":"output","Package":"github.com/krimvp/comitia","Test":"TestLegacyMessageDatabaseAndExtension","Output":"=== RUN   TestLegacyMessageDatabaseAndExtension\n"}
+{"Time":"2026-09-11T10:04:37.8297+02:00","Action":"output","Package":"github.com/krimvp/comitia","Test":"TestLegacyMessageDatabaseAndExtension","Output":"--- PASS: TestLegacyMessageDatabaseAndExtension (0.01s)\n"}
+{"Time":"2026-09-11T10:04:37.829715+02:00","Action":"pass","Package":"github.com/krimvp/comitia","Test":"TestLegacyMessageDatabaseAndExtension","Elapsed":0.01}
+{"Time":"2026-09-11T10:04:37.829723+02:00","Action":"run","Package":"github.com/krimvp/comitia","Test":"TestReviewDelegationCannotComposeGrantAndPayloadPermissions"}
+{"Time":"2026-09-11T10:04:37.829728+02:00","Action":"output","Package":"github.com/krimvp/comitia","Test":"TestReviewDelegationCannotComposeGrantAndPayloadPermissions","Output":"=== RUN   TestReviewDelegationCannotComposeGrantAndPayloadPermissions\n"}
+{"Time":"2026-09-11T10:04:37.836723+02:00","Action":"output","Package":"github.com/krimvp/comitia","Test":"TestReviewDelegationCannotComposeGrantAndPayloadPermissions","Output":"--- PASS: TestReviewDelegationCannotComposeGrantAndPayloadPermissions (0.01s)\n"}
+{"Time":"2026-09-11T10:04:37.836745+02:00","Action":"pass","Package":"github.com/krimvp/comitia","Test":"TestReviewDelegationCannotComposeGrantAndPayloadPermissions","Elapsed":0.01}
+{"Time":"2026-09-11T10:04:37.836756+02:00","Action":"run","Package":"github.com/krimvp/comitia","Test":"TestReviewRevokedGrantAncestorInvalidatesDescendant"}
+{"Time":"2026-09-11T10:04:37.836762+02:00","Action":"output","Package":"github.com/krimvp/comitia","Test":"TestReviewRevokedGrantAncestorInvalidatesDescendant","Output":"=== RUN   TestReviewRevokedGrantAncestorInvalidatesDescendant\n"}
+{"Time":"2026-09-11T10:04:37.843315+02:00","Action":"output","Package":"github.com/krimvp/comitia","Test":"TestReviewRevokedGrantAncestorInvalidatesDescendant","Output":"--- PASS: TestReviewRevokedGrantAncestorInvalidatesDescendant (0.01s)\n"}
+{"Time":"2026-09-11T10:04:37.843328+02:00","Action":"pass","Package":"github.com/krimvp/comitia","Test":"TestReviewRevokedGrantAncestorInvalidatesDescendant","Elapsed":0.01}
+{"Time":"2026-09-11T10:04:37.843335+02:00","Action":"run","Package":"github.com/krimvp/comitia","Test":"TestReviewMessageIdempotencyAcrossStoreInstances"}
+{"Time":"2026-09-11T10:04:37.843341+02:00","Action":"output","Package":"github.com/krimvp/comitia","Test":"TestReviewMessageIdempotencyAcrossStoreInstances","Output":"=== RUN   TestReviewMessageIdempotencyAcrossStoreInstances\n"}
+{"Time":"2026-09-11T10:04:37.852015+02:00","Action":"output","Package":"github.com/krimvp/comitia","Test":"TestReviewMessageIdempotencyAcrossStoreInstances","Output":"--- PASS: TestReviewMessageIdempotencyAcrossStoreInstances (0.01s)\n"}
+{"Time":"2026-09-11T10:04:37.852035+02:00","Action":"pass","Package":"github.com/krimvp/comitia","Test":"TestReviewMessageIdempotencyAcrossStoreInstances","Elapsed":0.01}
+{"Time":"2026-09-11T10:04:37.852041+02:00","Action":"run","Package":"github.com/krimvp/comitia","Test":"TestReviewRevokingIssuingSessionInvalidatesGrantToIndependentSession"}
+{"Time":"2026-09-11T10:04:37.852045+02:00","Action":"output","Package":"github.com/krimvp/comitia","Test":"TestReviewRevokingIssuingSessionInvalidatesGrantToIndependentSession","Output":"=== RUN   TestReviewRevokingIssuingSessionInvalidatesGrantToIndependentSession\n"}
+{"Time":"2026-09-11T10:04:37.858793+02:00","Action":"output","Package":"github.com/krimvp/comitia","Test":"TestReviewRevokingIssuingSessionInvalidatesGrantToIndependentSession","Output":"--- PASS: TestReviewRevokingIssuingSessionInvalidatesGrantToIndependentSession (0.01s)\n"}
+{"Time":"2026-09-11T10:04:37.858805+02:00","Action":"pass","Package":"github.com/krimvp/comitia","Test":"TestReviewRevokingIssuingSessionInvalidatesGrantToIndependentSession","Elapsed":0.01}
+{"Time":"2026-09-11T10:04:37.858812+02:00","Action":"run","Package":"github.com/krimvp/comitia","Test":"TestReviewActiveLeaseCannotBeReclaimedWithoutFence"}
+{"Time":"2026-09-11T10:04:37.858817+02:00","Action":"output","Package":"github.com/krimvp/comitia","Test":"TestReviewActiveLeaseCannotBeReclaimedWithoutFence","Output":"=== RUN   TestReviewActiveLeaseCannotBeReclaimedWithoutFence\n"}
+{"Time":"2026-09-11T10:04:37.865448+02:00","Action":"output","Package":"github.com/krimvp/comitia","Test":"TestReviewActiveLeaseCannotBeReclaimedWithoutFence","Output":"--- PASS: TestReviewActiveLeaseCannotBeReclaimedWithoutFence (0.01s)\n"}
+{"Time":"2026-09-11T10:04:37.865462+02:00","Action":"pass","Package":"github.com/krimvp/comitia","Test":"TestReviewActiveLeaseCannotBeReclaimedWithoutFence","Elapsed":0.01}
+{"Time":"2026-09-11T10:04:37.865471+02:00","Action":"run","Package":"github.com/krimvp/comitia","Test":"TestReviewForbiddenGetTaskReturnsNoPayload"}
+{"Time":"2026-09-11T10:04:37.865477+02:00","Action":"output","Package":"github.com/krimvp/comitia","Test":"TestReviewForbiddenGetTaskReturnsNoPayload","Output":"=== RUN   TestReviewForbiddenGetTaskReturnsNoPayload\n"}
+{"Time":"2026-09-11T10:04:37.872166+02:00","Action":"output","Package":"github.com/krimvp/comitia","Test":"TestReviewForbiddenGetTaskReturnsNoPayload","Output":"--- PASS: TestReviewForbiddenGetTaskReturnsNoPayload (0.01s)\n"}
+{"Time":"2026-09-11T10:04:37.872179+02:00","Action":"pass","Package":"github.com/krimvp/comitia","Test":"TestReviewForbiddenGetTaskReturnsNoPayload","Elapsed":0.01}
+{"Time":"2026-09-11T10:04:37.872186+02:00","Action":"run","Package":"github.com/krimvp/comitia","Test":"TestReviewRawCredentialIsNotPersisted"}
+{"Time":"2026-09-11T10:04:37.872192+02:00","Action":"output","Package":"github.com/krimvp/comitia","Test":"TestReviewRawCredentialIsNotPersisted","Output":"=== RUN   TestReviewRawCredentialIsNotPersisted\n"}
+{"Time":"2026-09-11T10:04:37.877457+02:00","Action":"output","Package":"github.com/krimvp/comitia","Test":"TestReviewRawCredentialIsNotPersisted","Output":"--- PASS: TestReviewRawCredentialIsNotPersisted (0.01s)\n"}
+{"Time":"2026-09-11T10:04:37.877472+02:00","Action":"pass","Package":"github.com/krimvp/comitia","Test":"TestReviewRawCredentialIsNotPersisted","Elapsed":0.01}
+{"Time":"2026-09-11T10:04:37.87748+02:00","Action":"run","Package":"github.com/krimvp/comitia","Test":"TestReviewBootstrapSingleUseAcrossStoreInstances"}
+{"Time":"2026-09-11T10:04:37.877486+02:00","Action":"output","Package":"github.com/krimvp/comitia","Test":"TestReviewBootstrapSingleUseAcrossStoreInstances","Output":"=== RUN   TestReviewBootstrapSingleUseAcrossStoreInstances\n"}
+{"Time":"2026-09-11T10:04:37.884036+02:00","Action":"output","Package":"github.com/krimvp/comitia","Test":"TestReviewBootstrapSingleUseAcrossStoreInstances","Output":"--- PASS: TestReviewBootstrapSingleUseAcrossStoreInstances (0.01s)\n"}
+{"Time":"2026-09-11T10:04:37.884055+02:00","Action":"pass","Package":"github.com/krimvp/comitia","Test":"TestReviewBootstrapSingleUseAcrossStoreInstances","Elapsed":0.01}
+{"Time":"2026-09-11T10:04:37.884062+02:00","Action":"run","Package":"github.com/krimvp/comitia","Test":"TestReviewMemoryStoresAreIsolated"}
+{"Time":"2026-09-11T10:04:37.884066+02:00","Action":"output","Package":"github.com/krimvp/comitia","Test":"TestReviewMemoryStoresAreIsolated","Output":"=== RUN   TestReviewMemoryStoresAreIsolated\n"}
+{"Time":"2026-09-11T10:04:37.885674+02:00","Action":"output","Package":"github.com/krimvp/comitia","Test":"TestReviewMemoryStoresAreIsolated","Output":"--- PASS: TestReviewMemoryStoresAreIsolated (0.00s)\n"}
+{"Time":"2026-09-11T10:04:37.885687+02:00","Action":"pass","Package":"github.com/krimvp/comitia","Test":"TestReviewMemoryStoresAreIsolated","Elapsed":0}
+{"Time":"2026-09-11T10:04:37.885693+02:00","Action":"run","Package":"github.com/krimvp/comitia","Test":"TestSecurityRevocationObservedAcrossStoreInstances"}
+{"Time":"2026-09-11T10:04:37.885697+02:00","Action":"output","Package":"github.com/krimvp/comitia","Test":"TestSecurityRevocationObservedAcrossStoreInstances","Output":"=== RUN   TestSecurityRevocationObservedAcrossStoreInstances\n"}
+{"Time":"2026-09-11T10:04:37.892291+02:00","Action":"output","Package":"github.com/krimvp/comitia","Test":"TestSecurityRevocationObservedAcrossStoreInstances","Output":"--- PASS: TestSecurityRevocationObservedAcrossStoreInstances (0.01s)\n"}
+{"Time":"2026-09-11T10:04:37.892303+02:00","Action":"pass","Package":"github.com/krimvp/comitia","Test":"TestSecurityRevocationObservedAcrossStoreInstances","Elapsed":0.01}
+{"Time":"2026-09-11T10:04:37.892309+02:00","Action":"run","Package":"github.com/krimvp/comitia","Test":"TestSecurityOperationAfterConcurrentRevokeIsDenied"}
+{"Time":"2026-09-11T10:04:37.892315+02:00","Action":"output","Package":"github.com/krimvp/comitia","Test":"TestSecurityOperationAfterConcurrentRevokeIsDenied","Output":"=== RUN   TestSecurityOperationAfterConcurrentRevokeIsDenied\n"}
+{"Time":"2026-09-11T10:04:37.899113+02:00","Action":"output","Package":"github.com/krimvp/comitia","Test":"TestSecurityOperationAfterConcurrentRevokeIsDenied","Output":"--- PASS: TestSecurityOperationAfterConcurrentRevokeIsDenied (0.01s)\n"}
+{"Time":"2026-09-11T10:04:37.899125+02:00","Action":"pass","Package":"github.com/krimvp/comitia","Test":"TestSecurityOperationAfterConcurrentRevokeIsDenied","Elapsed":0.01}
+{"Time":"2026-09-11T10:04:37.899131+02:00","Action":"run","Package":"github.com/krimvp/comitia","Test":"TestSecurityCrossContextTaskOwnershipAndListing"}
+{"Time":"2026-09-11T10:04:37.899135+02:00","Action":"output","Package":"github.com/krimvp/comitia","Test":"TestSecurityCrossContextTaskOwnershipAndListing","Output":"=== RUN   TestSecurityCrossContextTaskOwnershipAndListing\n"}
+{"Time":"2026-09-11T10:04:37.900708+02:00","Action":"output","Package":"github.com/krimvp/comitia","Test":"TestSecurityCrossContextTaskOwnershipAndListing","Output":"--- PASS: TestSecurityCrossContextTaskOwnershipAndListing (0.00s)\n"}
+{"Time":"2026-09-11T10:04:37.900718+02:00","Action":"pass","Package":"github.com/krimvp/comitia","Test":"TestSecurityCrossContextTaskOwnershipAndListing","Elapsed":0}
+{"Time":"2026-09-11T10:04:37.900722+02:00","Action":"run","Package":"github.com/krimvp/comitia","Test":"TestSecurityCrossContextClaimAndStolenLeaseRejected"}
+{"Time":"2026-09-11T10:04:37.900726+02:00","Action":"output","Package":"github.com/krimvp/comitia","Test":"TestSecurityCrossContextClaimAndStolenLeaseRejected","Output":"=== RUN   TestSecurityCrossContextClaimAndStolenLeaseRejected\n"}
+{"Time":"2026-09-11T10:04:37.902559+02:00","Action":"output","Package":"github.com/krimvp/comitia","Test":"TestSecurityCrossContextClaimAndStolenLeaseRejected","Output":"--- PASS: TestSecurityCrossContextClaimAndStolenLeaseRejected (0.00s)\n"}
+{"Time":"2026-09-11T10:04:37.902571+02:00","Action":"pass","Package":"github.com/krimvp/comitia","Test":"TestSecurityCrossContextClaimAndStolenLeaseRejected","Elapsed":0}
+{"Time":"2026-09-11T10:04:37.902587+02:00","Action":"run","Package":"github.com/krimvp/comitia","Test":"TestConcurrentMessageSequenceAndDedupe"}
+{"Time":"2026-09-11T10:04:37.902592+02:00","Action":"output","Package":"github.com/krimvp/comitia","Test":"TestConcurrentMessageSequenceAndDedupe","Output":"=== RUN   TestConcurrentMessageSequenceAndDedupe\n"}
+{"Time":"2026-09-11T10:04:37.909831+02:00","Action":"output","Package":"github.com/krimvp/comitia","Test":"TestConcurrentMessageSequenceAndDedupe","Output":"--- PASS: TestConcurrentMessageSequenceAndDedupe (0.01s)\n"}
+{"Time":"2026-09-11T10:04:37.90986+02:00","Action":"pass","Package":"github.com/krimvp/comitia","Test":"TestConcurrentMessageSequenceAndDedupe","Elapsed":0.01}
+{"Time":"2026-09-11T10:04:37.909879+02:00","Action":"run","Package":"github.com/krimvp/comitia","Test":"TestSQLitePathForms"}
+{"Time":"2026-09-11T10:04:37.909885+02:00","Action":"output","Package":"github.com/krimvp/comitia","Test":"TestSQLitePathForms","Output":"=== RUN   TestSQLitePathForms\n"}
+{"Time":"2026-09-11T10:04:37.92004+02:00","Action":"output","Package":"github.com/krimvp/comitia","Test":"TestSQLitePathForms","Output":"--- PASS: TestSQLitePathForms (0.01s)\n"}
+{"Time":"2026-09-11T10:04:37.920054+02:00","Action":"pass","Package":"github.com/krimvp/comitia","Test":"TestSQLitePathForms","Elapsed":0.01}
+{"Time":"2026-09-11T10:04:37.920061+02:00","Action":"run","Package":"github.com/krimvp/comitia","Test":"TestLeaseFencingAndRecovery"}
+{"Time":"2026-09-11T10:04:37.920065+02:00","Action":"output","Package":"github.com/krimvp/comitia","Test":"TestLeaseFencingAndRecovery","Output":"=== RUN   TestLeaseFencingAndRecovery\n"}
+{"Time":"2026-09-11T10:04:37.928156+02:00","Action":"output","Package":"github.com/krimvp/comitia","Test":"TestLeaseFencingAndRecovery","Output":"--- PASS: TestLeaseFencingAndRecovery (0.01s)\n"}
+{"Time":"2026-09-11T10:04:37.928171+02:00","Action":"pass","Package":"github.com/krimvp/comitia","Test":"TestLeaseFencingAndRecovery","Elapsed":0.01}
+{"Time":"2026-09-11T10:04:37.928179+02:00","Action":"run","Package":"github.com/krimvp/comitia","Test":"TestDelegationCannotExpandAndRevocationCascades"}
+{"Time":"2026-09-11T10:04:37.928188+02:00","Action":"output","Package":"github.com/krimvp/comitia","Test":"TestDelegationCannotExpandAndRevocationCascades","Output":"=== RUN   TestDelegationCannotExpandAndRevocationCascades\n"}
+{"Time":"2026-09-11T10:04:37.930117+02:00","Action":"output","Package":"github.com/krimvp/comitia","Test":"TestDelegationCannotExpandAndRevocationCascades","Output":"--- PASS: TestDelegationCannotExpandAndRevocationCascades (0.00s)\n"}
+{"Time":"2026-09-11T10:04:37.930132+02:00","Action":"pass","Package":"github.com/krimvp/comitia","Test":"TestDelegationCannotExpandAndRevocationCascades","Elapsed":0}
+{"Time":"2026-09-11T10:04:37.930137+02:00","Action":"run","Package":"github.com/krimvp/comitia","Test":"TestSessionRevocationInvalidatesGrantChain"}
+{"Time":"2026-09-11T10:04:37.93014+02:00","Action":"output","Package":"github.com/krimvp/comitia","Test":"TestSessionRevocationInvalidatesGrantChain","Output":"=== RUN   TestSessionRevocationInvalidatesGrantChain\n"}
+{"Time":"2026-09-11T10:04:37.931646+02:00","Action":"output","Package":"github.com/krimvp/comitia","Test":"TestSessionRevocationInvalidatesGrantChain","Output":"--- PASS: TestSessionRevocationInvalidatesGrantChain (0.00s)\n"}
+{"Time":"2026-09-11T10:04:37.931659+02:00","Action":"pass","Package":"github.com/krimvp/comitia","Test":"TestSessionRevocationInvalidatesGrantChain","Elapsed":0}
+{"Time":"2026-09-11T10:04:37.931664+02:00","Action":"run","Package":"github.com/krimvp/comitia","Test":"TestListTasksRejectsInvalidStatus"}
+{"Time":"2026-09-11T10:04:37.931667+02:00","Action":"output","Package":"github.com/krimvp/comitia","Test":"TestListTasksRejectsInvalidStatus","Output":"=== RUN   TestListTasksRejectsInvalidStatus\n"}
+{"Time":"2026-09-11T10:04:37.932684+02:00","Action":"output","Package":"github.com/krimvp/comitia","Test":"TestListTasksRejectsInvalidStatus","Output":"--- PASS: TestListTasksRejectsInvalidStatus (0.00s)\n"}
+{"Time":"2026-09-11T10:04:37.932703+02:00","Action":"pass","Package":"github.com/krimvp/comitia","Test":"TestListTasksRejectsInvalidStatus","Elapsed":0}
+{"Time":"2026-09-11T10:04:37.932719+02:00","Action":"run","Package":"github.com/krimvp/comitia","Test":"TestExecutionEventValidationAndReplay"}
+{"Time":"2026-09-11T10:04:37.932725+02:00","Action":"output","Package":"github.com/krimvp/comitia","Test":"TestExecutionEventValidationAndReplay","Output":"=== RUN   TestExecutionEventValidationAndReplay\n"}
+{"Time":"2026-09-11T10:04:37.934167+02:00","Action":"run","Package":"github.com/krimvp/comitia","Test":"TestExecutionEventValidationAndReplay/task_required"}
+{"Time":"2026-09-11T10:04:37.934179+02:00","Action":"output","Package":"github.com/krimvp/comitia","Test":"TestExecutionEventValidationAndReplay/task_required","Output":"=== RUN   TestExecutionEventValidationAndReplay/task_required\n"}
+{"Time":"2026-09-11T10:04:37.934202+02:00","Action":"output","Package":"github.com/krimvp/comitia","Test":"TestExecutionEventValidationAndReplay/task_required","Output":"--- PASS: TestExecutionEventValidationAndReplay/task_required (0.00s)\n"}
+{"Time":"2026-09-11T10:04:37.934208+02:00","Action":"pass","Package":"github.com/krimvp/comitia","Test":"TestExecutionEventValidationAndReplay/task_required","Elapsed":0}
+{"Time":"2026-09-11T10:04:37.934212+02:00","Action":"run","Package":"github.com/krimvp/comitia","Test":"TestExecutionEventValidationAndReplay/positive_sequence"}
+{"Time":"2026-09-11T10:04:37.934216+02:00","Action":"output","Package":"github.com/krimvp/comitia","Test":"TestExecutionEventValidationAndReplay/positive_sequence","Output":"=== RUN   TestExecutionEventValidationAndReplay/positive_sequence\n"}
+{"Time":"2026-09-11T10:04:37.934221+02:00","Action":"output","Package":"github.com/krimvp/comitia","Test":"TestExecutionEventValidationAndReplay/positive_sequence","Output":"--- PASS: TestExecutionEventValidationAndReplay/positive_sequence (0.00s)\n"}
+{"Time":"2026-09-11T10:04:37.934225+02:00","Action":"pass","Package":"github.com/krimvp/comitia","Test":"TestExecutionEventValidationAndReplay/positive_sequence","Elapsed":0}
+{"Time":"2026-09-11T10:04:37.93423+02:00","Action":"run","Package":"github.com/krimvp/comitia","Test":"TestExecutionEventValidationAndReplay/known_kind"}
+{"Time":"2026-09-11T10:04:37.934233+02:00","Action":"output","Package":"github.com/krimvp/comitia","Test":"TestExecutionEventValidationAndReplay/known_kind","Output":"=== RUN   TestExecutionEventValidationAndReplay/known_kind\n"}
+{"Time":"2026-09-11T10:04:37.934238+02:00","Action":"output","Package":"github.com/krimvp/comitia","Test":"TestExecutionEventValidationAndReplay/known_kind","Output":"--- PASS: TestExecutionEventValidationAndReplay/known_kind (0.00s)\n"}
+{"Time":"2026-09-11T10:04:37.934243+02:00","Action":"pass","Package":"github.com/krimvp/comitia","Test":"TestExecutionEventValidationAndReplay/known_kind","Elapsed":0}
+{"Time":"2026-09-11T10:04:37.934247+02:00","Action":"run","Package":"github.com/krimvp/comitia","Test":"TestExecutionEventValidationAndReplay/model_required"}
+{"Time":"2026-09-11T10:04:37.93425+02:00","Action":"output","Package":"github.com/krimvp/comitia","Test":"TestExecutionEventValidationAndReplay/model_required","Output":"=== RUN   TestExecutionEventValidationAndReplay/model_required\n"}
+{"Time":"2026-09-11T10:04:37.934266+02:00","Action":"output","Package":"github.com/krimvp/comitia","Test":"TestExecutionEventValidationAndReplay/model_required","Output":"--- PASS: TestExecutionEventValidationAndReplay/model_required (0.00s)\n"}
+{"Time":"2026-09-11T10:04:37.934272+02:00","Action":"pass","Package":"github.com/krimvp/comitia","Test":"TestExecutionEventValidationAndReplay/model_required","Elapsed":0}
+{"Time":"2026-09-11T10:04:37.934276+02:00","Action":"run","Package":"github.com/krimvp/comitia","Test":"TestExecutionEventValidationAndReplay/measurement_required"}
+{"Time":"2026-09-11T10:04:37.934279+02:00","Action":"output","Package":"github.com/krimvp/comitia","Test":"TestExecutionEventValidationAndReplay/measurement_required","Output":"=== RUN   TestExecutionEventValidationAndReplay/measurement_required\n"}
+{"Time":"2026-09-11T10:04:37.934289+02:00","Action":"output","Package":"github.com/krimvp/comitia","Test":"TestExecutionEventValidationAndReplay/measurement_required","Output":"--- PASS: TestExecutionEventValidationAndReplay/measurement_required (0.00s)\n"}
+{"Time":"2026-09-11T10:04:37.934293+02:00","Action":"pass","Package":"github.com/krimvp/comitia","Test":"TestExecutionEventValidationAndReplay/measurement_required","Elapsed":0}
+{"Time":"2026-09-11T10:04:37.934297+02:00","Action":"run","Package":"github.com/krimvp/comitia","Test":"TestExecutionEventValidationAndReplay/nonnegative_usage"}
+{"Time":"2026-09-11T10:04:37.9343+02:00","Action":"output","Package":"github.com/krimvp/comitia","Test":"TestExecutionEventValidationAndReplay/nonnegative_usage","Output":"=== RUN   TestExecutionEventValidationAndReplay/nonnegative_usage\n"}
+{"Time":"2026-09-11T10:04:37.934311+02:00","Action":"output","Package":"github.com/krimvp/comitia","Test":"TestExecutionEventValidationAndReplay/nonnegative_usage","Output":"--- PASS: TestExecutionEventValidationAndReplay/nonnegative_usage (0.00s)\n"}
+{"Time":"2026-09-11T10:04:37.934323+02:00","Action":"pass","Package":"github.com/krimvp/comitia","Test":"TestExecutionEventValidationAndReplay/nonnegative_usage","Elapsed":0}
+{"Time":"2026-09-11T10:04:37.934327+02:00","Action":"run","Package":"github.com/krimvp/comitia","Test":"TestExecutionEventValidationAndReplay/tool_required"}
+{"Time":"2026-09-11T10:04:37.934331+02:00","Action":"output","Package":"github.com/krimvp/comitia","Test":"TestExecutionEventValidationAndReplay/tool_required","Output":"=== RUN   TestExecutionEventValidationAndReplay/tool_required\n"}
+{"Time":"2026-09-11T10:04:37.934335+02:00","Action":"output","Package":"github.com/krimvp/comitia","Test":"TestExecutionEventValidationAndReplay/tool_required","Output":"--- PASS: TestExecutionEventValidationAndReplay/tool_required (0.00s)\n"}
+{"Time":"2026-09-11T10:04:37.934339+02:00","Action":"pass","Package":"github.com/krimvp/comitia","Test":"TestExecutionEventValidationAndReplay/tool_required","Elapsed":0}
+{"Time":"2026-09-11T10:04:37.934343+02:00","Action":"run","Package":"github.com/krimvp/comitia","Test":"TestExecutionEventValidationAndReplay/finish_status_required"}
+{"Time":"2026-09-11T10:04:37.934349+02:00","Action":"output","Package":"github.com/krimvp/comitia","Test":"TestExecutionEventValidationAndReplay/finish_status_required","Output":"=== RUN   TestExecutionEventValidationAndReplay/finish_status_required\n"}
+{"Time":"2026-09-11T10:04:37.934355+02:00","Action":"output","Package":"github.com/krimvp/comitia","Test":"TestExecutionEventValidationAndReplay/finish_status_required","Output":"--- PASS: TestExecutionEventValidationAndReplay/finish_status_required (0.00s)\n"}
+{"Time":"2026-09-11T10:04:37.934362+02:00","Action":"pass","Package":"github.com/krimvp/comitia","Test":"TestExecutionEventValidationAndReplay/finish_status_required","Elapsed":0}
+{"Time":"2026-09-11T10:04:37.934366+02:00","Action":"run","Package":"github.com/krimvp/comitia","Test":"TestExecutionEventValidationAndReplay/known_status"}
+{"Time":"2026-09-11T10:04:37.93437+02:00","Action":"output","Package":"github.com/krimvp/comitia","Test":"TestExecutionEventValidationAndReplay/known_status","Output":"=== RUN   TestExecutionEventValidationAndReplay/known_status\n"}
+{"Time":"2026-09-11T10:04:37.934377+02:00","Action":"output","Package":"github.com/krimvp/comitia","Test":"TestExecutionEventValidationAndReplay/known_status","Output":"--- PASS: TestExecutionEventValidationAndReplay/known_status (0.00s)\n"}
+{"Time":"2026-09-11T10:04:37.934381+02:00","Action":"pass","Package":"github.com/krimvp/comitia","Test":"TestExecutionEventValidationAndReplay/known_status","Elapsed":0}
+{"Time":"2026-09-11T10:04:37.934385+02:00","Action":"run","Package":"github.com/krimvp/comitia","Test":"TestExecutionEventValidationAndReplay/cost_metadata_required"}
+{"Time":"2026-09-11T10:04:37.934388+02:00","Action":"output","Package":"github.com/krimvp/comitia","Test":"TestExecutionEventValidationAndReplay/cost_metadata_required","Output":"=== RUN   TestExecutionEventValidationAndReplay/cost_metadata_required\n"}
+{"Time":"2026-09-11T10:04:37.934396+02:00","Action":"output","Package":"github.com/krimvp/comitia","Test":"TestExecutionEventValidationAndReplay/cost_metadata_required","Output":"--- PASS: TestExecutionEventValidationAndReplay/cost_metadata_required (0.00s)\n"}
+{"Time":"2026-09-11T10:04:37.9344+02:00","Action":"pass","Package":"github.com/krimvp/comitia","Test":"TestExecutionEventValidationAndReplay/cost_metadata_required","Elapsed":0}
+{"Time":"2026-09-11T10:04:37.934404+02:00","Action":"run","Package":"github.com/krimvp/comitia","Test":"TestExecutionEventValidationAndReplay/currency_uppercase"}
+{"Time":"2026-09-11T10:04:37.934416+02:00","Action":"output","Package":"github.com/krimvp/comitia","Test":"TestExecutionEventValidationAndReplay/currency_uppercase","Output":"=== RUN   TestExecutionEventValidationAndReplay/currency_uppercase\n"}
+{"Time":"2026-09-11T10:04:37.934421+02:00","Action":"output","Package":"github.com/krimvp/comitia","Test":"TestExecutionEventValidationAndReplay/currency_uppercase","Output":"--- PASS: TestExecutionEventValidationAndReplay/currency_uppercase (0.00s)\n"}
+{"Time":"2026-09-11T10:04:37.934425+02:00","Action":"pass","Package":"github.com/krimvp/comitia","Test":"TestExecutionEventValidationAndReplay/currency_uppercase","Elapsed":0}
+{"Time":"2026-09-11T10:04:37.934428+02:00","Action":"run","Package":"github.com/krimvp/comitia","Test":"TestExecutionEventValidationAndReplay/known_cost_source"}
+{"Time":"2026-09-11T10:04:37.934431+02:00","Action":"output","Package":"github.com/krimvp/comitia","Test":"TestExecutionEventValidationAndReplay/known_cost_source","Output":"=== RUN   TestExecutionEventValidationAndReplay/known_cost_source\n"}
+{"Time":"2026-09-11T10:04:37.934436+02:00","Action":"output","Package":"github.com/krimvp/comitia","Test":"TestExecutionEventValidationAndReplay/known_cost_source","Output":"--- PASS: TestExecutionEventValidationAndReplay/known_cost_source (0.00s)\n"}
+{"Time":"2026-09-11T10:04:37.93444+02:00","Action":"pass","Package":"github.com/krimvp/comitia","Test":"TestExecutionEventValidationAndReplay/known_cost_source","Elapsed":0}
+{"Time":"2026-09-11T10:04:37.934444+02:00","Action":"run","Package":"github.com/krimvp/comitia","Test":"TestExecutionEventValidationAndReplay/valid_timestamp"}
+{"Time":"2026-09-11T10:04:37.934447+02:00","Action":"output","Package":"github.com/krimvp/comitia","Test":"TestExecutionEventValidationAndReplay/valid_timestamp","Output":"=== RUN   TestExecutionEventValidationAndReplay/valid_timestamp\n"}
+{"Time":"2026-09-11T10:04:37.934465+02:00","Action":"output","Package":"github.com/krimvp/comitia","Test":"TestExecutionEventValidationAndReplay/valid_timestamp","Output":"--- PASS: TestExecutionEventValidationAndReplay/valid_timestamp (0.00s)\n"}
+{"Time":"2026-09-11T10:04:37.93447+02:00","Action":"pass","Package":"github.com/krimvp/comitia","Test":"TestExecutionEventValidationAndReplay/valid_timestamp","Elapsed":0}
+{"Time":"2026-09-11T10:04:37.934474+02:00","Action":"run","Package":"github.com/krimvp/comitia","Test":"TestExecutionEventValidationAndReplay/unknown_field"}
+{"Time":"2026-09-11T10:04:37.934478+02:00","Action":"output","Package":"github.com/krimvp/comitia","Test":"TestExecutionEventValidationAndReplay/unknown_field","Output":"=== RUN   TestExecutionEventValidationAndReplay/unknown_field\n"}
+{"Time":"2026-09-11T10:04:37.934482+02:00","Action":"output","Package":"github.com/krimvp/comitia","Test":"TestExecutionEventValidationAndReplay/unknown_field","Output":"--- PASS: TestExecutionEventValidationAndReplay/unknown_field (0.00s)\n"}
+{"Time":"2026-09-11T10:04:37.934487+02:00","Action":"pass","Package":"github.com/krimvp/comitia","Test":"TestExecutionEventValidationAndReplay/unknown_field","Elapsed":0}
+{"Time":"2026-09-11T10:04:37.934522+02:00","Action":"output","Package":"github.com/krimvp/comitia","Test":"TestExecutionEventValidationAndReplay","Output":"--- PASS: TestExecutionEventValidationAndReplay (0.00s)\n"}
+{"Time":"2026-09-11T10:04:37.934545+02:00","Action":"pass","Package":"github.com/krimvp/comitia","Test":"TestExecutionEventValidationAndReplay","Elapsed":0}
+{"Time":"2026-09-11T10:04:37.93455+02:00","Action":"output","Package":"github.com/krimvp/comitia","Output":"PASS\n"}
+{"Time":"2026-09-11T10:04:37.935653+02:00","Action":"output","Package":"github.com/krimvp/comitia","Output":"ok  \tgithub.com/krimvp/comitia\t1.153s\n"}
+{"Time":"2026-09-11T10:04:37.937183+02:00","Action":"pass","Package":"github.com/krimvp/comitia","Elapsed":1.155}
+{"Time":"2026-09-11T10:04:38.542628+02:00","Action":"run","Package":"github.com/krimvp/comitia/cmd/comitia","Test":"TestEnvelopeCommands"}
+{"Time":"2026-09-11T10:04:38.542704+02:00","Action":"output","Package":"github.com/krimvp/comitia/cmd/comitia","Test":"TestEnvelopeCommands","Output":"=== RUN   TestEnvelopeCommands\n"}
+{"Time":"2026-09-11T10:04:38.555973+02:00","Action":"output","Package":"github.com/krimvp/comitia/cmd/comitia","Test":"TestEnvelopeCommands","Output":"--- PASS: TestEnvelopeCommands (0.01s)\n"}
+{"Time":"2026-09-11T10:04:38.555998+02:00","Action":"pass","Package":"github.com/krimvp/comitia/cmd/comitia","Test":"TestEnvelopeCommands","Elapsed":0.01}
+{"Time":"2026-09-11T10:04:38.556009+02:00","Action":"run","Package":"github.com/krimvp/comitia/cmd/comitia","Test":"TestTaskGetListCommands"}
+{"Time":"2026-09-11T10:04:38.556014+02:00","Action":"output","Package":"github.com/krimvp/comitia/cmd/comitia","Test":"TestTaskGetListCommands","Output":"=== RUN   TestTaskGetListCommands\n"}
+{"Time":"2026-09-11T10:04:38.57583+02:00","Action":"output","Package":"github.com/krimvp/comitia/cmd/comitia","Test":"TestTaskGetListCommands","Output":"--- PASS: TestTaskGetListCommands (0.02s)\n"}
+{"Time":"2026-09-11T10:04:38.575845+02:00","Action":"pass","Package":"github.com/krimvp/comitia/cmd/comitia","Test":"TestTaskGetListCommands","Elapsed":0.02}
+{"Time":"2026-09-11T10:04:38.575853+02:00","Action":"run","Package":"github.com/krimvp/comitia/cmd/comitia","Test":"TestEmbeddedCommandsShareDurableState"}
+{"Time":"2026-09-11T10:04:38.575858+02:00","Action":"output","Package":"github.com/krimvp/comitia/cmd/comitia","Test":"TestEmbeddedCommandsShareDurableState","Output":"=== RUN   TestEmbeddedCommandsShareDurableState\n"}
+{"Time":"2026-09-11T10:04:38.589095+02:00","Action":"output","Package":"github.com/krimvp/comitia/cmd/comitia","Test":"TestEmbeddedCommandsShareDurableState","Output":"--- PASS: TestEmbeddedCommandsShareDurableState (0.01s)\n"}
+{"Time":"2026-09-11T10:04:38.589116+02:00","Action":"pass","Package":"github.com/krimvp/comitia/cmd/comitia","Test":"TestEmbeddedCommandsShareDurableState","Elapsed":0.01}
+{"Time":"2026-09-11T10:04:38.589128+02:00","Action":"run","Package":"github.com/krimvp/comitia/cmd/comitia","Test":"TestRemoteFailureDoesNotCreateEmbeddedDatabase"}
+{"Time":"2026-09-11T10:04:38.589139+02:00","Action":"output","Package":"github.com/krimvp/comitia/cmd/comitia","Test":"TestRemoteFailureDoesNotCreateEmbeddedDatabase","Output":"=== RUN   TestRemoteFailureDoesNotCreateEmbeddedDatabase\n"}
+{"Time":"2026-09-11T10:04:38.59125+02:00","Action":"output","Package":"github.com/krimvp/comitia/cmd/comitia","Test":"TestRemoteFailureDoesNotCreateEmbeddedDatabase","Output":"--- PASS: TestRemoteFailureDoesNotCreateEmbeddedDatabase (0.00s)\n"}
+{"Time":"2026-09-11T10:04:38.591262+02:00","Action":"pass","Package":"github.com/krimvp/comitia/cmd/comitia","Test":"TestRemoteFailureDoesNotCreateEmbeddedDatabase","Elapsed":0}
+{"Time":"2026-09-11T10:04:38.591272+02:00","Action":"output","Package":"github.com/krimvp/comitia/cmd/comitia","Output":"PASS\n"}
+{"Time":"2026-09-11T10:04:38.592271+02:00","Action":"output","Package":"github.com/krimvp/comitia/cmd/comitia","Output":"ok  \tgithub.com/krimvp/comitia/cmd/comitia\t1.776s\n"}
+{"Time":"2026-09-11T10:04:38.593614+02:00","Action":"pass","Package":"github.com/krimvp/comitia/cmd/comitia","Elapsed":1.7770000000000001}
+{"Time":"2026-09-11T10:04:39.266773+02:00","Action":"run","Package":"github.com/krimvp/comitia/httpapi","Test":"TestClientRoundTripAndScopeRejection"}
+{"Time":"2026-09-11T10:04:39.266839+02:00","Action":"output","Package":"github.com/krimvp/comitia/httpapi","Test":"TestClientRoundTripAndScopeRejection","Output":"=== RUN   TestClientRoundTripAndScopeRejection\n"}
+{"Time":"2026-09-11T10:04:39.269884+02:00","Action":"output","Package":"github.com/krimvp/comitia/httpapi","Test":"TestClientRoundTripAndScopeRejection","Output":"--- PASS: TestClientRoundTripAndScopeRejection (0.00s)\n"}
+{"Time":"2026-09-11T10:04:39.269904+02:00","Action":"pass","Package":"github.com/krimvp/comitia/httpapi","Test":"TestClientRoundTripAndScopeRejection","Elapsed":0}
+{"Time":"2026-09-11T10:04:39.269913+02:00","Action":"run","Package":"github.com/krimvp/comitia/httpapi","Test":"TestStrictProtocolAndAuthentication"}
+{"Time":"2026-09-11T10:04:39.269919+02:00","Action":"output","Package":"github.com/krimvp/comitia/httpapi","Test":"TestStrictProtocolAndAuthentication","Output":"=== RUN   TestStrictProtocolAndAuthentication\n"}
+{"Time":"2026-09-11T10:04:39.269928+02:00","Action":"run","Package":"github.com/krimvp/comitia/httpapi","Test":"TestStrictProtocolAndAuthentication/missing_bearer"}
+{"Time":"2026-09-11T10:04:39.269933+02:00","Action":"output","Package":"github.com/krimvp/comitia/httpapi","Test":"TestStrictProtocolAndAuthentication/missing_bearer","Output":"=== RUN   TestStrictProtocolAndAuthentication/missing_bearer\n"}
+{"Time":"2026-09-11T10:04:39.26994+02:00","Action":"output","Package":"github.com/krimvp/comitia/httpapi","Test":"TestStrictProtocolAndAuthentication/missing_bearer","Output":"--- PASS: TestStrictProtocolAndAuthentication/missing_bearer (0.00s)\n"}
+{"Time":"2026-09-11T10:04:39.269947+02:00","Action":"pass","Package":"github.com/krimvp/comitia/httpapi","Test":"TestStrictProtocolAndAuthentication/missing_bearer","Elapsed":0}
+{"Time":"2026-09-11T10:04:39.269952+02:00","Action":"run","Package":"github.com/krimvp/comitia/httpapi","Test":"TestStrictProtocolAndAuthentication/wrong_method"}
+{"Time":"2026-09-11T10:04:39.269957+02:00","Action":"output","Package":"github.com/krimvp/comitia/httpapi","Test":"TestStrictProtocolAndAuthentication/wrong_method","Output":"=== RUN   TestStrictProtocolAndAuthentication/wrong_method\n"}
+{"Time":"2026-09-11T10:04:39.269965+02:00","Action":"output","Package":"github.com/krimvp/comitia/httpapi","Test":"TestStrictProtocolAndAuthentication/wrong_method","Output":"--- PASS: TestStrictProtocolAndAuthentication/wrong_method (0.00s)\n"}
+{"Time":"2026-09-11T10:04:39.26998+02:00","Action":"pass","Package":"github.com/krimvp/comitia/httpapi","Test":"TestStrictProtocolAndAuthentication/wrong_method","Elapsed":0}
+{"Time":"2026-09-11T10:04:39.269986+02:00","Action":"run","Package":"github.com/krimvp/comitia/httpapi","Test":"TestStrictProtocolAndAuthentication/unknown_field"}
+{"Time":"2026-09-11T10:04:39.269991+02:00","Action":"output","Package":"github.com/krimvp/comitia/httpapi","Test":"TestStrictProtocolAndAuthentication/unknown_field","Output":"=== RUN   TestStrictProtocolAndAuthentication/unknown_field\n"}
+{"Time":"2026-09-11T10:04:39.27001+02:00","Action":"output","Package":"github.com/krimvp/comitia/httpapi","Test":"TestStrictProtocolAndAuthentication/unknown_field","Output":"--- PASS: TestStrictProtocolAndAuthentication/unknown_field (0.00s)\n"}
+{"Time":"2026-09-11T10:04:39.270017+02:00","Action":"pass","Package":"github.com/krimvp/comitia/httpapi","Test":"TestStrictProtocolAndAuthentication/unknown_field","Elapsed":0}
+{"Time":"2026-09-11T10:04:39.270023+02:00","Action":"run","Package":"github.com/krimvp/comitia/httpapi","Test":"TestStrictProtocolAndAuthentication/multiple_values"}
+{"Time":"2026-09-11T10:04:39.270027+02:00","Action":"output","Package":"github.com/krimvp/comitia/httpapi","Test":"TestStrictProtocolAndAuthentication/multiple_values","Output":"=== RUN   TestStrictProtocolAndAuthentication/multiple_values\n"}
+{"Time":"2026-09-11T10:04:39.270038+02:00","Action":"output","Package":"github.com/krimvp/comitia/httpapi","Test":"TestStrictProtocolAndAuthentication/multiple_values","Output":"--- PASS: TestStrictProtocolAndAuthentication/multiple_values (0.00s)\n"}
+{"Time":"2026-09-11T10:04:39.270051+02:00","Action":"pass","Package":"github.com/krimvp/comitia/httpapi","Test":"TestStrictProtocolAndAuthentication/multiple_values","Elapsed":0}
+{"Time":"2026-09-11T10:04:39.27006+02:00","Action":"output","Package":"github.com/krimvp/comitia/httpapi","Test":"TestStrictProtocolAndAuthentication","Output":"--- PASS: TestStrictProtocolAndAuthentication (0.00s)\n"}
+{"Time":"2026-09-11T10:04:39.270065+02:00","Action":"pass","Package":"github.com/krimvp/comitia/httpapi","Test":"TestStrictProtocolAndAuthentication","Elapsed":0}
+{"Time":"2026-09-11T10:04:39.27007+02:00","Action":"run","Package":"github.com/krimvp/comitia/httpapi","Test":"TestBootstrapIsOfflineOnly"}
+{"Time":"2026-09-11T10:04:39.270075+02:00","Action":"output","Package":"github.com/krimvp/comitia/httpapi","Test":"TestBootstrapIsOfflineOnly","Output":"=== RUN   TestBootstrapIsOfflineOnly\n"}
+{"Time":"2026-09-11T10:04:39.270714+02:00","Action":"output","Package":"github.com/krimvp/comitia/httpapi","Test":"TestBootstrapIsOfflineOnly","Output":"--- PASS: TestBootstrapIsOfflineOnly (0.00s)\n"}
+{"Time":"2026-09-11T10:04:39.270727+02:00","Action":"pass","Package":"github.com/krimvp/comitia/httpapi","Test":"TestBootstrapIsOfflineOnly","Elapsed":0}
+{"Time":"2026-09-11T10:04:39.270733+02:00","Action":"run","Package":"github.com/krimvp/comitia/httpapi","Test":"TestSQLiteServiceRemoteScopedParity"}
+{"Time":"2026-09-11T10:04:39.270738+02:00","Action":"output","Package":"github.com/krimvp/comitia/httpapi","Test":"TestSQLiteServiceRemoteScopedParity","Output":"=== RUN   TestSQLiteServiceRemoteScopedParity\n"}
+{"Time":"2026-09-11T10:04:39.285571+02:00","Action":"output","Package":"github.com/krimvp/comitia/httpapi","Test":"TestSQLiteServiceRemoteScopedParity","Output":"--- PASS: TestSQLiteServiceRemoteScopedParity (0.01s)\n"}
+{"Time":"2026-09-11T10:04:39.28559+02:00","Action":"pass","Package":"github.com/krimvp/comitia/httpapi","Test":"TestSQLiteServiceRemoteScopedParity","Elapsed":0.01}
+{"Time":"2026-09-11T10:04:39.285599+02:00","Action":"run","Package":"github.com/krimvp/comitia/httpapi","Test":"TestInspectorAssetsAndReadOnlyShell"}
+{"Time":"2026-09-11T10:04:39.285604+02:00","Action":"output","Package":"github.com/krimvp/comitia/httpapi","Test":"TestInspectorAssetsAndReadOnlyShell","Output":"=== RUN   TestInspectorAssetsAndReadOnlyShell\n"}
+{"Time":"2026-09-11T10:04:39.285746+02:00","Action":"output","Package":"github.com/krimvp/comitia/httpapi","Test":"TestInspectorAssetsAndReadOnlyShell","Output":"--- PASS: TestInspectorAssetsAndReadOnlyShell (0.00s)\n"}
+{"Time":"2026-09-11T10:04:39.285754+02:00","Action":"pass","Package":"github.com/krimvp/comitia/httpapi","Test":"TestInspectorAssetsAndReadOnlyShell","Elapsed":0}
+{"Time":"2026-09-11T10:04:39.28576+02:00","Action":"run","Package":"github.com/krimvp/comitia/httpapi","Test":"TestContextDiscoveryHTTPRoundTrip"}
+{"Time":"2026-09-11T10:04:39.285773+02:00","Action":"output","Package":"github.com/krimvp/comitia/httpapi","Test":"TestContextDiscoveryHTTPRoundTrip","Output":"=== RUN   TestContextDiscoveryHTTPRoundTrip\n"}
+{"Time":"2026-09-11T10:04:39.286302+02:00","Action":"output","Package":"github.com/krimvp/comitia/httpapi","Test":"TestContextDiscoveryHTTPRoundTrip","Output":"--- PASS: TestContextDiscoveryHTTPRoundTrip (0.00s)\n"}
+{"Time":"2026-09-11T10:04:39.286316+02:00","Action":"pass","Package":"github.com/krimvp/comitia/httpapi","Test":"TestContextDiscoveryHTTPRoundTrip","Elapsed":0}
+{"Time":"2026-09-11T10:04:39.286324+02:00","Action":"run","Package":"github.com/krimvp/comitia/httpapi","Test":"TestTypedHTTPMessagesAndParticipantDiscovery"}
+{"Time":"2026-09-11T10:04:39.286329+02:00","Action":"output","Package":"github.com/krimvp/comitia/httpapi","Test":"TestTypedHTTPMessagesAndParticipantDiscovery","Output":"=== RUN   TestTypedHTTPMessagesAndParticipantDiscovery\n"}
+{"Time":"2026-09-11T10:04:39.294143+02:00","Action":"output","Package":"github.com/krimvp/comitia/httpapi","Test":"TestTypedHTTPMessagesAndParticipantDiscovery","Output":"--- PASS: TestTypedHTTPMessagesAndParticipantDiscovery (0.01s)\n"}
+{"Time":"2026-09-11T10:04:39.294164+02:00","Action":"pass","Package":"github.com/krimvp/comitia/httpapi","Test":"TestTypedHTTPMessagesAndParticipantDiscovery","Elapsed":0.01}
+{"Time":"2026-09-11T10:04:39.294172+02:00","Action":"output","Package":"github.com/krimvp/comitia/httpapi","Output":"PASS\n"}
+{"Time":"2026-09-11T10:04:39.29519+02:00","Action":"output","Package":"github.com/krimvp/comitia/httpapi","Output":"ok  \tgithub.com/krimvp/comitia/httpapi\t2.478s\n"}
+{"Time":"2026-09-11T10:04:39.296791+02:00","Action":"pass","Package":"github.com/krimvp/comitia/httpapi","Elapsed":2.48}
+{"Time":"2026-09-11T10:04:39.937731+02:00","Action":"run","Package":"github.com/krimvp/comitia/mcp","Test":"TestTypedMCPUsesRealService"}
+{"Time":"2026-09-11T10:04:39.937782+02:00","Action":"output","Package":"github.com/krimvp/comitia/mcp","Test":"TestTypedMCPUsesRealService","Output":"=== RUN   TestTypedMCPUsesRealService\n"}
+{"Time":"2026-09-11T10:04:39.941873+02:00","Action":"output","Package":"github.com/krimvp/comitia/mcp","Test":"TestTypedMCPUsesRealService","Output":"--- PASS: TestTypedMCPUsesRealService (0.00s)\n"}
+{"Time":"2026-09-11T10:04:39.941932+02:00","Action":"pass","Package":"github.com/krimvp/comitia/mcp","Test":"TestTypedMCPUsesRealService","Elapsed":0}
+{"Time":"2026-09-11T10:04:39.941942+02:00","Action":"run","Package":"github.com/krimvp/comitia/mcp","Test":"TestProtocolInitializeListAndCall"}
+{"Time":"2026-09-11T10:04:39.941947+02:00","Action":"output","Package":"github.com/krimvp/comitia/mcp","Test":"TestProtocolInitializeListAndCall","Output":"=== RUN   TestProtocolInitializeListAndCall\n"}
+{"Time":"2026-09-11T10:04:39.942455+02:00","Action":"output","Package":"github.com/krimvp/comitia/mcp","Test":"TestProtocolInitializeListAndCall","Output":"--- PASS: TestProtocolInitializeListAndCall (0.00s)\n"}
+{"Time":"2026-09-11T10:04:39.942475+02:00","Action":"pass","Package":"github.com/krimvp/comitia/mcp","Test":"TestProtocolInitializeListAndCall","Elapsed":0}
+{"Time":"2026-09-11T10:04:39.942482+02:00","Action":"run","Package":"github.com/krimvp/comitia/mcp","Test":"TestProtocolErrorsAndArgumentRejection"}
+{"Time":"2026-09-11T10:04:39.942487+02:00","Action":"output","Package":"github.com/krimvp/comitia/mcp","Test":"TestProtocolErrorsAndArgumentRejection","Output":"=== RUN   TestProtocolErrorsAndArgumentRejection\n"}
+{"Time":"2026-09-11T10:04:39.94253+02:00","Action":"output","Package":"github.com/krimvp/comitia/mcp","Test":"TestProtocolErrorsAndArgumentRejection","Output":"--- PASS: TestProtocolErrorsAndArgumentRejection (0.00s)\n"}
+{"Time":"2026-09-11T10:04:39.942543+02:00","Action":"pass","Package":"github.com/krimvp/comitia/mcp","Test":"TestProtocolErrorsAndArgumentRejection","Elapsed":0}
+{"Time":"2026-09-11T10:04:39.94255+02:00","Action":"run","Package":"github.com/krimvp/comitia/mcp","Test":"TestInternalErrorsAreSanitized"}
+{"Time":"2026-09-11T10:04:39.942554+02:00","Action":"output","Package":"github.com/krimvp/comitia/mcp","Test":"TestInternalErrorsAreSanitized","Output":"=== RUN   TestInternalErrorsAreSanitized\n"}
+{"Time":"2026-09-11T10:04:39.942612+02:00","Action":"output","Package":"github.com/krimvp/comitia/mcp","Test":"TestInternalErrorsAreSanitized","Output":"--- PASS: TestInternalErrorsAreSanitized (0.00s)\n"}
+{"Time":"2026-09-11T10:04:39.942621+02:00","Action":"pass","Package":"github.com/krimvp/comitia/mcp","Test":"TestInternalErrorsAreSanitized","Elapsed":0}
+{"Time":"2026-09-11T10:04:39.942629+02:00","Action":"run","Package":"github.com/krimvp/comitia/mcp","Test":"TestMessageCursorTool"}
+{"Time":"2026-09-11T10:04:39.942634+02:00","Action":"output","Package":"github.com/krimvp/comitia/mcp","Test":"TestMessageCursorTool","Output":"=== RUN   TestMessageCursorTool\n"}
+{"Time":"2026-09-11T10:04:39.942675+02:00","Action":"output","Package":"github.com/krimvp/comitia/mcp","Test":"TestMessageCursorTool","Output":"--- PASS: TestMessageCursorTool (0.00s)\n"}
+{"Time":"2026-09-11T10:04:39.942686+02:00","Action":"pass","Package":"github.com/krimvp/comitia/mcp","Test":"TestMessageCursorTool","Elapsed":0}
+{"Time":"2026-09-11T10:04:39.9427+02:00","Action":"run","Package":"github.com/krimvp/comitia/mcp","Test":"TestTaskToolsValidationAndDefaults"}
+{"Time":"2026-09-11T10:04:39.942705+02:00","Action":"output","Package":"github.com/krimvp/comitia/mcp","Test":"TestTaskToolsValidationAndDefaults","Output":"=== RUN   TestTaskToolsValidationAndDefaults\n"}
+{"Time":"2026-09-11T10:04:39.942776+02:00","Action":"output","Package":"github.com/krimvp/comitia/mcp","Test":"TestTaskToolsValidationAndDefaults","Output":"--- PASS: TestTaskToolsValidationAndDefaults (0.00s)\n"}
+{"Time":"2026-09-11T10:04:39.942784+02:00","Action":"pass","Package":"github.com/krimvp/comitia/mcp","Test":"TestTaskToolsValidationAndDefaults","Elapsed":0}
+{"Time":"2026-09-11T10:04:39.942788+02:00","Action":"run","Package":"github.com/krimvp/comitia/mcp","Test":"TestTaskToolsProtocolAndSafeOutput"}
+{"Time":"2026-09-11T10:04:39.942792+02:00","Action":"output","Package":"github.com/krimvp/comitia/mcp","Test":"TestTaskToolsProtocolAndSafeOutput","Output":"=== RUN   TestTaskToolsProtocolAndSafeOutput\n"}
+{"Time":"2026-09-11T10:04:39.942926+02:00","Action":"output","Package":"github.com/krimvp/comitia/mcp","Test":"TestTaskToolsProtocolAndSafeOutput","Output":"--- PASS: TestTaskToolsProtocolAndSafeOutput (0.00s)\n"}
+{"Time":"2026-09-11T10:04:39.942935+02:00","Action":"pass","Package":"github.com/krimvp/comitia/mcp","Test":"TestTaskToolsProtocolAndSafeOutput","Elapsed":0}
+{"Time":"2026-09-11T10:04:39.942942+02:00","Action":"output","Package":"github.com/krimvp/comitia/mcp","Output":"PASS\n"}
+{"Time":"2026-09-11T10:04:39.943995+02:00","Action":"output","Package":"github.com/krimvp/comitia/mcp","Output":"ok  \tgithub.com/krimvp/comitia/mcp\t3.127s\n"}
+{"Time":"2026-09-11T10:04:39.94499+02:00","Action":"pass","Package":"github.com/krimvp/comitia/mcp","Elapsed":3.128}

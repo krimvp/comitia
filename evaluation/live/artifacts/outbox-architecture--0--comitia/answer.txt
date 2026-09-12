@@ -1,0 +1,12 @@
+```json
+{
+  "choice": "C",
+  "atomic_writes": ["order", "outbox"],
+  "idempotency_key": "order_id",
+  "broker_delivery": "at-least-once",
+  "email_effect_count": 1,
+  "email_api_call_count": 3,
+  "rollback_email_count": 0,
+  "why": "Outbox pattern atomically commits order and message. At-least-once broker delivery allows redelivery; email service idempotency keys (order ID) deduplicate. Crash between publish and marking sent causes redelivery, but idempotency absorbs it. Exactly-once at broker is infeasible with crashes; idempotent processing achieves semantic exactly-once."
+}
+```

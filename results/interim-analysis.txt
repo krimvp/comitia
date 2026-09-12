@@ -1,0 +1,314 @@
+{
+  "runs": 39,
+  "failures": [
+    {
+      "case": "delegation-schedule",
+      "mode": "comitia",
+      "replicate": 0,
+      "status": "timeout",
+      "failed_checks": [
+        "all-tasks",
+        "workers",
+        "dependencies",
+        "file-conflict",
+        "optimal",
+        "stale-lease",
+        "handoff"
+      ],
+      "artifact": "/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/live/artifacts/delegation-schedule--0--comitia",
+      "error": "Command '['claude', '-p', '--model', 'claude-haiku-4-5-20251001', '--output-format', 'json', '--tools', '', '--strict-mcp-config', '--mcp-config', '{\"mcpServers\":{}}', '--disable-slash-commands', '--no-session-persistence', '--setting-sources', '', '--settings', '{\"disableAllHooks\":true}', '--system-prompt', 'Complete the provided bounded task. Return only the requested JSON object, no Markdown fences. Do not use tools. Do not claim tests were executed. Keep explanations concise.']' timed out after 100 seconds"
+    },
+    {
+      "case": "delegation-schedule",
+      "mode": "multi-agent",
+      "replicate": 0,
+      "status": "completed",
+      "failed_checks": [
+        "handoff"
+      ],
+      "artifact": "/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/live/artifacts/delegation-schedule--0--multi-agent",
+      "error": null
+    },
+    {
+      "case": "delegation-schedule",
+      "mode": "single-agent",
+      "replicate": 0,
+      "status": "completed",
+      "failed_checks": [
+        "all-tasks",
+        "workers",
+        "dependencies",
+        "file-conflict",
+        "optimal",
+        "stale-lease",
+        "handoff"
+      ],
+      "artifact": "/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/live/artifacts/delegation-schedule--0--single-agent",
+      "error": "JSONDecodeError: Extra data: line 14 column 1 (char 391)"
+    },
+    {
+      "case": "delegation-schedule",
+      "mode": "comitia",
+      "replicate": 1,
+      "status": "completed",
+      "failed_checks": [
+        "handoff"
+      ],
+      "artifact": "/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/live/artifacts/delegation-schedule--1--comitia",
+      "error": null
+    },
+    {
+      "case": "delegation-schedule",
+      "mode": "multi-agent",
+      "replicate": 1,
+      "status": "timeout",
+      "failed_checks": [
+        "all-tasks",
+        "workers",
+        "dependencies",
+        "file-conflict",
+        "optimal",
+        "stale-lease",
+        "handoff"
+      ],
+      "artifact": "/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/live/artifacts/delegation-schedule--1--multi-agent",
+      "error": "Command '['claude', '-p', '--model', 'claude-haiku-4-5-20251001', '--output-format', 'json', '--tools', '', '--strict-mcp-config', '--mcp-config', '{\"mcpServers\":{}}', '--disable-slash-commands', '--no-session-persistence', '--setting-sources', '', '--settings', '{\"disableAllHooks\":true}', '--system-prompt', 'Complete the provided bounded task. Return only the requested JSON object, no Markdown fences. Do not use tools. Do not claim tests were executed. Keep explanations concise.']' timed out after 100 seconds"
+    },
+    {
+      "case": "delegation-schedule",
+      "mode": "single-agent",
+      "replicate": 1,
+      "status": "completed",
+      "failed_checks": [
+        "all-tasks",
+        "workers",
+        "dependencies",
+        "file-conflict",
+        "optimal",
+        "stale-lease",
+        "handoff"
+      ],
+      "artifact": "/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/live/artifacts/delegation-schedule--1--single-agent",
+      "error": "JSONDecodeError: Extra data: line 14 column 1 (char 390)"
+    },
+    {
+      "case": "incident-handoff",
+      "mode": "single-agent",
+      "replicate": 1,
+      "status": "completed",
+      "failed_checks": [
+        "length"
+      ],
+      "artifact": "/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/live/artifacts/incident-handoff--1--single-agent",
+      "error": null
+    },
+    {
+      "case": "outbox-architecture",
+      "mode": "single-agent",
+      "replicate": 0,
+      "status": "completed",
+      "failed_checks": [
+        "transaction"
+      ],
+      "artifact": "/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/live/artifacts/outbox-architecture--0--single-agent",
+      "error": null
+    },
+    {
+      "case": "outbox-architecture",
+      "mode": "comitia",
+      "replicate": 1,
+      "status": "timeout",
+      "failed_checks": [
+        "design",
+        "transaction",
+        "key",
+        "delivery",
+        "effects",
+        "calls",
+        "rollback"
+      ],
+      "artifact": "/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/live/artifacts/outbox-architecture--1--comitia",
+      "error": "Command '['claude', '-p', '--model', 'claude-haiku-4-5-20251001', '--output-format', 'json', '--tools', '', '--strict-mcp-config', '--mcp-config', '{\"mcpServers\":{}}', '--disable-slash-commands', '--no-session-persistence', '--setting-sources', '', '--settings', '{\"disableAllHooks\":true}', '--system-prompt', 'Complete the provided bounded task. Return only the requested JSON object, no Markdown fences. Do not use tools. Do not claim tests were executed. Keep explanations concise.']' timed out after 100 seconds"
+    },
+    {
+      "case": "outbox-architecture",
+      "mode": "single-agent",
+      "replicate": 1,
+      "status": "completed",
+      "failed_checks": [
+        "delivery"
+      ],
+      "artifact": "/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/live/artifacts/outbox-architecture--1--single-agent",
+      "error": null
+    },
+    {
+      "case": "stable-refactor",
+      "mode": "single-agent",
+      "replicate": 0,
+      "status": "completed",
+      "failed_checks": [
+        "empty",
+        "duplicates",
+        "order",
+        "signed",
+        "immutable",
+        "randomized",
+        "linear-work"
+      ],
+      "artifact": "/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/live/artifacts/stable-refactor--0--single-agent",
+      "error": "JSONDecodeError: Extra data: line 4 column 1 (char 424)"
+    },
+    {
+      "case": "stable-refactor",
+      "mode": "single-agent",
+      "replicate": 1,
+      "status": "completed",
+      "failed_checks": [
+        "empty",
+        "duplicates",
+        "order",
+        "signed",
+        "immutable",
+        "randomized",
+        "linear-work"
+      ],
+      "artifact": "/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/live/artifacts/stable-refactor--1--single-agent",
+      "error": "JSONDecodeError: Extra data: line 2 column 1 (char 350)"
+    },
+    {
+      "case": "ttl-cache-debug",
+      "mode": "single-agent",
+      "replicate": 0,
+      "status": "completed",
+      "failed_checks": [
+        "miss-hit",
+        "falsy",
+        "boundary",
+        "no-sliding",
+        "nonpositive-ttl",
+        "loader-failure",
+        "isolation"
+      ],
+      "artifact": "/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/live/artifacts/ttl-cache-debug--0--single-agent",
+      "error": "JSONDecodeError: Extra data: line 2 column 1 (char 416)"
+    },
+    {
+      "case": "ttl-cache-debug",
+      "mode": "single-agent",
+      "replicate": 1,
+      "status": "completed",
+      "failed_checks": [
+        "miss-hit",
+        "falsy",
+        "boundary",
+        "no-sliding",
+        "nonpositive-ttl",
+        "loader-failure",
+        "isolation"
+      ],
+      "artifact": "/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/live/artifacts/ttl-cache-debug--1--single-agent",
+      "error": "JSONDecodeError: Extra data: line 2 column 1 (char 393)"
+    }
+  ],
+  "review_changes": [
+    {
+      "case": "delegation-schedule",
+      "mode": "multi-agent",
+      "replicate": 0,
+      "draft_quality": 0.0,
+      "final_quality": 0.8571428571428571,
+      "delta": 0.8571428571428571,
+      "artifact": "/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/live/artifacts/delegation-schedule--0--multi-agent"
+    },
+    {
+      "case": "delegation-schedule",
+      "mode": "comitia",
+      "replicate": 1,
+      "draft_quality": 0.0,
+      "final_quality": 0.8571428571428571,
+      "delta": 0.8571428571428571,
+      "artifact": "/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/live/artifacts/delegation-schedule--1--comitia"
+    },
+    {
+      "case": "incident-handoff",
+      "mode": "comitia",
+      "replicate": 1,
+      "draft_quality": 0.8571428571428571,
+      "final_quality": 1.0,
+      "delta": 0.1428571428571429,
+      "artifact": "/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/live/artifacts/incident-handoff--1--comitia"
+    },
+    {
+      "case": "stable-refactor",
+      "mode": "comitia",
+      "replicate": 0,
+      "draft_quality": 0.0,
+      "final_quality": 1.0,
+      "delta": 1.0,
+      "artifact": "/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/live/artifacts/stable-refactor--0--comitia"
+    },
+    {
+      "case": "stable-refactor",
+      "mode": "multi-agent",
+      "replicate": 0,
+      "draft_quality": 0.0,
+      "final_quality": 1.0,
+      "delta": 1.0,
+      "artifact": "/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/live/artifacts/stable-refactor--0--multi-agent"
+    },
+    {
+      "case": "stable-refactor",
+      "mode": "comitia",
+      "replicate": 1,
+      "draft_quality": 0.0,
+      "final_quality": 1.0,
+      "delta": 1.0,
+      "artifact": "/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/live/artifacts/stable-refactor--1--comitia"
+    },
+    {
+      "case": "stable-refactor",
+      "mode": "multi-agent",
+      "replicate": 1,
+      "draft_quality": 0.0,
+      "final_quality": 1.0,
+      "delta": 1.0,
+      "artifact": "/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/live/artifacts/stable-refactor--1--multi-agent"
+    },
+    {
+      "case": "ttl-cache-debug",
+      "mode": "comitia",
+      "replicate": 0,
+      "draft_quality": 0.0,
+      "final_quality": 1.0,
+      "delta": 1.0,
+      "artifact": "/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/live/artifacts/ttl-cache-debug--0--comitia"
+    },
+    {
+      "case": "ttl-cache-debug",
+      "mode": "multi-agent",
+      "replicate": 0,
+      "draft_quality": 0.0,
+      "final_quality": 1.0,
+      "delta": 1.0,
+      "artifact": "/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/live/artifacts/ttl-cache-debug--0--multi-agent"
+    },
+    {
+      "case": "ttl-cache-debug",
+      "mode": "comitia",
+      "replicate": 1,
+      "draft_quality": 0.0,
+      "final_quality": 1.0,
+      "delta": 1.0,
+      "artifact": "/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/live/artifacts/ttl-cache-debug--1--comitia"
+    },
+    {
+      "case": "ttl-cache-debug",
+      "mode": "multi-agent",
+      "replicate": 1,
+      "draft_quality": 0.0,
+      "final_quality": 1.0,
+      "delta": 1.0,
+      "artifact": "/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/live/artifacts/ttl-cache-debug--1--multi-agent"
+    }
+  ]
+}

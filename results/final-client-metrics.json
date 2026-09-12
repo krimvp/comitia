@@ -1,0 +1,29 @@
+{
+  "single-agent": {
+    "returned_client_sessions": 30,
+    "returned_worker_sessions": 30,
+    "returned_reviewer_sessions": 0,
+    "reported_thinking_tokens": 124815,
+    "output_tokens": 131400,
+    "thinking_fraction_of_output": 0.9498858447488584,
+    "mean_reported_api_seconds": 39.398466666666664
+  },
+  "multi-agent": {
+    "returned_client_sessions": 53,
+    "returned_worker_sessions": 28,
+    "returned_reviewer_sessions": 25,
+    "reported_thinking_tokens": 161796,
+    "output_tokens": 172248,
+    "thinking_fraction_of_output": 0.9393200501602341,
+    "mean_reported_api_seconds": 29.1151320754717
+  },
+  "comitia": {
+    "returned_client_sessions": 51,
+    "returned_worker_sessions": 26,
+    "returned_reviewer_sessions": 25,
+    "reported_thinking_tokens": 146004,
+    "output_tokens": 156057,
+    "thinking_fraction_of_output": 0.935581229935216,
+    "mean_reported_api_seconds": 27.705019607843138
+  }
+}

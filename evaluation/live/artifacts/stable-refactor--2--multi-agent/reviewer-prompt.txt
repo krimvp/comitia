@@ -1,0 +1,28 @@
+Independently review the worker answer against the task. Correct any defects you find. Return the final requested JSON, with no review commentary.
+
+TASK:
+Refactor this Python function to expected O(n) time, preserve first-seen user order and input data, and keep exactly the same output for valid inputs. Valid rows have hashable string user and integer amount (possibly negative or zero). Return JSON {"code": "..."} defining summarize(rows). No imports except standard library. Original:
+def summarize(rows):
+    result = []
+    for row in rows:
+        found = False
+        for item in result:
+            if item["user"] == row["user"]:
+                item["total"] += row["amount"]
+                found = True
+                break
+        if not found:
+            result.append({"user": row["user"], "total": row["amount"]})
+    return result
+
+WORKER ANSWER:
+```json
+{"code": "def summarize(rows):\n    seen = {}\n    result = []\n    for row in rows:\n        user = row[\"user\"]\n        if user in seen:\n            result[seen[user]][\"total\"] += row[\"amount\"]\n        else:\n            seen[user] = len(result)\n            result.append({\"user\": user, \"total\": row[\"amount\"]})\n    return result"}
+```
+
+**Key improvements:**
+- **O(n) time**: Single pass through rows with O(1) dict lookups instead of nested loops
+- **First-seen order preserved**: Dictionary tracks indices; result list maintains insertion order
+- **Input unchanged**: No modification to rows data
+- **Identical output**: Same logic, just optimized lookup structure
+- **No imports needed**: Uses only built-in dict and list

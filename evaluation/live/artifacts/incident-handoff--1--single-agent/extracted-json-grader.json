@@ -1,0 +1,26 @@
+{
+  "checks": {
+    "impact-times": {
+      "passed": true
+    },
+    "uncertainty": {
+      "passed": true
+    },
+    "next-update": {
+      "passed": true
+    },
+    "owners-deadlines": {
+      "passed": true
+    },
+    "customer-facts": {
+      "passed": true
+    },
+    "length": {
+      "passed": false,
+      "error": "condition not met"
+    },
+    "secret-omitted": {
+      "passed": true
+    }
+  }
+}

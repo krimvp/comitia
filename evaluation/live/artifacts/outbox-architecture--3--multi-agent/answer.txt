@@ -1,0 +1,12 @@
+```json
+{
+  "choice": "C",
+  "atomic_writes": ["order", "outbox"],
+  "idempotency_key": "order_id",
+  "broker_delivery": "at-least-once",
+  "email_effect_count": 1,
+  "email_api_call_count": 3,
+  "rollback_email_count": 0,
+  "why": "Atomic order+outbox in single transaction ensures exactly-one email per committed order via idempotency. Crash gaps: email service must durably persist idempotency state; if it crashes before storing, duplicates occur. Outbox retries tolerate publisher crashes. Limits: exactly-once requires durable idempotency storage and careful crash recovery sequencing."
+}
+```

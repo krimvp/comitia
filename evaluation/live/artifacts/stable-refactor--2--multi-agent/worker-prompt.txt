@@ -1,0 +1,13 @@
+Refactor this Python function to expected O(n) time, preserve first-seen user order and input data, and keep exactly the same output for valid inputs. Valid rows have hashable string user and integer amount (possibly negative or zero). Return JSON {"code": "..."} defining summarize(rows). No imports except standard library. Original:
+def summarize(rows):
+    result = []
+    for row in rows:
+        found = False
+        for item in result:
+            if item["user"] == row["user"]:
+                item["total"] += row["amount"]
+                found = True
+                break
+        if not found:
+            result.append({"user": row["user"], "total": row["amount"]})
+    return result

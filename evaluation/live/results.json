@@ -1,0 +1,5482 @@
+{
+  "mode_order": [
+    "single-agent",
+    "multi-agent",
+    "comitia"
+  ],
+  "runs": [
+    {
+      "case_id": "factual-basics",
+      "cost_complete": true,
+      "metadata": {
+        "artifact": "/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/live/artifacts/factual-basics--0--single-agent",
+        "category": "Factual / low complexity",
+        "cli_reported_cost_usd": 0.002115,
+        "comitia_operations": 0,
+        "comitia_wall_seconds": 0.0,
+        "computed_cost_usd": 0.002115,
+        "model_sessions": 1,
+        "model_wall_seconds": 4.992803458
+      },
+      "mode": "single-agent",
+      "model_calls": [
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 320,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 359
+        }
+      ],
+      "non_model_cost_usd": 0,
+      "quality": [
+        {
+          "earned": 1,
+          "name": "capital"
+        },
+        {
+          "earned": 1,
+          "name": "seconds"
+        },
+        {
+          "earned": 1,
+          "name": "binary"
+        },
+        {
+          "earned": 1,
+          "name": "gold"
+        },
+        {
+          "earned": 1,
+          "name": "prime"
+        }
+      ],
+      "replicate": 0,
+      "seed": 1411642690,
+      "status": "completed",
+      "wall_seconds": 6.807146
+    },
+    {
+      "case_id": "factual-basics",
+      "cost_complete": true,
+      "metadata": {
+        "artifact": "/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/live/artifacts/factual-basics--0--multi-agent",
+        "category": "Factual / low complexity",
+        "cli_reported_cost_usd": 0.0034089999999999997,
+        "comitia_operations": 0,
+        "comitia_wall_seconds": 0.0,
+        "computed_cost_usd": 0.003409,
+        "model_sessions": 2,
+        "model_wall_seconds": 8.100678417
+      },
+      "mode": "multi-agent",
+      "model_calls": [
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 320,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 271
+        },
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 409,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 265
+        }
+      ],
+      "non_model_cost_usd": 0,
+      "quality": [
+        {
+          "earned": 1,
+          "name": "capital"
+        },
+        {
+          "earned": 1,
+          "name": "seconds"
+        },
+        {
+          "earned": 1,
+          "name": "binary"
+        },
+        {
+          "earned": 1,
+          "name": "gold"
+        },
+        {
+          "earned": 1,
+          "name": "prime"
+        }
+      ],
+      "replicate": 0,
+      "seed": 1459014161,
+      "status": "completed",
+      "wall_seconds": 8.270373
+    },
+    {
+      "case_id": "factual-basics",
+      "cost_complete": true,
+      "metadata": {
+        "artifact": "/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/live/artifacts/factual-basics--0--comitia",
+        "category": "Factual / low complexity",
+        "cli_reported_cost_usd": 0.004151,
+        "comitia_operations": 16,
+        "comitia_wall_seconds": 0.24351820800000104,
+        "computed_cost_usd": 0.004151,
+        "model_sessions": 2,
+        "model_wall_seconds": 9.4062875
+      },
+      "mode": "comitia",
+      "model_calls": [
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 320,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 346
+        },
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 421,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 336
+        }
+      ],
+      "non_model_cost_usd": 0,
+      "quality": [
+        {
+          "earned": 1,
+          "name": "capital"
+        },
+        {
+          "earned": 1,
+          "name": "seconds"
+        },
+        {
+          "earned": 1,
+          "name": "binary"
+        },
+        {
+          "earned": 1,
+          "name": "gold"
+        },
+        {
+          "earned": 1,
+          "name": "prime"
+        }
+      ],
+      "replicate": 0,
+      "seed": 1918054075,
+      "status": "completed",
+      "wall_seconds": 9.807029
+    },
+    {
+      "case_id": "stable-refactor",
+      "cost_complete": true,
+      "metadata": {
+        "artifact": "/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/live/artifacts/stable-refactor--0--multi-agent",
+        "category": "Coding / refactoring",
+        "cli_reported_cost_usd": 0.014618,
+        "comitia_operations": 0,
+        "comitia_wall_seconds": 0.0,
+        "computed_cost_usd": 0.014617999999999999,
+        "model_sessions": 2,
+        "model_wall_seconds": 26.351843541
+      },
+      "mode": "multi-agent",
+      "model_calls": [
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 432,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 814
+        },
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 666,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 1890
+        }
+      ],
+      "non_model_cost_usd": 0,
+      "quality": [
+        {
+          "earned": 1,
+          "name": "empty"
+        },
+        {
+          "earned": 1,
+          "name": "duplicates"
+        },
+        {
+          "earned": 1,
+          "name": "order"
+        },
+        {
+          "earned": 1,
+          "name": "signed"
+        },
+        {
+          "earned": 1,
+          "name": "immutable"
+        },
+        {
+          "earned": 1,
+          "name": "randomized"
+        },
+        {
+          "earned": 1,
+          "name": "linear-work"
+        }
+      ],
+      "replicate": 0,
+      "seed": 243100287,
+      "status": "completed",
+      "wall_seconds": 26.493225
+    },
+    {
+      "case_id": "stable-refactor",
+      "cost_complete": true,
+      "metadata": {
+        "artifact": "/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/live/artifacts/stable-refactor--0--comitia",
+        "category": "Coding / refactoring",
+        "cli_reported_cost_usd": 0.011522000000000001,
+        "comitia_operations": 16,
+        "comitia_wall_seconds": 0.24085904100000188,
+        "computed_cost_usd": 0.011522000000000001,
+        "model_sessions": 2,
+        "model_wall_seconds": 20.718144792
+      },
+      "mode": "comitia",
+      "model_calls": [
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 432,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 782
+        },
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 710,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 1294
+        }
+      ],
+      "non_model_cost_usd": 0,
+      "quality": [
+        {
+          "earned": 1,
+          "name": "empty"
+        },
+        {
+          "earned": 1,
+          "name": "duplicates"
+        },
+        {
+          "earned": 1,
+          "name": "order"
+        },
+        {
+          "earned": 1,
+          "name": "signed"
+        },
+        {
+          "earned": 1,
+          "name": "immutable"
+        },
+        {
+          "earned": 1,
+          "name": "randomized"
+        },
+        {
+          "earned": 1,
+          "name": "linear-work"
+        }
+      ],
+      "replicate": 0,
+      "seed": 1903543893,
+      "status": "completed",
+      "wall_seconds": 21.100551
+    },
+    {
+      "case_id": "stable-refactor",
+      "cost_complete": true,
+      "error": "JSONDecodeError: Extra data: line 4 column 1 (char 424)",
+      "metadata": {
+        "artifact": "/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/live/artifacts/stable-refactor--0--single-agent",
+        "category": "Coding / refactoring",
+        "cli_reported_cost_usd": 0.009667,
+        "comitia_operations": 0,
+        "comitia_wall_seconds": 0.0,
+        "computed_cost_usd": 0.009667,
+        "model_sessions": 1,
+        "model_wall_seconds": 17.565648709
+      },
+      "mode": "single-agent",
+      "model_calls": [
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 432,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 1847
+        }
+      ],
+      "non_model_cost_usd": 0,
+      "quality": [
+        {
+          "earned": 0,
+          "name": "empty"
+        },
+        {
+          "earned": 0,
+          "name": "duplicates"
+        },
+        {
+          "earned": 0,
+          "name": "order"
+        },
+        {
+          "earned": 0,
+          "name": "signed"
+        },
+        {
+          "earned": 0,
+          "name": "immutable"
+        },
+        {
+          "earned": 0,
+          "name": "randomized"
+        },
+        {
+          "earned": 0,
+          "name": "linear-work"
+        }
+      ],
+      "replicate": 0,
+      "seed": 141566146,
+      "status": "completed",
+      "wall_seconds": 17.717873
+    },
+    {
+      "case_id": "ttl-cache-debug",
+      "cost_complete": true,
+      "metadata": {
+        "artifact": "/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/live/artifacts/ttl-cache-debug--0--comitia",
+        "category": "Debugging",
+        "cli_reported_cost_usd": 0.053328999999999994,
+        "comitia_operations": 16,
+        "comitia_wall_seconds": 0.2450547470000196,
+        "computed_cost_usd": 0.053328999999999994,
+        "model_sessions": 2,
+        "model_wall_seconds": 87.685866709
+      },
+      "mode": "comitia",
+      "model_calls": [
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 498,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 3493
+        },
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 761,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 6921
+        }
+      ],
+      "non_model_cost_usd": 0,
+      "quality": [
+        {
+          "earned": 1,
+          "name": "miss-hit"
+        },
+        {
+          "earned": 1,
+          "name": "falsy"
+        },
+        {
+          "earned": 1,
+          "name": "boundary"
+        },
+        {
+          "earned": 1,
+          "name": "no-sliding"
+        },
+        {
+          "earned": 1,
+          "name": "nonpositive-ttl"
+        },
+        {
+          "earned": 1,
+          "name": "loader-failure"
+        },
+        {
+          "earned": 1,
+          "name": "isolation"
+        }
+      ],
+      "replicate": 0,
+      "seed": 1286621439,
+      "status": "completed",
+      "wall_seconds": 88.093426
+    },
+    {
+      "case_id": "ttl-cache-debug",
+      "cost_complete": true,
+      "error": "JSONDecodeError: Extra data: line 2 column 1 (char 416)",
+      "metadata": {
+        "artifact": "/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/live/artifacts/ttl-cache-debug--0--single-agent",
+        "category": "Debugging",
+        "cli_reported_cost_usd": 0.027087999999999997,
+        "comitia_operations": 0,
+        "comitia_wall_seconds": 0.0,
+        "computed_cost_usd": 0.027087999999999997,
+        "model_sessions": 1,
+        "model_wall_seconds": 32.742534875000004
+      },
+      "mode": "single-agent",
+      "model_calls": [
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 498,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 5318
+        }
+      ],
+      "non_model_cost_usd": 0,
+      "quality": [
+        {
+          "earned": 0,
+          "name": "miss-hit"
+        },
+        {
+          "earned": 0,
+          "name": "falsy"
+        },
+        {
+          "earned": 0,
+          "name": "boundary"
+        },
+        {
+          "earned": 0,
+          "name": "no-sliding"
+        },
+        {
+          "earned": 0,
+          "name": "nonpositive-ttl"
+        },
+        {
+          "earned": 0,
+          "name": "loader-failure"
+        },
+        {
+          "earned": 0,
+          "name": "isolation"
+        }
+      ],
+      "replicate": 0,
+      "seed": 607227623,
+      "status": "completed",
+      "wall_seconds": 32.889894
+    },
+    {
+      "case_id": "ttl-cache-debug",
+      "cost_complete": true,
+      "metadata": {
+        "artifact": "/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/live/artifacts/ttl-cache-debug--0--multi-agent",
+        "category": "Debugging",
+        "cli_reported_cost_usd": 0.056658,
+        "comitia_operations": 0,
+        "comitia_wall_seconds": 0.0,
+        "computed_cost_usd": 0.056658,
+        "model_sessions": 2,
+        "model_wall_seconds": 101.409910375
+      },
+      "mode": "multi-agent",
+      "model_calls": [
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 498,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 3361
+        },
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 770,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 7717
+        }
+      ],
+      "non_model_cost_usd": 0,
+      "quality": [
+        {
+          "earned": 1,
+          "name": "miss-hit"
+        },
+        {
+          "earned": 1,
+          "name": "falsy"
+        },
+        {
+          "earned": 1,
+          "name": "boundary"
+        },
+        {
+          "earned": 1,
+          "name": "no-sliding"
+        },
+        {
+          "earned": 1,
+          "name": "nonpositive-ttl"
+        },
+        {
+          "earned": 1,
+          "name": "loader-failure"
+        },
+        {
+          "earned": 1,
+          "name": "isolation"
+        }
+      ],
+      "replicate": 0,
+      "seed": 2056338658,
+      "status": "completed",
+      "wall_seconds": 101.588364
+    },
+    {
+      "case_id": "outbox-architecture",
+      "cost_complete": true,
+      "metadata": {
+        "artifact": "/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/live/artifacts/outbox-architecture--0--single-agent",
+        "category": "Architecture / reasoning",
+        "cli_reported_cost_usd": 0.03712599999999999,
+        "comitia_operations": 0,
+        "comitia_wall_seconds": 0.0,
+        "computed_cost_usd": 0.037126,
+        "model_sessions": 1,
+        "model_wall_seconds": 69.587251791
+      },
+      "mode": "single-agent",
+      "model_calls": [
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 511,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 7323
+        }
+      ],
+      "non_model_cost_usd": 0,
+      "quality": [
+        {
+          "earned": 1,
+          "name": "design"
+        },
+        {
+          "earned": 0,
+          "name": "transaction"
+        },
+        {
+          "earned": 1,
+          "name": "key"
+        },
+        {
+          "earned": 1,
+          "name": "delivery"
+        },
+        {
+          "earned": 1,
+          "name": "effects"
+        },
+        {
+          "earned": 1,
+          "name": "calls"
+        },
+        {
+          "earned": 1,
+          "name": "rollback"
+        }
+      ],
+      "replicate": 0,
+      "seed": 798778459,
+      "status": "completed",
+      "wall_seconds": 69.73201
+    },
+    {
+      "case_id": "outbox-architecture",
+      "cost_complete": true,
+      "metadata": {
+        "artifact": "/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/live/artifacts/outbox-architecture--0--multi-agent",
+        "category": "Architecture / reasoning",
+        "cli_reported_cost_usd": 0.041901,
+        "comitia_operations": 0,
+        "comitia_wall_seconds": 0.0,
+        "computed_cost_usd": 0.041901,
+        "model_sessions": 2,
+        "model_wall_seconds": 79.59143133399999
+      },
+      "mode": "multi-agent",
+      "model_calls": [
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 511,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 2986
+        },
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 750,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 5142
+        }
+      ],
+      "non_model_cost_usd": 0,
+      "quality": [
+        {
+          "earned": 1,
+          "name": "design"
+        },
+        {
+          "earned": 1,
+          "name": "transaction"
+        },
+        {
+          "earned": 1,
+          "name": "key"
+        },
+        {
+          "earned": 1,
+          "name": "delivery"
+        },
+        {
+          "earned": 1,
+          "name": "effects"
+        },
+        {
+          "earned": 1,
+          "name": "calls"
+        },
+        {
+          "earned": 1,
+          "name": "rollback"
+        }
+      ],
+      "replicate": 0,
+      "seed": 1162662521,
+      "status": "completed",
+      "wall_seconds": 79.706248
+    },
+    {
+      "case_id": "outbox-architecture",
+      "cost_complete": true,
+      "metadata": {
+        "artifact": "/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/live/artifacts/outbox-architecture--0--comitia",
+        "category": "Architecture / reasoning",
+        "cli_reported_cost_usd": 0.053966,
+        "comitia_operations": 16,
+        "comitia_wall_seconds": 0.26192449899998976,
+        "computed_cost_usd": 0.053966,
+        "model_sessions": 2,
+        "model_wall_seconds": 92.30411850000002
+      },
+      "mode": "comitia",
+      "model_calls": [
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 511,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 5641
+        },
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 740,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 4902
+        }
+      ],
+      "non_model_cost_usd": 0,
+      "quality": [
+        {
+          "earned": 1,
+          "name": "design"
+        },
+        {
+          "earned": 1,
+          "name": "transaction"
+        },
+        {
+          "earned": 1,
+          "name": "key"
+        },
+        {
+          "earned": 1,
+          "name": "delivery"
+        },
+        {
+          "earned": 1,
+          "name": "effects"
+        },
+        {
+          "earned": 1,
+          "name": "calls"
+        },
+        {
+          "earned": 1,
+          "name": "rollback"
+        }
+      ],
+      "replicate": 0,
+      "seed": 1897952253,
+      "status": "completed",
+      "wall_seconds": 92.712545
+    },
+    {
+      "case_id": "delegation-schedule",
+      "cost_complete": true,
+      "metadata": {
+        "artifact": "/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/live/artifacts/delegation-schedule--0--multi-agent",
+        "category": "Collaboration / orchestration",
+        "cli_reported_cost_usd": 0.061055000000000005,
+        "comitia_operations": 0,
+        "comitia_wall_seconds": 0.0,
+        "computed_cost_usd": 0.061055,
+        "model_sessions": 2,
+        "model_wall_seconds": 112.24399770800001
+      },
+      "mode": "multi-agent",
+      "model_calls": [
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 491,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 4602
+        },
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 834,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 7344
+        }
+      ],
+      "non_model_cost_usd": 0,
+      "quality": [
+        {
+          "earned": 1,
+          "name": "all-tasks"
+        },
+        {
+          "earned": 1,
+          "name": "workers"
+        },
+        {
+          "earned": 1,
+          "name": "dependencies"
+        },
+        {
+          "earned": 1,
+          "name": "file-conflict"
+        },
+        {
+          "earned": 1,
+          "name": "optimal"
+        },
+        {
+          "earned": 1,
+          "name": "stale-lease"
+        },
+        {
+          "earned": 0,
+          "name": "handoff"
+        }
+      ],
+      "replicate": 0,
+      "seed": 1604020937,
+      "status": "completed",
+      "wall_seconds": 112.38296
+    },
+    {
+      "case_id": "delegation-schedule",
+      "cost_complete": false,
+      "error": "Command '['claude', '-p', '--model', 'claude-haiku-4-5-20251001', '--output-format', 'json', '--tools', '', '--strict-mcp-config', '--mcp-config', '{\"mcpServers\":{}}', '--disable-slash-commands', '--no-session-persistence', '--setting-sources', '', '--settings', '{\"disableAllHooks\":true}', '--system-prompt', 'Complete the provided bounded task. Return only the requested JSON object, no Markdown fences. Do not use tools. Do not claim tests were executed. Keep explanations concise.']' timed out after 100 seconds",
+      "metadata": {
+        "artifact": "/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/live/artifacts/delegation-schedule--0--comitia",
+        "category": "Collaboration / orchestration",
+        "cli_reported_cost_usd": 0.0,
+        "comitia_operations": 7,
+        "comitia_wall_seconds": 0.10689545999999998,
+        "computed_cost_usd": 0,
+        "model_sessions": 0,
+        "model_wall_seconds": 0.0
+      },
+      "mode": "comitia",
+      "model_calls": [],
+      "non_model_cost_usd": 0,
+      "quality": [
+        {
+          "earned": 0,
+          "name": "all-tasks"
+        },
+        {
+          "earned": 0,
+          "name": "workers"
+        },
+        {
+          "earned": 0,
+          "name": "dependencies"
+        },
+        {
+          "earned": 0,
+          "name": "file-conflict"
+        },
+        {
+          "earned": 0,
+          "name": "optimal"
+        },
+        {
+          "earned": 0,
+          "name": "stale-lease"
+        },
+        {
+          "earned": 0,
+          "name": "handoff"
+        }
+      ],
+      "replicate": 0,
+      "seed": 865746021,
+      "status": "timeout",
+      "wall_seconds": 100.22256
+    },
+    {
+      "case_id": "delegation-schedule",
+      "cost_complete": true,
+      "error": "JSONDecodeError: Extra data: line 14 column 1 (char 391)",
+      "metadata": {
+        "artifact": "/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/live/artifacts/delegation-schedule--0--single-agent",
+        "category": "Collaboration / orchestration",
+        "cli_reported_cost_usd": 0.059821,
+        "comitia_operations": 0,
+        "comitia_wall_seconds": 0.0,
+        "computed_cost_usd": 0.059821,
+        "model_sessions": 1,
+        "model_wall_seconds": 81.429678375
+      },
+      "mode": "single-agent",
+      "model_calls": [
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 491,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 11866
+        }
+      ],
+      "non_model_cost_usd": 0,
+      "quality": [
+        {
+          "earned": 0,
+          "name": "all-tasks"
+        },
+        {
+          "earned": 0,
+          "name": "workers"
+        },
+        {
+          "earned": 0,
+          "name": "dependencies"
+        },
+        {
+          "earned": 0,
+          "name": "file-conflict"
+        },
+        {
+          "earned": 0,
+          "name": "optimal"
+        },
+        {
+          "earned": 0,
+          "name": "stale-lease"
+        },
+        {
+          "earned": 0,
+          "name": "handoff"
+        }
+      ],
+      "replicate": 0,
+      "seed": 1617623896,
+      "status": "completed",
+      "wall_seconds": 81.597221
+    },
+    {
+      "case_id": "incident-handoff",
+      "cost_complete": true,
+      "metadata": {
+        "artifact": "/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/live/artifacts/incident-handoff--0--comitia",
+        "category": "Communication heavy",
+        "cli_reported_cost_usd": 0.016368,
+        "comitia_operations": 16,
+        "comitia_wall_seconds": 0.24144662699999941,
+        "computed_cost_usd": 0.016368,
+        "model_sessions": 2,
+        "model_wall_seconds": 27.010048834
+      },
+      "mode": "comitia",
+      "model_calls": [
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 545,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 1766
+        },
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 863,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 1226
+        }
+      ],
+      "non_model_cost_usd": 0,
+      "quality": [
+        {
+          "earned": 1,
+          "name": "impact-times"
+        },
+        {
+          "earned": 1,
+          "name": "uncertainty"
+        },
+        {
+          "earned": 1,
+          "name": "next-update"
+        },
+        {
+          "earned": 1,
+          "name": "owners-deadlines"
+        },
+        {
+          "earned": 1,
+          "name": "customer-facts"
+        },
+        {
+          "earned": 1,
+          "name": "length"
+        },
+        {
+          "earned": 1,
+          "name": "secret-omitted"
+        }
+      ],
+      "replicate": 0,
+      "seed": 532454796,
+      "status": "completed",
+      "wall_seconds": 27.384544
+    },
+    {
+      "case_id": "incident-handoff",
+      "cost_complete": true,
+      "metadata": {
+        "artifact": "/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/live/artifacts/incident-handoff--0--single-agent",
+        "category": "Communication heavy",
+        "cli_reported_cost_usd": 0.0073100000000000005,
+        "comitia_operations": 0,
+        "comitia_wall_seconds": 0.0,
+        "computed_cost_usd": 0.0073100000000000005,
+        "model_sessions": 1,
+        "model_wall_seconds": 12.128957792
+      },
+      "mode": "single-agent",
+      "model_calls": [
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 545,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 1353
+        }
+      ],
+      "non_model_cost_usd": 0,
+      "quality": [
+        {
+          "earned": 1,
+          "name": "impact-times"
+        },
+        {
+          "earned": 1,
+          "name": "uncertainty"
+        },
+        {
+          "earned": 1,
+          "name": "next-update"
+        },
+        {
+          "earned": 1,
+          "name": "owners-deadlines"
+        },
+        {
+          "earned": 1,
+          "name": "customer-facts"
+        },
+        {
+          "earned": 1,
+          "name": "length"
+        },
+        {
+          "earned": 1,
+          "name": "secret-omitted"
+        }
+      ],
+      "replicate": 0,
+      "seed": 126923287,
+      "status": "completed",
+      "wall_seconds": 12.270811
+    },
+    {
+      "case_id": "incident-handoff",
+      "cost_complete": true,
+      "metadata": {
+        "artifact": "/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/live/artifacts/incident-handoff--0--multi-agent",
+        "category": "Communication heavy",
+        "cli_reported_cost_usd": 0.020006000000000003,
+        "comitia_operations": 0,
+        "comitia_wall_seconds": 0.0,
+        "computed_cost_usd": 0.020006000000000003,
+        "model_sessions": 2,
+        "model_wall_seconds": 33.054978167
+      },
+      "mode": "multi-agent",
+      "model_calls": [
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 545,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 2576
+        },
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 861,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 1144
+        }
+      ],
+      "non_model_cost_usd": 0,
+      "quality": [
+        {
+          "earned": 1,
+          "name": "impact-times"
+        },
+        {
+          "earned": 1,
+          "name": "uncertainty"
+        },
+        {
+          "earned": 1,
+          "name": "next-update"
+        },
+        {
+          "earned": 1,
+          "name": "owners-deadlines"
+        },
+        {
+          "earned": 1,
+          "name": "customer-facts"
+        },
+        {
+          "earned": 1,
+          "name": "length"
+        },
+        {
+          "earned": 1,
+          "name": "secret-omitted"
+        }
+      ],
+      "replicate": 0,
+      "seed": 1114988603,
+      "status": "completed",
+      "wall_seconds": 33.166783
+    },
+    {
+      "case_id": "factual-basics",
+      "cost_complete": true,
+      "metadata": {
+        "artifact": "/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/live/artifacts/factual-basics--1--multi-agent",
+        "category": "Factual / low complexity",
+        "cli_reported_cost_usd": 0.003829,
+        "comitia_operations": 0,
+        "comitia_wall_seconds": 0.0,
+        "computed_cost_usd": 0.003829,
+        "model_sessions": 2,
+        "model_wall_seconds": 8.942012333000001
+      },
+      "mode": "multi-agent",
+      "model_calls": [
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 320,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 294
+        },
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 409,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 326
+        }
+      ],
+      "non_model_cost_usd": 0,
+      "quality": [
+        {
+          "earned": 1,
+          "name": "capital"
+        },
+        {
+          "earned": 1,
+          "name": "seconds"
+        },
+        {
+          "earned": 1,
+          "name": "binary"
+        },
+        {
+          "earned": 1,
+          "name": "gold"
+        },
+        {
+          "earned": 1,
+          "name": "prime"
+        }
+      ],
+      "replicate": 1,
+      "seed": 1525949455,
+      "status": "completed",
+      "wall_seconds": 9.055642
+    },
+    {
+      "case_id": "factual-basics",
+      "cost_complete": true,
+      "metadata": {
+        "artifact": "/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/live/artifacts/factual-basics--1--comitia",
+        "category": "Factual / low complexity",
+        "cli_reported_cost_usd": 0.0036810000000000002,
+        "comitia_operations": 16,
+        "comitia_wall_seconds": 0.2431903729999988,
+        "computed_cost_usd": 0.0036810000000000002,
+        "model_sessions": 2,
+        "model_wall_seconds": 8.252040333
+      },
+      "mode": "comitia",
+      "model_calls": [
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 320,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 234
+        },
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 426,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 353
+        }
+      ],
+      "non_model_cost_usd": 0,
+      "quality": [
+        {
+          "earned": 1,
+          "name": "capital"
+        },
+        {
+          "earned": 1,
+          "name": "seconds"
+        },
+        {
+          "earned": 1,
+          "name": "binary"
+        },
+        {
+          "earned": 1,
+          "name": "gold"
+        },
+        {
+          "earned": 1,
+          "name": "prime"
+        }
+      ],
+      "replicate": 1,
+      "seed": 1637824959,
+      "status": "completed",
+      "wall_seconds": 8.64372
+    },
+    {
+      "case_id": "factual-basics",
+      "cost_complete": true,
+      "metadata": {
+        "artifact": "/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/live/artifacts/factual-basics--1--single-agent",
+        "category": "Factual / low complexity",
+        "cli_reported_cost_usd": 0.001865,
+        "comitia_operations": 0,
+        "comitia_wall_seconds": 0.0,
+        "computed_cost_usd": 0.001865,
+        "model_sessions": 1,
+        "model_wall_seconds": 4.303393417
+      },
+      "mode": "single-agent",
+      "model_calls": [
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 320,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 309
+        }
+      ],
+      "non_model_cost_usd": 0,
+      "quality": [
+        {
+          "earned": 1,
+          "name": "capital"
+        },
+        {
+          "earned": 1,
+          "name": "seconds"
+        },
+        {
+          "earned": 1,
+          "name": "binary"
+        },
+        {
+          "earned": 1,
+          "name": "gold"
+        },
+        {
+          "earned": 1,
+          "name": "prime"
+        }
+      ],
+      "replicate": 1,
+      "seed": 1013064317,
+      "status": "completed",
+      "wall_seconds": 4.440744
+    },
+    {
+      "case_id": "stable-refactor",
+      "cost_complete": true,
+      "metadata": {
+        "artifact": "/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/live/artifacts/stable-refactor--1--comitia",
+        "category": "Coding / refactoring",
+        "cli_reported_cost_usd": 0.035663,
+        "comitia_operations": 16,
+        "comitia_wall_seconds": 0.2699323330000075,
+        "computed_cost_usd": 0.035663,
+        "model_sessions": 2,
+        "model_wall_seconds": 61.210405625
+      },
+      "mode": "comitia",
+      "model_calls": [
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 432,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 5511
+        },
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 646,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 1406
+        }
+      ],
+      "non_model_cost_usd": 0,
+      "quality": [
+        {
+          "earned": 1,
+          "name": "empty"
+        },
+        {
+          "earned": 1,
+          "name": "duplicates"
+        },
+        {
+          "earned": 1,
+          "name": "order"
+        },
+        {
+          "earned": 1,
+          "name": "signed"
+        },
+        {
+          "earned": 1,
+          "name": "immutable"
+        },
+        {
+          "earned": 1,
+          "name": "randomized"
+        },
+        {
+          "earned": 1,
+          "name": "linear-work"
+        }
+      ],
+      "replicate": 1,
+      "seed": 871291194,
+      "status": "completed",
+      "wall_seconds": 61.651019
+    },
+    {
+      "case_id": "stable-refactor",
+      "cost_complete": true,
+      "error": "JSONDecodeError: Extra data: line 2 column 1 (char 350)",
+      "metadata": {
+        "artifact": "/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/live/artifacts/stable-refactor--1--single-agent",
+        "category": "Coding / refactoring",
+        "cli_reported_cost_usd": 0.005047,
+        "comitia_operations": 0,
+        "comitia_wall_seconds": 0.0,
+        "computed_cost_usd": 0.005047,
+        "model_sessions": 1,
+        "model_wall_seconds": 7.597202042
+      },
+      "mode": "single-agent",
+      "model_calls": [
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 432,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 923
+        }
+      ],
+      "non_model_cost_usd": 0,
+      "quality": [
+        {
+          "earned": 0,
+          "name": "empty"
+        },
+        {
+          "earned": 0,
+          "name": "duplicates"
+        },
+        {
+          "earned": 0,
+          "name": "order"
+        },
+        {
+          "earned": 0,
+          "name": "signed"
+        },
+        {
+          "earned": 0,
+          "name": "immutable"
+        },
+        {
+          "earned": 0,
+          "name": "randomized"
+        },
+        {
+          "earned": 0,
+          "name": "linear-work"
+        }
+      ],
+      "replicate": 1,
+      "seed": 1799481844,
+      "status": "completed",
+      "wall_seconds": 7.728693
+    },
+    {
+      "case_id": "stable-refactor",
+      "cost_complete": true,
+      "metadata": {
+        "artifact": "/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/live/artifacts/stable-refactor--1--multi-agent",
+        "category": "Coding / refactoring",
+        "cli_reported_cost_usd": 0.025335,
+        "comitia_operations": 0,
+        "comitia_wall_seconds": 0.0,
+        "computed_cost_usd": 0.025335,
+        "model_sessions": 2,
+        "model_wall_seconds": 46.318703375
+      },
+      "mode": "multi-agent",
+      "model_calls": [
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 432,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 2207
+        },
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 688,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 2636
+        }
+      ],
+      "non_model_cost_usd": 0,
+      "quality": [
+        {
+          "earned": 1,
+          "name": "empty"
+        },
+        {
+          "earned": 1,
+          "name": "duplicates"
+        },
+        {
+          "earned": 1,
+          "name": "order"
+        },
+        {
+          "earned": 1,
+          "name": "signed"
+        },
+        {
+          "earned": 1,
+          "name": "immutable"
+        },
+        {
+          "earned": 1,
+          "name": "randomized"
+        },
+        {
+          "earned": 1,
+          "name": "linear-work"
+        }
+      ],
+      "replicate": 1,
+      "seed": 1621790048,
+      "status": "completed",
+      "wall_seconds": 46.481456
+    },
+    {
+      "case_id": "ttl-cache-debug",
+      "cost_complete": true,
+      "error": "JSONDecodeError: Extra data: line 2 column 1 (char 393)",
+      "metadata": {
+        "artifact": "/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/live/artifacts/ttl-cache-debug--1--single-agent",
+        "category": "Debugging",
+        "cli_reported_cost_usd": 0.030677999999999997,
+        "comitia_operations": 0,
+        "comitia_wall_seconds": 0.0,
+        "computed_cost_usd": 0.030677999999999997,
+        "model_sessions": 1,
+        "model_wall_seconds": 38.809940292
+      },
+      "mode": "single-agent",
+      "model_calls": [
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 498,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 6036
+        }
+      ],
+      "non_model_cost_usd": 0,
+      "quality": [
+        {
+          "earned": 0,
+          "name": "miss-hit"
+        },
+        {
+          "earned": 0,
+          "name": "falsy"
+        },
+        {
+          "earned": 0,
+          "name": "boundary"
+        },
+        {
+          "earned": 0,
+          "name": "no-sliding"
+        },
+        {
+          "earned": 0,
+          "name": "nonpositive-ttl"
+        },
+        {
+          "earned": 0,
+          "name": "loader-failure"
+        },
+        {
+          "earned": 0,
+          "name": "isolation"
+        }
+      ],
+      "replicate": 1,
+      "seed": 8987675,
+      "status": "completed",
+      "wall_seconds": 38.949884
+    },
+    {
+      "case_id": "ttl-cache-debug",
+      "cost_complete": true,
+      "metadata": {
+        "artifact": "/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/live/artifacts/ttl-cache-debug--1--multi-agent",
+        "category": "Debugging",
+        "cli_reported_cost_usd": 0.053656999999999996,
+        "comitia_operations": 0,
+        "comitia_wall_seconds": 0.0,
+        "computed_cost_usd": 0.053656999999999996,
+        "model_sessions": 2,
+        "model_wall_seconds": 94.392733709
+      },
+      "mode": "multi-agent",
+      "model_calls": [
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 498,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 4704
+        },
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 819,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 5764
+        }
+      ],
+      "non_model_cost_usd": 0,
+      "quality": [
+        {
+          "earned": 1,
+          "name": "miss-hit"
+        },
+        {
+          "earned": 1,
+          "name": "falsy"
+        },
+        {
+          "earned": 1,
+          "name": "boundary"
+        },
+        {
+          "earned": 1,
+          "name": "no-sliding"
+        },
+        {
+          "earned": 1,
+          "name": "nonpositive-ttl"
+        },
+        {
+          "earned": 1,
+          "name": "loader-failure"
+        },
+        {
+          "earned": 1,
+          "name": "isolation"
+        }
+      ],
+      "replicate": 1,
+      "seed": 1848798371,
+      "status": "completed",
+      "wall_seconds": 94.532974
+    },
+    {
+      "case_id": "ttl-cache-debug",
+      "cost_complete": true,
+      "metadata": {
+        "artifact": "/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/live/artifacts/ttl-cache-debug--1--comitia",
+        "category": "Debugging",
+        "cli_reported_cost_usd": 0.029056,
+        "comitia_operations": 16,
+        "comitia_wall_seconds": 0.24118074900000136,
+        "computed_cost_usd": 0.029056000000000002,
+        "model_sessions": 2,
+        "model_wall_seconds": 52.91973191700001
+      },
+      "mode": "comitia",
+      "model_calls": [
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 498,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 2449
+        },
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 783,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 3106
+        }
+      ],
+      "non_model_cost_usd": 0,
+      "quality": [
+        {
+          "earned": 1,
+          "name": "miss-hit"
+        },
+        {
+          "earned": 1,
+          "name": "falsy"
+        },
+        {
+          "earned": 1,
+          "name": "boundary"
+        },
+        {
+          "earned": 1,
+          "name": "no-sliding"
+        },
+        {
+          "earned": 1,
+          "name": "nonpositive-ttl"
+        },
+        {
+          "earned": 1,
+          "name": "loader-failure"
+        },
+        {
+          "earned": 1,
+          "name": "isolation"
+        }
+      ],
+      "replicate": 1,
+      "seed": 1261456849,
+      "status": "completed",
+      "wall_seconds": 53.298428
+    },
+    {
+      "case_id": "outbox-architecture",
+      "cost_complete": true,
+      "metadata": {
+        "artifact": "/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/live/artifacts/outbox-architecture--1--multi-agent",
+        "category": "Architecture / reasoning",
+        "cli_reported_cost_usd": 0.065096,
+        "comitia_operations": 0,
+        "comitia_wall_seconds": 0.0,
+        "computed_cost_usd": 0.065096,
+        "model_sessions": 2,
+        "model_wall_seconds": 124.135142333
+      },
+      "mode": "multi-agent",
+      "model_calls": [
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 511,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 7341
+        },
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 740,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 5428
+        }
+      ],
+      "non_model_cost_usd": 0,
+      "quality": [
+        {
+          "earned": 1,
+          "name": "design"
+        },
+        {
+          "earned": 1,
+          "name": "transaction"
+        },
+        {
+          "earned": 1,
+          "name": "key"
+        },
+        {
+          "earned": 1,
+          "name": "delivery"
+        },
+        {
+          "earned": 1,
+          "name": "effects"
+        },
+        {
+          "earned": 1,
+          "name": "calls"
+        },
+        {
+          "earned": 1,
+          "name": "rollback"
+        }
+      ],
+      "replicate": 1,
+      "seed": 1431195328,
+      "status": "completed",
+      "wall_seconds": 124.265651
+    },
+    {
+      "case_id": "outbox-architecture",
+      "cost_complete": false,
+      "error": "Command '['claude', '-p', '--model', 'claude-haiku-4-5-20251001', '--output-format', 'json', '--tools', '', '--strict-mcp-config', '--mcp-config', '{\"mcpServers\":{}}', '--disable-slash-commands', '--no-session-persistence', '--setting-sources', '', '--settings', '{\"disableAllHooks\":true}', '--system-prompt', 'Complete the provided bounded task. Return only the requested JSON object, no Markdown fences. Do not use tools. Do not claim tests were executed. Keep explanations concise.']' timed out after 100 seconds",
+      "metadata": {
+        "artifact": "/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/live/artifacts/outbox-architecture--1--comitia",
+        "category": "Architecture / reasoning",
+        "cli_reported_cost_usd": 0.0,
+        "comitia_operations": 7,
+        "comitia_wall_seconds": 0.10568674900000001,
+        "computed_cost_usd": 0,
+        "model_sessions": 0,
+        "model_wall_seconds": 0.0
+      },
+      "mode": "comitia",
+      "model_calls": [],
+      "non_model_cost_usd": 0,
+      "quality": [
+        {
+          "earned": 0,
+          "name": "design"
+        },
+        {
+          "earned": 0,
+          "name": "transaction"
+        },
+        {
+          "earned": 0,
+          "name": "key"
+        },
+        {
+          "earned": 0,
+          "name": "delivery"
+        },
+        {
+          "earned": 0,
+          "name": "effects"
+        },
+        {
+          "earned": 0,
+          "name": "calls"
+        },
+        {
+          "earned": 0,
+          "name": "rollback"
+        }
+      ],
+      "replicate": 1,
+      "seed": 764981386,
+      "status": "timeout",
+      "wall_seconds": 100.207631
+    },
+    {
+      "case_id": "outbox-architecture",
+      "cost_complete": true,
+      "metadata": {
+        "artifact": "/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/live/artifacts/outbox-architecture--1--single-agent",
+        "category": "Architecture / reasoning",
+        "cli_reported_cost_usd": 0.032820999999999996,
+        "comitia_operations": 0,
+        "comitia_wall_seconds": 0.0,
+        "computed_cost_usd": 0.032820999999999996,
+        "model_sessions": 1,
+        "model_wall_seconds": 47.240717124999996
+      },
+      "mode": "single-agent",
+      "model_calls": [
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 511,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 6462
+        }
+      ],
+      "non_model_cost_usd": 0,
+      "quality": [
+        {
+          "earned": 1,
+          "name": "design"
+        },
+        {
+          "earned": 1,
+          "name": "transaction"
+        },
+        {
+          "earned": 1,
+          "name": "key"
+        },
+        {
+          "earned": 0,
+          "name": "delivery"
+        },
+        {
+          "earned": 1,
+          "name": "effects"
+        },
+        {
+          "earned": 1,
+          "name": "calls"
+        },
+        {
+          "earned": 1,
+          "name": "rollback"
+        }
+      ],
+      "replicate": 1,
+      "seed": 280955284,
+      "status": "completed",
+      "wall_seconds": 47.405495
+    },
+    {
+      "case_id": "delegation-schedule",
+      "cost_complete": true,
+      "metadata": {
+        "artifact": "/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/live/artifacts/delegation-schedule--1--comitia",
+        "category": "Collaboration / orchestration",
+        "cli_reported_cost_usd": 0.086586,
+        "comitia_operations": 16,
+        "comitia_wall_seconds": 0.23553421099997937,
+        "computed_cost_usd": 0.086586,
+        "model_sessions": 2,
+        "model_wall_seconds": 161.29414737399998
+      },
+      "mode": "comitia",
+      "model_calls": [
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 491,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 8978
+        },
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 850,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 8071
+        }
+      ],
+      "non_model_cost_usd": 0,
+      "quality": [
+        {
+          "earned": 1,
+          "name": "all-tasks"
+        },
+        {
+          "earned": 1,
+          "name": "workers"
+        },
+        {
+          "earned": 1,
+          "name": "dependencies"
+        },
+        {
+          "earned": 1,
+          "name": "file-conflict"
+        },
+        {
+          "earned": 1,
+          "name": "optimal"
+        },
+        {
+          "earned": 1,
+          "name": "stale-lease"
+        },
+        {
+          "earned": 0,
+          "name": "handoff"
+        }
+      ],
+      "replicate": 1,
+      "seed": 2137548441,
+      "status": "completed",
+      "wall_seconds": 161.694036
+    },
+    {
+      "case_id": "delegation-schedule",
+      "cost_complete": true,
+      "error": "JSONDecodeError: Extra data: line 14 column 1 (char 390)",
+      "metadata": {
+        "artifact": "/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/live/artifacts/delegation-schedule--1--single-agent",
+        "category": "Collaboration / orchestration",
+        "cli_reported_cost_usd": 0.051066,
+        "comitia_operations": 0,
+        "comitia_wall_seconds": 0.0,
+        "computed_cost_usd": 0.051066,
+        "model_sessions": 1,
+        "model_wall_seconds": 92.34296675
+      },
+      "mode": "single-agent",
+      "model_calls": [
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 491,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 10115
+        }
+      ],
+      "non_model_cost_usd": 0,
+      "quality": [
+        {
+          "earned": 0,
+          "name": "all-tasks"
+        },
+        {
+          "earned": 0,
+          "name": "workers"
+        },
+        {
+          "earned": 0,
+          "name": "dependencies"
+        },
+        {
+          "earned": 0,
+          "name": "file-conflict"
+        },
+        {
+          "earned": 0,
+          "name": "optimal"
+        },
+        {
+          "earned": 0,
+          "name": "stale-lease"
+        },
+        {
+          "earned": 0,
+          "name": "handoff"
+        }
+      ],
+      "replicate": 1,
+      "seed": 1848856484,
+      "status": "completed",
+      "wall_seconds": 92.492789
+    },
+    {
+      "case_id": "delegation-schedule",
+      "cost_complete": false,
+      "error": "Command '['claude', '-p', '--model', 'claude-haiku-4-5-20251001', '--output-format', 'json', '--tools', '', '--strict-mcp-config', '--mcp-config', '{\"mcpServers\":{}}', '--disable-slash-commands', '--no-session-persistence', '--setting-sources', '', '--settings', '{\"disableAllHooks\":true}', '--system-prompt', 'Complete the provided bounded task. Return only the requested JSON object, no Markdown fences. Do not use tools. Do not claim tests were executed. Keep explanations concise.']' timed out after 100 seconds",
+      "metadata": {
+        "artifact": "/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/live/artifacts/delegation-schedule--1--multi-agent",
+        "category": "Collaboration / orchestration",
+        "cli_reported_cost_usd": 0.034351,
+        "comitia_operations": 0,
+        "comitia_wall_seconds": 0.0,
+        "computed_cost_usd": 0.034351,
+        "model_sessions": 1,
+        "model_wall_seconds": 64.146444334
+      },
+      "mode": "multi-agent",
+      "model_calls": [
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 491,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 6772
+        }
+      ],
+      "non_model_cost_usd": 0,
+      "quality": [
+        {
+          "earned": 0,
+          "name": "all-tasks"
+        },
+        {
+          "earned": 0,
+          "name": "workers"
+        },
+        {
+          "earned": 0,
+          "name": "dependencies"
+        },
+        {
+          "earned": 0,
+          "name": "file-conflict"
+        },
+        {
+          "earned": 0,
+          "name": "optimal"
+        },
+        {
+          "earned": 0,
+          "name": "stale-lease"
+        },
+        {
+          "earned": 0,
+          "name": "handoff"
+        }
+      ],
+      "replicate": 1,
+      "seed": 909393514,
+      "status": "timeout",
+      "wall_seconds": 164.227642
+    },
+    {
+      "case_id": "incident-handoff",
+      "cost_complete": true,
+      "metadata": {
+        "artifact": "/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/live/artifacts/incident-handoff--1--single-agent",
+        "category": "Communication heavy",
+        "cli_reported_cost_usd": 0.008215,
+        "comitia_operations": 0,
+        "comitia_wall_seconds": 0.0,
+        "computed_cost_usd": 0.008215,
+        "model_sessions": 1,
+        "model_wall_seconds": 14.731820875
+      },
+      "mode": "single-agent",
+      "model_calls": [
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 545,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 1534
+        }
+      ],
+      "non_model_cost_usd": 0,
+      "quality": [
+        {
+          "earned": 1,
+          "name": "impact-times"
+        },
+        {
+          "earned": 1,
+          "name": "uncertainty"
+        },
+        {
+          "earned": 1,
+          "name": "next-update"
+        },
+        {
+          "earned": 1,
+          "name": "owners-deadlines"
+        },
+        {
+          "earned": 1,
+          "name": "customer-facts"
+        },
+        {
+          "earned": 0,
+          "name": "length"
+        },
+        {
+          "earned": 1,
+          "name": "secret-omitted"
+        }
+      ],
+      "replicate": 1,
+      "seed": 1635070791,
+      "status": "completed",
+      "wall_seconds": 14.897295
+    },
+    {
+      "case_id": "incident-handoff",
+      "cost_complete": true,
+      "metadata": {
+        "artifact": "/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/live/artifacts/incident-handoff--1--multi-agent",
+        "category": "Communication heavy",
+        "cli_reported_cost_usd": 0.021781000000000002,
+        "comitia_operations": 0,
+        "comitia_wall_seconds": 0.0,
+        "computed_cost_usd": 0.021781000000000002,
+        "model_sessions": 2,
+        "model_wall_seconds": 29.646778374
+      },
+      "mode": "multi-agent",
+      "model_calls": [
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 545,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 2312
+        },
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 861,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 1763
+        }
+      ],
+      "non_model_cost_usd": 0,
+      "quality": [
+        {
+          "earned": 1,
+          "name": "impact-times"
+        },
+        {
+          "earned": 1,
+          "name": "uncertainty"
+        },
+        {
+          "earned": 1,
+          "name": "next-update"
+        },
+        {
+          "earned": 1,
+          "name": "owners-deadlines"
+        },
+        {
+          "earned": 1,
+          "name": "customer-facts"
+        },
+        {
+          "earned": 1,
+          "name": "length"
+        },
+        {
+          "earned": 1,
+          "name": "secret-omitted"
+        }
+      ],
+      "replicate": 1,
+      "seed": 517745882,
+      "status": "completed",
+      "wall_seconds": 29.808471
+    },
+    {
+      "case_id": "incident-handoff",
+      "cost_complete": true,
+      "metadata": {
+        "artifact": "/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/live/artifacts/incident-handoff--1--comitia",
+        "category": "Communication heavy",
+        "cli_reported_cost_usd": 0.027191,
+        "comitia_operations": 16,
+        "comitia_wall_seconds": 0.24461562500000078,
+        "computed_cost_usd": 0.027191,
+        "model_sessions": 2,
+        "model_wall_seconds": 43.144605416000005
+      },
+      "mode": "comitia",
+      "model_calls": [
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 545,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 851
+        },
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 851,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 4308
+        }
+      ],
+      "non_model_cost_usd": 0,
+      "quality": [
+        {
+          "earned": 1,
+          "name": "impact-times"
+        },
+        {
+          "earned": 1,
+          "name": "uncertainty"
+        },
+        {
+          "earned": 1,
+          "name": "next-update"
+        },
+        {
+          "earned": 1,
+          "name": "owners-deadlines"
+        },
+        {
+          "earned": 1,
+          "name": "customer-facts"
+        },
+        {
+          "earned": 1,
+          "name": "length"
+        },
+        {
+          "earned": 1,
+          "name": "secret-omitted"
+        }
+      ],
+      "replicate": 1,
+      "seed": 100324385,
+      "status": "completed",
+      "wall_seconds": 43.541104
+    },
+    {
+      "case_id": "factual-basics",
+      "cost_complete": true,
+      "metadata": {
+        "artifact": "/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/live/artifacts/factual-basics--2--comitia",
+        "category": "Factual / low complexity",
+        "cli_reported_cost_usd": 0.004039,
+        "comitia_operations": 16,
+        "comitia_wall_seconds": 0.2437907919999993,
+        "computed_cost_usd": 0.004039,
+        "model_sessions": 2,
+        "model_wall_seconds": 9.056416874
+      },
+      "mode": "comitia",
+      "model_calls": [
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 320,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 349
+        },
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 409,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 313
+        }
+      ],
+      "non_model_cost_usd": 0,
+      "quality": [
+        {
+          "earned": 1,
+          "name": "capital"
+        },
+        {
+          "earned": 1,
+          "name": "seconds"
+        },
+        {
+          "earned": 1,
+          "name": "binary"
+        },
+        {
+          "earned": 1,
+          "name": "gold"
+        },
+        {
+          "earned": 1,
+          "name": "prime"
+        }
+      ],
+      "replicate": 2,
+      "seed": 1941531360,
+      "status": "completed",
+      "wall_seconds": 9.472626
+    },
+    {
+      "case_id": "factual-basics",
+      "cost_complete": true,
+      "metadata": {
+        "artifact": "/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/live/artifacts/factual-basics--2--single-agent",
+        "category": "Factual / low complexity",
+        "cli_reported_cost_usd": 0.0018349999999999998,
+        "comitia_operations": 0,
+        "comitia_wall_seconds": 0.0,
+        "computed_cost_usd": 0.001835,
+        "model_sessions": 1,
+        "model_wall_seconds": 4.404907083
+      },
+      "mode": "single-agent",
+      "model_calls": [
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 320,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 303
+        }
+      ],
+      "non_model_cost_usd": 0,
+      "quality": [
+        {
+          "earned": 1,
+          "name": "capital"
+        },
+        {
+          "earned": 1,
+          "name": "seconds"
+        },
+        {
+          "earned": 1,
+          "name": "binary"
+        },
+        {
+          "earned": 1,
+          "name": "gold"
+        },
+        {
+          "earned": 1,
+          "name": "prime"
+        }
+      ],
+      "replicate": 2,
+      "seed": 245359610,
+      "status": "completed",
+      "wall_seconds": 4.567307
+    },
+    {
+      "case_id": "factual-basics",
+      "cost_complete": true,
+      "metadata": {
+        "artifact": "/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/live/artifacts/factual-basics--2--multi-agent",
+        "category": "Factual / low complexity",
+        "cli_reported_cost_usd": 0.004056000000000001,
+        "comitia_operations": 0,
+        "comitia_wall_seconds": 0.0,
+        "computed_cost_usd": 0.004056,
+        "model_sessions": 2,
+        "model_wall_seconds": 8.005540625
+      },
+      "mode": "multi-agent",
+      "model_calls": [
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 320,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 357
+        },
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 421,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 306
+        }
+      ],
+      "non_model_cost_usd": 0,
+      "quality": [
+        {
+          "earned": 1,
+          "name": "capital"
+        },
+        {
+          "earned": 1,
+          "name": "seconds"
+        },
+        {
+          "earned": 1,
+          "name": "binary"
+        },
+        {
+          "earned": 1,
+          "name": "gold"
+        },
+        {
+          "earned": 1,
+          "name": "prime"
+        }
+      ],
+      "replicate": 2,
+      "seed": 1118312318,
+      "status": "completed",
+      "wall_seconds": 8.134109
+    },
+    {
+      "case_id": "stable-refactor",
+      "cost_complete": true,
+      "error": "JSONDecodeError: Extra data: line 2 column 1 (char 317)",
+      "metadata": {
+        "artifact": "/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/live/artifacts/stable-refactor--2--single-agent",
+        "category": "Coding / refactoring",
+        "cli_reported_cost_usd": 0.004567,
+        "comitia_operations": 0,
+        "comitia_wall_seconds": 0.0,
+        "computed_cost_usd": 0.004567,
+        "model_sessions": 1,
+        "model_wall_seconds": 9.162180917
+      },
+      "mode": "single-agent",
+      "model_calls": [
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 432,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 827
+        }
+      ],
+      "non_model_cost_usd": 0,
+      "quality": [
+        {
+          "earned": 0,
+          "name": "empty"
+        },
+        {
+          "earned": 0,
+          "name": "duplicates"
+        },
+        {
+          "earned": 0,
+          "name": "order"
+        },
+        {
+          "earned": 0,
+          "name": "signed"
+        },
+        {
+          "earned": 0,
+          "name": "immutable"
+        },
+        {
+          "earned": 0,
+          "name": "randomized"
+        },
+        {
+          "earned": 0,
+          "name": "linear-work"
+        }
+      ],
+      "replicate": 2,
+      "seed": 1105221616,
+      "status": "completed",
+      "wall_seconds": 9.292361
+    },
+    {
+      "case_id": "stable-refactor",
+      "cost_complete": true,
+      "metadata": {
+        "artifact": "/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/live/artifacts/stable-refactor--2--multi-agent",
+        "category": "Coding / refactoring",
+        "cli_reported_cost_usd": 0.013533,
+        "comitia_operations": 0,
+        "comitia_wall_seconds": 0.0,
+        "computed_cost_usd": 0.013533,
+        "model_sessions": 2,
+        "model_wall_seconds": 25.856748124
+      },
+      "mode": "multi-agent",
+      "model_calls": [
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 432,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 1166
+        },
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 676,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 1319
+        }
+      ],
+      "non_model_cost_usd": 0,
+      "quality": [
+        {
+          "earned": 1,
+          "name": "empty"
+        },
+        {
+          "earned": 1,
+          "name": "duplicates"
+        },
+        {
+          "earned": 1,
+          "name": "order"
+        },
+        {
+          "earned": 1,
+          "name": "signed"
+        },
+        {
+          "earned": 1,
+          "name": "immutable"
+        },
+        {
+          "earned": 1,
+          "name": "randomized"
+        },
+        {
+          "earned": 1,
+          "name": "linear-work"
+        }
+      ],
+      "replicate": 2,
+      "seed": 673918303,
+      "status": "completed",
+      "wall_seconds": 26.016444
+    },
+    {
+      "case_id": "stable-refactor",
+      "cost_complete": true,
+      "metadata": {
+        "artifact": "/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/live/artifacts/stable-refactor--2--comitia",
+        "category": "Coding / refactoring",
+        "cli_reported_cost_usd": 0.011153,
+        "comitia_operations": 16,
+        "comitia_wall_seconds": 0.242057586,
+        "computed_cost_usd": 0.011153,
+        "model_sessions": 2,
+        "model_wall_seconds": 21.102692290999997
+      },
+      "mode": "comitia",
+      "model_calls": [
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 432,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 1212
+        },
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 681,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 796
+        }
+      ],
+      "non_model_cost_usd": 0,
+      "quality": [
+        {
+          "earned": 1,
+          "name": "empty"
+        },
+        {
+          "earned": 1,
+          "name": "duplicates"
+        },
+        {
+          "earned": 1,
+          "name": "order"
+        },
+        {
+          "earned": 1,
+          "name": "signed"
+        },
+        {
+          "earned": 1,
+          "name": "immutable"
+        },
+        {
+          "earned": 1,
+          "name": "randomized"
+        },
+        {
+          "earned": 1,
+          "name": "linear-work"
+        }
+      ],
+      "replicate": 2,
+      "seed": 1327222978,
+      "status": "completed",
+      "wall_seconds": 21.501538
+    },
+    {
+      "case_id": "ttl-cache-debug",
+      "cost_complete": true,
+      "metadata": {
+        "artifact": "/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/live/artifacts/ttl-cache-debug--2--multi-agent",
+        "category": "Debugging",
+        "cli_reported_cost_usd": 0.061502,
+        "comitia_operations": 0,
+        "comitia_wall_seconds": 0.0,
+        "computed_cost_usd": 0.061502,
+        "model_sessions": 2,
+        "model_wall_seconds": 94.80960233299999
+      },
+      "mode": "multi-agent",
+      "model_calls": [
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 498,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 6015
+        },
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 834,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 6019
+        }
+      ],
+      "non_model_cost_usd": 0,
+      "quality": [
+        {
+          "earned": 1,
+          "name": "miss-hit"
+        },
+        {
+          "earned": 1,
+          "name": "falsy"
+        },
+        {
+          "earned": 1,
+          "name": "boundary"
+        },
+        {
+          "earned": 1,
+          "name": "no-sliding"
+        },
+        {
+          "earned": 1,
+          "name": "nonpositive-ttl"
+        },
+        {
+          "earned": 1,
+          "name": "loader-failure"
+        },
+        {
+          "earned": 1,
+          "name": "isolation"
+        }
+      ],
+      "replicate": 2,
+      "seed": 1593227906,
+      "status": "completed",
+      "wall_seconds": 94.923325
+    },
+    {
+      "case_id": "ttl-cache-debug",
+      "cost_complete": true,
+      "metadata": {
+        "artifact": "/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/live/artifacts/ttl-cache-debug--2--comitia",
+        "category": "Debugging",
+        "cli_reported_cost_usd": 0.03411499999999999,
+        "comitia_operations": 16,
+        "comitia_wall_seconds": 0.23915046000000456,
+        "computed_cost_usd": 0.034115,
+        "model_sessions": 2,
+        "model_wall_seconds": 61.056936083
+      },
+      "mode": "comitia",
+      "model_calls": [
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 498,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 2872
+        },
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 852,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 3681
+        }
+      ],
+      "non_model_cost_usd": 0,
+      "quality": [
+        {
+          "earned": 1,
+          "name": "miss-hit"
+        },
+        {
+          "earned": 1,
+          "name": "falsy"
+        },
+        {
+          "earned": 1,
+          "name": "boundary"
+        },
+        {
+          "earned": 1,
+          "name": "no-sliding"
+        },
+        {
+          "earned": 1,
+          "name": "nonpositive-ttl"
+        },
+        {
+          "earned": 1,
+          "name": "loader-failure"
+        },
+        {
+          "earned": 1,
+          "name": "isolation"
+        }
+      ],
+      "replicate": 2,
+      "seed": 748599684,
+      "status": "completed",
+      "wall_seconds": 61.457671
+    },
+    {
+      "case_id": "ttl-cache-debug",
+      "cost_complete": true,
+      "error": "JSONDecodeError: Extra data: line 2 column 1 (char 408)",
+      "metadata": {
+        "artifact": "/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/live/artifacts/ttl-cache-debug--2--single-agent",
+        "category": "Debugging",
+        "cli_reported_cost_usd": 0.020907999999999996,
+        "comitia_operations": 0,
+        "comitia_wall_seconds": 0.0,
+        "computed_cost_usd": 0.020908,
+        "model_sessions": 1,
+        "model_wall_seconds": 38.228911083999996
+      },
+      "mode": "single-agent",
+      "model_calls": [
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 498,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 4082
+        }
+      ],
+      "non_model_cost_usd": 0,
+      "quality": [
+        {
+          "earned": 0,
+          "name": "miss-hit"
+        },
+        {
+          "earned": 0,
+          "name": "falsy"
+        },
+        {
+          "earned": 0,
+          "name": "boundary"
+        },
+        {
+          "earned": 0,
+          "name": "no-sliding"
+        },
+        {
+          "earned": 0,
+          "name": "nonpositive-ttl"
+        },
+        {
+          "earned": 0,
+          "name": "loader-failure"
+        },
+        {
+          "earned": 0,
+          "name": "isolation"
+        }
+      ],
+      "replicate": 2,
+      "seed": 1817834816,
+      "status": "completed",
+      "wall_seconds": 38.375796
+    },
+    {
+      "case_id": "outbox-architecture",
+      "cost_complete": true,
+      "metadata": {
+        "artifact": "/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/live/artifacts/outbox-architecture--2--comitia",
+        "category": "Architecture / reasoning",
+        "cli_reported_cost_usd": 0.03876400000000001,
+        "comitia_operations": 16,
+        "comitia_wall_seconds": 0.24543537399999515,
+        "computed_cost_usd": 0.038764,
+        "model_sessions": 2,
+        "model_wall_seconds": 63.96545941699999
+      },
+      "mode": "comitia",
+      "model_calls": [
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 511,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 3654
+        },
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 748,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 3847
+        }
+      ],
+      "non_model_cost_usd": 0,
+      "quality": [
+        {
+          "earned": 1,
+          "name": "design"
+        },
+        {
+          "earned": 1,
+          "name": "transaction"
+        },
+        {
+          "earned": 1,
+          "name": "key"
+        },
+        {
+          "earned": 1,
+          "name": "delivery"
+        },
+        {
+          "earned": 1,
+          "name": "effects"
+        },
+        {
+          "earned": 1,
+          "name": "calls"
+        },
+        {
+          "earned": 1,
+          "name": "rollback"
+        }
+      ],
+      "replicate": 2,
+      "seed": 1932606196,
+      "status": "completed",
+      "wall_seconds": 64.347785
+    },
+    {
+      "case_id": "outbox-architecture",
+      "cost_complete": true,
+      "metadata": {
+        "artifact": "/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/live/artifacts/outbox-architecture--2--single-agent",
+        "category": "Architecture / reasoning",
+        "cli_reported_cost_usd": 0.04330099999999999,
+        "comitia_operations": 0,
+        "comitia_wall_seconds": 0.0,
+        "computed_cost_usd": 0.043301,
+        "model_sessions": 1,
+        "model_wall_seconds": 80.886005791
+      },
+      "mode": "single-agent",
+      "model_calls": [
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 511,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 8558
+        }
+      ],
+      "non_model_cost_usd": 0,
+      "quality": [
+        {
+          "earned": 1,
+          "name": "design"
+        },
+        {
+          "earned": 0,
+          "name": "transaction"
+        },
+        {
+          "earned": 1,
+          "name": "key"
+        },
+        {
+          "earned": 1,
+          "name": "delivery"
+        },
+        {
+          "earned": 1,
+          "name": "effects"
+        },
+        {
+          "earned": 1,
+          "name": "calls"
+        },
+        {
+          "earned": 1,
+          "name": "rollback"
+        }
+      ],
+      "replicate": 2,
+      "seed": 1933278453,
+      "status": "completed",
+      "wall_seconds": 81.002296
+    },
+    {
+      "case_id": "outbox-architecture",
+      "cost_complete": true,
+      "metadata": {
+        "artifact": "/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/live/artifacts/outbox-architecture--2--multi-agent",
+        "category": "Architecture / reasoning",
+        "cli_reported_cost_usd": 0.05626500000000001,
+        "comitia_operations": 0,
+        "comitia_wall_seconds": 0.0,
+        "computed_cost_usd": 0.056265,
+        "model_sessions": 2,
+        "model_wall_seconds": 105.59379254199999
+      },
+      "mode": "multi-agent",
+      "model_calls": [
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 511,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 5976
+        },
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 744,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 5026
+        }
+      ],
+      "non_model_cost_usd": 0,
+      "quality": [
+        {
+          "earned": 1,
+          "name": "design"
+        },
+        {
+          "earned": 1,
+          "name": "transaction"
+        },
+        {
+          "earned": 1,
+          "name": "key"
+        },
+        {
+          "earned": 1,
+          "name": "delivery"
+        },
+        {
+          "earned": 1,
+          "name": "effects"
+        },
+        {
+          "earned": 1,
+          "name": "calls"
+        },
+        {
+          "earned": 1,
+          "name": "rollback"
+        }
+      ],
+      "replicate": 2,
+      "seed": 798966272,
+      "status": "completed",
+      "wall_seconds": 105.745105
+    },
+    {
+      "case_id": "delegation-schedule",
+      "cost_complete": true,
+      "metadata": {
+        "artifact": "/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/live/artifacts/delegation-schedule--2--single-agent",
+        "category": "Collaboration / orchestration",
+        "cli_reported_cost_usd": 0.04876099999999999,
+        "comitia_operations": 0,
+        "comitia_wall_seconds": 0.0,
+        "computed_cost_usd": 0.048761,
+        "model_sessions": 1,
+        "model_wall_seconds": 91.18434574999999
+      },
+      "mode": "single-agent",
+      "model_calls": [
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 491,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 9654
+        }
+      ],
+      "non_model_cost_usd": 0,
+      "quality": [
+        {
+          "earned": 1,
+          "name": "all-tasks"
+        },
+        {
+          "earned": 1,
+          "name": "workers"
+        },
+        {
+          "earned": 1,
+          "name": "dependencies"
+        },
+        {
+          "earned": 1,
+          "name": "file-conflict"
+        },
+        {
+          "earned": 1,
+          "name": "optimal"
+        },
+        {
+          "earned": 1,
+          "name": "stale-lease"
+        },
+        {
+          "earned": 0,
+          "name": "handoff"
+        }
+      ],
+      "replicate": 2,
+      "seed": 2031588944,
+      "status": "completed",
+      "wall_seconds": 91.32419
+    },
+    {
+      "case_id": "delegation-schedule",
+      "cost_complete": false,
+      "error": "Command '['claude', '-p', '--model', 'claude-haiku-4-5-20251001', '--output-format', 'json', '--tools', '', '--strict-mcp-config', '--mcp-config', '{\"mcpServers\":{}}', '--disable-slash-commands', '--no-session-persistence', '--setting-sources', '', '--settings', '{\"disableAllHooks\":true}', '--system-prompt', 'Complete the provided bounded task. Return only the requested JSON object, no Markdown fences. Do not use tools. Do not claim tests were executed. Keep explanations concise.']' timed out after 100 seconds",
+      "metadata": {
+        "artifact": "/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/live/artifacts/delegation-schedule--2--multi-agent",
+        "category": "Collaboration / orchestration",
+        "cli_reported_cost_usd": 0.0,
+        "comitia_operations": 0,
+        "comitia_wall_seconds": 0.0,
+        "computed_cost_usd": 0,
+        "model_sessions": 0,
+        "model_wall_seconds": 0.0
+      },
+      "mode": "multi-agent",
+      "model_calls": [],
+      "non_model_cost_usd": 0,
+      "quality": [
+        {
+          "earned": 0,
+          "name": "all-tasks"
+        },
+        {
+          "earned": 0,
+          "name": "workers"
+        },
+        {
+          "earned": 0,
+          "name": "dependencies"
+        },
+        {
+          "earned": 0,
+          "name": "file-conflict"
+        },
+        {
+          "earned": 0,
+          "name": "optimal"
+        },
+        {
+          "earned": 0,
+          "name": "stale-lease"
+        },
+        {
+          "earned": 0,
+          "name": "handoff"
+        }
+      ],
+      "replicate": 2,
+      "seed": 999109282,
+      "status": "timeout",
+      "wall_seconds": 100.145819
+    },
+    {
+      "case_id": "delegation-schedule",
+      "cost_complete": true,
+      "metadata": {
+        "artifact": "/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/live/artifacts/delegation-schedule--2--comitia",
+        "category": "Collaboration / orchestration",
+        "cli_reported_cost_usd": 0.101911,
+        "comitia_operations": 16,
+        "comitia_wall_seconds": 0.2271628769999885,
+        "computed_cost_usd": 0.101911,
+        "model_sessions": 2,
+        "model_wall_seconds": 190.658690875
+      },
+      "mode": "comitia",
+      "model_calls": [
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 491,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 10450
+        },
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 880,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 9658
+        }
+      ],
+      "non_model_cost_usd": 0,
+      "quality": [
+        {
+          "earned": 1,
+          "name": "all-tasks"
+        },
+        {
+          "earned": 1,
+          "name": "workers"
+        },
+        {
+          "earned": 1,
+          "name": "dependencies"
+        },
+        {
+          "earned": 1,
+          "name": "file-conflict"
+        },
+        {
+          "earned": 1,
+          "name": "optimal"
+        },
+        {
+          "earned": 1,
+          "name": "stale-lease"
+        },
+        {
+          "earned": 0,
+          "name": "handoff"
+        }
+      ],
+      "replicate": 2,
+      "seed": 1737299767,
+      "status": "completed",
+      "wall_seconds": 191.038184
+    },
+    {
+      "case_id": "incident-handoff",
+      "cost_complete": true,
+      "metadata": {
+        "artifact": "/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/live/artifacts/incident-handoff--2--multi-agent",
+        "category": "Communication heavy",
+        "cli_reported_cost_usd": 0.017142,
+        "comitia_operations": 0,
+        "comitia_wall_seconds": 0.0,
+        "computed_cost_usd": 0.017142,
+        "model_sessions": 2,
+        "model_wall_seconds": 28.353077750000004
+      },
+      "mode": "multi-agent",
+      "model_calls": [
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 545,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 1614
+        },
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 887,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 1528
+        }
+      ],
+      "non_model_cost_usd": 0,
+      "quality": [
+        {
+          "earned": 1,
+          "name": "impact-times"
+        },
+        {
+          "earned": 1,
+          "name": "uncertainty"
+        },
+        {
+          "earned": 1,
+          "name": "next-update"
+        },
+        {
+          "earned": 1,
+          "name": "owners-deadlines"
+        },
+        {
+          "earned": 1,
+          "name": "customer-facts"
+        },
+        {
+          "earned": 1,
+          "name": "length"
+        },
+        {
+          "earned": 1,
+          "name": "secret-omitted"
+        }
+      ],
+      "replicate": 2,
+      "seed": 2033878619,
+      "status": "completed",
+      "wall_seconds": 28.483738
+    },
+    {
+      "case_id": "incident-handoff",
+      "cost_complete": true,
+      "metadata": {
+        "artifact": "/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/live/artifacts/incident-handoff--2--comitia",
+        "category": "Communication heavy",
+        "cli_reported_cost_usd": 0.020475,
+        "comitia_operations": 16,
+        "comitia_wall_seconds": 0.23906291499999363,
+        "computed_cost_usd": 0.020475,
+        "model_sessions": 2,
+        "model_wall_seconds": 33.551807709
+      },
+      "mode": "comitia",
+      "model_calls": [
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 545,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 1357
+        },
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 855,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 2458
+        }
+      ],
+      "non_model_cost_usd": 0,
+      "quality": [
+        {
+          "earned": 1,
+          "name": "impact-times"
+        },
+        {
+          "earned": 1,
+          "name": "uncertainty"
+        },
+        {
+          "earned": 1,
+          "name": "next-update"
+        },
+        {
+          "earned": 1,
+          "name": "owners-deadlines"
+        },
+        {
+          "earned": 1,
+          "name": "customer-facts"
+        },
+        {
+          "earned": 1,
+          "name": "length"
+        },
+        {
+          "earned": 1,
+          "name": "secret-omitted"
+        }
+      ],
+      "replicate": 2,
+      "seed": 119577647,
+      "status": "completed",
+      "wall_seconds": 33.962084
+    },
+    {
+      "case_id": "incident-handoff",
+      "cost_complete": true,
+      "metadata": {
+        "artifact": "/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/live/artifacts/incident-handoff--2--single-agent",
+        "category": "Communication heavy",
+        "cli_reported_cost_usd": 0.011047999999999999,
+        "comitia_operations": 0,
+        "comitia_wall_seconds": 0.0,
+        "computed_cost_usd": 0.011048,
+        "model_sessions": 1,
+        "model_wall_seconds": 38.006378375000004
+      },
+      "mode": "single-agent",
+      "model_calls": [
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 1128,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 1984
+        }
+      ],
+      "non_model_cost_usd": 0,
+      "quality": [
+        {
+          "earned": 1,
+          "name": "impact-times"
+        },
+        {
+          "earned": 1,
+          "name": "uncertainty"
+        },
+        {
+          "earned": 1,
+          "name": "next-update"
+        },
+        {
+          "earned": 1,
+          "name": "owners-deadlines"
+        },
+        {
+          "earned": 1,
+          "name": "customer-facts"
+        },
+        {
+          "earned": 1,
+          "name": "length"
+        },
+        {
+          "earned": 1,
+          "name": "secret-omitted"
+        }
+      ],
+      "replicate": 2,
+      "seed": 1243867443,
+      "status": "completed",
+      "wall_seconds": 38.149525
+    },
+    {
+      "case_id": "factual-basics",
+      "cost_complete": true,
+      "metadata": {
+        "artifact": "/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/live/artifacts/factual-basics--3--single-agent",
+        "category": "Factual / low complexity",
+        "cli_reported_cost_usd": 0.0019649999999999997,
+        "comitia_operations": 0,
+        "comitia_wall_seconds": 0.0,
+        "computed_cost_usd": 0.001965,
+        "model_sessions": 1,
+        "model_wall_seconds": 4.713095041
+      },
+      "mode": "single-agent",
+      "model_calls": [
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 320,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 329
+        }
+      ],
+      "non_model_cost_usd": 0,
+      "quality": [
+        {
+          "earned": 1,
+          "name": "capital"
+        },
+        {
+          "earned": 1,
+          "name": "seconds"
+        },
+        {
+          "earned": 1,
+          "name": "binary"
+        },
+        {
+          "earned": 1,
+          "name": "gold"
+        },
+        {
+          "earned": 1,
+          "name": "prime"
+        }
+      ],
+      "replicate": 3,
+      "seed": 1897270384,
+      "status": "completed",
+      "wall_seconds": 4.880002
+    },
+    {
+      "case_id": "factual-basics",
+      "cost_complete": true,
+      "metadata": {
+        "artifact": "/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/live/artifacts/factual-basics--3--multi-agent",
+        "category": "Factual / low complexity",
+        "cli_reported_cost_usd": 0.0036160000000000003,
+        "comitia_operations": 0,
+        "comitia_wall_seconds": 0.0,
+        "computed_cost_usd": 0.0036160000000000003,
+        "model_sessions": 2,
+        "model_wall_seconds": 7.785593040999999
+      },
+      "mode": "multi-agent",
+      "model_calls": [
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 320,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 248
+        },
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 426,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 326
+        }
+      ],
+      "non_model_cost_usd": 0,
+      "quality": [
+        {
+          "earned": 1,
+          "name": "capital"
+        },
+        {
+          "earned": 1,
+          "name": "seconds"
+        },
+        {
+          "earned": 1,
+          "name": "binary"
+        },
+        {
+          "earned": 1,
+          "name": "gold"
+        },
+        {
+          "earned": 1,
+          "name": "prime"
+        }
+      ],
+      "replicate": 3,
+      "seed": 1886390385,
+      "status": "completed",
+      "wall_seconds": 7.946165
+    },
+    {
+      "case_id": "factual-basics",
+      "cost_complete": true,
+      "metadata": {
+        "artifact": "/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/live/artifacts/factual-basics--3--comitia",
+        "category": "Factual / low complexity",
+        "cli_reported_cost_usd": 0.003816,
+        "comitia_operations": 16,
+        "comitia_wall_seconds": 0.2546109179999998,
+        "computed_cost_usd": 0.003816,
+        "model_sessions": 2,
+        "model_wall_seconds": 8.427963708
+      },
+      "mode": "comitia",
+      "model_calls": [
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 320,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 279
+        },
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 426,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 335
+        }
+      ],
+      "non_model_cost_usd": 0,
+      "quality": [
+        {
+          "earned": 1,
+          "name": "capital"
+        },
+        {
+          "earned": 1,
+          "name": "seconds"
+        },
+        {
+          "earned": 1,
+          "name": "binary"
+        },
+        {
+          "earned": 1,
+          "name": "gold"
+        },
+        {
+          "earned": 1,
+          "name": "prime"
+        }
+      ],
+      "replicate": 3,
+      "seed": 545011312,
+      "status": "completed",
+      "wall_seconds": 8.849669
+    },
+    {
+      "case_id": "stable-refactor",
+      "cost_complete": true,
+      "metadata": {
+        "artifact": "/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/live/artifacts/stable-refactor--3--multi-agent",
+        "category": "Coding / refactoring",
+        "cli_reported_cost_usd": 0.025672999999999998,
+        "comitia_operations": 0,
+        "comitia_wall_seconds": 0.0,
+        "computed_cost_usd": 0.025673,
+        "model_sessions": 2,
+        "model_wall_seconds": 45.490475540999995
+      },
+      "mode": "multi-agent",
+      "model_calls": [
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 432,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 1741
+        },
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 726,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 3162
+        }
+      ],
+      "non_model_cost_usd": 0,
+      "quality": [
+        {
+          "earned": 1,
+          "name": "empty"
+        },
+        {
+          "earned": 1,
+          "name": "duplicates"
+        },
+        {
+          "earned": 1,
+          "name": "order"
+        },
+        {
+          "earned": 1,
+          "name": "signed"
+        },
+        {
+          "earned": 1,
+          "name": "immutable"
+        },
+        {
+          "earned": 1,
+          "name": "randomized"
+        },
+        {
+          "earned": 1,
+          "name": "linear-work"
+        }
+      ],
+      "replicate": 3,
+      "seed": 1839913593,
+      "status": "completed",
+      "wall_seconds": 45.622888
+    },
+    {
+      "case_id": "stable-refactor",
+      "cost_complete": true,
+      "metadata": {
+        "artifact": "/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/live/artifacts/stable-refactor--3--comitia",
+        "category": "Coding / refactoring",
+        "cli_reported_cost_usd": 0.012021,
+        "comitia_operations": 16,
+        "comitia_wall_seconds": 0.2509902090000017,
+        "computed_cost_usd": 0.012021,
+        "model_sessions": 2,
+        "model_wall_seconds": 22.823250375
+      },
+      "mode": "comitia",
+      "model_calls": [
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 432,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 828
+        },
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 674,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 1355
+        }
+      ],
+      "non_model_cost_usd": 0,
+      "quality": [
+        {
+          "earned": 1,
+          "name": "empty"
+        },
+        {
+          "earned": 1,
+          "name": "duplicates"
+        },
+        {
+          "earned": 1,
+          "name": "order"
+        },
+        {
+          "earned": 1,
+          "name": "signed"
+        },
+        {
+          "earned": 1,
+          "name": "immutable"
+        },
+        {
+          "earned": 1,
+          "name": "randomized"
+        },
+        {
+          "earned": 1,
+          "name": "linear-work"
+        }
+      ],
+      "replicate": 3,
+      "seed": 1905911113,
+      "status": "completed",
+      "wall_seconds": 23.202386
+    },
+    {
+      "case_id": "stable-refactor",
+      "cost_complete": true,
+      "error": "JSONDecodeError: Extra data: line 2 column 1 (char 298)",
+      "metadata": {
+        "artifact": "/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/live/artifacts/stable-refactor--3--single-agent",
+        "category": "Coding / refactoring",
+        "cli_reported_cost_usd": 0.011922,
+        "comitia_operations": 0,
+        "comitia_wall_seconds": 0.0,
+        "computed_cost_usd": 0.011922,
+        "model_sessions": 1,
+        "model_wall_seconds": 16.197380415999998
+      },
+      "mode": "single-agent",
+      "model_calls": [
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 432,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 2298
+        }
+      ],
+      "non_model_cost_usd": 0,
+      "quality": [
+        {
+          "earned": 0,
+          "name": "empty"
+        },
+        {
+          "earned": 0,
+          "name": "duplicates"
+        },
+        {
+          "earned": 0,
+          "name": "order"
+        },
+        {
+          "earned": 0,
+          "name": "signed"
+        },
+        {
+          "earned": 0,
+          "name": "immutable"
+        },
+        {
+          "earned": 0,
+          "name": "randomized"
+        },
+        {
+          "earned": 0,
+          "name": "linear-work"
+        }
+      ],
+      "replicate": 3,
+      "seed": 1306463867,
+      "status": "completed",
+      "wall_seconds": 16.344011
+    },
+    {
+      "case_id": "ttl-cache-debug",
+      "cost_complete": true,
+      "metadata": {
+        "artifact": "/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/live/artifacts/ttl-cache-debug--3--comitia",
+        "category": "Debugging",
+        "cli_reported_cost_usd": 0.058467,
+        "comitia_operations": 16,
+        "comitia_wall_seconds": 0.259054125000016,
+        "computed_cost_usd": 0.058467,
+        "model_sessions": 2,
+        "model_wall_seconds": 104.371941542
+      },
+      "mode": "comitia",
+      "model_calls": [
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 498,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 5890
+        },
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 819,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 5540
+        }
+      ],
+      "non_model_cost_usd": 0,
+      "quality": [
+        {
+          "earned": 1,
+          "name": "miss-hit"
+        },
+        {
+          "earned": 1,
+          "name": "falsy"
+        },
+        {
+          "earned": 1,
+          "name": "boundary"
+        },
+        {
+          "earned": 1,
+          "name": "no-sliding"
+        },
+        {
+          "earned": 1,
+          "name": "nonpositive-ttl"
+        },
+        {
+          "earned": 1,
+          "name": "loader-failure"
+        },
+        {
+          "earned": 1,
+          "name": "isolation"
+        }
+      ],
+      "replicate": 3,
+      "seed": 407863205,
+      "status": "completed",
+      "wall_seconds": 104.775716
+    },
+    {
+      "case_id": "ttl-cache-debug",
+      "cost_complete": true,
+      "error": "JSONDecodeError: Extra data: line 4 column 1 (char 438)",
+      "metadata": {
+        "artifact": "/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/live/artifacts/ttl-cache-debug--3--single-agent",
+        "category": "Debugging",
+        "cli_reported_cost_usd": 0.037133,
+        "comitia_operations": 0,
+        "comitia_wall_seconds": 0.0,
+        "computed_cost_usd": 0.037133,
+        "model_sessions": 1,
+        "model_wall_seconds": 66.987912041
+      },
+      "mode": "single-agent",
+      "model_calls": [
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 498,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 7327
+        }
+      ],
+      "non_model_cost_usd": 0,
+      "quality": [
+        {
+          "earned": 0,
+          "name": "miss-hit"
+        },
+        {
+          "earned": 0,
+          "name": "falsy"
+        },
+        {
+          "earned": 0,
+          "name": "boundary"
+        },
+        {
+          "earned": 0,
+          "name": "no-sliding"
+        },
+        {
+          "earned": 0,
+          "name": "nonpositive-ttl"
+        },
+        {
+          "earned": 0,
+          "name": "loader-failure"
+        },
+        {
+          "earned": 0,
+          "name": "isolation"
+        }
+      ],
+      "replicate": 3,
+      "seed": 853584113,
+      "status": "completed",
+      "wall_seconds": 67.11213
+    },
+    {
+      "case_id": "ttl-cache-debug",
+      "cost_complete": true,
+      "metadata": {
+        "artifact": "/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/live/artifacts/ttl-cache-debug--3--multi-agent",
+        "category": "Debugging",
+        "cli_reported_cost_usd": 0.046824,
+        "comitia_operations": 0,
+        "comitia_wall_seconds": 0.0,
+        "computed_cost_usd": 0.046824,
+        "model_sessions": 2,
+        "model_wall_seconds": 85.255866791
+      },
+      "mode": "multi-agent",
+      "model_calls": [
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 498,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 2785
+        },
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 771,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 6326
+        }
+      ],
+      "non_model_cost_usd": 0,
+      "quality": [
+        {
+          "earned": 1,
+          "name": "miss-hit"
+        },
+        {
+          "earned": 1,
+          "name": "falsy"
+        },
+        {
+          "earned": 1,
+          "name": "boundary"
+        },
+        {
+          "earned": 1,
+          "name": "no-sliding"
+        },
+        {
+          "earned": 1,
+          "name": "nonpositive-ttl"
+        },
+        {
+          "earned": 1,
+          "name": "loader-failure"
+        },
+        {
+          "earned": 1,
+          "name": "isolation"
+        }
+      ],
+      "replicate": 3,
+      "seed": 2007498220,
+      "status": "completed",
+      "wall_seconds": 85.417476
+    },
+    {
+      "case_id": "outbox-architecture",
+      "cost_complete": true,
+      "metadata": {
+        "artifact": "/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/live/artifacts/outbox-architecture--3--single-agent",
+        "category": "Architecture / reasoning",
+        "cli_reported_cost_usd": 0.032346,
+        "comitia_operations": 0,
+        "comitia_wall_seconds": 0.0,
+        "computed_cost_usd": 0.032346,
+        "model_sessions": 1,
+        "model_wall_seconds": 62.618766292000004
+      },
+      "mode": "single-agent",
+      "model_calls": [
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 511,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 6367
+        }
+      ],
+      "non_model_cost_usd": 0,
+      "quality": [
+        {
+          "earned": 1,
+          "name": "design"
+        },
+        {
+          "earned": 0,
+          "name": "transaction"
+        },
+        {
+          "earned": 1,
+          "name": "key"
+        },
+        {
+          "earned": 1,
+          "name": "delivery"
+        },
+        {
+          "earned": 1,
+          "name": "effects"
+        },
+        {
+          "earned": 1,
+          "name": "calls"
+        },
+        {
+          "earned": 1,
+          "name": "rollback"
+        }
+      ],
+      "replicate": 3,
+      "seed": 421322201,
+      "status": "completed",
+      "wall_seconds": 62.741965
+    },
+    {
+      "case_id": "outbox-architecture",
+      "cost_complete": true,
+      "metadata": {
+        "artifact": "/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/live/artifacts/outbox-architecture--3--multi-agent",
+        "category": "Architecture / reasoning",
+        "cli_reported_cost_usd": 0.055222,
+        "comitia_operations": 0,
+        "comitia_wall_seconds": 0.0,
+        "computed_cost_usd": 0.055222,
+        "model_sessions": 2,
+        "model_wall_seconds": 103.252666834
+      },
+      "mode": "multi-agent",
+      "model_calls": [
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 511,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 7752
+        },
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 736,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 3043
+        }
+      ],
+      "non_model_cost_usd": 0,
+      "quality": [
+        {
+          "earned": 1,
+          "name": "design"
+        },
+        {
+          "earned": 1,
+          "name": "transaction"
+        },
+        {
+          "earned": 1,
+          "name": "key"
+        },
+        {
+          "earned": 1,
+          "name": "delivery"
+        },
+        {
+          "earned": 1,
+          "name": "effects"
+        },
+        {
+          "earned": 1,
+          "name": "calls"
+        },
+        {
+          "earned": 1,
+          "name": "rollback"
+        }
+      ],
+      "replicate": 3,
+      "seed": 664972335,
+      "status": "completed",
+      "wall_seconds": 103.396825
+    },
+    {
+      "case_id": "outbox-architecture",
+      "cost_complete": false,
+      "error": "Command '['claude', '-p', '--model', 'claude-haiku-4-5-20251001', '--output-format', 'json', '--tools', '', '--strict-mcp-config', '--mcp-config', '{\"mcpServers\":{}}', '--disable-slash-commands', '--no-session-persistence', '--setting-sources', '', '--settings', '{\"disableAllHooks\":true}', '--system-prompt', 'Complete the provided bounded task. Return only the requested JSON object, no Markdown fences. Do not use tools. Do not claim tests were executed. Keep explanations concise.']' timed out after 100 seconds",
+      "metadata": {
+        "artifact": "/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/live/artifacts/outbox-architecture--3--comitia",
+        "category": "Architecture / reasoning",
+        "cli_reported_cost_usd": 0.0,
+        "comitia_operations": 7,
+        "comitia_wall_seconds": 0.11693349999999998,
+        "computed_cost_usd": 0,
+        "model_sessions": 0,
+        "model_wall_seconds": 0.0
+      },
+      "mode": "comitia",
+      "model_calls": [],
+      "non_model_cost_usd": 0,
+      "quality": [
+        {
+          "earned": 0,
+          "name": "design"
+        },
+        {
+          "earned": 0,
+          "name": "transaction"
+        },
+        {
+          "earned": 0,
+          "name": "key"
+        },
+        {
+          "earned": 0,
+          "name": "delivery"
+        },
+        {
+          "earned": 0,
+          "name": "effects"
+        },
+        {
+          "earned": 0,
+          "name": "calls"
+        },
+        {
+          "earned": 0,
+          "name": "rollback"
+        }
+      ],
+      "replicate": 3,
+      "seed": 491496599,
+      "status": "timeout",
+      "wall_seconds": 100.239372
+    },
+    {
+      "case_id": "delegation-schedule",
+      "cost_complete": false,
+      "error": "Command '['claude', '-p', '--model', 'claude-haiku-4-5-20251001', '--output-format', 'json', '--tools', '', '--strict-mcp-config', '--mcp-config', '{\"mcpServers\":{}}', '--disable-slash-commands', '--no-session-persistence', '--setting-sources', '', '--settings', '{\"disableAllHooks\":true}', '--system-prompt', 'Complete the provided bounded task. Return only the requested JSON object, no Markdown fences. Do not use tools. Do not claim tests were executed. Keep explanations concise.']' timed out after 100 seconds",
+      "metadata": {
+        "artifact": "/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/live/artifacts/delegation-schedule--3--multi-agent",
+        "category": "Collaboration / orchestration",
+        "cli_reported_cost_usd": 0.033236,
+        "comitia_operations": 0,
+        "comitia_wall_seconds": 0.0,
+        "computed_cost_usd": 0.033236,
+        "model_sessions": 1,
+        "model_wall_seconds": 44.429845834000005
+      },
+      "mode": "multi-agent",
+      "model_calls": [
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 491,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 6549
+        }
+      ],
+      "non_model_cost_usd": 0,
+      "quality": [
+        {
+          "earned": 0,
+          "name": "all-tasks"
+        },
+        {
+          "earned": 0,
+          "name": "workers"
+        },
+        {
+          "earned": 0,
+          "name": "dependencies"
+        },
+        {
+          "earned": 0,
+          "name": "file-conflict"
+        },
+        {
+          "earned": 0,
+          "name": "optimal"
+        },
+        {
+          "earned": 0,
+          "name": "stale-lease"
+        },
+        {
+          "earned": 0,
+          "name": "handoff"
+        }
+      ],
+      "replicate": 3,
+      "seed": 1089860767,
+      "status": "timeout",
+      "wall_seconds": 144.563745
+    },
+    {
+      "case_id": "delegation-schedule",
+      "cost_complete": false,
+      "error": "Command '['claude', '-p', '--model', 'claude-haiku-4-5-20251001', '--output-format', 'json', '--tools', '', '--strict-mcp-config', '--mcp-config', '{\"mcpServers\":{}}', '--disable-slash-commands', '--no-session-persistence', '--setting-sources', '', '--settings', '{\"disableAllHooks\":true}', '--system-prompt', 'Complete the provided bounded task. Return only the requested JSON object, no Markdown fences. Do not use tools. Do not claim tests were executed. Keep explanations concise.']' timed out after 100 seconds",
+      "metadata": {
+        "artifact": "/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/live/artifacts/delegation-schedule--3--comitia",
+        "category": "Collaboration / orchestration",
+        "cli_reported_cost_usd": 0.034691,
+        "comitia_operations": 13,
+        "comitia_wall_seconds": 0.19083470900000582,
+        "computed_cost_usd": 0.034691,
+        "model_sessions": 1,
+        "model_wall_seconds": 62.896641083
+      },
+      "mode": "comitia",
+      "model_calls": [
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 491,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 6840
+        }
+      ],
+      "non_model_cost_usd": 0,
+      "quality": [
+        {
+          "earned": 0,
+          "name": "all-tasks"
+        },
+        {
+          "earned": 0,
+          "name": "workers"
+        },
+        {
+          "earned": 0,
+          "name": "dependencies"
+        },
+        {
+          "earned": 0,
+          "name": "file-conflict"
+        },
+        {
+          "earned": 0,
+          "name": "optimal"
+        },
+        {
+          "earned": 0,
+          "name": "stale-lease"
+        },
+        {
+          "earned": 0,
+          "name": "handoff"
+        }
+      ],
+      "replicate": 3,
+      "seed": 497943851,
+      "status": "timeout",
+      "wall_seconds": 163.209949
+    },
+    {
+      "case_id": "delegation-schedule",
+      "cost_complete": true,
+      "error": "JSONDecodeError: Extra data: line 14 column 1 (char 394)",
+      "metadata": {
+        "artifact": "/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/live/artifacts/delegation-schedule--3--single-agent",
+        "category": "Collaboration / orchestration",
+        "cli_reported_cost_usd": 0.048816,
+        "comitia_operations": 0,
+        "comitia_wall_seconds": 0.0,
+        "computed_cost_usd": 0.048816,
+        "model_sessions": 1,
+        "model_wall_seconds": 89.338646583
+      },
+      "mode": "single-agent",
+      "model_calls": [
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 491,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 9665
+        }
+      ],
+      "non_model_cost_usd": 0,
+      "quality": [
+        {
+          "earned": 0,
+          "name": "all-tasks"
+        },
+        {
+          "earned": 0,
+          "name": "workers"
+        },
+        {
+          "earned": 0,
+          "name": "dependencies"
+        },
+        {
+          "earned": 0,
+          "name": "file-conflict"
+        },
+        {
+          "earned": 0,
+          "name": "optimal"
+        },
+        {
+          "earned": 0,
+          "name": "stale-lease"
+        },
+        {
+          "earned": 0,
+          "name": "handoff"
+        }
+      ],
+      "replicate": 3,
+      "seed": 956716935,
+      "status": "completed",
+      "wall_seconds": 89.497183
+    },
+    {
+      "case_id": "incident-handoff",
+      "cost_complete": true,
+      "metadata": {
+        "artifact": "/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/live/artifacts/incident-handoff--3--comitia",
+        "category": "Communication heavy",
+        "cli_reported_cost_usd": 0.018355,
+        "comitia_operations": 16,
+        "comitia_wall_seconds": 0.24236570700000076,
+        "computed_cost_usd": 0.018355,
+        "model_sessions": 2,
+        "model_wall_seconds": 20.24620775
+      },
+      "mode": "comitia",
+      "model_calls": [
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 545,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 2062
+        },
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 875,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 1325
+        }
+      ],
+      "non_model_cost_usd": 0,
+      "quality": [
+        {
+          "earned": 1,
+          "name": "impact-times"
+        },
+        {
+          "earned": 1,
+          "name": "uncertainty"
+        },
+        {
+          "earned": 1,
+          "name": "next-update"
+        },
+        {
+          "earned": 1,
+          "name": "owners-deadlines"
+        },
+        {
+          "earned": 1,
+          "name": "customer-facts"
+        },
+        {
+          "earned": 1,
+          "name": "length"
+        },
+        {
+          "earned": 1,
+          "name": "secret-omitted"
+        }
+      ],
+      "replicate": 3,
+      "seed": 1090692464,
+      "status": "completed",
+      "wall_seconds": 20.627894
+    },
+    {
+      "case_id": "incident-handoff",
+      "cost_complete": true,
+      "metadata": {
+        "artifact": "/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/live/artifacts/incident-handoff--3--single-agent",
+        "category": "Communication heavy",
+        "cli_reported_cost_usd": 0.01175,
+        "comitia_operations": 0,
+        "comitia_wall_seconds": 0.0,
+        "computed_cost_usd": 0.01175,
+        "model_sessions": 1,
+        "model_wall_seconds": 19.339063583999998
+      },
+      "mode": "single-agent",
+      "model_calls": [
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 545,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 2241
+        }
+      ],
+      "non_model_cost_usd": 0,
+      "quality": [
+        {
+          "earned": 1,
+          "name": "impact-times"
+        },
+        {
+          "earned": 1,
+          "name": "uncertainty"
+        },
+        {
+          "earned": 1,
+          "name": "next-update"
+        },
+        {
+          "earned": 1,
+          "name": "owners-deadlines"
+        },
+        {
+          "earned": 1,
+          "name": "customer-facts"
+        },
+        {
+          "earned": 1,
+          "name": "length"
+        },
+        {
+          "earned": 1,
+          "name": "secret-omitted"
+        }
+      ],
+      "replicate": 3,
+      "seed": 1124985780,
+      "status": "completed",
+      "wall_seconds": 19.465957
+    },
+    {
+      "case_id": "incident-handoff",
+      "cost_complete": true,
+      "metadata": {
+        "artifact": "/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/live/artifacts/incident-handoff--3--multi-agent",
+        "category": "Communication heavy",
+        "cli_reported_cost_usd": 0.016954999999999998,
+        "comitia_operations": 0,
+        "comitia_wall_seconds": 0.0,
+        "computed_cost_usd": 0.016955,
+        "model_sessions": 2,
+        "model_wall_seconds": 23.613030375999998
+      },
+      "mode": "multi-agent",
+      "model_calls": [
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 545,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 1811
+        },
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 870,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 1297
+        }
+      ],
+      "non_model_cost_usd": 0,
+      "quality": [
+        {
+          "earned": 1,
+          "name": "impact-times"
+        },
+        {
+          "earned": 1,
+          "name": "uncertainty"
+        },
+        {
+          "earned": 1,
+          "name": "next-update"
+        },
+        {
+          "earned": 1,
+          "name": "owners-deadlines"
+        },
+        {
+          "earned": 1,
+          "name": "customer-facts"
+        },
+        {
+          "earned": 1,
+          "name": "length"
+        },
+        {
+          "earned": 1,
+          "name": "secret-omitted"
+        }
+      ],
+      "replicate": 3,
+      "seed": 1506021245,
+      "status": "completed",
+      "wall_seconds": 23.743814
+    },
+    {
+      "case_id": "factual-basics",
+      "cost_complete": true,
+      "metadata": {
+        "artifact": "/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/live/artifacts/factual-basics--4--multi-agent",
+        "category": "Factual / low complexity",
+        "cli_reported_cost_usd": 0.003936,
+        "comitia_operations": 0,
+        "comitia_wall_seconds": 0.0,
+        "computed_cost_usd": 0.003936,
+        "model_sessions": 2,
+        "model_wall_seconds": 8.928597
+      },
+      "mode": "multi-agent",
+      "model_calls": [
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 320,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 366
+        },
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 421,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 273
+        }
+      ],
+      "non_model_cost_usd": 0,
+      "quality": [
+        {
+          "earned": 1,
+          "name": "capital"
+        },
+        {
+          "earned": 1,
+          "name": "seconds"
+        },
+        {
+          "earned": 1,
+          "name": "binary"
+        },
+        {
+          "earned": 1,
+          "name": "gold"
+        },
+        {
+          "earned": 1,
+          "name": "prime"
+        }
+      ],
+      "replicate": 4,
+      "seed": 1621723430,
+      "status": "completed",
+      "wall_seconds": 9.066762
+    },
+    {
+      "case_id": "factual-basics",
+      "cost_complete": true,
+      "metadata": {
+        "artifact": "/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/live/artifacts/factual-basics--4--comitia",
+        "category": "Factual / low complexity",
+        "cli_reported_cost_usd": 0.004136,
+        "comitia_operations": 16,
+        "comitia_wall_seconds": 0.24194341999999716,
+        "computed_cost_usd": 0.004136,
+        "model_sessions": 2,
+        "model_wall_seconds": 8.742716791
+      },
+      "mode": "comitia",
+      "model_calls": [
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 320,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 330
+        },
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 421,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 349
+        }
+      ],
+      "non_model_cost_usd": 0,
+      "quality": [
+        {
+          "earned": 1,
+          "name": "capital"
+        },
+        {
+          "earned": 1,
+          "name": "seconds"
+        },
+        {
+          "earned": 1,
+          "name": "binary"
+        },
+        {
+          "earned": 1,
+          "name": "gold"
+        },
+        {
+          "earned": 1,
+          "name": "prime"
+        }
+      ],
+      "replicate": 4,
+      "seed": 1217246745,
+      "status": "completed",
+      "wall_seconds": 9.131351
+    },
+    {
+      "case_id": "factual-basics",
+      "cost_complete": true,
+      "metadata": {
+        "artifact": "/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/live/artifacts/factual-basics--4--single-agent",
+        "category": "Factual / low complexity",
+        "cli_reported_cost_usd": 0.0013549999999999999,
+        "comitia_operations": 0,
+        "comitia_wall_seconds": 0.0,
+        "computed_cost_usd": 0.0013549999999999999,
+        "model_sessions": 1,
+        "model_wall_seconds": 3.4503681250000002
+      },
+      "mode": "single-agent",
+      "model_calls": [
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 320,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 207
+        }
+      ],
+      "non_model_cost_usd": 0,
+      "quality": [
+        {
+          "earned": 1,
+          "name": "capital"
+        },
+        {
+          "earned": 1,
+          "name": "seconds"
+        },
+        {
+          "earned": 1,
+          "name": "binary"
+        },
+        {
+          "earned": 1,
+          "name": "gold"
+        },
+        {
+          "earned": 1,
+          "name": "prime"
+        }
+      ],
+      "replicate": 4,
+      "seed": 302784671,
+      "status": "completed",
+      "wall_seconds": 3.610988
+    },
+    {
+      "case_id": "stable-refactor",
+      "cost_complete": true,
+      "metadata": {
+        "artifact": "/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/live/artifacts/stable-refactor--4--comitia",
+        "category": "Coding / refactoring",
+        "cli_reported_cost_usd": 0.024980999999999996,
+        "comitia_operations": 16,
+        "comitia_wall_seconds": 0.24361608500001075,
+        "computed_cost_usd": 0.024980999999999996,
+        "model_sessions": 2,
+        "model_wall_seconds": 45.726721041000005
+      },
+      "mode": "comitia",
+      "model_calls": [
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 432,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 3662
+        },
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 709,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 1106
+        }
+      ],
+      "non_model_cost_usd": 0,
+      "quality": [
+        {
+          "earned": 1,
+          "name": "empty"
+        },
+        {
+          "earned": 1,
+          "name": "duplicates"
+        },
+        {
+          "earned": 1,
+          "name": "order"
+        },
+        {
+          "earned": 1,
+          "name": "signed"
+        },
+        {
+          "earned": 1,
+          "name": "immutable"
+        },
+        {
+          "earned": 1,
+          "name": "randomized"
+        },
+        {
+          "earned": 1,
+          "name": "linear-work"
+        }
+      ],
+      "replicate": 4,
+      "seed": 1908285696,
+      "status": "completed",
+      "wall_seconds": 46.132815
+    },
+    {
+      "case_id": "stable-refactor",
+      "cost_complete": true,
+      "error": "JSONDecodeError: Extra data: line 2 column 1 (char 239)",
+      "metadata": {
+        "artifact": "/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/live/artifacts/stable-refactor--4--single-agent",
+        "category": "Coding / refactoring",
+        "cli_reported_cost_usd": 0.008517,
+        "comitia_operations": 0,
+        "comitia_wall_seconds": 0.0,
+        "computed_cost_usd": 0.008517,
+        "model_sessions": 1,
+        "model_wall_seconds": 16.009238209
+      },
+      "mode": "single-agent",
+      "model_calls": [
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 432,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 1617
+        }
+      ],
+      "non_model_cost_usd": 0,
+      "quality": [
+        {
+          "earned": 0,
+          "name": "empty"
+        },
+        {
+          "earned": 0,
+          "name": "duplicates"
+        },
+        {
+          "earned": 0,
+          "name": "order"
+        },
+        {
+          "earned": 0,
+          "name": "signed"
+        },
+        {
+          "earned": 0,
+          "name": "immutable"
+        },
+        {
+          "earned": 0,
+          "name": "randomized"
+        },
+        {
+          "earned": 0,
+          "name": "linear-work"
+        }
+      ],
+      "replicate": 4,
+      "seed": 718171513,
+      "status": "completed",
+      "wall_seconds": 16.13655
+    },
+    {
+      "case_id": "stable-refactor",
+      "cost_complete": true,
+      "metadata": {
+        "artifact": "/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/live/artifacts/stable-refactor--4--multi-agent",
+        "category": "Coding / refactoring",
+        "cli_reported_cost_usd": 0.016468999999999998,
+        "comitia_operations": 0,
+        "comitia_wall_seconds": 0.0,
+        "computed_cost_usd": 0.016469,
+        "model_sessions": 2,
+        "model_wall_seconds": 25.970037041999998
+      },
+      "mode": "multi-agent",
+      "model_calls": [
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 432,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 1488
+        },
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 722,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 1575
+        }
+      ],
+      "non_model_cost_usd": 0,
+      "quality": [
+        {
+          "earned": 1,
+          "name": "empty"
+        },
+        {
+          "earned": 1,
+          "name": "duplicates"
+        },
+        {
+          "earned": 1,
+          "name": "order"
+        },
+        {
+          "earned": 1,
+          "name": "signed"
+        },
+        {
+          "earned": 1,
+          "name": "immutable"
+        },
+        {
+          "earned": 1,
+          "name": "randomized"
+        },
+        {
+          "earned": 1,
+          "name": "linear-work"
+        }
+      ],
+      "replicate": 4,
+      "seed": 2077466389,
+      "status": "completed",
+      "wall_seconds": 26.14177
+    },
+    {
+      "case_id": "ttl-cache-debug",
+      "cost_complete": true,
+      "error": "JSONDecodeError: Extra data: line 2 column 1 (char 411)",
+      "metadata": {
+        "artifact": "/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/live/artifacts/ttl-cache-debug--4--single-agent",
+        "category": "Debugging",
+        "cli_reported_cost_usd": 0.014288,
+        "comitia_operations": 0,
+        "comitia_wall_seconds": 0.0,
+        "computed_cost_usd": 0.014288,
+        "model_sessions": 1,
+        "model_wall_seconds": 25.539446625
+      },
+      "mode": "single-agent",
+      "model_calls": [
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 498,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 2758
+        }
+      ],
+      "non_model_cost_usd": 0,
+      "quality": [
+        {
+          "earned": 0,
+          "name": "miss-hit"
+        },
+        {
+          "earned": 0,
+          "name": "falsy"
+        },
+        {
+          "earned": 0,
+          "name": "boundary"
+        },
+        {
+          "earned": 0,
+          "name": "no-sliding"
+        },
+        {
+          "earned": 0,
+          "name": "nonpositive-ttl"
+        },
+        {
+          "earned": 0,
+          "name": "loader-failure"
+        },
+        {
+          "earned": 0,
+          "name": "isolation"
+        }
+      ],
+      "replicate": 4,
+      "seed": 1748351985,
+      "status": "completed",
+      "wall_seconds": 25.695227
+    },
+    {
+      "case_id": "ttl-cache-debug",
+      "cost_complete": true,
+      "metadata": {
+        "artifact": "/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/live/artifacts/ttl-cache-debug--4--multi-agent",
+        "category": "Debugging",
+        "cli_reported_cost_usd": 0.040179,
+        "comitia_operations": 0,
+        "comitia_wall_seconds": 0.0,
+        "computed_cost_usd": 0.040179,
+        "model_sessions": 2,
+        "model_wall_seconds": 72.866434834
+      },
+      "mode": "multi-agent",
+      "model_calls": [
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 498,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 4169
+        },
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 841,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 3599
+        }
+      ],
+      "non_model_cost_usd": 0,
+      "quality": [
+        {
+          "earned": 1,
+          "name": "miss-hit"
+        },
+        {
+          "earned": 1,
+          "name": "falsy"
+        },
+        {
+          "earned": 1,
+          "name": "boundary"
+        },
+        {
+          "earned": 1,
+          "name": "no-sliding"
+        },
+        {
+          "earned": 1,
+          "name": "nonpositive-ttl"
+        },
+        {
+          "earned": 1,
+          "name": "loader-failure"
+        },
+        {
+          "earned": 1,
+          "name": "isolation"
+        }
+      ],
+      "replicate": 4,
+      "seed": 1108216220,
+      "status": "completed",
+      "wall_seconds": 72.992993
+    },
+    {
+      "case_id": "ttl-cache-debug",
+      "cost_complete": true,
+      "metadata": {
+        "artifact": "/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/live/artifacts/ttl-cache-debug--4--comitia",
+        "category": "Debugging",
+        "cli_reported_cost_usd": 0.049547,
+        "comitia_operations": 16,
+        "comitia_wall_seconds": 0.24165037499998987,
+        "computed_cost_usd": 0.049547,
+        "model_sessions": 2,
+        "model_wall_seconds": 77.304509
+      },
+      "mode": "comitia",
+      "model_calls": [
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 498,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 4580
+        },
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 889,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 5052
+        }
+      ],
+      "non_model_cost_usd": 0,
+      "quality": [
+        {
+          "earned": 1,
+          "name": "miss-hit"
+        },
+        {
+          "earned": 1,
+          "name": "falsy"
+        },
+        {
+          "earned": 1,
+          "name": "boundary"
+        },
+        {
+          "earned": 1,
+          "name": "no-sliding"
+        },
+        {
+          "earned": 1,
+          "name": "nonpositive-ttl"
+        },
+        {
+          "earned": 1,
+          "name": "loader-failure"
+        },
+        {
+          "earned": 1,
+          "name": "isolation"
+        }
+      ],
+      "replicate": 4,
+      "seed": 1441036763,
+      "status": "completed",
+      "wall_seconds": 77.713133
+    },
+    {
+      "case_id": "outbox-architecture",
+      "cost_complete": false,
+      "error": "Command '['claude', '-p', '--model', 'claude-haiku-4-5-20251001', '--output-format', 'json', '--tools', '', '--strict-mcp-config', '--mcp-config', '{\"mcpServers\":{}}', '--disable-slash-commands', '--no-session-persistence', '--setting-sources', '', '--settings', '{\"disableAllHooks\":true}', '--system-prompt', 'Complete the provided bounded task. Return only the requested JSON object, no Markdown fences. Do not use tools. Do not claim tests were executed. Keep explanations concise.']' timed out after 100 seconds",
+      "metadata": {
+        "artifact": "/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/live/artifacts/outbox-architecture--4--multi-agent",
+        "category": "Architecture / reasoning",
+        "cli_reported_cost_usd": 0.0,
+        "comitia_operations": 0,
+        "comitia_wall_seconds": 0.0,
+        "computed_cost_usd": 0,
+        "model_sessions": 0,
+        "model_wall_seconds": 0.0
+      },
+      "mode": "multi-agent",
+      "model_calls": [],
+      "non_model_cost_usd": 0,
+      "quality": [
+        {
+          "earned": 0,
+          "name": "design"
+        },
+        {
+          "earned": 0,
+          "name": "transaction"
+        },
+        {
+          "earned": 0,
+          "name": "key"
+        },
+        {
+          "earned": 0,
+          "name": "delivery"
+        },
+        {
+          "earned": 0,
+          "name": "effects"
+        },
+        {
+          "earned": 0,
+          "name": "calls"
+        },
+        {
+          "earned": 0,
+          "name": "rollback"
+        }
+      ],
+      "replicate": 4,
+      "seed": 1882773203,
+      "status": "timeout",
+      "wall_seconds": 100.12158
+    },
+    {
+      "case_id": "outbox-architecture",
+      "cost_complete": true,
+      "metadata": {
+        "artifact": "/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/live/artifacts/outbox-architecture--4--comitia",
+        "category": "Architecture / reasoning",
+        "cli_reported_cost_usd": 0.056562999999999995,
+        "comitia_operations": 16,
+        "comitia_wall_seconds": 0.25969695900001066,
+        "computed_cost_usd": 0.056562999999999995,
+        "model_sessions": 2,
+        "model_wall_seconds": 110.570845875
+      },
+      "mode": "comitia",
+      "model_calls": [
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 511,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 8104
+        },
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 747,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 2957
+        }
+      ],
+      "non_model_cost_usd": 0,
+      "quality": [
+        {
+          "earned": 1,
+          "name": "design"
+        },
+        {
+          "earned": 1,
+          "name": "transaction"
+        },
+        {
+          "earned": 1,
+          "name": "key"
+        },
+        {
+          "earned": 1,
+          "name": "delivery"
+        },
+        {
+          "earned": 1,
+          "name": "effects"
+        },
+        {
+          "earned": 1,
+          "name": "calls"
+        },
+        {
+          "earned": 1,
+          "name": "rollback"
+        }
+      ],
+      "replicate": 4,
+      "seed": 2048093725,
+      "status": "completed",
+      "wall_seconds": 111.015414
+    },
+    {
+      "case_id": "outbox-architecture",
+      "cost_complete": true,
+      "metadata": {
+        "artifact": "/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/live/artifacts/outbox-architecture--4--single-agent",
+        "category": "Architecture / reasoning",
+        "cli_reported_cost_usd": 0.034947,
+        "comitia_operations": 0,
+        "comitia_wall_seconds": 0.0,
+        "computed_cost_usd": 0.034947,
+        "model_sessions": 1,
+        "model_wall_seconds": 87.054355208
+      },
+      "mode": "single-agent",
+      "model_calls": [
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 1022,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 6785
+        }
+      ],
+      "non_model_cost_usd": 0,
+      "quality": [
+        {
+          "earned": 1,
+          "name": "design"
+        },
+        {
+          "earned": 1,
+          "name": "transaction"
+        },
+        {
+          "earned": 1,
+          "name": "key"
+        },
+        {
+          "earned": 1,
+          "name": "delivery"
+        },
+        {
+          "earned": 1,
+          "name": "effects"
+        },
+        {
+          "earned": 1,
+          "name": "calls"
+        },
+        {
+          "earned": 1,
+          "name": "rollback"
+        }
+      ],
+      "replicate": 4,
+      "seed": 350917095,
+      "status": "completed",
+      "wall_seconds": 87.194238
+    },
+    {
+      "case_id": "delegation-schedule",
+      "cost_complete": false,
+      "error": "Command '['claude', '-p', '--model', 'claude-haiku-4-5-20251001', '--output-format', 'json', '--tools', '', '--strict-mcp-config', '--mcp-config', '{\"mcpServers\":{}}', '--disable-slash-commands', '--no-session-persistence', '--setting-sources', '', '--settings', '{\"disableAllHooks\":true}', '--system-prompt', 'Complete the provided bounded task. Return only the requested JSON object, no Markdown fences. Do not use tools. Do not claim tests were executed. Keep explanations concise.']' timed out after 100 seconds",
+      "metadata": {
+        "artifact": "/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/live/artifacts/delegation-schedule--4--comitia",
+        "category": "Collaboration / orchestration",
+        "cli_reported_cost_usd": 0.0,
+        "comitia_operations": 7,
+        "comitia_wall_seconds": 0.127178626,
+        "computed_cost_usd": 0,
+        "model_sessions": 0,
+        "model_wall_seconds": 0.0
+      },
+      "mode": "comitia",
+      "model_calls": [],
+      "non_model_cost_usd": 0,
+      "quality": [
+        {
+          "earned": 0,
+          "name": "all-tasks"
+        },
+        {
+          "earned": 0,
+          "name": "workers"
+        },
+        {
+          "earned": 0,
+          "name": "dependencies"
+        },
+        {
+          "earned": 0,
+          "name": "file-conflict"
+        },
+        {
+          "earned": 0,
+          "name": "optimal"
+        },
+        {
+          "earned": 0,
+          "name": "stale-lease"
+        },
+        {
+          "earned": 0,
+          "name": "handoff"
+        }
+      ],
+      "replicate": 4,
+      "seed": 1173152429,
+      "status": "timeout",
+      "wall_seconds": 100.248664
+    },
+    {
+      "case_id": "delegation-schedule",
+      "cost_complete": true,
+      "error": "JSONDecodeError: Extra data: line 14 column 1 (char 380)",
+      "metadata": {
+        "artifact": "/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/live/artifacts/delegation-schedule--4--single-agent",
+        "category": "Collaboration / orchestration",
+        "cli_reported_cost_usd": 0.048360999999999994,
+        "comitia_operations": 0,
+        "comitia_wall_seconds": 0.0,
+        "computed_cost_usd": 0.048361,
+        "model_sessions": 1,
+        "model_wall_seconds": 86.545179917
+      },
+      "mode": "single-agent",
+      "model_calls": [
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 491,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 9574
+        }
+      ],
+      "non_model_cost_usd": 0,
+      "quality": [
+        {
+          "earned": 0,
+          "name": "all-tasks"
+        },
+        {
+          "earned": 0,
+          "name": "workers"
+        },
+        {
+          "earned": 0,
+          "name": "dependencies"
+        },
+        {
+          "earned": 0,
+          "name": "file-conflict"
+        },
+        {
+          "earned": 0,
+          "name": "optimal"
+        },
+        {
+          "earned": 0,
+          "name": "stale-lease"
+        },
+        {
+          "earned": 0,
+          "name": "handoff"
+        }
+      ],
+      "replicate": 4,
+      "seed": 1854565978,
+      "status": "completed",
+      "wall_seconds": 86.694925
+    },
+    {
+      "case_id": "delegation-schedule",
+      "cost_complete": false,
+      "error": "Command '['claude', '-p', '--model', 'claude-haiku-4-5-20251001', '--output-format', 'json', '--tools', '', '--strict-mcp-config', '--mcp-config', '{\"mcpServers\":{}}', '--disable-slash-commands', '--no-session-persistence', '--setting-sources', '', '--settings', '{\"disableAllHooks\":true}', '--system-prompt', 'Complete the provided bounded task. Return only the requested JSON object, no Markdown fences. Do not use tools. Do not claim tests were executed. Keep explanations concise.']' timed out after 100 seconds",
+      "metadata": {
+        "artifact": "/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/live/artifacts/delegation-schedule--4--multi-agent",
+        "category": "Collaboration / orchestration",
+        "cli_reported_cost_usd": 0.046356,
+        "comitia_operations": 0,
+        "comitia_wall_seconds": 0.0,
+        "computed_cost_usd": 0.046356,
+        "model_sessions": 1,
+        "model_wall_seconds": 62.268199833
+      },
+      "mode": "multi-agent",
+      "model_calls": [
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 491,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 9173
+        }
+      ],
+      "non_model_cost_usd": 0,
+      "quality": [
+        {
+          "earned": 0,
+          "name": "all-tasks"
+        },
+        {
+          "earned": 0,
+          "name": "workers"
+        },
+        {
+          "earned": 0,
+          "name": "dependencies"
+        },
+        {
+          "earned": 0,
+          "name": "file-conflict"
+        },
+        {
+          "earned": 0,
+          "name": "optimal"
+        },
+        {
+          "earned": 0,
+          "name": "stale-lease"
+        },
+        {
+          "earned": 0,
+          "name": "handoff"
+        }
+      ],
+      "replicate": 4,
+      "seed": 538612586,
+      "status": "timeout",
+      "wall_seconds": 162.369968
+    },
+    {
+      "case_id": "incident-handoff",
+      "cost_complete": true,
+      "metadata": {
+        "artifact": "/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/live/artifacts/incident-handoff--4--single-agent",
+        "category": "Communication heavy",
+        "cli_reported_cost_usd": 0.01744,
+        "comitia_operations": 0,
+        "comitia_wall_seconds": 0.0,
+        "computed_cost_usd": 0.01744,
+        "model_sessions": 1,
+        "model_wall_seconds": 28.881637958
+      },
+      "mode": "single-agent",
+      "model_calls": [
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 545,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 3379
+        }
+      ],
+      "non_model_cost_usd": 0,
+      "quality": [
+        {
+          "earned": 1,
+          "name": "impact-times"
+        },
+        {
+          "earned": 1,
+          "name": "uncertainty"
+        },
+        {
+          "earned": 1,
+          "name": "next-update"
+        },
+        {
+          "earned": 1,
+          "name": "owners-deadlines"
+        },
+        {
+          "earned": 1,
+          "name": "customer-facts"
+        },
+        {
+          "earned": 1,
+          "name": "length"
+        },
+        {
+          "earned": 1,
+          "name": "secret-omitted"
+        }
+      ],
+      "replicate": 4,
+      "seed": 1559314838,
+      "status": "completed",
+      "wall_seconds": 29.05153
+    },
+    {
+      "case_id": "incident-handoff",
+      "cost_complete": true,
+      "metadata": {
+        "artifact": "/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/live/artifacts/incident-handoff--4--multi-agent",
+        "category": "Communication heavy",
+        "cli_reported_cost_usd": 0.049309,
+        "comitia_operations": 0,
+        "comitia_wall_seconds": 0.0,
+        "computed_cost_usd": 0.049309,
+        "model_sessions": 2,
+        "model_wall_seconds": 90.082781208
+      },
+      "mode": "multi-agent",
+      "model_calls": [
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 545,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 1921
+        },
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 864,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 7659
+        }
+      ],
+      "non_model_cost_usd": 0,
+      "quality": [
+        {
+          "earned": 1,
+          "name": "impact-times"
+        },
+        {
+          "earned": 1,
+          "name": "uncertainty"
+        },
+        {
+          "earned": 1,
+          "name": "next-update"
+        },
+        {
+          "earned": 1,
+          "name": "owners-deadlines"
+        },
+        {
+          "earned": 1,
+          "name": "customer-facts"
+        },
+        {
+          "earned": 1,
+          "name": "length"
+        },
+        {
+          "earned": 1,
+          "name": "secret-omitted"
+        }
+      ],
+      "replicate": 4,
+      "seed": 1166011310,
+      "status": "completed",
+      "wall_seconds": 90.235642
+    },
+    {
+      "case_id": "incident-handoff",
+      "cost_complete": true,
+      "metadata": {
+        "artifact": "/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/live/artifacts/incident-handoff--4--comitia",
+        "category": "Communication heavy",
+        "cli_reported_cost_usd": 0.015625,
+        "comitia_operations": 16,
+        "comitia_wall_seconds": 0.24821758499999813,
+        "computed_cost_usd": 0.015625,
+        "model_sessions": 2,
+        "model_wall_seconds": 25.620333457999998
+      },
+      "mode": "comitia",
+      "model_calls": [
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 545,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 1575
+        },
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 870,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 1267
+        }
+      ],
+      "non_model_cost_usd": 0,
+      "quality": [
+        {
+          "earned": 1,
+          "name": "impact-times"
+        },
+        {
+          "earned": 1,
+          "name": "uncertainty"
+        },
+        {
+          "earned": 1,
+          "name": "next-update"
+        },
+        {
+          "earned": 1,
+          "name": "owners-deadlines"
+        },
+        {
+          "earned": 1,
+          "name": "customer-facts"
+        },
+        {
+          "earned": 1,
+          "name": "length"
+        },
+        {
+          "earned": 1,
+          "name": "secret-omitted"
+        }
+      ],
+      "replicate": 4,
+      "seed": 3221623,
+      "status": "completed",
+      "wall_seconds": 26.023235
+    }
+  ],
+  "schema": "comitia.eval-results.v1",
+  "spec_sha256": "0a4f54117625a5f55a6d90b07d938c09852dec0d320ee00e15cad6caf8019a08",
+  "summary": {
+    "comparisons_to_single_agent": {
+      "comitia": {
+        "baseline": "single-agent",
+        "cost_delta_mean_usd": null,
+        "cost_delta_mean_usd_95ci": null,
+        "paired_runs": 30,
+        "quality_delta_mean": 0.319048,
+        "quality_delta_mean_95ci": [
+          0.128571,
+          0.514286
+        ],
+        "quality_ties": 14,
+        "quality_wins": 14
+      },
+      "multi-agent": {
+        "baseline": "single-agent",
+        "cost_delta_mean_usd": null,
+        "cost_delta_mean_usd_95ci": null,
+        "paired_runs": 30,
+        "quality_delta_mean": 0.32381,
+        "quality_delta_mean_95ci": [
+          0.119048,
+          0.519048
+        ],
+        "quality_ties": 12,
+        "quality_wins": 16
+      }
+    },
+    "modes": {
+      "comitia": {
+        "cached_input_tokens": 0,
+        "completed_runs": 25,
+        "cost_coverage": 0.833333,
+        "cost_per_passing_run_usd": null,
+        "input_tokens": 29887,
+        "known_cost_usd": 0.775481,
+        "mean_cost_usd": 0.03101924,
+        "mean_wall_seconds": 64.710203,
+        "output_tokens": 156057,
+        "passing_runs": 23,
+        "quality_mean": 0.82381,
+        "quality_mean_95ci": [
+          0.690476,
+          0.947619
+        ],
+        "quality_score_per_usd": null,
+        "runs": 30
+      },
+      "multi-agent": {
+        "cached_input_tokens": 0,
+        "completed_runs": 25,
+        "cost_coverage": 0.833333,
+        "cost_per_passing_run_usd": null,
+        "input_tokens": 30729,
+        "known_cost_usd": 0.778026,
+        "mean_cost_usd": 0.03112104,
+        "mean_wall_seconds": 68.834932,
+        "output_tokens": 172248,
+        "passing_runs": 24,
+        "quality_mean": 0.828571,
+        "quality_mean_95ci": [
+          0.695238,
+          0.961905
+        ],
+        "quality_score_per_usd": null,
+        "runs": 30
+      },
+      "single-agent": {
+        "cached_input_tokens": 0,
+        "completed_runs": 30,
+        "cost_coverage": 1.0,
+        "cost_per_passing_run_usd": 0.0672079,
+        "input_tokens": 15079,
+        "known_cost_usd": 0.672079,
+        "mean_cost_usd": 0.022402633,
+        "mean_wall_seconds": 39.935535,
+        "output_tokens": 131400,
+        "passing_runs": 10,
+        "quality_mean": 0.504762,
+        "quality_mean_95ci": [
+          0.342857,
+          0.671429
+        ],
+        "quality_score_per_usd": 22.531365,
+        "runs": 30
+      }
+    }
+  }
+}

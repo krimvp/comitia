@@ -1,0 +1,12 @@
+```json
+{
+  "choice": "C",
+  "atomic_writes": ["order", "outbox"],
+  "idempotency_key": "order_id",
+  "broker_delivery": "at-least-once",
+  "email_effect_count": 1,
+  "email_api_call_count": 3,
+  "rollback_email_count": 0,
+  "why": "Architecture C atomically writes order+outbox in DB; if order commits, outbox persists. Email service indexed by order_id ensures idempotency despite redeliveries. Crashes don't create duplicates—outbox retries until published, email deduplicates via order_id key. Exactly-once achieved through DB durability plus application-level idempotency, not broker guarantees alone."
+}
+```

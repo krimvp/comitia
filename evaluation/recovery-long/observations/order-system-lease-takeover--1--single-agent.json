@@ -1,0 +1,106 @@
+{
+  "case_id": "order-system-lease-takeover",
+  "cost_complete": true,
+  "metadata": {
+    "artifact": "/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/recovery-long/artifacts/order-system-lease-takeover--1--single-agent",
+    "computed_cost_usd": 0.38933300000000004,
+    "model_sessions": 6,
+    "reported_cost_usd": 0.38933299999999993,
+    "restarts": 1,
+    "total_seconds": 638.265741458
+  },
+  "mode": "single-agent",
+  "model_calls": [
+    {
+      "cached_input_tokens": 0,
+      "input_tokens": 1237,
+      "model": "claude-haiku-4-5-20251001",
+      "output_tokens": 2720
+    },
+    {
+      "cached_input_tokens": 0,
+      "input_tokens": 1955,
+      "model": "claude-haiku-4-5-20251001",
+      "output_tokens": 12543
+    },
+    {
+      "cached_input_tokens": 0,
+      "input_tokens": 11613,
+      "model": "claude-haiku-4-5-20251001",
+      "output_tokens": 16867
+    },
+    {
+      "cached_input_tokens": 0,
+      "input_tokens": 4032,
+      "model": "claude-haiku-4-5-20251001",
+      "output_tokens": 10166
+    },
+    {
+      "cached_input_tokens": 0,
+      "input_tokens": 5951,
+      "model": "claude-haiku-4-5-20251001",
+      "output_tokens": 17924
+    },
+    {
+      "cached_input_tokens": 0,
+      "input_tokens": 1955,
+      "model": "claude-haiku-4-5-20251001",
+      "output_tokens": 12298
+    }
+  ],
+  "non_model_cost_usd": 0,
+  "quality": [
+    {
+      "earned": 1,
+      "name": "ledger_balances"
+    },
+    {
+      "earned": 1,
+      "name": "ledger_validation"
+    },
+    {
+      "earned": 1,
+      "name": "ledger_dedupe_atomicity"
+    },
+    {
+      "earned": 1,
+      "name": "ledger_snapshot"
+    },
+    {
+      "earned": 1,
+      "name": "outbox_claims"
+    },
+    {
+      "earned": 1,
+      "name": "outbox_fencing"
+    },
+    {
+      "earned": 1,
+      "name": "outbox_dedupe_snapshot"
+    },
+    {
+      "earned": 1,
+      "name": "service_ingest"
+    },
+    {
+      "earned": 1,
+      "name": "service_rollback"
+    },
+    {
+      "earned": 1,
+      "name": "service_crash_delivery"
+    },
+    {
+      "earned": 1,
+      "name": "service_snapshot"
+    },
+    {
+      "earned": 0,
+      "name": "handoff"
+    }
+  ],
+  "replicate": 1,
+  "seed": 43450515,
+  "status": "completed",
+  "wall_seconds": 638.397963
+}

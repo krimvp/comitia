@@ -1,0 +1,98 @@
+{
+  "case_id": "ttl-cache-debug",
+  "cost_complete": true,
+  "metadata": {
+    "artifact": "/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/live/artifacts/ttl-cache-debug--2--comitia",
+    "category": "Debugging",
+    "cli_reported_cost_usd": 0.03411499999999999,
+    "comitia_operations": 16,
+    "comitia_wall_seconds": 0.23915046000000456,
+    "computed_cost_usd": 0.034115,
+    "model_sessions": 2,
+    "model_wall_seconds": 61.056936083,
+    "score_audit": {
+      "evidence": "/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/live/artifacts/ttl-cache-debug--2--comitia/content-sensitivity-grader.json",
+      "label": "content-sensitivity",
+      "original_quality": [
+        {
+          "earned": 1,
+          "name": "miss-hit"
+        },
+        {
+          "earned": 1,
+          "name": "falsy"
+        },
+        {
+          "earned": 1,
+          "name": "boundary"
+        },
+        {
+          "earned": 1,
+          "name": "no-sliding"
+        },
+        {
+          "earned": 1,
+          "name": "nonpositive-ttl"
+        },
+        {
+          "earned": 1,
+          "name": "loader-failure"
+        },
+        {
+          "earned": 1,
+          "name": "isolation"
+        }
+      ]
+    }
+  },
+  "mode": "comitia",
+  "model_calls": [
+    {
+      "cached_input_tokens": 0,
+      "input_tokens": 498,
+      "model": "claude-haiku-4-5-20251001",
+      "output_tokens": 2872
+    },
+    {
+      "cached_input_tokens": 0,
+      "input_tokens": 852,
+      "model": "claude-haiku-4-5-20251001",
+      "output_tokens": 3681
+    }
+  ],
+  "non_model_cost_usd": 0,
+  "quality": [
+    {
+      "earned": 1,
+      "name": "miss-hit"
+    },
+    {
+      "earned": 1,
+      "name": "falsy"
+    },
+    {
+      "earned": 1,
+      "name": "boundary"
+    },
+    {
+      "earned": 1,
+      "name": "no-sliding"
+    },
+    {
+      "earned": 1,
+      "name": "nonpositive-ttl"
+    },
+    {
+      "earned": 1,
+      "name": "loader-failure"
+    },
+    {
+      "earned": 1,
+      "name": "isolation"
+    }
+  ],
+  "replicate": 2,
+  "seed": 748599684,
+  "status": "completed",
+  "wall_seconds": 61.457671
+}

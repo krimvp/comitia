@@ -1,0 +1,35 @@
+[
+  {
+    "trial": "order-system-clean--0--single-agent",
+    "draft": "ledger-0-raw.json",
+    "checks": {
+      "ledger_balances": {
+        "passed": true
+      },
+      "ledger_validation": {
+        "passed": true
+      },
+      "ledger_dedupe_atomicity": {
+        "passed": true
+      },
+      "ledger_snapshot": {
+        "passed": true
+      }
+    }
+  },
+  {
+    "trial": "order-system-clean--0--single-agent",
+    "draft": "outbox-0-raw.json",
+    "checks": {
+      "outbox_claims": {
+        "passed": true
+      },
+      "outbox_fencing": {
+        "passed": true
+      },
+      "outbox_dedupe_snapshot": {
+        "passed": true
+      }
+    }
+  }
+]

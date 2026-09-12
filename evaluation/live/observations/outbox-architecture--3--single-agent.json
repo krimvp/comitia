@@ -1,0 +1,58 @@
+{
+  "case_id": "outbox-architecture",
+  "cost_complete": true,
+  "metadata": {
+    "artifact": "/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/live/artifacts/outbox-architecture--3--single-agent",
+    "category": "Architecture / reasoning",
+    "cli_reported_cost_usd": 0.032346,
+    "comitia_operations": 0,
+    "comitia_wall_seconds": 0.0,
+    "computed_cost_usd": 0.032346,
+    "model_sessions": 1,
+    "model_wall_seconds": 62.618766292000004
+  },
+  "mode": "single-agent",
+  "model_calls": [
+    {
+      "cached_input_tokens": 0,
+      "input_tokens": 511,
+      "model": "claude-haiku-4-5-20251001",
+      "output_tokens": 6367
+    }
+  ],
+  "non_model_cost_usd": 0,
+  "quality": [
+    {
+      "earned": 1,
+      "name": "design"
+    },
+    {
+      "earned": 0,
+      "name": "transaction"
+    },
+    {
+      "earned": 1,
+      "name": "key"
+    },
+    {
+      "earned": 1,
+      "name": "delivery"
+    },
+    {
+      "earned": 1,
+      "name": "effects"
+    },
+    {
+      "earned": 1,
+      "name": "calls"
+    },
+    {
+      "earned": 1,
+      "name": "rollback"
+    }
+  ],
+  "replicate": 3,
+  "seed": 421322201,
+  "status": "completed",
+  "wall_seconds": 62.741965
+}

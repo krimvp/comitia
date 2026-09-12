@@ -1,0 +1,9 @@
+```json
+{"code": "def summarize(rows):\n    seen = {}\n    for row in rows:\n        user = row[\"user\"]\n        seen[user] = seen.get(user, 0) + row[\"amount\"]\n    return [{\"user\": user, \"total\": total} for user, total in seen.items()]"}
+```
+
+**Key improvements:**
+- **O(n) time complexity**: Single pass through rows with O(1) dict operations
+- **Preserves first-seen order**: Python 3.7+ dicts maintain insertion order; users appear in the order first encountered
+- **No input mutation**: Original rows unchanged
+- **Identical output**: Same aggregation logic, just optimized via hash table instead of nested loop search

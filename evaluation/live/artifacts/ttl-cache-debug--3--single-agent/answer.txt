@@ -1,0 +1,12 @@
+```json
+{
+  "code": "class Cache:\n    def __init__(self): self.data = {}\n    def get(self, key, now, ttl, loader):\n        if key in self.data:\n            value, expires = self.data[key]\n            if now < expires:\n                return value\n        self.data = {k: v for k, v in self.data.items() if now < v[1]}\n        value = loader()\n        if ttl > 0:\n            self.data[key] = (value, now + ttl)\n        return value"
+}
+```
+
+**Fixes applied:**
+
+1. **Removed falsy value check**: Changed `if value and now <= expires` to `if now < expires` to accept cached values like 0, False, None, empty string
+2. **Fixed expiry comparison**: Changed `now <= expires` to `now < expires` per requirement
+3. **Added cleanup before loading**: Remove all expired entries via dict comprehension before calling loader, ensuring no expired entries remain if loader raises
+4. **Added ttl check before caching**: Only cache the loaded value if `ttl > 0`, avoiding caching when ttl ≤ 0

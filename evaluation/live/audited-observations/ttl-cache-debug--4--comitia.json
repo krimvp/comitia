@@ -1,0 +1,98 @@
+{
+  "case_id": "ttl-cache-debug",
+  "cost_complete": true,
+  "metadata": {
+    "artifact": "/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/live/artifacts/ttl-cache-debug--4--comitia",
+    "category": "Debugging",
+    "cli_reported_cost_usd": 0.049547,
+    "comitia_operations": 16,
+    "comitia_wall_seconds": 0.24165037499998987,
+    "computed_cost_usd": 0.049547,
+    "model_sessions": 2,
+    "model_wall_seconds": 77.304509,
+    "score_audit": {
+      "evidence": "/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/live/artifacts/ttl-cache-debug--4--comitia/audited-grader.json",
+      "label": "audited",
+      "original_quality": [
+        {
+          "earned": 1,
+          "name": "miss-hit"
+        },
+        {
+          "earned": 1,
+          "name": "falsy"
+        },
+        {
+          "earned": 1,
+          "name": "boundary"
+        },
+        {
+          "earned": 1,
+          "name": "no-sliding"
+        },
+        {
+          "earned": 1,
+          "name": "nonpositive-ttl"
+        },
+        {
+          "earned": 1,
+          "name": "loader-failure"
+        },
+        {
+          "earned": 1,
+          "name": "isolation"
+        }
+      ]
+    }
+  },
+  "mode": "comitia",
+  "model_calls": [
+    {
+      "cached_input_tokens": 0,
+      "input_tokens": 498,
+      "model": "claude-haiku-4-5-20251001",
+      "output_tokens": 4580
+    },
+    {
+      "cached_input_tokens": 0,
+      "input_tokens": 889,
+      "model": "claude-haiku-4-5-20251001",
+      "output_tokens": 5052
+    }
+  ],
+  "non_model_cost_usd": 0,
+  "quality": [
+    {
+      "earned": 1,
+      "name": "miss-hit"
+    },
+    {
+      "earned": 1,
+      "name": "falsy"
+    },
+    {
+      "earned": 1,
+      "name": "boundary"
+    },
+    {
+      "earned": 1,
+      "name": "no-sliding"
+    },
+    {
+      "earned": 1,
+      "name": "nonpositive-ttl"
+    },
+    {
+      "earned": 1,
+      "name": "loader-failure"
+    },
+    {
+      "earned": 1,
+      "name": "isolation"
+    }
+  ],
+  "replicate": 4,
+  "seed": 1441036763,
+  "status": "completed",
+  "wall_seconds": 77.713133
+}

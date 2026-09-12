@@ -1,0 +1,1 @@
+Return JSON with these five keys and values: capital_of_japan (English city name), seconds_in_day (integer), binary_13 (string, no prefix), chemical_symbol_gold (string), smallest_prime (integer). No explanation.

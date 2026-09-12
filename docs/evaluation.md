@@ -205,3 +205,33 @@ Run the evaluator tests with:
 ```sh
 python3 -m unittest scripts/test_evaluate_agents.py
 ```
+
+## Multi-file engineering and recovery benchmark
+
+The [extended recovery benchmark](../evaluation/recovery-long/README.md) runs a
+five-role workflow that builds and tests an order ledger, leased outbox, service
+integration, and engineering handoff. It compares a sequential engineer, a
+five-role team using durable file coordination, and the same team using Comitia.
+The two implementation roles execute concurrently in both team modes.
+
+The matrix includes normal execution, process termination after publication but
+before acknowledgement, and expired-lease takeover with a delayed stale result.
+It records final behavior, intermediate review changes, complete returned model
+usage, discarded computation, recovered stages, and storage overhead. The
+adapter performs fixed coordination; models do not choose Comitia commands.
+Read the methodology and environment notes before interpreting results,
+especially host-sleep interruptions and incomplete timeout usage.
+
+Run the credential-free recovery checks before the live matrix:
+
+```sh
+python3 -m unittest discover -s evaluation/recovery-long -p 'test_*.py'
+python3 evaluation/recovery-long/run_matrix.py
+```
+
+The live matrix requires an authenticated Claude CLI and uses a pinned model.
+It persists each trial and refuses to overwrite incomplete artifacts or reuse
+changed execution definitions. See the benchmark README for time budgets,
+pricing, fault boundaries, and separately labeled control runs.
+
+Recorded real-model results and evidence are indexed in the [evaluation bundle](../evaluation/README.md).

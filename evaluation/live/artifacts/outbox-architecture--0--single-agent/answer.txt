@@ -1,0 +1,12 @@
+```json
+{
+  "choice": "C",
+  "atomic_writes": ["Order", "Outbox"],
+  "idempotency_key": "order_id",
+  "broker_delivery": "at-least-once",
+  "email_effect_count": 1,
+  "email_api_call_count": 3,
+  "rollback_email_count": 0,
+  "why": "Outbox pattern atomically persists order and message entry. At-least-once broker causes message redelivery (m1) and republishing (m2), generating multiple API calls. Email service's idempotency key ensures exactly one effect despite retries. Crash gaps persist: outbox publisher crashes before marking sent, and exactly-once requires either broker-level idempotency or coordinated transactional consumer."
+}
+```

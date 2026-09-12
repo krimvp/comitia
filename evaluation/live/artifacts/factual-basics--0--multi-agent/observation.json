@@ -1,0 +1,51 @@
+{
+  "status": "completed",
+  "quality": [
+    {
+      "name": "capital",
+      "earned": 1
+    },
+    {
+      "name": "seconds",
+      "earned": 1
+    },
+    {
+      "name": "binary",
+      "earned": 1
+    },
+    {
+      "name": "gold",
+      "earned": 1
+    },
+    {
+      "name": "prime",
+      "earned": 1
+    }
+  ],
+  "model_calls": [
+    {
+      "model": "claude-haiku-4-5-20251001",
+      "input_tokens": 320,
+      "cached_input_tokens": 0,
+      "output_tokens": 271
+    },
+    {
+      "model": "claude-haiku-4-5-20251001",
+      "input_tokens": 409,
+      "cached_input_tokens": 0,
+      "output_tokens": 265
+    }
+  ],
+  "non_model_cost_usd": 0,
+  "cost_complete": true,
+  "metadata": {
+    "artifact": "/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/live/artifacts/factual-basics--0--multi-agent",
+    "category": "Factual / low complexity",
+    "model_wall_seconds": 8.100678417,
+    "comitia_wall_seconds": 0.0,
+    "comitia_operations": 0,
+    "cli_reported_cost_usd": 0.0034089999999999997,
+    "computed_cost_usd": 0.003409,
+    "model_sessions": 2
+  }
+}

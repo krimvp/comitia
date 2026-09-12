@@ -1,0 +1,12 @@
+```json
+{
+  "choice": "C",
+  "atomic_writes": ["Order", "OutboxMessage"],
+  "idempotency_key": "order_id",
+  "broker_delivery": "at-least-once",
+  "email_effect_count": 1,
+  "email_api_call_count": 3,
+  "rollback_email_count": 0,
+  "why": "Broker's at-least-once delivery causes redeliveries. Consumer crashes before ack and publisher crashes before mark-sent, triggering message republish. Each redelivered message triggers an email API call (3 total). Email service's order_id idempotency key deduplicates calls, ensuring exactly one effect. Exactly-once across services requires coordination overhead or service-level idempotency. Gap: if email service loses durable idempotency tracking, duplicates occur."
+}
+```

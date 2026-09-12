@@ -1,0 +1,10 @@
+{
+  "execution_hashes": {
+    "awake-control-spec.json": "91691b27882710ac653faaa26fc1945b6d49efa35ed75aa3d416d271987d9005",
+    "grader.py": "7cc7853e384800c321605147a3c2bb0a02c89620668172846dc50a264d05c303",
+    "run_awake_control.py": "4ab9069ef528b39bc162c9ee64abc1fbe2e7bb5e462c482a0bf29a26fcc82ab5",
+    "runner.py": "a3e80837756836819e40bdc3a178e7bb566054bd732bc5e1aba8c65cb2094021",
+    "storage.py": "af706a162a2f5c8b4e0599e55d8b4aae231fab00b49b62271b206154a4546bca"
+  },
+  "started_at": 1789196473.5803368
+}

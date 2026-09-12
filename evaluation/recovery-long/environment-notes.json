@@ -1,0 +1,7 @@
+{
+  "recorded_at": 1789165542.060307,
+  "affected_trial": "order-system-clean--0--single-agent",
+  "observed_issue": "Mac power log shows Clamshell Sleep followed by extended Maintenance Sleep/DarkWake cycles while the integrator call was pending. Civil-time elapsed jumped by hours. This is an unplanned host interruption, not a controlled fault in this clean trial.",
+  "mitigation": "caffeinate -i tied to live matrix PID 51593 prevents idle sleep but cannot prevent closed-lid sleep.",
+  "analysis_rule": "Retain this trial and flag its host interruption; do not interpret its latency or failure as ordinary model/workflow behavior. Any follow-up is a separately labeled balanced set."
+}

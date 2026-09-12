@@ -1,0 +1,1868 @@
+{
+  "mode_order": [
+    "single-agent",
+    "multi-agent",
+    "comitia"
+  ],
+  "runs": [
+    {
+      "case_id": "order-system-clean",
+      "cost_complete": false,
+      "error": "TimeoutError: model call exceeded 600s",
+      "metadata": {
+        "artifact": "/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/recovery-long/artifacts/order-system-clean--0--single-agent",
+        "computed_cost_usd": 0.139111,
+        "model_sessions": 4,
+        "reported_cost_usd": 0.139111,
+        "restarts": 0,
+        "total_seconds": 796.142577375
+      },
+      "mode": "single-agent",
+      "model_calls": [
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 1237,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 1630
+        },
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 1974,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 13250
+        },
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 3565,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 11587
+        }
+      ],
+      "non_model_cost_usd": 0,
+      "quality": [
+        {
+          "earned": 0,
+          "name": "ledger_balances"
+        },
+        {
+          "earned": 0,
+          "name": "ledger_validation"
+        },
+        {
+          "earned": 0,
+          "name": "ledger_dedupe_atomicity"
+        },
+        {
+          "earned": 0,
+          "name": "ledger_snapshot"
+        },
+        {
+          "earned": 0,
+          "name": "outbox_claims"
+        },
+        {
+          "earned": 0,
+          "name": "outbox_fencing"
+        },
+        {
+          "earned": 0,
+          "name": "outbox_dedupe_snapshot"
+        },
+        {
+          "earned": 0,
+          "name": "service_ingest"
+        },
+        {
+          "earned": 0,
+          "name": "service_rollback"
+        },
+        {
+          "earned": 0,
+          "name": "service_crash_delivery"
+        },
+        {
+          "earned": 0,
+          "name": "service_snapshot"
+        },
+        {
+          "earned": 0,
+          "name": "handoff"
+        }
+      ],
+      "replicate": 0,
+      "seed": 1167186803,
+      "status": "timeout",
+      "wall_seconds": 796.790534
+    },
+    {
+      "case_id": "order-system-clean",
+      "cost_complete": true,
+      "error": "RuntimeError: current completion rejected",
+      "metadata": {
+        "artifact": "/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/recovery-long/artifacts/order-system-clean--0--multi-agent",
+        "computed_cost_usd": 0.014613,
+        "model_sessions": 1,
+        "reported_cost_usd": 0.014613000000000001,
+        "restarts": 0,
+        "total_seconds": 50.72890925
+      },
+      "mode": "multi-agent",
+      "model_calls": [
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 2518,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 2419
+        }
+      ],
+      "non_model_cost_usd": 0,
+      "quality": [
+        {
+          "earned": 0,
+          "name": "ledger_balances"
+        },
+        {
+          "earned": 0,
+          "name": "ledger_validation"
+        },
+        {
+          "earned": 0,
+          "name": "ledger_dedupe_atomicity"
+        },
+        {
+          "earned": 0,
+          "name": "ledger_snapshot"
+        },
+        {
+          "earned": 0,
+          "name": "outbox_claims"
+        },
+        {
+          "earned": 0,
+          "name": "outbox_fencing"
+        },
+        {
+          "earned": 0,
+          "name": "outbox_dedupe_snapshot"
+        },
+        {
+          "earned": 0,
+          "name": "service_ingest"
+        },
+        {
+          "earned": 0,
+          "name": "service_rollback"
+        },
+        {
+          "earned": 0,
+          "name": "service_crash_delivery"
+        },
+        {
+          "earned": 0,
+          "name": "service_snapshot"
+        },
+        {
+          "earned": 0,
+          "name": "handoff"
+        }
+      ],
+      "replicate": 0,
+      "seed": 2078093090,
+      "status": "failed",
+      "wall_seconds": 50.829007
+    },
+    {
+      "case_id": "order-system-clean",
+      "cost_complete": true,
+      "error": "RuntimeError: current completion rejected",
+      "metadata": {
+        "artifact": "/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/recovery-long/artifacts/order-system-clean--0--comitia",
+        "computed_cost_usd": 0.013375,
+        "model_sessions": 1,
+        "reported_cost_usd": 0.013374999999999998,
+        "restarts": 0,
+        "total_seconds": 39.965660041999996
+      },
+      "mode": "comitia",
+      "model_calls": [
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 2480,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 2179
+        }
+      ],
+      "non_model_cost_usd": 0,
+      "quality": [
+        {
+          "earned": 0,
+          "name": "ledger_balances"
+        },
+        {
+          "earned": 0,
+          "name": "ledger_validation"
+        },
+        {
+          "earned": 0,
+          "name": "ledger_dedupe_atomicity"
+        },
+        {
+          "earned": 0,
+          "name": "ledger_snapshot"
+        },
+        {
+          "earned": 0,
+          "name": "outbox_claims"
+        },
+        {
+          "earned": 0,
+          "name": "outbox_fencing"
+        },
+        {
+          "earned": 0,
+          "name": "outbox_dedupe_snapshot"
+        },
+        {
+          "earned": 0,
+          "name": "service_ingest"
+        },
+        {
+          "earned": 0,
+          "name": "service_rollback"
+        },
+        {
+          "earned": 0,
+          "name": "service_crash_delivery"
+        },
+        {
+          "earned": 0,
+          "name": "service_snapshot"
+        },
+        {
+          "earned": 0,
+          "name": "handoff"
+        }
+      ],
+      "replicate": 0,
+      "seed": 545521947,
+      "status": "failed",
+      "wall_seconds": 40.108921
+    },
+    {
+      "case_id": "order-system-handoff-crash",
+      "cost_complete": true,
+      "error": "RuntimeError: current completion rejected",
+      "metadata": {
+        "artifact": "/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/recovery-long/artifacts/order-system-handoff-crash--0--multi-agent",
+        "computed_cost_usd": 0.18192,
+        "model_sessions": 3,
+        "reported_cost_usd": 0.18192,
+        "restarts": 1,
+        "total_seconds": 365.95389512500003
+      },
+      "mode": "multi-agent",
+      "model_calls": [
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 2518,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 1521
+        },
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 19866,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 13069
+        },
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 19866,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 13344
+        }
+      ],
+      "non_model_cost_usd": 0,
+      "quality": [
+        {
+          "earned": 0,
+          "name": "ledger_balances"
+        },
+        {
+          "earned": 0,
+          "name": "ledger_validation"
+        },
+        {
+          "earned": 0,
+          "name": "ledger_dedupe_atomicity"
+        },
+        {
+          "earned": 0,
+          "name": "ledger_snapshot"
+        },
+        {
+          "earned": 0,
+          "name": "outbox_claims"
+        },
+        {
+          "earned": 0,
+          "name": "outbox_fencing"
+        },
+        {
+          "earned": 0,
+          "name": "outbox_dedupe_snapshot"
+        },
+        {
+          "earned": 0,
+          "name": "service_ingest"
+        },
+        {
+          "earned": 0,
+          "name": "service_rollback"
+        },
+        {
+          "earned": 0,
+          "name": "service_crash_delivery"
+        },
+        {
+          "earned": 0,
+          "name": "service_snapshot"
+        },
+        {
+          "earned": 0,
+          "name": "handoff"
+        }
+      ],
+      "replicate": 0,
+      "seed": 678958570,
+      "status": "failed",
+      "wall_seconds": 366.069656
+    },
+    {
+      "case_id": "order-system-handoff-crash",
+      "cost_complete": true,
+      "metadata": {
+        "artifact": "/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/recovery-long/artifacts/order-system-handoff-crash--0--comitia",
+        "computed_cost_usd": 0.31472799999999995,
+        "model_sessions": 5,
+        "reported_cost_usd": 0.31472799999999995,
+        "restarts": 1,
+        "total_seconds": 389.53758875
+      },
+      "mode": "comitia",
+      "model_calls": [
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 1240,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 2220
+        },
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 1969,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 14012
+        },
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 7333,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 12252
+        },
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 5562,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 18664
+        },
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 1969,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 12183
+        }
+      ],
+      "non_model_cost_usd": 0,
+      "quality": [
+        {
+          "earned": 1,
+          "name": "ledger_balances"
+        },
+        {
+          "earned": 1,
+          "name": "ledger_validation"
+        },
+        {
+          "earned": 1,
+          "name": "ledger_dedupe_atomicity"
+        },
+        {
+          "earned": 1,
+          "name": "ledger_snapshot"
+        },
+        {
+          "earned": 1,
+          "name": "outbox_claims"
+        },
+        {
+          "earned": 1,
+          "name": "outbox_fencing"
+        },
+        {
+          "earned": 1,
+          "name": "outbox_dedupe_snapshot"
+        },
+        {
+          "earned": 1,
+          "name": "service_ingest"
+        },
+        {
+          "earned": 1,
+          "name": "service_rollback"
+        },
+        {
+          "earned": 1,
+          "name": "service_crash_delivery"
+        },
+        {
+          "earned": 1,
+          "name": "service_snapshot"
+        },
+        {
+          "earned": 0,
+          "name": "handoff"
+        }
+      ],
+      "replicate": 0,
+      "seed": 76515458,
+      "status": "completed",
+      "wall_seconds": 389.654655
+    },
+    {
+      "case_id": "order-system-handoff-crash",
+      "cost_complete": true,
+      "metadata": {
+        "artifact": "/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/recovery-long/artifacts/order-system-handoff-crash--0--single-agent",
+        "computed_cost_usd": 0.346414,
+        "model_sessions": 5,
+        "reported_cost_usd": 0.346414,
+        "restarts": 1,
+        "total_seconds": 525.420110042
+      },
+      "mode": "single-agent",
+      "model_calls": [
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 1237,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 2298
+        },
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 1996,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 12216
+        },
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 11619,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 15235
+        },
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 5851,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 20339
+        },
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 4051,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 14244
+        }
+      ],
+      "non_model_cost_usd": 0,
+      "quality": [
+        {
+          "earned": 1,
+          "name": "ledger_balances"
+        },
+        {
+          "earned": 1,
+          "name": "ledger_validation"
+        },
+        {
+          "earned": 1,
+          "name": "ledger_dedupe_atomicity"
+        },
+        {
+          "earned": 1,
+          "name": "ledger_snapshot"
+        },
+        {
+          "earned": 1,
+          "name": "outbox_claims"
+        },
+        {
+          "earned": 1,
+          "name": "outbox_fencing"
+        },
+        {
+          "earned": 1,
+          "name": "outbox_dedupe_snapshot"
+        },
+        {
+          "earned": 1,
+          "name": "service_ingest"
+        },
+        {
+          "earned": 1,
+          "name": "service_rollback"
+        },
+        {
+          "earned": 1,
+          "name": "service_crash_delivery"
+        },
+        {
+          "earned": 1,
+          "name": "service_snapshot"
+        },
+        {
+          "earned": 0,
+          "name": "handoff"
+        }
+      ],
+      "replicate": 0,
+      "seed": 862848300,
+      "status": "completed",
+      "wall_seconds": 525.521659
+    },
+    {
+      "case_id": "order-system-lease-takeover",
+      "cost_complete": true,
+      "metadata": {
+        "artifact": "/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/recovery-long/artifacts/order-system-lease-takeover--0--comitia",
+        "computed_cost_usd": 0.412601,
+        "model_sessions": 6,
+        "reported_cost_usd": 0.412601,
+        "restarts": 1,
+        "total_seconds": 479.79102170799996
+      },
+      "mode": "comitia",
+      "model_calls": [
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 1240,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 1937
+        },
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 1867,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 15914
+        },
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 6581,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 11373
+        },
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 1867,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 18534
+        },
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 5184,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 18138
+        },
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 1867,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 12903
+        }
+      ],
+      "non_model_cost_usd": 0,
+      "quality": [
+        {
+          "earned": 1,
+          "name": "ledger_balances"
+        },
+        {
+          "earned": 0,
+          "name": "ledger_validation"
+        },
+        {
+          "earned": 1,
+          "name": "ledger_dedupe_atomicity"
+        },
+        {
+          "earned": 1,
+          "name": "ledger_snapshot"
+        },
+        {
+          "earned": 1,
+          "name": "outbox_claims"
+        },
+        {
+          "earned": 1,
+          "name": "outbox_fencing"
+        },
+        {
+          "earned": 1,
+          "name": "outbox_dedupe_snapshot"
+        },
+        {
+          "earned": 1,
+          "name": "service_ingest"
+        },
+        {
+          "earned": 1,
+          "name": "service_rollback"
+        },
+        {
+          "earned": 1,
+          "name": "service_crash_delivery"
+        },
+        {
+          "earned": 1,
+          "name": "service_snapshot"
+        },
+        {
+          "earned": 0,
+          "name": "handoff"
+        }
+      ],
+      "replicate": 0,
+      "seed": 1787824324,
+      "status": "completed",
+      "wall_seconds": 479.873238
+    },
+    {
+      "case_id": "order-system-lease-takeover",
+      "cost_complete": true,
+      "metadata": {
+        "artifact": "/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/recovery-long/artifacts/order-system-lease-takeover--0--single-agent",
+        "computed_cost_usd": 0.39993,
+        "model_sessions": 6,
+        "reported_cost_usd": 0.39993,
+        "restarts": 1,
+        "total_seconds": 633.028183458
+      },
+      "mode": "single-agent",
+      "model_calls": [
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 1237,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 2143
+        },
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 2201,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 12237
+        },
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 11306,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 20094
+        },
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 3906,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 11343
+        },
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 5854,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 16402
+        },
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 2201,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 12426
+        }
+      ],
+      "non_model_cost_usd": 0,
+      "quality": [
+        {
+          "earned": 1,
+          "name": "ledger_balances"
+        },
+        {
+          "earned": 1,
+          "name": "ledger_validation"
+        },
+        {
+          "earned": 1,
+          "name": "ledger_dedupe_atomicity"
+        },
+        {
+          "earned": 1,
+          "name": "ledger_snapshot"
+        },
+        {
+          "earned": 1,
+          "name": "outbox_claims"
+        },
+        {
+          "earned": 0,
+          "name": "outbox_fencing"
+        },
+        {
+          "earned": 0,
+          "name": "outbox_dedupe_snapshot"
+        },
+        {
+          "earned": 1,
+          "name": "service_ingest"
+        },
+        {
+          "earned": 1,
+          "name": "service_rollback"
+        },
+        {
+          "earned": 1,
+          "name": "service_crash_delivery"
+        },
+        {
+          "earned": 1,
+          "name": "service_snapshot"
+        },
+        {
+          "earned": 0,
+          "name": "handoff"
+        }
+      ],
+      "replicate": 0,
+      "seed": 692657567,
+      "status": "completed",
+      "wall_seconds": 633.106191
+    },
+    {
+      "case_id": "order-system-lease-takeover",
+      "cost_complete": true,
+      "metadata": {
+        "artifact": "/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/recovery-long/artifacts/order-system-lease-takeover--0--multi-agent",
+        "computed_cost_usd": 0.38581199999999993,
+        "model_sessions": 6,
+        "reported_cost_usd": 0.385812,
+        "restarts": 1,
+        "total_seconds": 511.504932667
+      },
+      "mode": "multi-agent",
+      "model_calls": [
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 1240,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 1966
+        },
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 1853,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 11312
+        },
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 5982,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 21878
+        },
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 1853,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 12111
+        },
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 4886,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 14293
+        },
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 1853,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 12069
+        }
+      ],
+      "non_model_cost_usd": 0,
+      "quality": [
+        {
+          "earned": 1,
+          "name": "ledger_balances"
+        },
+        {
+          "earned": 0,
+          "name": "ledger_validation"
+        },
+        {
+          "earned": 1,
+          "name": "ledger_dedupe_atomicity"
+        },
+        {
+          "earned": 1,
+          "name": "ledger_snapshot"
+        },
+        {
+          "earned": 1,
+          "name": "outbox_claims"
+        },
+        {
+          "earned": 1,
+          "name": "outbox_fencing"
+        },
+        {
+          "earned": 1,
+          "name": "outbox_dedupe_snapshot"
+        },
+        {
+          "earned": 1,
+          "name": "service_ingest"
+        },
+        {
+          "earned": 1,
+          "name": "service_rollback"
+        },
+        {
+          "earned": 1,
+          "name": "service_crash_delivery"
+        },
+        {
+          "earned": 1,
+          "name": "service_snapshot"
+        },
+        {
+          "earned": 0,
+          "name": "handoff"
+        }
+      ],
+      "replicate": 0,
+      "seed": 427352272,
+      "status": "completed",
+      "wall_seconds": 511.601816
+    },
+    {
+      "case_id": "order-system-clean",
+      "cost_complete": true,
+      "metadata": {
+        "artifact": "/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/recovery-long/artifacts/order-system-clean--1--multi-agent",
+        "computed_cost_usd": 0.37146599999999996,
+        "model_sessions": 5,
+        "reported_cost_usd": 0.371466,
+        "restarts": 0,
+        "total_seconds": 406.761328708
+      },
+      "mode": "multi-agent",
+      "model_calls": [
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 1240,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 2297
+        },
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 1959,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 15033
+        },
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 7559,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 20278
+        },
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 5549,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 20116
+        },
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 1959,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 12916
+        }
+      ],
+      "non_model_cost_usd": 0,
+      "quality": [
+        {
+          "earned": 1,
+          "name": "ledger_balances"
+        },
+        {
+          "earned": 1,
+          "name": "ledger_validation"
+        },
+        {
+          "earned": 1,
+          "name": "ledger_dedupe_atomicity"
+        },
+        {
+          "earned": 1,
+          "name": "ledger_snapshot"
+        },
+        {
+          "earned": 1,
+          "name": "outbox_claims"
+        },
+        {
+          "earned": 1,
+          "name": "outbox_fencing"
+        },
+        {
+          "earned": 1,
+          "name": "outbox_dedupe_snapshot"
+        },
+        {
+          "earned": 1,
+          "name": "service_ingest"
+        },
+        {
+          "earned": 1,
+          "name": "service_rollback"
+        },
+        {
+          "earned": 1,
+          "name": "service_crash_delivery"
+        },
+        {
+          "earned": 1,
+          "name": "service_snapshot"
+        },
+        {
+          "earned": 0,
+          "name": "handoff"
+        }
+      ],
+      "replicate": 1,
+      "seed": 1803394451,
+      "status": "completed",
+      "wall_seconds": 406.853304
+    },
+    {
+      "case_id": "order-system-clean",
+      "cost_complete": true,
+      "metadata": {
+        "artifact": "/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/recovery-long/artifacts/order-system-clean--1--comitia",
+        "computed_cost_usd": 0.361235,
+        "model_sessions": 5,
+        "reported_cost_usd": 0.361235,
+        "restarts": 0,
+        "total_seconds": 490.694626375
+      },
+      "mode": "comitia",
+      "model_calls": [
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 1240,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 2214
+        },
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 1919,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 11752
+        },
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 7249,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 21786
+        },
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 5623,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 20333
+        },
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 1919,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 12572
+        }
+      ],
+      "non_model_cost_usd": 0,
+      "quality": [
+        {
+          "earned": 1,
+          "name": "ledger_balances"
+        },
+        {
+          "earned": 1,
+          "name": "ledger_validation"
+        },
+        {
+          "earned": 1,
+          "name": "ledger_dedupe_atomicity"
+        },
+        {
+          "earned": 1,
+          "name": "ledger_snapshot"
+        },
+        {
+          "earned": 1,
+          "name": "outbox_claims"
+        },
+        {
+          "earned": 1,
+          "name": "outbox_fencing"
+        },
+        {
+          "earned": 1,
+          "name": "outbox_dedupe_snapshot"
+        },
+        {
+          "earned": 1,
+          "name": "service_ingest"
+        },
+        {
+          "earned": 1,
+          "name": "service_rollback"
+        },
+        {
+          "earned": 1,
+          "name": "service_crash_delivery"
+        },
+        {
+          "earned": 1,
+          "name": "service_snapshot"
+        },
+        {
+          "earned": 0,
+          "name": "handoff"
+        }
+      ],
+      "replicate": 1,
+      "seed": 526158206,
+      "status": "completed",
+      "wall_seconds": 490.839095
+    },
+    {
+      "case_id": "order-system-clean",
+      "cost_complete": true,
+      "metadata": {
+        "artifact": "/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/recovery-long/artifacts/order-system-clean--1--single-agent",
+        "computed_cost_usd": 0.307502,
+        "model_sessions": 5,
+        "reported_cost_usd": 0.307502,
+        "restarts": 0,
+        "total_seconds": 422.79633925
+      },
+      "mode": "single-agent",
+      "model_calls": [
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 1237,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 2845
+        },
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 1869,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 14554
+        },
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 8301,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 15790
+        },
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 4499,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 14259
+        },
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 3146,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 10242
+        }
+      ],
+      "non_model_cost_usd": 0,
+      "quality": [
+        {
+          "earned": 1,
+          "name": "ledger_balances"
+        },
+        {
+          "earned": 1,
+          "name": "ledger_validation"
+        },
+        {
+          "earned": 1,
+          "name": "ledger_dedupe_atomicity"
+        },
+        {
+          "earned": 1,
+          "name": "ledger_snapshot"
+        },
+        {
+          "earned": 1,
+          "name": "outbox_claims"
+        },
+        {
+          "earned": 1,
+          "name": "outbox_fencing"
+        },
+        {
+          "earned": 1,
+          "name": "outbox_dedupe_snapshot"
+        },
+        {
+          "earned": 1,
+          "name": "service_ingest"
+        },
+        {
+          "earned": 1,
+          "name": "service_rollback"
+        },
+        {
+          "earned": 1,
+          "name": "service_crash_delivery"
+        },
+        {
+          "earned": 1,
+          "name": "service_snapshot"
+        },
+        {
+          "earned": 0,
+          "name": "handoff"
+        }
+      ],
+      "replicate": 1,
+      "seed": 1521752629,
+      "status": "completed",
+      "wall_seconds": 422.886443
+    },
+    {
+      "case_id": "order-system-handoff-crash",
+      "cost_complete": true,
+      "metadata": {
+        "artifact": "/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/recovery-long/artifacts/order-system-handoff-crash--1--comitia",
+        "computed_cost_usd": 0.347164,
+        "model_sessions": 5,
+        "reported_cost_usd": 0.347164,
+        "restarts": 1,
+        "total_seconds": 448.4322795
+      },
+      "mode": "comitia",
+      "model_calls": [
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 1240,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 1991
+        },
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 2019,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 10207
+        },
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 7153,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 23030
+        },
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 5148,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 18387
+        },
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 2019,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 12302
+        }
+      ],
+      "non_model_cost_usd": 0,
+      "quality": [
+        {
+          "earned": 1,
+          "name": "ledger_balances"
+        },
+        {
+          "earned": 1,
+          "name": "ledger_validation"
+        },
+        {
+          "earned": 1,
+          "name": "ledger_dedupe_atomicity"
+        },
+        {
+          "earned": 1,
+          "name": "ledger_snapshot"
+        },
+        {
+          "earned": 1,
+          "name": "outbox_claims"
+        },
+        {
+          "earned": 1,
+          "name": "outbox_fencing"
+        },
+        {
+          "earned": 1,
+          "name": "outbox_dedupe_snapshot"
+        },
+        {
+          "earned": 1,
+          "name": "service_ingest"
+        },
+        {
+          "earned": 1,
+          "name": "service_rollback"
+        },
+        {
+          "earned": 1,
+          "name": "service_crash_delivery"
+        },
+        {
+          "earned": 1,
+          "name": "service_snapshot"
+        },
+        {
+          "earned": 1,
+          "name": "handoff"
+        }
+      ],
+      "replicate": 1,
+      "seed": 862679353,
+      "status": "completed",
+      "wall_seconds": 448.524831
+    },
+    {
+      "case_id": "order-system-handoff-crash",
+      "cost_complete": true,
+      "metadata": {
+        "artifact": "/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/recovery-long/artifacts/order-system-handoff-crash--1--single-agent",
+        "computed_cost_usd": 0.303347,
+        "model_sessions": 5,
+        "reported_cost_usd": 0.303347,
+        "restarts": 1,
+        "total_seconds": 417.607149
+      },
+      "mode": "single-agent",
+      "model_calls": [
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 1237,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 1705
+        },
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 1916,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 9823
+        },
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 11591,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 16872
+        },
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 5796,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 16922
+        },
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 4067,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 10426
+        }
+      ],
+      "non_model_cost_usd": 0,
+      "quality": [
+        {
+          "earned": 1,
+          "name": "ledger_balances"
+        },
+        {
+          "earned": 1,
+          "name": "ledger_validation"
+        },
+        {
+          "earned": 1,
+          "name": "ledger_dedupe_atomicity"
+        },
+        {
+          "earned": 1,
+          "name": "ledger_snapshot"
+        },
+        {
+          "earned": 1,
+          "name": "outbox_claims"
+        },
+        {
+          "earned": 1,
+          "name": "outbox_fencing"
+        },
+        {
+          "earned": 1,
+          "name": "outbox_dedupe_snapshot"
+        },
+        {
+          "earned": 1,
+          "name": "service_ingest"
+        },
+        {
+          "earned": 1,
+          "name": "service_rollback"
+        },
+        {
+          "earned": 1,
+          "name": "service_crash_delivery"
+        },
+        {
+          "earned": 1,
+          "name": "service_snapshot"
+        },
+        {
+          "earned": 0,
+          "name": "handoff"
+        }
+      ],
+      "replicate": 1,
+      "seed": 2106729109,
+      "status": "completed",
+      "wall_seconds": 417.704618
+    },
+    {
+      "case_id": "order-system-handoff-crash",
+      "cost_complete": true,
+      "metadata": {
+        "artifact": "/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/recovery-long/artifacts/order-system-handoff-crash--1--multi-agent",
+        "computed_cost_usd": 0.328121,
+        "model_sessions": 5,
+        "reported_cost_usd": 0.328121,
+        "restarts": 1,
+        "total_seconds": 411.891599791
+      },
+      "mode": "multi-agent",
+      "model_calls": [
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 1240,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 2946
+        },
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 2046,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 11087
+        },
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 7099,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 14435
+        },
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 5045,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 21046
+        },
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 2046,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 12615
+        }
+      ],
+      "non_model_cost_usd": 0,
+      "quality": [
+        {
+          "earned": 1,
+          "name": "ledger_balances"
+        },
+        {
+          "earned": 1,
+          "name": "ledger_validation"
+        },
+        {
+          "earned": 1,
+          "name": "ledger_dedupe_atomicity"
+        },
+        {
+          "earned": 1,
+          "name": "ledger_snapshot"
+        },
+        {
+          "earned": 1,
+          "name": "outbox_claims"
+        },
+        {
+          "earned": 1,
+          "name": "outbox_fencing"
+        },
+        {
+          "earned": 1,
+          "name": "outbox_dedupe_snapshot"
+        },
+        {
+          "earned": 1,
+          "name": "service_ingest"
+        },
+        {
+          "earned": 1,
+          "name": "service_rollback"
+        },
+        {
+          "earned": 1,
+          "name": "service_crash_delivery"
+        },
+        {
+          "earned": 1,
+          "name": "service_snapshot"
+        },
+        {
+          "earned": 0,
+          "name": "handoff"
+        }
+      ],
+      "replicate": 1,
+      "seed": 124137216,
+      "status": "completed",
+      "wall_seconds": 411.974513
+    },
+    {
+      "case_id": "order-system-lease-takeover",
+      "cost_complete": true,
+      "metadata": {
+        "artifact": "/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/recovery-long/artifacts/order-system-lease-takeover--1--single-agent",
+        "computed_cost_usd": 0.38933300000000004,
+        "model_sessions": 6,
+        "reported_cost_usd": 0.38933299999999993,
+        "restarts": 1,
+        "total_seconds": 638.265741458
+      },
+      "mode": "single-agent",
+      "model_calls": [
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 1237,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 2720
+        },
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 1955,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 12543
+        },
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 11613,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 16867
+        },
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 4032,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 10166
+        },
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 5951,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 17924
+        },
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 1955,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 12298
+        }
+      ],
+      "non_model_cost_usd": 0,
+      "quality": [
+        {
+          "earned": 1,
+          "name": "ledger_balances"
+        },
+        {
+          "earned": 1,
+          "name": "ledger_validation"
+        },
+        {
+          "earned": 1,
+          "name": "ledger_dedupe_atomicity"
+        },
+        {
+          "earned": 1,
+          "name": "ledger_snapshot"
+        },
+        {
+          "earned": 1,
+          "name": "outbox_claims"
+        },
+        {
+          "earned": 1,
+          "name": "outbox_fencing"
+        },
+        {
+          "earned": 1,
+          "name": "outbox_dedupe_snapshot"
+        },
+        {
+          "earned": 1,
+          "name": "service_ingest"
+        },
+        {
+          "earned": 1,
+          "name": "service_rollback"
+        },
+        {
+          "earned": 1,
+          "name": "service_crash_delivery"
+        },
+        {
+          "earned": 1,
+          "name": "service_snapshot"
+        },
+        {
+          "earned": 0,
+          "name": "handoff"
+        }
+      ],
+      "replicate": 1,
+      "seed": 43450515,
+      "status": "completed",
+      "wall_seconds": 638.397963
+    },
+    {
+      "case_id": "order-system-lease-takeover",
+      "cost_complete": true,
+      "metadata": {
+        "artifact": "/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/recovery-long/artifacts/order-system-lease-takeover--1--multi-agent",
+        "computed_cost_usd": 0.401841,
+        "model_sessions": 6,
+        "reported_cost_usd": 0.401841,
+        "restarts": 1,
+        "total_seconds": 576.961567709
+      },
+      "mode": "multi-agent",
+      "model_calls": [
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 1240,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 2252
+        },
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 1868,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 11548
+        },
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 7832,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 16761
+        },
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 1868,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 10461
+        },
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 5680,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 23597
+        },
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 1868,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 11678
+        }
+      ],
+      "non_model_cost_usd": 0,
+      "quality": [
+        {
+          "earned": 1,
+          "name": "ledger_balances"
+        },
+        {
+          "earned": 1,
+          "name": "ledger_validation"
+        },
+        {
+          "earned": 1,
+          "name": "ledger_dedupe_atomicity"
+        },
+        {
+          "earned": 1,
+          "name": "ledger_snapshot"
+        },
+        {
+          "earned": 1,
+          "name": "outbox_claims"
+        },
+        {
+          "earned": 1,
+          "name": "outbox_fencing"
+        },
+        {
+          "earned": 1,
+          "name": "outbox_dedupe_snapshot"
+        },
+        {
+          "earned": 1,
+          "name": "service_ingest"
+        },
+        {
+          "earned": 1,
+          "name": "service_rollback"
+        },
+        {
+          "earned": 1,
+          "name": "service_crash_delivery"
+        },
+        {
+          "earned": 1,
+          "name": "service_snapshot"
+        },
+        {
+          "earned": 0,
+          "name": "handoff"
+        }
+      ],
+      "replicate": 1,
+      "seed": 838188509,
+      "status": "completed",
+      "wall_seconds": 577.050637
+    },
+    {
+      "case_id": "order-system-lease-takeover",
+      "cost_complete": true,
+      "metadata": {
+        "artifact": "/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/recovery-long/artifacts/order-system-lease-takeover--1--comitia",
+        "computed_cost_usd": 0.39708899999999997,
+        "model_sessions": 6,
+        "reported_cost_usd": 0.39708899999999997,
+        "restarts": 1,
+        "total_seconds": 533.75090075
+      },
+      "mode": "comitia",
+      "model_calls": [
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 1240,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 3130
+        },
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 1877,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 12720
+        },
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 7272,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 18046
+        },
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 1877,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 10319
+        },
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 5406,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 17002
+        },
+        {
+          "cached_input_tokens": 0,
+          "input_tokens": 1877,
+          "model": "claude-haiku-4-5-20251001",
+          "output_tokens": 14291
+        }
+      ],
+      "non_model_cost_usd": 0,
+      "quality": [
+        {
+          "earned": 1,
+          "name": "ledger_balances"
+        },
+        {
+          "earned": 1,
+          "name": "ledger_validation"
+        },
+        {
+          "earned": 1,
+          "name": "ledger_dedupe_atomicity"
+        },
+        {
+          "earned": 1,
+          "name": "ledger_snapshot"
+        },
+        {
+          "earned": 1,
+          "name": "outbox_claims"
+        },
+        {
+          "earned": 1,
+          "name": "outbox_fencing"
+        },
+        {
+          "earned": 1,
+          "name": "outbox_dedupe_snapshot"
+        },
+        {
+          "earned": 1,
+          "name": "service_ingest"
+        },
+        {
+          "earned": 1,
+          "name": "service_rollback"
+        },
+        {
+          "earned": 1,
+          "name": "service_crash_delivery"
+        },
+        {
+          "earned": 1,
+          "name": "service_snapshot"
+        },
+        {
+          "earned": 0,
+          "name": "handoff"
+        }
+      ],
+      "replicate": 1,
+      "seed": 79714383,
+      "status": "completed",
+      "wall_seconds": 533.846247
+    }
+  ],
+  "schema": "comitia.eval-results.v1",
+  "spec_sha256": "e16d7df5eaed42c0c146151af1d7c18c74a3e272ffe39a7c99b4e8d1cb9c0080",
+  "summary": {
+    "comparisons_to_single_agent": {
+      "comitia": {
+        "baseline": "single-agent",
+        "cost_delta_mean_usd": null,
+        "cost_delta_mean_usd_95ci": null,
+        "paired_runs": 6,
+        "quality_delta_mean": 0.027778,
+        "quality_delta_mean_95ci": [
+          0.0,
+          0.055556
+        ],
+        "quality_ties": 4,
+        "quality_wins": 2
+      },
+      "multi-agent": {
+        "baseline": "single-agent",
+        "cost_delta_mean_usd": null,
+        "cost_delta_mean_usd_95ci": null,
+        "paired_runs": 6,
+        "quality_delta_mean": -0.138889,
+        "quality_delta_mean_95ci": [
+          -0.458333,
+          0.041667
+        ],
+        "quality_ties": 4,
+        "quality_wins": 1
+      }
+    },
+    "modes": {
+      "comitia": {
+        "cached_input_tokens": 0,
+        "completed_runs": 5,
+        "cost_coverage": 1.0,
+        "cost_per_passing_run_usd": 1.846192,
+        "input_tokens": 94237,
+        "known_cost_usd": 1.846192,
+        "mean_cost_usd": 0.307698667,
+        "mean_wall_seconds": 397.141165,
+        "output_tokens": 350391,
+        "passing_runs": 1,
+        "quality_mean": 0.763889,
+        "quality_mean_95ci": [
+          0.444444,
+          0.944444
+        ],
+        "quality_score_per_usd": 2.482588,
+        "runs": 6
+      },
+      "multi-agent": {
+        "cached_input_tokens": 0,
+        "completed_runs": 4,
+        "cost_coverage": 1.0,
+        "cost_per_passing_run_usd": null,
+        "input_tokens": 118533,
+        "known_cost_usd": 1.683773,
+        "mean_cost_usd": 0.280628833,
+        "mean_wall_seconds": 387.396489,
+        "output_tokens": 313048,
+        "passing_runs": 0,
+        "quality_mean": 0.597222,
+        "quality_mean_95ci": [
+          0.291667,
+          0.902778
+        ],
+        "quality_score_per_usd": 2.128157,
+        "runs": 6
+      },
+      "single-agent": {
+        "cached_input_tokens": 0,
+        "completed_runs": 5,
+        "cost_coverage": 0.833333,
+        "cost_per_passing_run_usd": null,
+        "input_tokens": 128637,
+        "known_cost_usd": 1.746526,
+        "mean_cost_usd": 0.3493052,
+        "mean_wall_seconds": 572.401235,
+        "output_tokens": 351400,
+        "passing_runs": 0,
+        "quality_mean": 0.736111,
+        "quality_mean_95ci": [
+          0.430556,
+          0.916667
+        ],
+        "quality_score_per_usd": null,
+        "runs": 6
+      }
+    }
+  }
+}

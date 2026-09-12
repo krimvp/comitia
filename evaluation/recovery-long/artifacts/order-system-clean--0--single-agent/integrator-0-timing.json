@@ -1,0 +1,1 @@
+{"stage": "integrator", "attempt": 0, "started_at": 1789134094.7157729, "cost_complete": false, "error": "TimeoutError: model call exceeded 600s", "seconds": 600.028560875}

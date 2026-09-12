@@ -1,0 +1,12 @@
+```json
+{
+  "choice": "C",
+  "atomic_writes": ["order", "outbox"],
+  "idempotency_key": "order_id",
+  "broker_delivery": "at-least-once",
+  "email_effect_count": 1,
+  "email_api_call_count": 3,
+  "rollback_email_count": 0,
+  "why": "Crash gaps between publishing/marking-sent and email/ack cause broker redeliveries. At-least-once delivery + idempotent consumer (idempotency key=order_id at email service) achieves exactly-once effect. Limit: relies entirely on email service's durable idempotency tracking; without it, duplicates occur; truly exactly-once impossible without idempotence at effects layer."
+}
+```

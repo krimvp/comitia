@@ -1,0 +1,36 @@
+{
+  "optimal_makespan": 7,
+  "witness": [
+    {
+      "task": "A",
+      "worker": "w1",
+      "start": 0,
+      "end": 2
+    },
+    {
+      "task": "B",
+      "worker": "w1",
+      "start": 2,
+      "end": 5
+    },
+    {
+      "task": "C",
+      "worker": "w2",
+      "start": 2,
+      "end": 4
+    },
+    {
+      "task": "D",
+      "worker": "w1",
+      "start": 5,
+      "end": 6
+    },
+    {
+      "task": "E",
+      "worker": "w2",
+      "start": 5,
+      "end": 7
+    }
+  ],
+  "method": "enumerated all topological priority orders and both-worker assignments"
+}

@@ -1,0 +1,98 @@
+{
+  "case_id": "outbox-architecture",
+  "cost_complete": true,
+  "metadata": {
+    "artifact": "/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/live/artifacts/outbox-architecture--4--comitia",
+    "category": "Architecture / reasoning",
+    "cli_reported_cost_usd": 0.056562999999999995,
+    "comitia_operations": 16,
+    "comitia_wall_seconds": 0.25969695900001066,
+    "computed_cost_usd": 0.056562999999999995,
+    "model_sessions": 2,
+    "model_wall_seconds": 110.570845875,
+    "score_audit": {
+      "evidence": "/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/live/artifacts/outbox-architecture--4--comitia/content-sensitivity-grader.json",
+      "label": "content-sensitivity",
+      "original_quality": [
+        {
+          "earned": 1,
+          "name": "design"
+        },
+        {
+          "earned": 1,
+          "name": "transaction"
+        },
+        {
+          "earned": 1,
+          "name": "key"
+        },
+        {
+          "earned": 1,
+          "name": "delivery"
+        },
+        {
+          "earned": 1,
+          "name": "effects"
+        },
+        {
+          "earned": 1,
+          "name": "calls"
+        },
+        {
+          "earned": 1,
+          "name": "rollback"
+        }
+      ]
+    }
+  },
+  "mode": "comitia",
+  "model_calls": [
+    {
+      "cached_input_tokens": 0,
+      "input_tokens": 511,
+      "model": "claude-haiku-4-5-20251001",
+      "output_tokens": 8104
+    },
+    {
+      "cached_input_tokens": 0,
+      "input_tokens": 747,
+      "model": "claude-haiku-4-5-20251001",
+      "output_tokens": 2957
+    }
+  ],
+  "non_model_cost_usd": 0,
+  "quality": [
+    {
+      "earned": 1,
+      "name": "design"
+    },
+    {
+      "earned": 1,
+      "name": "transaction"
+    },
+    {
+      "earned": 1,
+      "name": "key"
+    },
+    {
+      "earned": 1,
+      "name": "delivery"
+    },
+    {
+      "earned": 1,
+      "name": "effects"
+    },
+    {
+      "earned": 1,
+      "name": "calls"
+    },
+    {
+      "earned": 1,
+      "name": "rollback"
+    }
+  ],
+  "replicate": 4,
+  "seed": 2048093725,
+  "status": "completed",
+  "wall_seconds": 111.015414
+}

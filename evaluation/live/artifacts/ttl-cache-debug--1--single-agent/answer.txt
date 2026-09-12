@@ -1,0 +1,11 @@
+```json
+{"code":"class Cache:\n    def __init__(self): self.data = {}\n    def get(self, key, now, ttl, loader):\n        if key in self.data:\n            value, expires = self.data[key]\n            if now < expires:\n                return value\n            del self.data[key]\n        value = loader()\n        if ttl > 0:\n            self.data[key] = (value, now + ttl)\n        return value"}
+```
+
+**Fixes applied:**
+
+1. **Removed `and value` check**: Now correctly handles falsy values (0, False, None, "") as valid cache entries
+2. **Changed `now <= expires` to `now < expires`**: Correct expiry boundary condition  
+3. **Added `del self.data[key]`**: Removes expired entries before loading
+4. **Added `if ttl > 0` wrapper**: Only caches when ttl > 0; loader is called but result discarded when ttl ≤ 0, while existing valid hits are still returned
+5. **Propagates loader exceptions**: If loader raises after expired entry cleanup, no expired entry remains in the cache

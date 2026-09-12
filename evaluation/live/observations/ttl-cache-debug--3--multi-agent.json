@@ -1,0 +1,64 @@
+{
+  "case_id": "ttl-cache-debug",
+  "cost_complete": true,
+  "metadata": {
+    "artifact": "/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/live/artifacts/ttl-cache-debug--3--multi-agent",
+    "category": "Debugging",
+    "cli_reported_cost_usd": 0.046824,
+    "comitia_operations": 0,
+    "comitia_wall_seconds": 0.0,
+    "computed_cost_usd": 0.046824,
+    "model_sessions": 2,
+    "model_wall_seconds": 85.255866791
+  },
+  "mode": "multi-agent",
+  "model_calls": [
+    {
+      "cached_input_tokens": 0,
+      "input_tokens": 498,
+      "model": "claude-haiku-4-5-20251001",
+      "output_tokens": 2785
+    },
+    {
+      "cached_input_tokens": 0,
+      "input_tokens": 771,
+      "model": "claude-haiku-4-5-20251001",
+      "output_tokens": 6326
+    }
+  ],
+  "non_model_cost_usd": 0,
+  "quality": [
+    {
+      "earned": 1,
+      "name": "miss-hit"
+    },
+    {
+      "earned": 1,
+      "name": "falsy"
+    },
+    {
+      "earned": 1,
+      "name": "boundary"
+    },
+    {
+      "earned": 1,
+      "name": "no-sliding"
+    },
+    {
+      "earned": 1,
+      "name": "nonpositive-ttl"
+    },
+    {
+      "earned": 1,
+      "name": "loader-failure"
+    },
+    {
+      "earned": 1,
+      "name": "isolation"
+    }
+  ],
+  "replicate": 3,
+  "seed": 2007498220,
+  "status": "completed",
+  "wall_seconds": 85.417476
+}

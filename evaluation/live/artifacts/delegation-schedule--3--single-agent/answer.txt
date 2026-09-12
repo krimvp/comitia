@@ -1,0 +1,19 @@
+```json
+{
+  "schedule": [
+    {"task": "A", "worker": "w2", "start": 0},
+    {"task": "B", "worker": "w1", "start": 0},
+    {"task": "C", "worker": "w2", "start": 2},
+    {"task": "E", "worker": "w1", "start": 3},
+    {"task": "D", "worker": "w2", "start": 4}
+  ],
+  "makespan": 5,
+  "stale_completion": "reject",
+  "recovery": "reclaim-new-version",
+  "handoff": ["task_id", 5, "artifact", "tests"]
+}
+```
+
+**Schedule explanation:** A and B run in parallel on different workers (0-3), avoiding file conflict. C starts when A completes (time 2). E starts when B completes (time 3). D starts at time 4 when both its dependencies (B at time 3, C at time 4) are satisfied.
+
+**Lease conflict resolution:** Rejecting the stale version 4 submission prevents overwriting the replacement worker's version 5. Reclaiming the new version ensures safety by discarding the outdated lease and continuing with the current authoritative version.

@@ -1,0 +1,290 @@
+[
+  {
+    "label": "audited",
+    "case": "delegation-schedule",
+    "mode": "multi-agent",
+    "replicate": 0,
+    "original_quality": 0.8571428571428571,
+    "revised_quality": 1.0,
+    "evidence": "/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/live/artifacts/delegation-schedule--0--multi-agent/audited-grader.json"
+  },
+  {
+    "label": "audited",
+    "case": "delegation-schedule",
+    "mode": "single-agent",
+    "replicate": 0,
+    "original_quality": 0.0,
+    "revised_quality": 0.0,
+    "evidence": "/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/live/artifacts/delegation-schedule--0--single-agent/audited-grader.json"
+  },
+  {
+    "label": "audited",
+    "case": "delegation-schedule",
+    "mode": "comitia",
+    "replicate": 1,
+    "original_quality": 0.8571428571428571,
+    "revised_quality": 1.0,
+    "evidence": "/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/live/artifacts/delegation-schedule--1--comitia/audited-grader.json"
+  },
+  {
+    "label": "audited",
+    "case": "delegation-schedule",
+    "mode": "single-agent",
+    "replicate": 1,
+    "original_quality": 0.0,
+    "revised_quality": 0.0,
+    "evidence": "/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/live/artifacts/delegation-schedule--1--single-agent/audited-grader.json"
+  },
+  {
+    "label": "audited",
+    "case": "delegation-schedule",
+    "mode": "comitia",
+    "replicate": 2,
+    "original_quality": 0.8571428571428571,
+    "revised_quality": 1.0,
+    "evidence": "/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/live/artifacts/delegation-schedule--2--comitia/audited-grader.json"
+  },
+  {
+    "label": "audited",
+    "case": "delegation-schedule",
+    "mode": "single-agent",
+    "replicate": 2,
+    "original_quality": 0.8571428571428571,
+    "revised_quality": 1.0,
+    "evidence": "/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/live/artifacts/delegation-schedule--2--single-agent/audited-grader.json"
+  },
+  {
+    "label": "audited",
+    "case": "delegation-schedule",
+    "mode": "single-agent",
+    "replicate": 3,
+    "original_quality": 0.0,
+    "revised_quality": 0.0,
+    "evidence": "/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/live/artifacts/delegation-schedule--3--single-agent/audited-grader.json"
+  },
+  {
+    "label": "audited",
+    "case": "delegation-schedule",
+    "mode": "single-agent",
+    "replicate": 4,
+    "original_quality": 0.0,
+    "revised_quality": 0.0,
+    "evidence": "/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/live/artifacts/delegation-schedule--4--single-agent/audited-grader.json"
+  },
+  {
+    "label": "audited",
+    "case": "outbox-architecture",
+    "mode": "single-agent",
+    "replicate": 0,
+    "original_quality": 0.8571428571428571,
+    "revised_quality": 1.0,
+    "evidence": "/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/live/artifacts/outbox-architecture--0--single-agent/audited-grader.json"
+  },
+  {
+    "label": "audited",
+    "case": "outbox-architecture",
+    "mode": "single-agent",
+    "replicate": 2,
+    "original_quality": 0.8571428571428571,
+    "revised_quality": 1.0,
+    "evidence": "/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/live/artifacts/outbox-architecture--2--single-agent/audited-grader.json"
+  },
+  {
+    "label": "audited",
+    "case": "outbox-architecture",
+    "mode": "single-agent",
+    "replicate": 3,
+    "original_quality": 0.8571428571428571,
+    "revised_quality": 1.0,
+    "evidence": "/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/live/artifacts/outbox-architecture--3--single-agent/audited-grader.json"
+  },
+  {
+    "label": "content-sensitivity",
+    "case": "delegation-schedule",
+    "mode": "multi-agent",
+    "replicate": 0,
+    "original_quality": 0.8571428571428571,
+    "revised_quality": 1.0,
+    "evidence": "/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/live/artifacts/delegation-schedule--0--multi-agent/content-sensitivity-grader.json"
+  },
+  {
+    "label": "content-sensitivity",
+    "case": "delegation-schedule",
+    "mode": "single-agent",
+    "replicate": 0,
+    "original_quality": 0.0,
+    "revised_quality": 1.0,
+    "evidence": "/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/live/artifacts/delegation-schedule--0--single-agent/content-sensitivity-grader.json"
+  },
+  {
+    "label": "content-sensitivity",
+    "case": "delegation-schedule",
+    "mode": "comitia",
+    "replicate": 1,
+    "original_quality": 0.8571428571428571,
+    "revised_quality": 1.0,
+    "evidence": "/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/live/artifacts/delegation-schedule--1--comitia/content-sensitivity-grader.json"
+  },
+  {
+    "label": "content-sensitivity",
+    "case": "delegation-schedule",
+    "mode": "single-agent",
+    "replicate": 1,
+    "original_quality": 0.0,
+    "revised_quality": 1.0,
+    "evidence": "/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/live/artifacts/delegation-schedule--1--single-agent/content-sensitivity-grader.json"
+  },
+  {
+    "label": "content-sensitivity",
+    "case": "delegation-schedule",
+    "mode": "comitia",
+    "replicate": 2,
+    "original_quality": 0.8571428571428571,
+    "revised_quality": 1.0,
+    "evidence": "/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/live/artifacts/delegation-schedule--2--comitia/content-sensitivity-grader.json"
+  },
+  {
+    "label": "content-sensitivity",
+    "case": "delegation-schedule",
+    "mode": "single-agent",
+    "replicate": 2,
+    "original_quality": 0.8571428571428571,
+    "revised_quality": 1.0,
+    "evidence": "/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/live/artifacts/delegation-schedule--2--single-agent/content-sensitivity-grader.json"
+  },
+  {
+    "label": "content-sensitivity",
+    "case": "delegation-schedule",
+    "mode": "single-agent",
+    "replicate": 3,
+    "original_quality": 0.0,
+    "revised_quality": 0.6666666666666666,
+    "evidence": "/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/live/artifacts/delegation-schedule--3--single-agent/content-sensitivity-grader.json"
+  },
+  {
+    "label": "content-sensitivity",
+    "case": "delegation-schedule",
+    "mode": "single-agent",
+    "replicate": 4,
+    "original_quality": 0.0,
+    "revised_quality": 1.0,
+    "evidence": "/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/live/artifacts/delegation-schedule--4--single-agent/content-sensitivity-grader.json"
+  },
+  {
+    "label": "content-sensitivity",
+    "case": "outbox-architecture",
+    "mode": "single-agent",
+    "replicate": 0,
+    "original_quality": 0.8571428571428571,
+    "revised_quality": 1.0,
+    "evidence": "/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/live/artifacts/outbox-architecture--0--single-agent/content-sensitivity-grader.json"
+  },
+  {
+    "label": "content-sensitivity",
+    "case": "outbox-architecture",
+    "mode": "single-agent",
+    "replicate": 2,
+    "original_quality": 0.8571428571428571,
+    "revised_quality": 1.0,
+    "evidence": "/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/live/artifacts/outbox-architecture--2--single-agent/content-sensitivity-grader.json"
+  },
+  {
+    "label": "content-sensitivity",
+    "case": "outbox-architecture",
+    "mode": "single-agent",
+    "replicate": 3,
+    "original_quality": 0.8571428571428571,
+    "revised_quality": 1.0,
+    "evidence": "/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/live/artifacts/outbox-architecture--3--single-agent/content-sensitivity-grader.json"
+  },
+  {
+    "label": "content-sensitivity",
+    "case": "stable-refactor",
+    "mode": "single-agent",
+    "replicate": 0,
+    "original_quality": 0.0,
+    "revised_quality": 1.0,
+    "evidence": "/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/live/artifacts/stable-refactor--0--single-agent/content-sensitivity-grader.json"
+  },
+  {
+    "label": "content-sensitivity",
+    "case": "stable-refactor",
+    "mode": "single-agent",
+    "replicate": 1,
+    "original_quality": 0.0,
+    "revised_quality": 1.0,
+    "evidence": "/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/live/artifacts/stable-refactor--1--single-agent/content-sensitivity-grader.json"
+  },
+  {
+    "label": "content-sensitivity",
+    "case": "stable-refactor",
+    "mode": "single-agent",
+    "replicate": 2,
+    "original_quality": 0.0,
+    "revised_quality": 1.0,
+    "evidence": "/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/live/artifacts/stable-refactor--2--single-agent/content-sensitivity-grader.json"
+  },
+  {
+    "label": "content-sensitivity",
+    "case": "stable-refactor",
+    "mode": "single-agent",
+    "replicate": 3,
+    "original_quality": 0.0,
+    "revised_quality": 1.0,
+    "evidence": "/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/live/artifacts/stable-refactor--3--single-agent/content-sensitivity-grader.json"
+  },
+  {
+    "label": "content-sensitivity",
+    "case": "stable-refactor",
+    "mode": "single-agent",
+    "replicate": 4,
+    "original_quality": 0.0,
+    "revised_quality": 1.0,
+    "evidence": "/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/live/artifacts/stable-refactor--4--single-agent/content-sensitivity-grader.json"
+  },
+  {
+    "label": "content-sensitivity",
+    "case": "ttl-cache-debug",
+    "mode": "single-agent",
+    "replicate": 0,
+    "original_quality": 0.0,
+    "revised_quality": 1.0,
+    "evidence": "/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/live/artifacts/ttl-cache-debug--0--single-agent/content-sensitivity-grader.json"
+  },
+  {
+    "label": "content-sensitivity",
+    "case": "ttl-cache-debug",
+    "mode": "single-agent",
+    "replicate": 1,
+    "original_quality": 0.0,
+    "revised_quality": 1.0,
+    "evidence": "/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/live/artifacts/ttl-cache-debug--1--single-agent/content-sensitivity-grader.json"
+  },
+  {
+    "label": "content-sensitivity",
+    "case": "ttl-cache-debug",
+    "mode": "single-agent",
+    "replicate": 2,
+    "original_quality": 0.0,
+    "revised_quality": 1.0,
+    "evidence": "/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/live/artifacts/ttl-cache-debug--2--single-agent/content-sensitivity-grader.json"
+  },
+  {
+    "label": "content-sensitivity",
+    "case": "ttl-cache-debug",
+    "mode": "single-agent",
+    "replicate": 3,
+    "original_quality": 0.0,
+    "revised_quality": 1.0,
+    "evidence": "/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/live/artifacts/ttl-cache-debug--3--single-agent/content-sensitivity-grader.json"
+  },
+  {
+    "label": "content-sensitivity",
+    "case": "ttl-cache-debug",
+    "mode": "single-agent",
+    "replicate": 4,
+    "original_quality": 0.0,
+    "revised_quality": 1.0,
+    "evidence": "/Users/taniaprado/.codex/.chatgpt-projects/g-p-6a9c9bdc9dec819188ca312219961831/comitia-eval/evaluation/live/artifacts/ttl-cache-debug--4--single-agent/content-sensitivity-grader.json"
+  }
+]

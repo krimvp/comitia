@@ -1,0 +1,18 @@
+Independently review the worker answer against the task. Correct any defects you find. Return the final requested JSON, with no review commentary.
+
+TASK:
+Design order->email delivery. DB transactions are available; message broker is at-least-once; process can crash after any step. Email service supports a durable idempotency key. Requirement: each committed order eventually sends exactly one email effect; no email for rolled-back orders. Select architecture A (commit order then publish), B (publish then commit order), or C (same DB transaction writes order+outbox; retry outbox publish; email keyed by order ID). Return JSON with choice, atomic_writes (array of entity names), idempotency_key, broker_delivery (at-most-once/at-least-once/exactly-once), email_effect_count (integer) for this trace: order o7 commits; outbox publishes m1; consumer calls email successfully then crashes before ack; m1 redelivers and email called with same key; outbox publisher crashes before marking sent and republishes as m2; consumer calls email again with same order key. Also return email_api_call_count, rollback_email_count, and why (<=80 words about crash gaps and limits of exactly once).
+
+WORKER ANSWER:
+```json
+{
+  "choice": "C",
+  "atomic_writes": ["order", "outbox"],
+  "idempotency_key": "order_id",
+  "broker_delivery": "at-least-once",
+  "email_effect_count": 1,
+  "email_api_call_count": 3,
+  "rollback_email_count": 0,
+  "why": "Outbox pattern writes order and message atomically in DB. Email service's durable idempotency key (order ID) prevents duplicate effects from at-least-once delivery. Crash gaps masked: unsent outbox entries persist and retry; email service deduplicates via key. Limit: exactly-once effect requires email service to maintain idempotency state durably and indefinitely."
+}
+```

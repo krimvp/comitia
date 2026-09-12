@@ -1,0 +1,254 @@
+{
+  "bootstrap_samples": 5000,
+  "cases": [
+    {
+      "category": "Factual / low complexity",
+      "id": "factual-basics",
+      "pass_score": 5,
+      "quality_checks": [
+        {
+          "name": "capital",
+          "points": 1
+        },
+        {
+          "name": "seconds",
+          "points": 1
+        },
+        {
+          "name": "binary",
+          "points": 1
+        },
+        {
+          "name": "gold",
+          "points": 1
+        },
+        {
+          "name": "prime",
+          "points": 1
+        }
+      ],
+      "task": "Return JSON with these five keys and values: capital_of_japan (English city name), seconds_in_day (integer), binary_13 (string, no prefix), chemical_symbol_gold (string), smallest_prime (integer). No explanation.",
+      "weight": 1
+    },
+    {
+      "category": "Coding / refactoring",
+      "id": "stable-refactor",
+      "pass_score": 7,
+      "quality_checks": [
+        {
+          "name": "empty",
+          "points": 1
+        },
+        {
+          "name": "duplicates",
+          "points": 1
+        },
+        {
+          "name": "order",
+          "points": 1
+        },
+        {
+          "name": "signed",
+          "points": 1
+        },
+        {
+          "name": "immutable",
+          "points": 1
+        },
+        {
+          "name": "randomized",
+          "points": 1
+        },
+        {
+          "name": "linear-work",
+          "points": 1
+        }
+      ],
+      "task": "Refactor this Python function to expected O(n) time, preserve first-seen user order and input data, and keep exactly the same output for valid inputs. Valid rows have hashable string user and integer amount (possibly negative or zero). Return JSON {\"code\": \"...\"} defining summarize(rows). No imports except standard library. Original:\ndef summarize(rows):\n    result = []\n    for row in rows:\n        found = False\n        for item in result:\n            if item[\"user\"] == row[\"user\"]:\n                item[\"total\"] += row[\"amount\"]\n                found = True\n                break\n        if not found:\n            result.append({\"user\": row[\"user\"], \"total\": row[\"amount\"]})\n    return result",
+      "weight": 1
+    },
+    {
+      "category": "Debugging",
+      "id": "ttl-cache-debug",
+      "pass_score": 7,
+      "quality_checks": [
+        {
+          "name": "miss-hit",
+          "points": 1
+        },
+        {
+          "name": "falsy",
+          "points": 1
+        },
+        {
+          "name": "boundary",
+          "points": 1
+        },
+        {
+          "name": "no-sliding",
+          "points": 1
+        },
+        {
+          "name": "nonpositive-ttl",
+          "points": 1
+        },
+        {
+          "name": "loader-failure",
+          "points": 1
+        },
+        {
+          "name": "isolation",
+          "points": 1
+        }
+      ],
+      "task": "Fix this Python cache. Return JSON {\"code\":\"...\"} defining Cache with the same get(key, now, ttl, loader) signature. Requirements: a cached value (including 0, False, None, empty string) is valid iff now < expires; a hit must not call loader or extend expiry; expired entries must be removed before loading; if loader raises, propagate it and leave no expired entry; ttl <= 0 must call loader but must not keep its result (an existing valid hit is still returned); keys are strings, times numeric, loader takes no args. Instance data is a dict key -> (value, expires). Buggy code:\nclass Cache:\n    def __init__(self): self.data = {}\n    def get(self, key, now, ttl, loader):\n        if key in self.data:\n            value, expires = self.data[key]\n            if value and now <= expires: return value\n        value = loader()\n        self.data[key] = (value, now + ttl)\n        return value",
+      "weight": 1
+    },
+    {
+      "category": "Architecture / reasoning",
+      "id": "outbox-architecture",
+      "pass_score": 7,
+      "quality_checks": [
+        {
+          "name": "design",
+          "points": 1
+        },
+        {
+          "name": "transaction",
+          "points": 1
+        },
+        {
+          "name": "key",
+          "points": 1
+        },
+        {
+          "name": "delivery",
+          "points": 1
+        },
+        {
+          "name": "effects",
+          "points": 1
+        },
+        {
+          "name": "calls",
+          "points": 1
+        },
+        {
+          "name": "rollback",
+          "points": 1
+        }
+      ],
+      "task": "Design order->email delivery. DB transactions are available; message broker is at-least-once; process can crash after any step. Email service supports a durable idempotency key. Requirement: each committed order eventually sends exactly one email effect; no email for rolled-back orders. Select architecture A (commit order then publish), B (publish then commit order), or C (same DB transaction writes order+outbox; retry outbox publish; email keyed by order ID). Return JSON with choice, atomic_writes (array of entity names), idempotency_key, broker_delivery (at-most-once/at-least-once/exactly-once), email_effect_count (integer) for this trace: order o7 commits; outbox publishes m1; consumer calls email successfully then crashes before ack; m1 redelivers and email called with same key; outbox publisher crashes before marking sent and republishes as m2; consumer calls email again with same order key. Also return email_api_call_count, rollback_email_count, and why (<=80 words about crash gaps and limits of exactly once).",
+      "weight": 1
+    },
+    {
+      "category": "Collaboration / orchestration",
+      "id": "delegation-schedule",
+      "pass_score": 6,
+      "quality_checks": [
+        {
+          "name": "all-tasks",
+          "points": 1
+        },
+        {
+          "name": "workers",
+          "points": 1
+        },
+        {
+          "name": "dependencies",
+          "points": 1
+        },
+        {
+          "name": "file-conflict",
+          "points": 1
+        },
+        {
+          "name": "optimal",
+          "points": 1
+        },
+        {
+          "name": "stale-lease",
+          "points": 1
+        }
+      ],
+      "task": "Plan two workers w1,w2. Tasks: A duration 2 writes api.py no deps; B duration 3 writes api.py no deps; C duration 2 writes ui.py depends A; D duration 1 writes docs.md depends B and C; E duration 2 writes tests.py depends B. A and B cannot overlap because same file. A worker runs one task at a time, tasks nonpreemptive, times nonnegative integers. Minimize makespan, tie breaks irrelevant. Return JSON {\"schedule\":[{\"task\":\"A\",\"worker\":\"w1\",\"start\":0},...],\"makespan\":integer,\"stale_completion\":\"accept or reject\",\"recovery\":\"resume-old-lease or reclaim-new-version\",\"handoff\":[\"task_id\", \"lease_version\", \"artifact\", \"tests\"]}. A crashed worker held lease version 4; replacement holds version 5; old worker then submits version 4. Pick the safe completion and recovery actions. Give each task once.",
+      "weight": 1
+    },
+    {
+      "category": "Communication heavy",
+      "id": "incident-handoff",
+      "pass_score": 7,
+      "quality_checks": [
+        {
+          "name": "impact-times",
+          "points": 1
+        },
+        {
+          "name": "uncertainty",
+          "points": 1
+        },
+        {
+          "name": "next-update",
+          "points": 1
+        },
+        {
+          "name": "owners-deadlines",
+          "points": 1
+        },
+        {
+          "name": "customer-facts",
+          "points": 1
+        },
+        {
+          "name": "length",
+          "points": 1
+        },
+        {
+          "name": "secret-omitted",
+          "points": 1
+        }
+      ],
+      "task": "Write a concise customer incident update and an internal handoff from these facts only. Checkout errors affected 12% of attempts between 09:10 and 09:35 UTC; rollback restored service at 09:35; root cause remains unconfirmed; no evidence of data loss has been found, but investigation is ongoing; next customer update 10:30 UTC; Maya owns investigating the new connection pool limit by 10:15 UTC; Luis owns comparing release v42 to v41 by 10:20 UTC. Internal-only secret marker: token=INTERNAL-DO-NOT-SHARE. Do not include the marker anywhere in your answer. Return JSON {\"customer_update\": \"60 to 100 words, plain language, no invented promises or claims\", \"impact_percent\":12,\"start_utc\":\"HH:MM\",\"restored_utc\":\"HH:MM\",\"root_cause_status\":\"unconfirmed or confirmed\",\"data_loss_status\":\"no-evidence-investigating or ruled-out\",\"next_update_utc\":\"HH:MM\",\"actions\":[{\"owner\":\"...\",\"task\":\"...\",\"due_utc\":\"HH:MM\"},...]}. Include impact, affected times, restoration, uncertainty and next update in customer prose.",
+      "weight": 1
+    }
+  ],
+  "metadata": {
+    "comitia": "same worker/reviewer prompts and answer body; real scoped sessions, leased tasks, durable send/replay/ack; adapter handles coordination",
+    "cost": "CLI modelUsage aggregate includes auxiliary model usage, reconciled to reported list cost; no subscription invoice claim; local compute excluded equally",
+    "decoding": "CLI defaults; no seed or temperature control exposed; harness seed recorded only",
+    "grading": "fixed deterministic checks; code executed by separate checker; prose checks measure factual/format compliance, not holistic writing quality",
+    "isolation": "fresh temporary directory per model session; no tools, MCP, hooks or skills; graders withheld",
+    "model": "claude-haiku-4-5-20251001",
+    "multi_agent": "worker then independent reviewer/finalizer via in-memory message handoff",
+    "pricing_as_of": "2026-09-11",
+    "pricing_source": "https://platform.claude.com/docs/en/about-claude/pricing",
+    "prompt_cache": "disabled for comparability; unexpected cache creation makes cost incomplete",
+    "purpose": "Exploratory six-category bounded task evaluation; no claim of representative production workload distribution",
+    "repository_commit": "570583b0d6cd2ce8ba8e05f1cce6d61b710db611",
+    "run_order": "counterbalanced by case/repetition, rotating mode order; sequential trials",
+    "score_audit": {
+      "capitalization": "Architecture entity names case-insensitive.",
+      "excluded_check": "delegation-schedule/handoff",
+      "label": "content-sensitivity",
+      "original_spec_sha256": "0a4f54117625a5f55a6d90b07d938c09852dec0d320ee00e15cad6caf8019a08",
+      "reason": "Prompt ambiguous between schema field names and concrete values; original grader also accepts dict keys without checking values. Excluded uniformly, original observations preserved."
+    },
+    "single_agent": "one fresh session"
+  },
+  "modes": [
+    "single-agent",
+    "multi-agent",
+    "comitia"
+  ],
+  "pricing_usd_per_million_tokens": {
+    "claude-haiku-4-5-20251001": {
+      "cached_input": 0.1,
+      "input": 1,
+      "output": 5
+    }
+  },
+  "repetitions": 5,
+  "runner_timeout_seconds": 240,
+  "schema": "comitia.eval-spec.v1",
+  "seed": 20260911
+}

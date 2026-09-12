@@ -1,0 +1,35 @@
+Independently review the worker answer against the task. Correct any defects you find. Return the final requested JSON, with no review commentary.
+
+TASK:
+Plan two workers w1,w2. Tasks: A duration 2 writes api.py no deps; B duration 3 writes api.py no deps; C duration 2 writes ui.py depends A; D duration 1 writes docs.md depends B and C; E duration 2 writes tests.py depends B. A and B cannot overlap because same file. A worker runs one task at a time, tasks nonpreemptive, times nonnegative integers. Minimize makespan, tie breaks irrelevant. Return JSON {"schedule":[{"task":"A","worker":"w1","start":0},...],"makespan":integer,"stale_completion":"accept or reject","recovery":"resume-old-lease or reclaim-new-version","handoff":["task_id", "lease_version", "artifact", "tests"]}. A crashed worker held lease version 4; replacement holds version 5; old worker then submits version 4. Pick the safe completion and recovery actions. Give each task once.
+
+WORKER ANSWER:
+```json
+{
+  "schedule": [
+    {"task": "A", "worker": "w1", "start": 0},
+    {"task": "B", "worker": "w2", "start": 2},
+    {"task": "C", "worker": "w1", "start": 2},
+    {"task": "E", "worker": "w2", "start": 5},
+    {"task": "D", "worker": "w1", "start": 5}
+  ],
+  "makespan": 7,
+  "stale_completion": "reject",
+  "recovery": "reclaim-new-version",
+  "handoff": {
+    "task_id": "A",
+    "lease_version": 4,
+    "artifact": "api.py",
+    "tests": "failed"
+  }
+}
+```
+
+**Rationale:**
+- A and B conflict on api.py; A→B ordering (A: 0-2, B: 2-5) is optimal
+- C depends on A, starts at 2 on w1
+- E depends on B, starts at 5 on w2  
+- D depends on B and C, starts at 5 on w1
+- Makespan: 7
+- **Stale completion: reject** — version 4 from crashed worker is superseded by replacement's version 5
+- **Recovery: reclaim-new-version** — safely use new lease to prevent data corruption from old worker resurrection

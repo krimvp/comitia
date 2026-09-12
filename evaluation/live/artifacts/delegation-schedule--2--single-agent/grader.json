@@ -1,0 +1,26 @@
+{
+  "checks": {
+    "all-tasks": {
+      "passed": true
+    },
+    "workers": {
+      "passed": true
+    },
+    "dependencies": {
+      "passed": true
+    },
+    "file-conflict": {
+      "passed": true
+    },
+    "optimal": {
+      "passed": true
+    },
+    "stale-lease": {
+      "passed": true
+    },
+    "handoff": {
+      "passed": false,
+      "error": "condition not met"
+    }
+  }
+}

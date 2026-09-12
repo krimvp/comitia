@@ -1,0 +1,12 @@
+```json
+{
+  "choice": "C",
+  "atomic_writes": ["order", "outbox"],
+  "idempotency_key": "order_id",
+  "broker_delivery": "exactly-once",
+  "email_effect_count": 1,
+  "email_api_call_count": 3,
+  "rollback_email_count": 0,
+  "why": "Architecture C atomically writes order+outbox preventing orphans. Idempotency keys at email service deduplicate at-least-once broker redeliveries. Crash gaps: outbox publisher crashes before marking sent—message republishes but idempotency prevents duplicate effect; email crashes after accepting but before recording idempotency—retry duplicates. Exactly-once requires both consumer and email service to durably persist idempotency."
+}
+```

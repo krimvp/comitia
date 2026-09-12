@@ -1,0 +1,11 @@
+```json
+{
+  "code": "def summarize(rows):\n    result = []\n    user_index = {}\n    for row in rows:\n        user = row[\"user\"]\n        if user in user_index:\n            idx = user_index[user]\n            result[idx][\"total\"] += row[\"amount\"]\n        else:\n            idx = len(result)\n            user_index[user] = idx\n            result.append({\"user\": user, \"total\": row[\"amount\"]})\n    return result"
+}
+```
+
+**Key improvements:**
+- **O(n) complexity**: Uses a dictionary for O(1) user lookups instead of O(n) list searches
+- **Order preservation**: Maintains first-seen order by appending to result list in encounter order
+- **Same output**: Produces identical results on valid inputs
+- **Data integrity**: Doesn't modify input rows; stores computed totals separately
