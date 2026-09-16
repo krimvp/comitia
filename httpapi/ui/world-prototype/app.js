@@ -14,7 +14,7 @@ const sceneQueue=new SceneQueue(),routeLines=new Map();let queueRevision=-1,view
 let beaconPos=new THREE.Vector3();
 let mode='demo', paused=false, reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
 let token='', contextID='', contextName='', generation=0, pollTimer, requestController=new AbortController(), contexts=[];
-let discoveryController=new AbortController(),discoveryVersion=0;
+let discoveryController=new AbortController(),discoveryVersion=0,automaticAvailable=false;
 let animationTime=0, nextDemo=3, demoIndex=0, scene, camera, renderer, controls, room, beacons, robotNodes=new Map(), flights=[], pulses=[];
 const host=$('canvas-host'), raycaster=new THREE.Raycaster(), pointer=new THREE.Vector2();
 const maxVisible=24;
@@ -246,14 +246,14 @@ $('clear-selection').onclick=()=>{selectedAgent='';selectedMessage=null;renderRo
 $('pause').onclick=()=>{paused=!paused;$('pause').textContent=paused?'▶ Resume':'Ⅱ Pause';$('pause').setAttribute('aria-pressed',String(paused));if(mode==='live'){clearTimeout(pollTimer);if(!paused)poll(generation);}};
 function motionUI(){$('motion').textContent=reduced?'Motion off':'Motion on';$('motion').setAttribute('aria-pressed',String(reduced));}
 $('motion').onclick=()=>{reduced=!reduced;motionUI();if(reduced){for(const f of flights){scene.remove(f.group);disposeTree(f.group);}for(const p of pulses){scene.remove(p.mesh);disposeTree(p.mesh);}flights=[];pulses=[];}};motionUI();
-async function api(path,body,signal=requestController.signal,credential=token){const response=await fetch('/v1/'+path,{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+credential},body:JSON.stringify(body),signal:AbortSignal.any([signal,AbortSignal.timeout(15000)]),credentials:'omit',redirect:'error'});if(!response.ok){const e=new Error(response.status===401||response.status===403?'Credential invalid, expired, or missing read access.':response.status===502?'Comitia server unavailable. Start it or check the prototype’s --upstream setting.':`Request failed (${response.status}).`);e.status=response.status;throw e;}return response.json();}
+async function api(path,body,signal=requestController.signal,credential=token){const response=await fetch('/v1/'+path,{method:'POST',headers:{'Content-Type':'application/json',...(credential&&credential!=='@local'?{Authorization:'Bearer '+credential}:{})},body:JSON.stringify(body),signal:AbortSignal.any([signal,AbortSignal.timeout(15000)]),credentials:'omit',redirect:'error'});if(!response.ok){const e=new Error(response.status===401||response.status===403?'Credential invalid, expired, or missing read access.':response.status===503?'Local sign-in is unavailable. Check the installed credential file.':response.status===502?'Comitia server unavailable. Start it or check the prototype’s --upstream setting.':`Request failed (${response.status}).`);e.status=response.status;throw e;}return response.json();}
 function clearLive(){discoveryVersion++;discoveryController.abort();discoveryController=new AbortController();sceneQueue.clear();reader.clear();generation++;clearTimeout(pollTimer);requestController.abort();requestController=new AbortController();token='';contextID='';contextName='';contexts=[];sequence=0;observed=0;messages=[];agents=[];selectedAgent='';selectedMessage=null;$('credential').value='';$('context-select').replaceChildren();buildWorld();renderRoster();renderFeed();}
-function returnDemo(error=''){clearLive();mode='demo';demoIndex=0;paused=false;agents=demos.map(a=>({...a}));$('connection-state').textContent='● Demo';$('context-label').textContent='DESIGN EXPLORATION · SIMULATED MESSAGES';$('connect-open').textContent='Connect Comitia ↗';document.querySelector('.demo-actions').hidden=false;$('live-notice').hidden=true;$('feed-note').textContent='Demo traffic. Arrival animations illustrate routing, not read receipts.';$('pause').textContent='Ⅱ Pause';$('pause').setAttribute('aria-pressed','false');$('error').textContent=error;buildWorld();renderRoster();renderFeed();nextDemo=animationTime+3;renderContextPicker();}
-$('connect-open').onclick=()=>{if(mode==='live'){returnDemo();return;}$('connect-form').hidden=false;$('context-form').hidden=true;$('connect-error').textContent='';$('connection-dialog').showModal();};
+function returnDemo(error=''){clearLive();mode='demo';demoIndex=0;paused=false;agents=demos.map(a=>({...a}));$('connection-state').textContent='● Demo';$('context-label').textContent='DESIGN EXPLORATION · SIMULATED MESSAGES';$('connect-open').textContent=automaticAvailable?'Connect local ↗':'Connect Comitia ↗';document.querySelector('.demo-actions').hidden=false;$('live-notice').hidden=true;$('feed-note').textContent='Demo traffic. Arrival animations illustrate routing, not read receipts.';$('pause').textContent='Ⅱ Pause';$('pause').setAttribute('aria-pressed','false');$('error').textContent=error;buildWorld();renderRoster();renderFeed();nextDemo=animationTime+3;renderContextPicker();}
+$('connect-open').onclick=()=>{if(mode==='live'){returnDemo();return;}if(automaticAvailable){connectLocal();return;}$('connect-form').hidden=false;$('context-form').hidden=true;$('connect-error').textContent='';$('connection-dialog').showModal();};
 function renderContextPicker(){
  const picker=$('active-context');
  if(mode!=='live'){
-  picker.replaceChildren(new Option('Demo scenario','@demo'),new Option('Connect to Comitia…','@connect'));picker.value='@demo';
+  picker.replaceChildren(new Option('Demo scenario','@demo'),new Option(automaticAvailable?'Connect to local service…':'Connect to Comitia…','@connect'));picker.value='@demo';
   $('context-count').textContent='';$('refresh-contexts').hidden=true;return;
  }
  picker.replaceChildren(new Option(contexts.length?'Choose a context…':'No readable contexts',''),...contexts.map(c=>new Option(`${c.Name} · ${c.ID.slice(0,6)}`,c.ID)));
@@ -276,7 +276,7 @@ function switchContext(id){
  reader.clear();sceneQueue.clear();setView('messages');contextID=id;contextName=contexts.find(c=>c.ID===id)?.Name||'';mode='live';
  sequence=0;messages=[];agents=[];observed=0;selectedAgent='';selectedMessage=null;paused=false;
  $('pause').textContent='Ⅱ Pause';$('pause').setAttribute('aria-pressed','false');$('context-label').textContent=contextName?contextName.toUpperCase():'CHOOSE A CONTEXT';
- $('connect-open').textContent='Disconnect';$('connection-state').textContent=id?'● Connecting':'● Select context';
+ $('connect-open').textContent=token==='@local'?'Demo mode':'Disconnect';$('connection-state').textContent=id?'● Connecting':'● Select context';
  document.querySelector('.demo-actions').hidden=true;$('live-notice').hidden=false;$('error').textContent='';
  $('feed-note').textContent='Loaded history first, then new messages. Arcs show addressing; receipt is not confirmed.';
  renderContextPicker();buildWorld();renderRoster();renderFeed();renderQueue();
@@ -316,6 +316,26 @@ $('connect-form').onsubmit=async e=>{
  finally{if(version===discoveryVersion)$('connect-submit').disabled=false;}
 };
 $('context-form').onsubmit=e=>{e.preventDefault();const id=$('context-select').value;$('connection-dialog').close();switchContext(id);};
+async function connectLocal(){
+ const version=++discoveryVersion;discoveryController.abort();discoveryController=new AbortController();token='@local';
+ $('connection-state').textContent='● Connecting locally';$('error').textContent='';
+ try{
+  const list=await discoverContexts('@local',discoveryController.signal);
+  if(version!==discoveryVersion||token!=='@local')return;
+  contexts=list;switchContext(contexts[0]?.ID||'');
+  if(!contexts.length)$('error').textContent='No readable contexts yet. Refresh the list after creating a context.';
+ }catch(error){if(version===discoveryVersion){returnDemo(error.message);}}
+}
+async function initializeLocalConnection(){
+ try{
+  const response=await fetch('/viewer/session',{cache:'no-store',credentials:'omit',signal:AbortSignal.timeout(5000)});
+  if(!response.ok)return;
+  const session=await response.json();automaticAvailable=session.automatic===true;
+  if(automaticAvailable)await connectLocal();
+ }catch{/* Standalone prototypes continue to offer manual connection. */}
+}
 let pollingGeneration=null;
-async function poll(g,initial=false){if(mode!=='live'||!contextID||paused||g!==generation||pollingGeneration===g)return;pollingGeneration=g;let full=false,keepHistory=initial;try{const [p,r]=await Promise.all([api('participants/list',{context_id:contextID,limit:1000}),api('messages/replay',{context_id:contextID,after:sequence,limit:100})]);if(g!==generation)return;const incoming=r.messages||[];if(!Array.isArray(incoming)||!Array.isArray(p.participants||[]))throw new Error('Unexpected Comitia response.');for(const m of incoming)if(m.ContextID!==contextID||!Number.isSafeInteger(m.Sequence)||!m.ID||!m.SessionID)throw new Error('Invalid message data.');let changed=false;const active=new Set();for(const participant of p.participants||[]){active.add(participant.SessionID);let a=agents.find(a=>a.id===participant.SessionID);if(!a){agents.push({id:participant.SessionID,name:participant.Name,role:'Read participant',color:palette[agents.length%palette.length]});changed=true;}else if(a.name!==participant.Name){a.name=participant.Name;changed=true;}}for(const a of agents)a.role=active.has(a.id)?'Read participant':'Observed session';if(changed)buildWorld();append(incoming,!initial);sequence=Math.max(sequence,...incoming.map(m=>m.Sequence));full=incoming.length===100;keepHistory=initial&&full;$('connection-state').textContent=full?'● Loading history':'● Live · 1s polling';$('error').textContent='';}catch(error){if(g!==generation)return;if(error.status===401){returnDemo(error.message+' Live data cleared.');return;}if(error.status===403){switchContext('');$('error').textContent='Read access to that context is no longer available. Choose another context.';$('refresh-contexts').click();return;}$('connection-state').textContent='● Reconnecting';$('error').textContent=error.message;}finally{if(pollingGeneration===g)pollingGeneration=null;if(mode==='live'&&g===generation&&!paused)pollTimer=setTimeout(()=>poll(g,keepHistory),full?100:1000);}}
+async function poll(g,initial=false){if(mode!=='live'||!contextID||paused||g!==generation||pollingGeneration===g)return;pollingGeneration=g;let full=false,keepHistory=initial;try{const [p,r]=await Promise.all([api('participants/list',{context_id:contextID,limit:1000}),api('messages/replay',{context_id:contextID,after:sequence,limit:100})]);if(g!==generation)return;const incoming=r.messages||[];if(!Array.isArray(incoming)||!Array.isArray(p.participants||[]))throw new Error('Unexpected Comitia response.');for(const m of incoming)if(m.ContextID!==contextID||!Number.isSafeInteger(m.Sequence)||!m.ID||!m.SessionID)throw new Error('Invalid message data.');let changed=false;const active=new Set();for(const participant of p.participants||[]){active.add(participant.SessionID);let a=agents.find(a=>a.id===participant.SessionID);if(!a){agents.push({id:participant.SessionID,name:participant.Name,role:'Read participant',color:palette[agents.length%palette.length]});changed=true;}else if(a.name!==participant.Name){a.name=participant.Name;changed=true;}}for(const a of agents)a.role=active.has(a.id)?'Read participant':'Observed session';if(changed)buildWorld();append(incoming,!initial);sequence=Math.max(sequence,...incoming.map(m=>m.Sequence));full=incoming.length===100;keepHistory=initial&&full;$('connection-state').textContent=full?'● Loading history':token==='@local'?'● Local · auto-connected':'● Live · 1s polling';$('error').textContent='';}catch(error){if(g!==generation)return;if(error.status===401){returnDemo(error.message+' Live data cleared.');return;}if(error.status===403){switchContext('');$('error').textContent='Read access to that context is no longer available. Choose another context.';$('refresh-contexts').click();return;}$('connection-state').textContent='● Reconnecting';$('error').textContent=error.message;}finally{if(pollingGeneration===g)pollingGeneration=null;if(mode==='live'&&g===generation&&!paused)pollTimer=setTimeout(()=>poll(g,keepHistory),full?100:1000);}}
 try{initScene();setVariant(variant);renderRoster();sendDemo();sendDemo();}catch(error){$('loading')?.remove();host.append(node('p','3D could not start. This browser needs WebGL. The conversation remains available.','feed-note'));renderRoster();renderFeed();$('error').textContent=error.message;}
+
+initializeLocalConnection();

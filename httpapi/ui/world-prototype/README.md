@@ -58,6 +58,20 @@ Click an activity entry or a visible message path in the scene to open its full 
 
 ## Observe a real context
 
+The installed macOS viewer on port 4174 automatically connects using a credential
+kept only on the local proxy server. Its context selector lists all contexts that
+credential can read. No token is delivered to the browser or put in browser
+storage. The proxy retains the three-operation read allowlist, validates local
+Host/Origin/fetch metadata, and refuses non-loopback upstreams for automatic
+credentials. Other standalone instances keep the manual connection flow below.
+
+For a standalone local proxy with automatic sign-in, use
+`--credential-file /private/path/to/credential.json` (a Comitia credential JSON or
+an object containing `credential`). The file must be outside the served assets.
+The browser-readable `/viewer/session` endpoint returns only whether automatic
+sign-in is configured. This mode makes the configured readable contexts available
+through the local viewer; it never grants additional Comitia permissions.
+
 Start a Comitia HTTP server separately. By default the prototype proxies read requests to `http://127.0.0.1:8080`. To use another server:
 
 ```sh

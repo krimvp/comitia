@@ -81,7 +81,7 @@ shutil.copytree(repo/'httpapi/ui/world-prototype', viewer, dirs_exist_ok=True,
                 ignore=shutil.ignore_patterns('__pycache__', '*.pyc'))
 configs = [
     {'Label': labels[0], 'ProgramArguments': [str(binary), '--db', str(database), 'serve', '--listen', f'127.0.0.1:{args.port}']},
-    {'Label': labels[1], 'ProgramArguments': ['/usr/bin/python3', str(viewer/'serve.py'), '--port', str(args.viewer_port), '--upstream', f'http://127.0.0.1:{args.port}']}
+    {'Label': labels[1], 'ProgramArguments': ['/usr/bin/python3', str(viewer/'serve.py'), '--port', str(args.viewer_port), '--upstream', f'http://127.0.0.1:{args.port}', '--credential-file', str(root/'credentials/owner.json')]}
 ]
 for config in configs:
     label = config['Label']
@@ -98,6 +98,7 @@ for config in configs:
     subprocess.run(['launchctl', 'bootstrap', domain, str(path)], check=True)
 print(f'Comitia server: http://127.0.0.1:{args.port}')
 print(f'Agent world: http://127.0.0.1:{args.viewer_port}')
-print(f'Private viewer credential: {root / "credentials/viewer.json"}')
+print('Automatic local sign-in enabled; the credential remains server-side.')
+print(f'Manual observer credential: {root / "credentials/viewer.json"}')
 print(f'Data: {database}')
 print('Both services start at login and restart automatically after exit.')

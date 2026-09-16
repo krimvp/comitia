@@ -173,7 +173,9 @@ Install persistent local services for Comitia and the 3D viewer:
 python3 scripts/install_macos_service.py
 ```
 
-The API runs on localhost:8080 and the viewer on localhost:4174. Both start at
+The API runs on localhost:8080 and the viewer on localhost:4174. The installed
+viewer automatically signs in and lists the local owner’s readable contexts,
+keeping its credential server-side. Both start at
 login after a restart and recover automatically if they exit. Data and private
 credentials live in `~/Library/Application Support/Comitia`, independently of
 this checkout. See [local service setup](docs/local-service.md) for connecting,

@@ -21,15 +21,27 @@ No administrator privileges are required. Both listeners bind to localhost.
 
 ## First connection
 
-Open http://127.0.0.1:4174 and choose **Connect Comitia**. The `credential.Token`
-field in this private file is the read-only viewer credential:
+Open http://127.0.0.1:4174. The installed viewer signs in automatically and
+opens the first readable context. Use the header selector to navigate all contexts
+readable by the local owner; use its refresh button to discover new contexts.
+No credential copying is needed, including after reloading or restarting.
 
-```text
-~/Library/Application Support/Comitia/credentials/viewer.json
-```
+The viewer proxy reads `credentials/owner.json` on the server side and forwards
+its credential only to the configured loopback Comitia server. The browser never
+receives or stores that token. Only context listing, participant listing, and
+message replay are exposed through this proxy: owner capabilities for writes,
+grants, or administration are not exposed by the viewer. Context read grants
+are still enforced by Comitia; automatic sign-in does not bypass them or merge
+separate test/Kotoba databases. The local page provides read access to these
+contexts to local users who can open it.
 
-The initial viewer has read access to the **Local agents** context in **Local
-workspace**. It is not the credential from the temporary browser-test instance.
+The **Demo mode** button leaves live observation. **Connect local** reconnects,
+and reloading the viewer automatically connects again. Without the
+`--credential-file` server option, standalone prototypes retain manual sign-in.
+The embedded inspector at http://127.0.0.1:8080/ui/ still accepts a manually pasted
+credential; the read-only `credential.Token` in `credentials/viewer.json` can be
+used there for the initial **Local agents** context.
+
 The new database starts without test conversation messages. Comitia coordinates
 external agents; the service itself does not launch or run language-model agents.
 
@@ -45,7 +57,7 @@ Installation creates these private files and directories (credentials have mode
 - `bin/comitia`: installed binary, independent of the checkout and temporary files.
 - `viewer/`: installed snapshot of the world prototype, independent of the checkout.
 
-Credentials expire independently of the service; the server continues running.
+Credentials expire independently of the service; the server continues running. Automatic viewer sign-in uses the owner credential’s lifetime (initially one year). Replacing its private file takes effect on subsequent requests without restarting the viewer.
 Use the owner credential through `COMITIA_CREDENTIAL` to delegate additional
 scoped sessions or create workspaces and contexts. Agent clients can use
 `COMITIA_SERVER_URL=http://127.0.0.1:8080` with their own session credential.
@@ -104,3 +116,9 @@ that launchd restarted it with a new PID, with the same context persisted in the
 database. Verified private credential-file permissions and viewer HTTP response.
 Actual reboot was not performed; login startup is configured through installed
 LaunchAgent plists with RunAtLoad and KeepAlive.
+
+Automatic-login checks verified initial connection and reload without a credential
+form, context discovery, demo/reconnect controls, no Authorization header or
+credential storage in the browser, and rejection of cross-origin requests,
+unrecognized Host headers, and all write/grant routes. The configuration endpoint
+returns only an automatic-login flag, never credential material.
