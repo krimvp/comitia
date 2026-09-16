@@ -14,6 +14,7 @@ const sceneQueue=new SceneQueue(),routeLines=new Map();let queueRevision=-1,view
 let beaconPos=new THREE.Vector3();
 let mode='demo', paused=false, reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
 let token='', contextID='', contextName='', generation=0, pollTimer, requestController=new AbortController(), contexts=[];
+let discoveryController=new AbortController(),discoveryVersion=0;
 let animationTime=0, nextDemo=3, demoIndex=0, scene, camera, renderer, controls, room, beacons, robotNodes=new Map(), flights=[], pulses=[];
 const host=$('canvas-host'), raycaster=new THREE.Raycaster(), pointer=new THREE.Vector2();
 const maxVisible=24;
@@ -245,14 +246,76 @@ $('clear-selection').onclick=()=>{selectedAgent='';selectedMessage=null;renderRo
 $('pause').onclick=()=>{paused=!paused;$('pause').textContent=paused?'▶ Resume':'Ⅱ Pause';$('pause').setAttribute('aria-pressed',String(paused));if(mode==='live'){clearTimeout(pollTimer);if(!paused)poll(generation);}};
 function motionUI(){$('motion').textContent=reduced?'Motion off':'Motion on';$('motion').setAttribute('aria-pressed',String(reduced));}
 $('motion').onclick=()=>{reduced=!reduced;motionUI();if(reduced){for(const f of flights){scene.remove(f.group);disposeTree(f.group);}for(const p of pulses){scene.remove(p.mesh);disposeTree(p.mesh);}flights=[];pulses=[];}};motionUI();
-async function api(path,body){const response=await fetch('/v1/'+path,{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+token},body:JSON.stringify(body),signal:AbortSignal.any([requestController.signal,AbortSignal.timeout(15000)]),credentials:'omit',redirect:'error'});if(!response.ok){const e=new Error(response.status===401||response.status===403?'Credential invalid, expired, or missing read access.':response.status===502?'Comitia server unavailable. Start it or check the prototype’s --upstream setting.':`Request failed (${response.status}).`);e.status=response.status;throw e;}return response.json();}
-function clearLive(){sceneQueue.clear();reader.clear();generation++;clearTimeout(pollTimer);requestController.abort();requestController=new AbortController();token='';contextID='';contextName='';contexts=[];sequence=0;observed=0;messages=[];agents=[];selectedAgent='';selectedMessage=null;$('credential').value='';$('context-select').replaceChildren();buildWorld();renderRoster();renderFeed();}
-function returnDemo(error=''){clearLive();mode='demo';demoIndex=0;paused=false;agents=demos.map(a=>({...a}));$('connection-state').textContent='● Demo';$('context-label').textContent='DESIGN EXPLORATION · SIMULATED MESSAGES';$('connect-open').textContent='Connect Comitia ↗';document.querySelector('.demo-actions').hidden=false;$('live-notice').hidden=true;$('feed-note').textContent='Demo traffic. Arrival animations illustrate routing, not read receipts.';$('pause').textContent='Ⅱ Pause';$('pause').setAttribute('aria-pressed','false');$('error').textContent=error;buildWorld();renderRoster();renderFeed();nextDemo=animationTime+3;}
+async function api(path,body,signal=requestController.signal,credential=token){const response=await fetch('/v1/'+path,{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+credential},body:JSON.stringify(body),signal:AbortSignal.any([signal,AbortSignal.timeout(15000)]),credentials:'omit',redirect:'error'});if(!response.ok){const e=new Error(response.status===401||response.status===403?'Credential invalid, expired, or missing read access.':response.status===502?'Comitia server unavailable. Start it or check the prototype’s --upstream setting.':`Request failed (${response.status}).`);e.status=response.status;throw e;}return response.json();}
+function clearLive(){discoveryVersion++;discoveryController.abort();discoveryController=new AbortController();sceneQueue.clear();reader.clear();generation++;clearTimeout(pollTimer);requestController.abort();requestController=new AbortController();token='';contextID='';contextName='';contexts=[];sequence=0;observed=0;messages=[];agents=[];selectedAgent='';selectedMessage=null;$('credential').value='';$('context-select').replaceChildren();buildWorld();renderRoster();renderFeed();}
+function returnDemo(error=''){clearLive();mode='demo';demoIndex=0;paused=false;agents=demos.map(a=>({...a}));$('connection-state').textContent='● Demo';$('context-label').textContent='DESIGN EXPLORATION · SIMULATED MESSAGES';$('connect-open').textContent='Connect Comitia ↗';document.querySelector('.demo-actions').hidden=false;$('live-notice').hidden=true;$('feed-note').textContent='Demo traffic. Arrival animations illustrate routing, not read receipts.';$('pause').textContent='Ⅱ Pause';$('pause').setAttribute('aria-pressed','false');$('error').textContent=error;buildWorld();renderRoster();renderFeed();nextDemo=animationTime+3;renderContextPicker();}
 $('connect-open').onclick=()=>{if(mode==='live'){returnDemo();return;}$('connect-form').hidden=false;$('context-form').hidden=true;$('connect-error').textContent='';$('connection-dialog').showModal();};
-function cancelConnect(){generation++;requestController.abort();requestController=new AbortController();token='';contexts=[];$('credential').value='';$('context-select').replaceChildren();$('connect-submit').disabled=false;$('connection-dialog').close();}
+function renderContextPicker(){
+ const picker=$('active-context');
+ if(mode!=='live'){
+  picker.replaceChildren(new Option('Demo scenario','@demo'),new Option('Connect to Comitia…','@connect'));picker.value='@demo';
+  $('context-count').textContent='';$('refresh-contexts').hidden=true;return;
+ }
+ picker.replaceChildren(new Option(contexts.length?'Choose a context…':'No readable contexts',''),...contexts.map(c=>new Option(`${c.Name} · ${c.ID.slice(0,6)}`,c.ID)));
+ picker.value=contextID;$('context-count').textContent=`${contexts.length} available`;$('refresh-contexts').hidden=false;$('refresh-contexts').disabled=false;
+}
+async function discoverContexts(credential,signal){
+ const found=new Map();let after='';
+ while(true){
+  const result=await api('contexts/list',{after_id:after,limit:100},signal,credential),list=result.contexts||[];
+  if(!Array.isArray(list)||list.some(c=>typeof c.ID!=='string'||typeof c.Name!=='string'))throw new Error('Unexpected context list response.');
+  for(const c of list)found.set(c.ID,c);
+  if(list.length<100)break;
+  const next=list.at(-1).ID;if(next===after)throw new Error('The context list did not advance. Try refreshing.');after=next;
+ }
+ return [...found.values()].sort((a,b)=>a.Name.localeCompare(b.Name)||a.ID.localeCompare(b.ID));
+}
+function switchContext(id){
+ if(id&&!contexts.some(c=>c.ID===id))return;
+ generation++;clearTimeout(pollTimer);requestController.abort();requestController=new AbortController();
+ reader.clear();sceneQueue.clear();setView('messages');contextID=id;contextName=contexts.find(c=>c.ID===id)?.Name||'';mode='live';
+ sequence=0;messages=[];agents=[];observed=0;selectedAgent='';selectedMessage=null;paused=false;
+ $('pause').textContent='Ⅱ Pause';$('pause').setAttribute('aria-pressed','false');$('context-label').textContent=contextName?contextName.toUpperCase():'CHOOSE A CONTEXT';
+ $('connect-open').textContent='Disconnect';$('connection-state').textContent=id?'● Connecting':'● Select context';
+ document.querySelector('.demo-actions').hidden=true;$('live-notice').hidden=false;$('error').textContent='';
+ $('feed-note').textContent='Loaded history first, then new messages. Arcs show addressing; receipt is not confirmed.';
+ renderContextPicker();buildWorld();renderRoster();renderFeed();renderQueue();
+ if(id){poll(generation,true);announce('Opening context '+contextName);}
+}
+$('active-context').onchange=e=>{const id=e.target.value;if(id==='@connect'){$('connect-open').click();renderContextPicker();}else if(mode==='live')switchContext(id);};
+$('refresh-contexts').onclick=async()=>{
+ const version=++discoveryVersion,credential=token;discoveryController.abort();discoveryController=new AbortController();$('refresh-contexts').disabled=true;
+ try{
+  const list=await discoverContexts(credential,discoveryController.signal);
+  if(version!==discoveryVersion||credential!==token||mode!=='live')return;
+  contexts=list;
+  if(contextID&&!contexts.some(c=>c.ID===contextID)){switchContext('');$('error').textContent='The previous context is no longer readable. Choose another context.';}
+  renderContextPicker();announce(`${contexts.length} readable contexts available.`);
+ }catch(error){
+  if(version!==discoveryVersion||error.name==='AbortError')return;
+  if(error.status===401||error.status===403)returnDemo(error.message);
+  else $('error').textContent=error.message;
+ }finally{if(version===discoveryVersion)$('refresh-contexts').disabled=false;}
+};
+function cancelConnect(){
+ generation++;discoveryVersion++;discoveryController.abort();discoveryController=new AbortController();requestController.abort();requestController=new AbortController();
+ token='';contexts=[];$('credential').value='';$('context-select').replaceChildren();$('connect-submit').disabled=false;$('connection-dialog').close();renderContextPicker();
+}
 $('connect-cancel').onclick=cancelConnect;$('context-cancel').onclick=cancelConnect;$('connection-dialog').addEventListener('cancel',e=>{e.preventDefault();cancelConnect();});
-$('connect-form').onsubmit=async e=>{e.preventDefault();token=$('credential').value.trim();$('credential').value='';const g=++generation;$('connect-submit').disabled=true;$('connect-error').textContent='';try{contexts=[];let after='';for(let page=0;page<100;page++){const result=await api('contexts/list',{after_id:after,limit:100});if(g!==generation)return;const list=result.contexts||[];contexts.push(...list);if(list.length<100)break;after=list.at(-1).ID;}if(!contexts.length)throw new Error('No contexts with read access for this credential.');$('context-select').replaceChildren(...contexts.map(c=>new Option(c.Name+' · '+c.ID.slice(0,8),c.ID)));$('connect-form').hidden=true;$('context-form').hidden=false;}catch(error){if(g===generation){token='';$('connect-error').textContent=error.message;}}finally{if(g===generation)$('connect-submit').disabled=false;}};
-$('context-form').onsubmit=e=>{e.preventDefault();contextID=$('context-select').value;contextName=contexts.find(c=>c.ID===contextID)?.Name||'Shared context';mode='live';sceneQueue.clear();sequence=0;messages=[];agents=[];observed=0;selectedAgent='';selectedMessage=null;paused=false;$('pause').textContent='Ⅱ Pause';$('pause').setAttribute('aria-pressed','false');$('connection-dialog').close();$('context-label').textContent=contextName.toUpperCase();$('connect-open').textContent='Disconnect';$('connection-state').textContent='● Connecting';document.querySelector('.demo-actions').hidden=true;$('live-notice').hidden=false;$('error').textContent='';$('feed-note').textContent='Loaded history first, then new messages. Arcs show addressing; receipt is not confirmed.';buildWorld();renderRoster();renderFeed();poll(generation,true);};
+$('connect-form').onsubmit=async e=>{
+ e.preventDefault();token=$('credential').value.trim();$('credential').value='';
+ const version=++discoveryVersion,credential=token;discoveryController.abort();discoveryController=new AbortController();
+ $('connect-submit').disabled=true;$('connect-error').textContent='';
+ try{
+  const list=await discoverContexts(credential,discoveryController.signal);
+  if(version!==discoveryVersion||credential!==token)return;
+  contexts=list;if(!contexts.length)throw new Error('No contexts with read access for this credential.');
+  $('context-select').replaceChildren(...contexts.map(c=>new Option(c.Name+' · '+c.ID.slice(0,8),c.ID)));
+  $('connect-form').hidden=true;$('context-form').hidden=false;
+ }catch(error){if(version===discoveryVersion){token='';$('connect-error').textContent=error.message;}}
+ finally{if(version===discoveryVersion)$('connect-submit').disabled=false;}
+};
+$('context-form').onsubmit=e=>{e.preventDefault();const id=$('context-select').value;$('connection-dialog').close();switchContext(id);};
 let pollingGeneration=null;
-async function poll(g,initial=false){if(mode!=='live'||paused||g!==generation||pollingGeneration===g)return;pollingGeneration=g;let full=false;try{const [p,r]=await Promise.all([api('participants/list',{context_id:contextID,limit:1000}),api('messages/replay',{context_id:contextID,after:sequence,limit:100})]);if(g!==generation)return;const incoming=r.messages||[];if(!Array.isArray(incoming)||!Array.isArray(p.participants||[]))throw new Error('Unexpected Comitia response.');for(const m of incoming)if(m.ContextID!==contextID||!Number.isSafeInteger(m.Sequence)||!m.ID||!m.SessionID)throw new Error('Invalid message data.');let changed=false;const active=new Set();for(const participant of p.participants||[]){active.add(participant.SessionID);let a=agents.find(a=>a.id===participant.SessionID);if(!a){agents.push({id:participant.SessionID,name:participant.Name,role:'Read participant',color:palette[agents.length%palette.length]});changed=true;}else if(a.name!==participant.Name){a.name=participant.Name;changed=true;}}for(const a of agents)a.role=active.has(a.id)?'Read participant':'Observed session';if(changed)buildWorld();append(incoming,!initial);sequence=Math.max(sequence,...incoming.map(m=>m.Sequence));full=incoming.length===100;$('connection-state').textContent=full?'● Loading history':'● Live · 1s polling';$('error').textContent='';}catch(error){if(g!==generation)return;if(error.status===401||error.status===403){returnDemo(error.message+' Live data cleared.');return;}$('connection-state').textContent='● Reconnecting';$('error').textContent=error.message;}finally{if(pollingGeneration===g)pollingGeneration=null;if(mode==='live'&&g===generation&&!paused)pollTimer=setTimeout(()=>poll(g,initial&&full),full?100:1000);}}
+async function poll(g,initial=false){if(mode!=='live'||!contextID||paused||g!==generation||pollingGeneration===g)return;pollingGeneration=g;let full=false,keepHistory=initial;try{const [p,r]=await Promise.all([api('participants/list',{context_id:contextID,limit:1000}),api('messages/replay',{context_id:contextID,after:sequence,limit:100})]);if(g!==generation)return;const incoming=r.messages||[];if(!Array.isArray(incoming)||!Array.isArray(p.participants||[]))throw new Error('Unexpected Comitia response.');for(const m of incoming)if(m.ContextID!==contextID||!Number.isSafeInteger(m.Sequence)||!m.ID||!m.SessionID)throw new Error('Invalid message data.');let changed=false;const active=new Set();for(const participant of p.participants||[]){active.add(participant.SessionID);let a=agents.find(a=>a.id===participant.SessionID);if(!a){agents.push({id:participant.SessionID,name:participant.Name,role:'Read participant',color:palette[agents.length%palette.length]});changed=true;}else if(a.name!==participant.Name){a.name=participant.Name;changed=true;}}for(const a of agents)a.role=active.has(a.id)?'Read participant':'Observed session';if(changed)buildWorld();append(incoming,!initial);sequence=Math.max(sequence,...incoming.map(m=>m.Sequence));full=incoming.length===100;keepHistory=initial&&full;$('connection-state').textContent=full?'● Loading history':'● Live · 1s polling';$('error').textContent='';}catch(error){if(g!==generation)return;if(error.status===401){returnDemo(error.message+' Live data cleared.');return;}if(error.status===403){switchContext('');$('error').textContent='Read access to that context is no longer available. Choose another context.';$('refresh-contexts').click();return;}$('connection-state').textContent='● Reconnecting';$('error').textContent=error.message;}finally{if(pollingGeneration===g)pollingGeneration=null;if(mode==='live'&&g===generation&&!paused)pollTimer=setTimeout(()=>poll(g,keepHistory),full?100:1000);}}
 try{initScene();setVariant(variant);renderRoster();sendDemo();sendDemo();}catch(error){$('loading')?.remove();host.append(node('p','3D could not start. This browser needs WebGL. The conversation remains available.','feed-note'));renderRoster();renderFeed();$('error').textContent=error.message;}

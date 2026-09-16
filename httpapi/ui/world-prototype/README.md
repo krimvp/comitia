@@ -64,7 +64,9 @@ Start a Comitia HTTP server separately. By default the prototype proxies read re
 python3 httpapi/ui/world-prototype/serve.py --upstream http://127.0.0.1:8080 --port 4173
 ```
 
-Choose **Connect Comitia**, enter a session credential with read access, then choose a context. Credentials stay in tab memory; the local proxy forwards them to the explicitly configured upstream, never follows redirects, and exposes only context listing, participant listing, and message replay. There are no append, acknowledgement, task mutation, or agent execution calls. Use a read-only observer credential. The prototype server binds only to localhost; it is not a production web server.
+Choose **Connect Comitia** (or the matching option in the header context selector), enter a session credential with read access, then choose a context. Credentials stay in tab memory; the local proxy forwards them to the explicitly configured upstream, never follows redirects, and exposes only context listing, participant listing, and message replay. There are no append, acknowledgement, task mutation, or agent execution calls. Use a read-only observer credential. The prototype server binds only to localhost; it is not a production web server.
+
+The persistent **Context** selector lists every context readable by the current credential, with paginated discovery and short IDs to distinguish duplicate names. Switch conversations without reconnecting; each switch cancels old requests and clears the old agents, messages, selection, open reader, and scene queue. The Messages view opens for the new context. Use **↻** beside the selector to discover newly available contexts. If read access to one context disappears, its data is cleared while the remaining contexts stay selectable; an invalid or expired session disconnects entirely.
 
 The browser loads history without animation, then polls every second and animates newly observed messages. At most 100 messages are loaded per request, with faster pagination while catching up. It retains the latest 1,000 messages, displays the latest 60 matching messages, lists up to 1,000 current participants, and renders at most 24 agents. The feed still includes messages involving agents outside the scene. Permission failures clear live data and return to the clearly labeled demo. Disconnect clears the credential and live data.
 
@@ -98,3 +100,9 @@ Queue-specific browser checks also verified that idle agents remain stationary,
 ordinary discussions create no room actions, two actions for one agent execute
 in order, source-message links open the full reader, and the 390px layout has no
 horizontal overflow. The queue and moving scene rendered without browser errors.
+
+Context-selector checks used three scratch contexts: switching isolated their
+messages, cleared the reader and queue, discovered a newly created context on
+refresh, handled an empty context, and survived rapid changes without showing
+old messages. Desktop and mobile selectors rendered without overflow or browser
+runtime errors. These checks did not use or modify a real user conversation.

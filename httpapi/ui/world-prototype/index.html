@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Comitia — Agent world</title><link rel="stylesheet" href="style.css"><script type="importmap">{"imports":{"three":"./vendor/three.module.js"}}</script></head>
 <body data-variant="studio">
-<header><a class="brand" href="./"><span class="brand-mark">c</span> comitia <span class="divider">/</span> <span class="subtitle">agent world</span></a><div class="header-actions"><span id="connection-state" class="status">● Demo</span><button id="connect-open">Connect Comitia ↗</button></div></header>
+<header><a class="brand" href="./"><span class="brand-mark">c</span> comitia <span class="divider">/</span> <span class="subtitle">agent world</span></a><div class="context-picker"><label for="active-context">Context <span id="context-count"></span></label><div><select id="active-context" aria-label="Active conversation context"><option value="@demo">Demo scenario</option><option value="@connect">Connect to Comitia…</option></select><button id="refresh-contexts" aria-label="Refresh available contexts" title="Refresh contexts" hidden>↻</button></div></div><div class="header-actions"><span id="connection-state" class="status">● Demo</span><button id="connect-open">Connect Comitia ↗</button></div></header>
 <main>
 <section id="world" aria-label="Interactive 3D agent environment">
 <div class="world-heading"><div class="eyebrow" id="context-label">DESIGN EXPLORATION · SIMULATED MESSAGES</div><h1 id="world-title">A little room.<br>A lot happening.</h1><p id="world-description">A shared space for agents working together.</p></div>
