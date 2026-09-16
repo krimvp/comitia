@@ -6,16 +6,16 @@
 <section id="world" aria-label="Interactive 3D agent environment">
 <div class="world-heading"><div class="eyebrow" id="context-label">DESIGN EXPLORATION · SIMULATED MESSAGES</div><h1 id="world-title">A little room.<br>A lot happening.</h1><p id="world-description">A shared space for agents working together.</p></div>
 <div id="canvas-host"><div id="loading">Opening the studio…</div></div><div id="labels"></div>
-<div class="world-tools"><button id="reset-camera" aria-label="Reset isometric camera">↗ Isometric</button><button id="pause" aria-pressed="false">Ⅱ Pause</button><button id="roam" aria-pressed="true">Wander on</button><button id="motion" aria-pressed="false">Motion on</button></div>
-<div class="world-foot"><span>Drag to orbit · Scroll to zoom · Select an agent</span><span id="world-count">6 agents · 1 shared context</span></div>
-<div class="legend"><span><i style="--dot:#72a89a"></i>Message</span><span><i style="--dot:#a793d0"></i>Review</span><span><i style="--dot:#daaa5b"></i>Result</span><span>○ Shared beacon = broadcast</span><span>Movement is illustrative</span></div>
+<div class="world-tools"><button id="reset-camera" aria-label="Reset isometric camera">↗ Isometric</button><button id="pause" aria-pressed="false">Ⅱ Pause</button><button id="motion" aria-pressed="false">Motion on</button></div>
+<button id="scene-summary" class="scene-summary"><span class="eyebrow">SCENE QUEUE</span><span id="scene-current">No pending actions</span><span id="scene-next"></span><span class="summary-link">Inspect queue ↗</span></button><div class="world-foot"><span>Drag to orbit · Scroll to zoom · Select an agent</span><span id="world-count">6 agents · 1 shared context</span></div>
+<div class="legend"><span><i style="--dot:#72a89a"></i>Message</span><span><i style="--dot:#a793d0"></i>Review</span><span><i style="--dot:#daaa5b"></i>Result</span><span>○ Shared beacon = broadcast</span><span>Room changes follow the scene queue</span></div>
 </section>
 <aside>
 <div class="aside-top"><div><div class="eyebrow">THE CONVERSATION</div><h2>In the room <span id="agent-count">06</span></h2></div><button id="clear-selection" hidden>All agents</button></div>
 <div id="roster" aria-label="Agents"></div>
-<section id="selection" hidden><div class="eyebrow" id="selection-kind">SELECTED AGENT</div><h3 id="selection-title"></h3><p id="selection-body"></p><div id="selection-meta"></div><div id="room-controls" hidden><p>Walk to a room <small>Illustrative only</small></p><div><button data-go-room="commons">Commons</button><button data-go-room="workshop">Workshop</button><button data-go-room="review">Review</button></div></div></section>
-<div class="feed-heading"><h3>Activity</h3><span id="message-count">0 observed</span></div><p class="feed-note" id="feed-note">Demo traffic. Arrival animations illustrate routing, not read receipts.</p><div id="feed" aria-label="Observed messages"></div>
-<div class="demo-actions"><button id="send-demo" class="primary">Send demo message <span>↗</span></button><button id="broadcast-demo">Broadcast to context</button></div>
+<section id="selection" hidden><div class="eyebrow" id="selection-kind">SELECTED AGENT</div><h3 id="selection-title"></h3><p id="selection-body"></p><div id="selection-meta"></div></section>
+<nav class="conversation-tabs" aria-label="Conversation views"><button id="messages-tab" aria-pressed="true">Messages</button><button id="queue-tab" aria-pressed="false">Scene queue <span id="queue-count">0</span></button></nav><section id="messages-panel"><div class="feed-heading"><h3>Messages</h3><span id="message-count">0 observed</span></div><p class="feed-note" id="feed-note">Demo traffic. Arrival animations illustrate routing, not read receipts.</p><div id="feed" aria-label="Observed messages"></div>
+</section><section id="queue-panel" hidden><div class="queue-intro"><h3>Why agents move</h3><p>Scene actions from explicit message types. These steps describe the visualization, not actual task progress.</p></div><div class="room-rules"><span>Assignment → Workshop</span><span>Review request → Review</span><span>Submitted work / result → Commons</span></div><div id="action-queue"></div><p id="queue-limit" class="feed-note"></p></section><div class="demo-actions"><button id="send-demo" class="primary">Next demo event <span>↗</span></button><button id="broadcast-demo">Broadcast to context</button></div>
 <div id="live-notice" hidden>Read-only observer · updates every 1 second<br>Addressing does not prove receipt.</div>
 <div id="error" role="alert"></div>
 </aside>

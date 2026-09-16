@@ -8,7 +8,7 @@ export const rooms = {
 export function roomAt(p){return p.x<.4?'commons':p.z<.3?'workshop':'review';}
 export function initLife(r,i){
  r.home=r.actor.position.clone();r.room=roomAt(r.home);r.path=[];r.targetRoom=r.room;
- r.holdUntil=0;r.nextWander=7+i*3.6;r.action='idle';r.actionUntil=0;r.activity='At their station';r.walkPhase=i;
+ r.holdUntil=0;r.queueID='';r.action='idle';r.actionUntil=0;r.activity='At their station';r.walkPhase=i;
 }
 export function react(r,kind,time){
  if(!r)return;
@@ -32,20 +32,19 @@ export function goToRoom(r,id,time,index=0){
    const entrance=door(id);path.push(new THREE.Vector3(-.6,0,entrance.z),new THREE.Vector3(1.3,0,entrance.z));
   }
  }
- path.push(goal);r.path=path;r.targetRoom=id;r.activity='Going to '+target.name;r.nextWander=time+19+index*1.4;
+ path.push(goal);r.path=path;r.targetRoom=id;r.activity='Going to '+target.name;
 }
-export function updateLife(r,dt,time,{reduced,roaming,studio,index}){
- if(!studio){r.path=[];r.activity=r.actionUntil>time?r.action:'At their station';}
- if(reduced){r.path=[];r.action='idle';r.actionUntil=0;r.nextWander=time+8+index*2;}
- if(studio&&roaming&&!reduced&&!r.path.length&&time>r.nextWander&&time>r.actionUntil){
-  const choices=['commons','workshop','review'];const current=roomAt(r.actor.position);
-  const next=choices[(choices.indexOf(current)+1+(index%2))%3];goToRoom(r,next,time,index);
+export function updateLife(r,dt,time,{reduced,studio}){
+ if(!studio)r.path=[];
+ if(reduced){
+  const destination=r.path.at(-1);if(destination)r.actor.position.copy(destination);
+  r.path=[];r.action='idle';r.actionUntil=0;
  }
  const moving=r.path.length>0&&!reduced;
  let walking=false;
  if(moving&&time>r.actionUntil&&time>r.holdUntil){
   const goal=r.path[0],delta=goal.clone().sub(r.actor.position);delta.y=0;const distance=delta.length();
-  if(distance<.08){r.actor.position.x=goal.x;r.actor.position.z=goal.z;r.path.shift();if(!r.path.length){r.room=r.targetRoom;r.activity='In '+rooms[r.room].name;react(r,'receive',time);}}
+  if(distance<.08){r.actor.position.x=goal.x;r.actor.position.z=goal.z;r.path.shift();if(!r.path.length){r.room=r.targetRoom;r.activity='In '+rooms[r.room].name;}}
   else{
    walking=true;const speed=1.15;delta.normalize();r.actor.position.addScaledVector(delta,Math.min(distance,speed*dt));
    const targetAngle=Math.atan2(delta.x,delta.z);let angle=targetAngle-r.actor.rotation.y;angle=Math.atan2(Math.sin(angle),Math.cos(angle));r.actor.rotation.y+=angle*Math.min(dt*7,1);

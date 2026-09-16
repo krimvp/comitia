@@ -14,11 +14,43 @@ Open http://127.0.0.1:4173. The demo starts immediately; it does not run agents 
 - `?variant=orbit`: floating stations, open orbital map, left-hand agent roster.
 - `?variant=forum`: circular gathering space, conversation panel below the scene.
 
-## Agent activity and rooms
+## Purposeful movement and the scene queue
 
-In the studio, agents wander between rooms through doorways. Select an agent, then choose **Commons**, **Workshop**, or **Review** to direct its visual avatar. **Wander off** stops automatic travel; **Motion off** disables motion, and the initial setting honors reduced-motion preferences. Pause freezes the simulation as well as automatic polling.
+Agents stay in place unless an explicit structured message creates a room action.
+There is no random wandering or manual room travel. The routing rules are:
 
-Sending triggers a wave, an addressed arrival a nod, a review a thoughtful gesture, and a result a celebration. Review and result events may also lead an avatar to the corresponding room. The roster and labels show these illustrative activities. **Movement, room membership, and gestures are visual choreography, not evidence of an external agent's location, execution state, or reading a message.** The alternate constellation and forum designs retain stationary stations with message reactions.
+| Message schema | Avatar | Destination |
+| --- | --- | --- |
+| `comitia.assignment.v1` | Each explicit recipient | Workshop |
+| `comitia.review-request.v1` | Each explicit recipient | Review room |
+| `comitia.work-submitted.v1` | Sender | Commons |
+| `comitia.verification-result.v1` | Sender | Commons |
+| `comitia.evaluation-result.v1` | Sender | Commons |
+
+No recipients means no inferred assignment/review participants. Ordinary text,
+discussion, and unsupported schemas do not cause room changes. Routing never
+uses guessed intent from message text.
+
+The **Messages** view contains observed conversation evidence. The separate
+**Scene queue** view explains room actions, their source messages, task IDs, and
+visual stages: Queued → Move → Highlight → Shown. Actions run in order for each
+agent; different agents can have concurrent actions. A dashed floor path shows
+the active route through doorways, and a compact scene summary shows the current
+action. Floating labels show names only; stable roster roles replace activity
+chatter. The demo is a finite scenario that waits for pending room actions before
+automatically emitting another event; **Next demo event** can add one manually.
+
+**These are visualization steps, not a real agent work queue.** “Shown” never
+means that work completed, a message was read, or an agent actually changed
+execution state. Opening a message does not enqueue it again. Loaded history is
+not animated or enqueued. At most 120 actions remain pending, with 40 recently
+shown/outside-scene actions retained; excess actions are counted in the queue
+notice while their messages remain in the message feed.
+
+**Motion off** preserves the semantic destination and queue order, placing avatars
+without animated travel. It honors reduced-motion preferences initially. Pause
+freezes scene progression and automatic polling. Alternative layouts retain the
+queue and message highlights, without studio room travel.
 
 ## Read messages
 
@@ -55,9 +87,14 @@ Pending user review: choose the spatial layout, agent appearance, and how much m
 ## Validation performed
 
 Manually inspected browser renders for the studio, constellation, forum, and
-390px mobile layouts. Exercised room movement, agent selection, full-body and
+390px mobile layouts. Exercised message-driven room movement, agent selection, full-body and
 payload reading, message navigation, Escape, pause, and reduced motion with no
 browser runtime errors. Against a scratch Comitia database, verified 105-message
 history pagination, new-message polling, pause/resume catch-up, a zero observer
 acknowledgement cursor, and complete live-data/reader clearing on session
 revocation. Observed API calls were limited to the three allowlisted read routes.
+
+Queue-specific browser checks also verified that idle agents remain stationary,
+ordinary discussions create no room actions, two actions for one agent execute
+in order, source-message links open the full reader, and the 390px layout has no
+horizontal overflow. The queue and moving scene rendered without browser errors.
