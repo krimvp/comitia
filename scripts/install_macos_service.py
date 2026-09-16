@@ -79,6 +79,25 @@ if not database.exists():
 viewer = root/'viewer'
 shutil.copytree(repo/'httpapi/ui/world-prototype', viewer, dirs_exist_ok=True,
                 ignore=shutil.ignore_patterns('__pycache__', '*.pyc'))
+# Install a stable entry point on the user's existing local-bin PATH.
+client = root/'bin/comitia-local'
+shutil.copy2(repo/'scripts/comitia_local.py', client)
+client.chmod(0o700)
+shutil.copy2(repo/'docs/local-sessions.md', root/'LOCAL-SESSIONS.md')
+(root/'LOCAL-SESSIONS.md').chmod(0o600)
+local_bin = Path.home()/'.local/bin'
+local_bin.mkdir(parents=True, exist_ok=True)
+for name in ('comitia', 'comitia-local'):
+    link = local_bin/name
+    if link.is_symlink() and link.resolve() == client:
+        continue
+    if link.exists() or link.is_symlink():
+        raise RuntimeError(f'Refusing to replace an unrelated command: {link}')
+    link.symlink_to(client)
+service_config = root/'service.json'
+service_config.write_text(json.dumps({'server_url':f'http://127.0.0.1:{args.port}',
+                                      'viewer_url':f'http://127.0.0.1:{args.viewer_port}'}, indent=2)+'\n')
+service_config.chmod(0o600)
 configs = [
     {'Label': labels[0], 'ProgramArguments': [str(binary), '--db', str(database), 'serve', '--listen', f'127.0.0.1:{args.port}']},
     {'Label': labels[1], 'ProgramArguments': ['/usr/bin/python3', str(viewer/'serve.py'), '--port', str(args.viewer_port), '--upstream', f'http://127.0.0.1:{args.port}', '--credential-file', str(root/'credentials/owner.json')]}

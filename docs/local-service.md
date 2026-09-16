@@ -64,6 +64,10 @@ scoped sessions or create workspaces and contexts. Agent clients can use
 See the main README for delegation and message commands. Do not commit local
 credentials or the database to the repository.
 
+For the installed agent wrapper and scoped-session workflow, see
+[Local sessions](local-sessions.md). The installer also copies that guide to
+`~/Library/Application Support/Comitia/LOCAL-SESSIONS.md`.
+
 ## Updating
 
 Run the installer again after pulling changes. It replaces the installed binary
@@ -122,3 +126,28 @@ form, context discovery, demo/reconnect controls, no Authorization header or
 credential storage in the browser, and rejection of cross-origin requests,
 unrecognized Host headers, and all write/grant routes. The configuration endpoint
 returns only an automatic-login flag, never credential material.
+
+## Importing a legacy board
+
+The older embedded board has threads/entries instead of contexts/messages. Its
+server flag does not implement HTTP transport. To copy its conversation history
+into this service without redirecting an active run:
+
+```sh
+python3 scripts/import_legacy_board.py /absolute/path/to/legacy.db --label Multeval
+```
+
+This creates a context per source workspace and an explicitly imported identity
+per author. Messages retain their original text, timestamps, entry/thread IDs,
+and metadata in their bodies. Known recipients map to imported identities.
+The API's message timestamp records import time. Thread state and claims are
+archived, not converted into active task leases. No source credentials are used
+to authenticate to the destination.
+
+A consistent SQLite backup, historical thread/claim JSON, and private import
+checkpoint live under `~/Library/Application Support/Comitia/imports/`. Keep the
+checkpoint: it holds identity mappings and credentials used for deduplicated
+retries. Rerunning imports only new entries; changed historical entries cause an
+explicit error. Imported sessions last 30 days, so reruns after their expiry need
+credential renewal. This is an explicit snapshot import, not a continuous sync
+or a migration of running clients. The source database remains in place.
