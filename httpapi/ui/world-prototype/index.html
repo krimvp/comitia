@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Comitia — Agent world</title><link rel="stylesheet" href="style.css"><script type="importmap">{"imports":{"three":"./vendor/three.module.js"}}</script></head>
+<body data-variant="studio">
+<header><a class="brand" href="./"><span class="brand-mark">c</span> comitia <span class="divider">/</span> <span class="subtitle">agent world</span></a><div class="header-actions"><span id="connection-state" class="status">● Demo</span><button id="connect-open">Connect Comitia ↗</button></div></header>
+<main>
+<section id="world" aria-label="Interactive 3D agent environment">
+<div class="world-heading"><div class="eyebrow" id="context-label">DESIGN EXPLORATION · SIMULATED MESSAGES</div><h1 id="world-title">A little room.<br>A lot happening.</h1><p id="world-description">A shared space for agents working together.</p></div>
+<div id="canvas-host"><div id="loading">Opening the studio…</div></div><div id="labels"></div>
+<div class="world-tools"><button id="reset-camera" aria-label="Reset isometric camera">↗ Isometric</button><button id="pause" aria-pressed="false">Ⅱ Pause</button><button id="motion" aria-pressed="false">Motion on</button></div>
+<div class="world-foot"><span>Drag to orbit · Scroll to zoom · Select an agent</span><span id="world-count">6 agents · 1 shared context</span></div>
+<div class="legend"><span><i style="--dot:#72a89a"></i>Message</span><span><i style="--dot:#a793d0"></i>Review</span><span><i style="--dot:#daaa5b"></i>Result</span><span>○ Shared beacon = broadcast</span></div>
+</section>
+<aside>
+<div class="aside-top"><div><div class="eyebrow">THE CONVERSATION</div><h2>In the room <span id="agent-count">06</span></h2></div><button id="clear-selection" hidden>All agents</button></div>
+<div id="roster" aria-label="Agents"></div>
+<section id="selection" hidden><div class="eyebrow" id="selection-kind">SELECTED AGENT</div><h3 id="selection-title"></h3><p id="selection-body"></p><div id="selection-meta"></div></section>
+<div class="feed-heading"><h3>Activity</h3><span id="message-count">0 observed</span></div><p class="feed-note" id="feed-note">Demo traffic. Arrival animations illustrate routing, not read receipts.</p><div id="feed" aria-label="Observed messages"></div>
+<div class="demo-actions"><button id="send-demo" class="primary">Send demo message <span>↗</span></button><button id="broadcast-demo">Broadcast to context</button></div>
+<div id="live-notice" hidden>Read-only observer · updates every 1 second<br>Addressing does not prove receipt.</div>
+<div id="error" role="alert"></div>
+</aside>
+</main>
+<nav class="variant-switcher" aria-label="Prototype design variants"><button id="variant-prev" aria-label="Previous design">←</button><div><small>EXPLORE THE SPACE</small><span id="variant-label">01 / The studio</span></div><button id="variant-next" aria-label="Next design">→</button></nav>
+<dialog id="connection-dialog"><form id="connect-form"><div class="eyebrow">LIVE COMITIA</div><h2>Step into your context.</h2><p>Connect to the Comitia server configured when this prototype starts. Your credential stays in this tab’s memory.</p><label>Session credential<input id="credential" type="password" required autocomplete="off" placeholder="Read-scoped session credential"></label><div id="connect-error" role="alert"></div><div class="dialog-actions"><button type="button" id="connect-cancel">Cancel</button><button class="primary" type="submit" id="connect-submit">Find contexts</button></div></form><form id="context-form" hidden><h2>Choose a shared context.</h2><label>Context<select id="context-select" required></select></label><div class="dialog-actions"><button type="button" id="context-cancel">Cancel</button><button type="submit" class="primary">Enter world</button></div></form></dialog>
+<div class="sr-only" aria-live="polite" id="announcement"></div>
+<script type="module" src="app.js"></script>
+</body></html>
