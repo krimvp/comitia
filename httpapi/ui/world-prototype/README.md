@@ -10,9 +10,19 @@ python3 httpapi/ui/world-prototype/serve.py
 
 Open http://127.0.0.1:4173. The demo starts immediately; it does not run agents or send messages to Comitia. Orbit by dragging, zoom by scrolling, select an agent or activity entry, pause, or turn off motion. The bottom switcher (also left/right arrow keys) offers three spatial and page layouts:
 
-- `?variant=studio`: miniature shared studio, agents at desks, right-hand conversation panel.
+- `?variant=studio`: three-room studio (Commons, Workshop, Review room), walking agents, right-hand conversation panel.
 - `?variant=orbit`: floating stations, open orbital map, left-hand agent roster.
 - `?variant=forum`: circular gathering space, conversation panel below the scene.
+
+## Agent activity and rooms
+
+In the studio, agents wander between rooms through doorways. Select an agent, then choose **Commons**, **Workshop**, or **Review** to direct its visual avatar. **Wander off** stops automatic travel; **Motion off** disables motion, and the initial setting honors reduced-motion preferences. Pause freezes the simulation as well as automatic polling.
+
+Sending triggers a wave, an addressed arrival a nod, a review a thoughtful gesture, and a result a celebration. Review and result events may also lead an avatar to the corresponding room. The roster and labels show these illustrative activities. **Movement, room membership, and gestures are visual choreography, not evidence of an external agent's location, execution state, or reading a message.** The alternate constellation and forum designs retain stationary stations with message reactions.
+
+## Read messages
+
+Click an activity entry to open its full message in a large, scrollable reading panel. The panel keeps paragraphs and line breaks, displays fenced code distinctly, and shows structured payload values with readable labels and lists. Technical IDs and the raw envelope are in a collapsed section. Previous/Next buttons and left/right arrow keys browse retained messages; Escape closes the panel. All message content is rendered as text, never executable HTML. Disconnect and revoked access clear both the scene's data and any open message reader.
 
 ## Observe a real context
 
