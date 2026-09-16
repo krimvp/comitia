@@ -22,7 +22,7 @@ Sending triggers a wave, an addressed arrival a nod, a review a thoughtful gestu
 
 ## Read messages
 
-Click an activity entry to open its full message in a large, scrollable reading panel. The panel keeps paragraphs and line breaks, displays fenced code distinctly, and shows structured payload values with readable labels and lists. Technical IDs and the raw envelope are in a collapsed section. Previous/Next buttons and left/right arrow keys browse retained messages; Escape closes the panel. All message content is rendered as text, never executable HTML. Disconnect and revoked access clear both the scene's data and any open message reader.
+Click an activity entry or a visible message path in the scene to open its full message in a large, scrollable reading panel. The panel keeps paragraphs and line breaks, displays fenced code distinctly, and shows structured payload values with readable labels and lists. Technical IDs and the raw envelope are in a collapsed section. Previous/Next buttons and left/right arrow keys browse retained messages; Escape closes the panel. All message content is rendered as text, never executable HTML. Disconnect and revoked access clear both the scene's data and any open message reader.
 
 ## Observe a real context
 
@@ -51,3 +51,13 @@ The prototype is adjacent to the existing inspector but is deliberately served s
 ## Decision to capture
 
 Pending user review: choose the spatial layout, agent appearance, and how much message detail should remain visible. Absorb the chosen design into the inspector and remove unused variants before treating this as production UI. Production work should include server integration, asset bundling/CSP, larger-context layout, receipt telemetry if desired, and browser/accessibility coverage.
+
+## Validation performed
+
+Manually inspected browser renders for the studio, constellation, forum, and
+390px mobile layouts. Exercised room movement, agent selection, full-body and
+payload reading, message navigation, Escape, pause, and reduced motion with no
+browser runtime errors. Against a scratch Comitia database, verified 105-message
+history pagination, new-message polling, pause/resume catch-up, a zero observer
+acknowledgement cursor, and complete live-data/reader clearing on session
+revocation. Observed API calls were limited to the three allowlisted read routes.

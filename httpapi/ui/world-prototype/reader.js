@@ -39,11 +39,15 @@ export function createReader({name,targets,typeOf,getMessages,onSelect}) {
   for(const [key,value]of Object.entries(metadata)){$('reader-metadata').append(element('dt',key),element('dd',value));}
   $('reader-envelope').textContent=JSON.stringify(message.envelope||{},null,2);
   $('reader-technical').open=false;
-  const all=getMessages(),index=all.findIndex(m=>m.ID===selectedID);
-  $('reader-prev').disabled=index<=0;$('reader-next').disabled=index<0||index>=all.length-1;
-  $('reader-position').textContent=`${index+1} of ${all.length} loaded`;
+  refresh();
   $('reader-content').scrollTop=0;
   if(show&&!$('message-reader').open)$('message-reader').showModal();
+ }
+ function refresh(){
+  if(!selectedID)return;
+  const all=getMessages(),index=all.findIndex(m=>m.ID===selectedID);
+  $('reader-prev').disabled=index<=0;$('reader-next').disabled=index<0||index>=all.length-1;
+  $('reader-position').textContent=index<0?'Outside retained history':`${index+1} of ${all.length} loaded`;
  }
  function navigate(direction){const all=getMessages(),i=all.findIndex(m=>m.ID===selectedID),next=all[i+direction];if(next)open(next);}
  function clear(){selectedID='';$('message-reader').close();for(const id of ['reader-body','reader-payload','reader-metadata','reader-envelope','reader-from','reader-to','reader-time','reader-number','reader-avatar','reader-kind','reader-position'])$(id).replaceChildren();}
@@ -51,5 +55,5 @@ export function createReader({name,targets,typeOf,getMessages,onSelect}) {
  $('reader-prev').onclick=()=>navigate(-1);$('reader-next').onclick=()=>navigate(1);
  $('message-reader').addEventListener('click',e=>{if(e.target===$('message-reader')){const r=e.target.getBoundingClientRect();if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)e.target.close();}});
  $('message-reader').addEventListener('keydown',e=>{if(e.key==='ArrowLeft'||e.key==='ArrowRight'){e.preventDefault();e.stopPropagation();navigate(e.key==='ArrowLeft'?-1:1);}});
- return {open,clear};
+ return {open,clear,refresh};
 }

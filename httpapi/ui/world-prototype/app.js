@@ -122,15 +122,33 @@ function initScene(){
  scene.add(new THREE.HemisphereLight('#fffbec','#8aa590',3));const sun=new THREE.DirectionalLight('#fff4d9',3);sun.position.set(-3,12,7);sun.castShadow=true;sun.shadow.mapSize.set(2048,2048);Object.assign(sun.shadow.camera,{left:-10,right:10,top:10,bottom:-10});sun.shadow.normalBias=.03;scene.add(sun);
  controls=new OrbitControls(camera,renderer.domElement);controls.enableDamping=true;controls.enablePan=false;controls.minZoom=.55;controls.maxZoom=2;controls.minPolarAngle=.3;controls.maxPolarAngle=1.35;
  new ResizeObserver(resize).observe(host);
- let down;renderer.domElement.addEventListener('pointerdown',e=>{down={x:e.clientX,y:e.clientY};});renderer.domElement.addEventListener('pointerup',e=>{if(!down||Math.hypot(e.clientX-down.x,e.clientY-down.y)>5)return;const r=renderer.domElement.getBoundingClientRect();pointer.set((e.clientX-r.left)/r.width*2-1,-(e.clientY-r.top)/r.height*2+1);raycaster.setFromCamera(pointer,camera);const hit=raycaster.intersectObjects(room.children,true).find(h=>h.object.userData.agent);if(hit)selectAgent(hit.object.userData.agent);});
+ let down;renderer.domElement.addEventListener('pointerdown',e=>{down={x:e.clientX,y:e.clientY};});renderer.domElement.addEventListener('pointerup',e=>{if(!down||Math.hypot(e.clientX-down.x,e.clientY-down.y)>5)return;const r=renderer.domElement.getBoundingClientRect();pointer.set((e.clientX-r.left)/r.width*2-1,-(e.clientY-r.top)/r.height*2+1);raycaster.setFromCamera(pointer,camera);raycaster.params.Line.threshold=.12;const hit=raycaster.intersectObjects([room,...flights.map(f=>f.group)],true).find(h=>h.object.userData.agent||h.object.userData.messageID);if(hit?.object.userData.messageID){const message=messages.find(m=>m.ID===hit.object.userData.messageID);if(message)reader.open(message);}else if(hit)selectAgent(hit.object.userData.agent);});
  buildWorld();let last=performance.now();renderer.setAnimationLoop(now=>{const dt=Math.min((now-last)/1000,.05);last=now;if(!paused){animationTime+=dt;step(dt);}controls.update();projectLabels();renderer.render(scene,camera);});
 }
 function resize(){if(!renderer)return;const w=host.clientWidth,h=host.clientHeight;renderer.setSize(w,h);const base=variant==='studio'?10:8;const span=Math.max(base,(variant==='studio'?11.2:8.4)*h/w);camera.left=-span*w/h;camera.right=span*w/h;camera.top=span;camera.bottom=-span;camera.updateProjectionMatrix();}
-function projectLabels(){for(const [id,r] of robotNodes){const p=r.actor.position.clone().add(new THREE.Vector3(0,-.1,.85)).project(camera);r.label.style.left=`${(p.x*.5+.5)*host.clientWidth}px`;r.label.style.top=`${(-p.y*.5+.5)*host.clientHeight}px`;r.label.style.display=p.z>1?'none':'';}for(const label of document.querySelectorAll('.room-label')){const info=rooms[label.dataset.room];const point=new THREE.Vector3(info.x,.15,info.z+(label.dataset.room==='commons'?-5.6:-2.5)).project(camera);label.style.left=`${(point.x*.5+.5)*host.clientWidth}px`;label.style.top=`${(-point.y*.5+.5)*host.clientHeight}px`;}const p=beaconPos.clone().add(new THREE.Vector3(0,.1,.6)).project(camera),b=$('beacon-label');if(b){b.style.left=`${(p.x*.5+.5)*host.clientWidth}px`;b.style.top=`${(-p.y*.5+.5)*host.clientHeight}px`;}}
+function projectLabels(){
+ const width=host.clientWidth,height=host.clientHeight,placed=[];
+ const project=p=>{const v=p.project(camera);return {x:(v.x*.5+.5)*width,y:(-v.y*.5+.5)*height,z:v.z};};
+ const entries=[...robotNodes.values()].map(r=>({r,p:project(r.actor.position.clone().add(new THREE.Vector3(0,-.1,.85)))})).sort((a,b)=>a.p.y-b.p.y);
+ for(const {r,p}of entries){
+  r.label.style.display=p.z>1?'none':'';if(p.z>1)continue;
+  const w=r.label.offsetWidth,h=r.label.offsetHeight;
+  const offsets=[[0,0],[0,24],[0,-24],[-48,8],[48,8],[0,48],[0,-48],[-75,25],[75,25],[0,72],[0,-72]];
+  let position;
+  for(const [dx,dy]of offsets){
+   const candidate={x:Math.max(6,Math.min(width-w-6,p.x-w/2+dx)),y:Math.max(6,Math.min(height-h-6,p.y+dy)),w,h};
+   position=candidate;
+   if(!placed.some(q=>candidate.x<q.x+q.w+5&&candidate.x+w+5>q.x&&candidate.y<q.y+q.h+4&&candidate.y+h+4>q.y))break;
+  }
+  placed.push(position);r.label.style.left=`${position.x+w/2}px`;r.label.style.top=`${position.y}px`;
+ }
+ for(const label of document.querySelectorAll('.room-label')){const info=rooms[label.dataset.room];const p=project(new THREE.Vector3(info.x,.15,info.z+(label.dataset.room==='commons'?-5.6:-2.5)));label.style.left=`${p.x}px`;label.style.top=`${p.y}px`;}
+ const p=project(beaconPos.clone().add(new THREE.Vector3(0,.1,.6))),b=$('beacon-label');if(b){b.style.left=`${p.x}px`;b.style.top=`${p.y}px`;}
+}
 function addPulse(pos,color){if(!scene||reduced)return;const m=ring(.25,color,pos.x,.20+pos.y,pos.z,scene);m.material.transparent=true;pulses.push({mesh:m,age:0});}
 function fly(m){if(!scene)return;const source=robotNodes.get(m.SessionID);if(!source)return;react(source,typeOf(m)==='result'?'result':'send',animationTime);addPulse(source.pos,typeColor(m));if(reduced)return;
  for(const target of targets(m).slice(0,24)){
-  const targetNode=robotNodes.get(target);if(target!=='@context'&&!targetNode)continue;
+  const targetNode=robotNodes.get(target);if(targetNode)targetNode.holdUntil=animationTime+1.65;if(target!=='@context'&&!targetNode)continue;
   if(flights.length>=80)break;
   const from=source.pos.clone().add(new THREE.Vector3(0,1.55,.25));const to=target==='@context'?beaconPos.clone().add(new THREE.Vector3(0,1.05,0)):targetNode.pos.clone().add(new THREE.Vector3(0,1.4,.25));
   const mid=from.clone().lerp(to,.5);mid.y+=1.25+from.distanceTo(to)*.15;
@@ -138,6 +156,7 @@ function fly(m){if(!scene)return;const source=robotNodes.get(m.SessionID);if(!so
   const curve=new THREE.QuadraticBezierCurve3(from,mid,to),group=new THREE.Group();scene.add(group);
   const line=new THREE.Line(new THREE.BufferGeometry().setFromPoints(curve.getPoints(50)),new THREE.LineBasicMaterial({color:typeColor(m),transparent:true,opacity:.33}));group.add(line);
   const packet=mesh(new THREE.OctahedronGeometry(.105),typeColor(m),group);packet.material.emissive=new THREE.Color(typeColor(m));packet.material.emissiveIntensity=.6;
+  group.traverse(o=>{o.userData.messageID=m.ID;});
   flights.push({group,curve,packet,line,age:0,duration:1.6,target,color:typeColor(m),kind:typeOf(m),landed:false});
  }
 }
@@ -175,7 +194,7 @@ function renderSelection(){
  $('selection-body').textContent=`${sent} sent · ${addressed} addressed to this agent in loaded history.`;
  $('selection-meta').textContent=`Session: ${selectedAgent}${robotNodes.has(selectedAgent)?'':' · Outside the first 24 displayed agents'}`;
 }
-function renderFeed(){const filtered=messages.filter(m=>!selectedAgent||m.SessionID===selectedAgent||targets(m).includes(selectedAgent));$('message-count').textContent=`${observed} observed`;$('feed').replaceChildren(...filtered.slice(-60).reverse().map(m=>{const b=node('button',undefined,'event'),head=node('div',undefined,'event-head');head.append(node('strong',`${name(m.SessionID)} → ${targets(m).map(name).join(', ')}`),node('span',`#${m.Sequence}`));b.append(head,node('p',(m.Body||'(Structured message)').slice(0,180)),node('small',`${typeOf(m)} · ${targets(m)[0]==='@context'?'shared broadcast':'addressed'}`));b.setAttribute('aria-pressed',String(selectedMessage?.ID===m.ID));b.setAttribute('aria-label',`Read message ${m.Sequence} from ${name(m.SessionID)}`);b.append(node('span','Read message ↗','read-message'));b.onclick=()=>{reader.open(m);fly(m);announce('Opened message '+m.Sequence);};return b;}));if(!filtered.length)$('feed').append(node('p','Waiting for messages…','feed-note'));if(selectedAgent)renderSelection();}
+function renderFeed(){reader.refresh();const filtered=messages.filter(m=>!selectedAgent||m.SessionID===selectedAgent||targets(m).includes(selectedAgent));$('message-count').textContent=`${observed} observed`;$('feed').replaceChildren(...filtered.slice(-60).reverse().map(m=>{const b=node('button',undefined,'event'),head=node('div',undefined,'event-head');head.append(node('strong',`${name(m.SessionID)} → ${targets(m).map(name).join(', ')}`),node('span',`#${m.Sequence}`));b.append(head,node('p',(m.Body||'(Structured message)').slice(0,180)),node('small',`${typeOf(m)} · ${targets(m)[0]==='@context'?'shared broadcast':'addressed'}`));b.setAttribute('aria-pressed',String(selectedMessage?.ID===m.ID));b.setAttribute('aria-label',`Read message ${m.Sequence} from ${name(m.SessionID)}`);b.append(node('span','Read message ↗','read-message'));b.onclick=()=>{reader.open(m);fly(m);announce('Opened message '+m.Sequence);};return b;}));if(!filtered.length)$('feed').append(node('p','Waiting for messages…','feed-note'));if(selectedAgent)renderSelection();}
 function setVariant(v){variant=v;document.body.dataset.variant=v;const url=new URL(location.href);url.searchParams.set('variant',v);history.replaceState({},'',url);const copy={studio:['01 / The studio','A little room.\nA lot happening.','A shared space for agents working together.'],orbit:['02 / The constellation','Follow the signal.','Agents and their conversations, suspended in space.'],forum:['03 / The forum','Gather around\nthe conversation.','A common ground for collective work.']}[v];$('variant-label').textContent=copy[0];$('world-title').replaceChildren(...copy[1].split('\n').flatMap((s,i)=>i?[document.createElement('br'),document.createTextNode(s)]:[document.createTextNode(s)]));$('world-description').textContent=copy[2];$('roam').hidden=v!=='studio';buildWorld();}
 $('roam').onclick=()=>{roaming=!roaming;$('roam').textContent=roaming?'Wander on':'Wander off';$('roam').setAttribute('aria-pressed',String(roaming));if(!roaming)for(const r of robotNodes.values())r.path=[];};
 for(const button of document.querySelectorAll('[data-go-room]'))button.onclick=()=>{const r=robotNodes.get(selectedAgent);if(r&&variant==='studio'){goToRoom(r,button.dataset.goRoom,animationTime,[...robotNodes.keys()].indexOf(selectedAgent));announce(`${name(selectedAgent)} is walking to ${rooms[button.dataset.goRoom].name}. Illustrative movement only.`);}};

@@ -8,7 +8,7 @@ export const rooms = {
 export function roomAt(p){return p.x<.4?'commons':p.z<.3?'workshop':'review';}
 export function initLife(r,i){
  r.home=r.actor.position.clone();r.room=roomAt(r.home);r.path=[];r.targetRoom=r.room;
- r.nextWander=7+i*3.6;r.action='idle';r.actionUntil=0;r.activity='At their station';r.walkPhase=i;
+ r.holdUntil=0;r.nextWander=7+i*3.6;r.action='idle';r.actionUntil=0;r.activity='At their station';r.walkPhase=i;
 }
 export function react(r,kind,time){
  if(!r)return;
@@ -43,7 +43,7 @@ export function updateLife(r,dt,time,{reduced,roaming,studio,index}){
  }
  const moving=r.path.length>0&&!reduced;
  let walking=false;
- if(moving&&time>r.actionUntil){
+ if(moving&&time>r.actionUntil&&time>r.holdUntil){
   const goal=r.path[0],delta=goal.clone().sub(r.actor.position);delta.y=0;const distance=delta.length();
   if(distance<.08){r.actor.position.x=goal.x;r.actor.position.z=goal.z;r.path.shift();if(!r.path.length){r.room=r.targetRoom;r.activity='In '+rooms[r.room].name;react(r,'receive',time);}}
   else{
