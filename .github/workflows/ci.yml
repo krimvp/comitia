@@ -27,6 +27,8 @@ jobs:
       - name: Inspector state tests
         run: node --test httpapi/ui-tests/*.test.mjs
       - run: go vet ./...
+      - name: Evaluation harness tests
+        run: python3 -m unittest scripts/test_evaluate_agents.py scripts/test_evaluation_jev_runner.py
       - run: go test -race ./...
 
       - name: Repeat race and crash recovery checks

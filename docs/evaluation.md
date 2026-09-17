@@ -44,10 +44,70 @@ subprocess wall time. The resulting comparison is only a harness smoke test; its
 scores and prices are fixtures and are not evidence about agent performance.
 
 To build a real adapter, copy the argument parsing and output shape from
-`scripts/evaluation_fixture_runner.py`, replace the fixture lookup with agent
+`scripts/evaluation_fixture_runner.py` (or the [Jev grader runner](#jev-grader-runner)
+below), replace the fixture lookup with agent
 execution plus an independent grader, and report every model call. Keep fixture
 fields out of the real benchmark spec, and preserve grader evidence separately as
 described below.
+
+## Jev grader runner
+
+`scripts/evaluation_jev_runner.py` is a runner adapter that replaces the fixture
+lookup with an automated grader. It does not execute agents either: it reads the
+artifact an agent produced for the trial from the spec, asks the Jev System One
+API (`POST https://api.typesafe.ai/v1/systemone`, model `jev-latest`) one `noul`
+question per declared quality check over the state `{"task": ..., "artifact": ...}`,
+and prints the same JSON measurement as any other adapter. It uses only the
+standard library, reads the key from `TYPESAFE_API_KEY`, and times out after 30 s.
+
+The spec extension is per case:
+
+| Field | Meaning |
+| --- | --- |
+| `task` | The case description sent as `state.task`. |
+| `artifacts_by_mode` | Map from mode to the agent's output or transcript for that case: either the text itself or `{"path": "relative/file"}`, resolved relative to the spec file and confined to its directory. |
+| `quality_checks[].instructions` | Optional statement Jev judges for that check. Without it the runner asks whether the artifact satisfies the check named in `name`. |
+
+A check earns all of its points when its probability is strictly above 0.5 and
+zero otherwise. The run metadata keeps the evidence: the probability of every
+check, the model id Jev answered with, the artifact's SHA-256, and the seed. The
+evaluator stores runner metadata verbatim in the result document, so a Jev result
+is auditable per check without a separate evidence file.
+
+Jev is an automated grader in the sense of `GraderKind` `automated` in
+`evaluation.go`: a grader that is separate from the agents under evaluation and
+whose evidence is calibrated probabilities, not a rerun of the agent. Reference
+it that way in `comitia.evaluation-result.v1` messages that cite a Jev-graded
+trial.
+
+A missing key, a missing artifact, an HTTP error, a timeout, a non-JSON body, or
+an answer that is not a `noul` probability is reported as `status: "failed"` with
+every check at zero, so the evaluator scores the trial as a failed run and never
+as a pass. `cost_complete` stays true when no request was sent and becomes false
+after a request whose usage is unknown.
+
+Usage is reported as one `model_calls` entry for `jev-latest`, so the spec must
+price that model. `examples/evaluation/jev-benchmark.json` carries a placeholder
+rate (USD 0.5 per million input tokens, 2.0 per million output tokens) that is
+not a published provider price; pin the real rate before a trial. The example has
+two cases with hand-written artifacts per mode and a known expected pattern:
+single-agent misses most checks, multi-agent misses one check per case, and
+comitia meets every check. Run it with:
+
+```sh
+TYPESAFE_API_KEY=... python3 scripts/evaluate_agents.py run \
+  --spec examples/evaluation/jev-benchmark.json \
+  --runner ./scripts/evaluation_jev_runner.py \
+  --output /tmp/comitia-jev-results.json \
+  --markdown /tmp/comitia-jev-results.md
+```
+
+The adapter's tests fake the HTTP transport; `COMITIA_LIVE=1` with the key adds
+one live run of the example:
+
+```sh
+python3 -m unittest scripts/test_evaluation_jev_runner.py
+```
 
 ## Benchmark specification
 
@@ -203,5 +263,5 @@ grader, adapter, raw observations, and generated report when preserving a trial.
 Run the evaluator tests with:
 
 ```sh
-python3 -m unittest scripts/test_evaluate_agents.py
+python3 -m unittest scripts/test_evaluate_agents.py scripts/test_evaluation_jev_runner.py
 ```

@@ -1,0 +1,82 @@
+{
+  "schema": "comitia.eval-spec.v1",
+  "seed": 20260917,
+  "repetitions": 1,
+  "bootstrap_samples": 100,
+  "runner_timeout_seconds": 60,
+  "modes": [
+    "single-agent",
+    "multi-agent",
+    "comitia"
+  ],
+  "cases": [
+    {
+      "id": "stale-lease-recovery",
+      "weight": 2,
+      "task": "Repair lease recovery so an expired task can be reclaimed while completion through the stale lease is rejected. Cover both behaviors with automated tests and keep the change limited to lease handling.",
+      "pass_score": 9,
+      "quality_checks": [
+        {
+          "name": "recovery-tests",
+          "points": 6,
+          "instructions": "The artifact reports an automated test in which a task whose lease expired is claimed again by another session, and that test passed."
+        },
+        {
+          "name": "stale-completion-rejected",
+          "points": 3,
+          "instructions": "The artifact reports that completing the task with the expired (stale) claim token is rejected with an error, verified by a passing test."
+        },
+        {
+          "name": "scope-review",
+          "points": 1,
+          "instructions": "The artifact confines the change to lease handling and its tests; it does not report edits, renames, or reformatting in unrelated files."
+        }
+      ],
+      "artifacts_by_mode": {
+        "single-agent": "Summary: I changed task-claim in sqlite.go so a claim ignores LeaseExpiresAt when it lies in the past. I did not add tests; the existing suite still passes. task-complete with the old claim token still returns success because I did not change the token check. While there I also reformatted messages.go and renamed two unrelated helpers in contexts.go.",
+        "multi-agent": "Implementer: an expired task can be claimed again. Added TestExpiredLeaseReclaim in service_test.go: session A claims, the clock advances past the lease, session B claims and receives the task. go test -race ./... ok. Reviewer: completion through the stale token is not covered; task-complete with session A's expired token still returns success and there is no test for it. Only service.go, sqlite.go, and service_test.go changed.",
+        "comitia": "Implementer: an expired task can be claimed again. Added TestExpiredLeaseReclaim in service_test.go: session A claims, the clock advances past the lease, session B claims and receives the task; passes. Added TestStaleCompletionRejected: task-complete with session A's expired claim token returns ErrStaleLease and the task stays leased by session B; passes. Reviewer confirmed go test -race ./... ok. The diff touches service.go, sqlite.go, and service_test.go only."
+      }
+    },
+    {
+      "id": "private-message-routing",
+      "weight": 1,
+      "task": "Implement private message replay so only the addressed recipient can read the message and replay order remains stable. Cover both behaviors with automated tests and keep the change limited to message routing.",
+      "pass_score": 8,
+      "quality_checks": [
+        {
+          "name": "recipient-isolation",
+          "points": 5,
+          "instructions": "The artifact reports a passing test in which a session that is not the addressed recipient cannot read the private message."
+        },
+        {
+          "name": "replay-order",
+          "points": 3,
+          "instructions": "The artifact reports a passing test showing that replay returns private and broadcast messages together in ascending sequence order."
+        },
+        {
+          "name": "scope-review",
+          "points": 2,
+          "instructions": "The artifact confines the change to message routing and its tests; it does not report edits in unrelated files."
+        }
+      ],
+      "artifacts_by_mode": {
+        "single-agent": "Summary: private messages carry a recipient session id and replay filters on it. TestPrivateReplayOrder sends a broadcast, a private message, and another broadcast, and asserts the recipient sees sequences 1, 2, 3 in order; passes. I did not test that a third session cannot read the private message. Only messages.go and messages_test.go changed.",
+        "multi-agent": "Implementer: private messages carry a recipient session id. TestPrivateMessageHidden shows a third session replays the context and does not receive the private message; passes. Reviewer: replay returns all private messages after the broadcasts regardless of their sequence numbers, so the order is not stable; no test covers order and the implementer did not fix it. Only messages.go and messages_test.go changed.",
+        "comitia": "Implementer: private messages carry a recipient session id. TestPrivateMessageHidden shows a third session replays the context and does not receive the private message; passes. TestPrivateReplayOrder sends a broadcast, a private message, and another broadcast, and asserts the recipient sees sequences 1, 2, 3 in ascending order; passes. Reviewer confirmed go test -race ./... ok and that only messages.go and messages_test.go changed."
+      }
+    }
+  ],
+  "pricing_usd_per_million_tokens": {
+    "jev-latest": {
+      "input": 0.5,
+      "cached_input": 0.5,
+      "output": 2.0
+    }
+  },
+  "metadata": {
+    "purpose": "Live grader example for scripts/evaluation_jev_runner.py; artifacts are hand-written transcripts, not agent output",
+    "expected_pattern": "single-agent misses most checks, multi-agent misses one check per case, comitia meets every check",
+    "pricing_note": "Placeholder rate for jev-latest; not a published provider price. Replace it with the pinned rate before a real trial."
+  }
+}
