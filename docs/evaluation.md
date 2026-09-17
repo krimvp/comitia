@@ -87,9 +87,10 @@ as a pass. `cost_complete` stays true when no request was sent and becomes false
 after a request whose usage is unknown.
 
 Usage is reported as one `model_calls` entry for `jev-latest`, so the spec must
-price that model. `examples/evaluation/jev-benchmark.json` carries a placeholder
-rate (USD 0.5 per million input tokens, 2.0 per million output tokens) that is
-not a published provider price; pin the real rate before a trial. The example has
+price that model. `examples/evaluation/jev-benchmark.json` pins the provider's
+published rate on 2026-09-17: USD 42 per billion input tokens (0.042 per million),
+with output tokens not billed (source: <https://typesafe.ai/>). Re-pin it before a
+trial; the rate is stated as subsidized and expected to move. The example has
 two cases with hand-written artifacts per mode and a known expected pattern:
 single-agent misses most checks, multi-agent misses one check per case, and
 comitia meets every check. Run it with:

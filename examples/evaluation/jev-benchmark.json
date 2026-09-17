@@ -69,14 +69,14 @@
   ],
   "pricing_usd_per_million_tokens": {
     "jev-latest": {
-      "input": 0.5,
-      "cached_input": 0.5,
-      "output": 2.0
+      "input": 0.042,
+      "cached_input": 0.042,
+      "output": 0.0
     }
   },
   "metadata": {
     "purpose": "Live grader example for scripts/evaluation_jev_runner.py; artifacts are hand-written transcripts, not agent output",
     "expected_pattern": "single-agent misses most checks, multi-agent misses one check per case, comitia meets every check",
-    "pricing_note": "Placeholder rate for jev-latest; not a published provider price. Replace it with the pinned rate before a real trial."
+    "pricing_note": "Published provider rate on 2026-09-17: USD 42 per billion input tokens (0.042 per million), output tokens not billed; source https://typesafe.ai/. Re-pin before a trial."
   }
 }
