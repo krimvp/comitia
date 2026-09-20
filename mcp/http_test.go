@@ -38,7 +38,12 @@ func (s *stubAPI) ListParticipants(ctx context.Context, credential, contextID st
 
 func post(t *testing.T, h http.Handler, body string, headers map[string]string) *httptest.ResponseRecorder {
 	t.Helper()
-	req := httptest.NewRequest(http.MethodPost, "/mcp", strings.NewReader(body))
+	return postPath(t, h, PathPrefix, body, headers)
+}
+
+func postPath(t *testing.T, h http.Handler, path, body string, headers map[string]string) *httptest.ResponseRecorder {
+	t.Helper()
+	req := httptest.NewRequest(http.MethodPost, path, strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	for k, v := range headers {
 		req.Header.Set(k, v)
@@ -46,6 +51,28 @@ func post(t *testing.T, h http.Handler, body string, headers map[string]string) 
 	rec := httptest.NewRecorder()
 	h.ServeHTTP(rec, req)
 	return rec
+}
+
+// toolError reports whether the response carries the tool-level error signal.
+// Authentication failures on this transport are deliberately 200 + isError,
+// not an HTTP status, so tests must assert on the flag rather than the text.
+func toolError(t *testing.T, body string) bool {
+	t.Helper()
+	var resp struct {
+		Result struct {
+			IsError *bool `json:"isError"`
+		} `json:"result"`
+		Error *struct {
+			Code int `json:"code"`
+		} `json:"error"`
+	}
+	if err := json.Unmarshal([]byte(body), &resp); err != nil {
+		return false
+	}
+	if resp.Error != nil {
+		return true
+	}
+	return resp.Result.IsError != nil && *resp.Result.IsError
 }
 
 func call(name string) string {
@@ -208,6 +235,70 @@ func TestHTTPSettledRevisionAcceptedAfterNegotiation(t *testing.T) {
 	})
 	if rec.Code != http.StatusOK {
 		t.Fatalf("settled revision refused: %d %s", rec.Code, rec.Body.String())
+	}
+}
+
+// ChatGPT's connector UI has no custom-header field, so the credential travels
+// in the URL. This must authenticate exactly like the header form.
+func TestHTTPCredentialInURLPath(t *testing.T) {
+	api := &stubAPI{}
+	h := NewHTTPHandler(api, HTTPConfig{})
+
+	rec := postPath(t, h, PathPrefix+"/good", call("list_participants"), nil)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("URL credential rejected: %d %s", rec.Code, rec.Body.String())
+	}
+	if api.cred != "good" {
+		t.Fatalf("credential from URL not used: %q", api.cred)
+	}
+}
+
+// A bad URL credential must fail exactly like a bad header credential. Note the
+// tool error surfaces as a 200 with an error object, which is the established
+// behaviour for this transport.
+func TestHTTPCredentialInURLRejected(t *testing.T) {
+	h := NewHTTPHandler(&stubAPI{}, HTTPConfig{})
+	rec := postPath(t, h, PathPrefix+"/wrong", call("list_participants"), nil)
+	if rec.Code != http.StatusOK || !toolError(t, rec.Body.String()) {
+		t.Fatalf("bad URL credential should be a tool error, got %d %s", rec.Code, rec.Body.String())
+	}
+}
+
+// The header must win, so a URL segment cannot override or downgrade an
+// explicitly presented credential.
+func TestHTTPHeaderCredentialTakesPrecedenceOverPath(t *testing.T) {
+	api := &stubAPI{}
+	h := NewHTTPHandler(api, HTTPConfig{})
+	rec := postPath(t, h, PathPrefix+"/wrong", call("list_participants"),
+		map[string]string{"Authorization": "Bearer good"})
+	if rec.Code != http.StatusOK {
+		t.Fatalf("header should authenticate: %d %s", rec.Code, rec.Body.String())
+	}
+	if api.cred != "good" {
+		t.Fatalf("header credential should win, got %q", api.cred)
+	}
+}
+
+// Deeper paths must not be treated as credentials, so nothing URL-shaped can
+// smuggle extra path structure past the router.
+func TestHTTPCredentialPathMustBeSingleSegment(t *testing.T) {
+	h := NewHTTPHandler(&stubAPI{}, HTTPConfig{})
+	for _, p := range []string{PathPrefix + "/a/b", PathPrefix + "/", PathPrefix} {
+		rec := postPath(t, h, p, call("list_participants"), nil)
+		if rec.Code < 400 && !toolError(t, rec.Body.String()) {
+			t.Fatalf("path %q should not authenticate: %d %s", p, rec.Code, rec.Body.String())
+		}
+	}
+}
+
+// Every other route stays unreachable, including sibling paths of the prefix.
+func TestHTTPSiblingPathsRejected(t *testing.T) {
+	h := NewHTTPHandler(&stubAPI{}, HTTPConfig{})
+	for _, p := range []string{"/ui/", "/v1/participants", "/mcp-other/good"} {
+		rec := postPath(t, h, p, call("list_participants"), nil)
+		if rec.Code < 400 && !toolError(t, rec.Body.String()) {
+			t.Fatalf("sibling path %q unexpectedly served: %d %s", p, rec.Code, rec.Body.String())
+		}
 	}
 }
 

@@ -12,6 +12,11 @@ import (
 	"github.com/krimvp/comitia"
 )
 
+// PathPrefix is the route this transport is mounted at. A credential may be
+// supplied after it (POST /mcp/<credential>) for clients whose configuration UI
+// has no field for an Authorization header.
+const PathPrefix = "/mcp"
+
 // HTTPConfig configures the Streamable HTTP transport.
 type HTTPConfig struct {
 	// AllowedOrigins is an Origin allowlist for DNS-rebinding defence, as
@@ -132,7 +137,7 @@ func (t *httpTransport) post(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	cred, ok := bearerCredential(r)
+	cred, ok := bearerCredential(r, PathPrefix)
 	if !ok {
 		// A plain Bearer challenge is returned deliberately: no
 		// resource_metadata is advertised, so a client that supports OAuth is
@@ -168,12 +173,33 @@ func (t *httpTransport) post(w http.ResponseWriter, r *http.Request) {
 
 // bearerCredential extracts a scoped Comitia credential from the request. The
 // credential is never accepted as a tool argument.
-func bearerCredential(r *http.Request) (string, bool) {
-	parts := strings.Split(r.Header.Get("Authorization"), " ")
-	if len(parts) != 2 || !strings.EqualFold(parts[0], "Bearer") || parts[1] == "" {
+// bearerCredential extracts the caller's credential. The Authorization header is
+// preferred, but a credential may also arrive as a path suffix, as
+// /mcp/<credential>.
+//
+// The path form exists because ChatGPT's custom-connector UI offers only OAuth
+// or "No authentication" and provides no field for a custom header, so a
+// credential embedded in the URL is the only way to point it at a token-based
+// server. The credential is still a bearer secret and is compared and revoked
+// identically; only its transport differs.
+//
+// It is deliberately the *last* path segment, so a URL-shaped secret cannot
+// smuggle additional path structure past the router.
+func bearerCredential(r *http.Request, pathPrefix string) (string, bool) {
+	if parts := strings.Split(r.Header.Get("Authorization"), " "); len(parts) == 2 &&
+		strings.EqualFold(parts[0], "Bearer") && parts[1] != "" {
+		return parts[1], true
+	}
+
+	rest, ok := strings.CutPrefix(r.URL.Path, pathPrefix)
+	if !ok {
 		return "", false
 	}
-	return parts[1], true
+	rest = strings.Trim(rest, "/")
+	if rest == "" || strings.Contains(rest, "/") {
+		return "", false
+	}
+	return rest, true
 }
 
 func writeRPCError(w http.ResponseWriter, status int, code int, msg string) {
