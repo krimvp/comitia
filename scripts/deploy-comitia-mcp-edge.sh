@@ -55,11 +55,11 @@ HOOK
   echo "   deploy hook installed"
 fi
 
-echo "== 5. open 8443 =="
+echo "== 5. open 443 (the port ChatGPT dials) =="
 if command -v ufw >/dev/null 2>&1 && ufw status 2>/dev/null | grep -q "Status: active"; then
-  ufw allow 8443/tcp 2>&1 | sed 's/^/   /'
+  ufw allow 443/tcp 2>&1 | sed 's/^/   /'
 else
-  echo "   ufw inactive; ensure 8443/tcp is open in the provider firewall"
+  echo "   ufw inactive; ensure 443/tcp is open in the provider firewall"
 fi
 
 echo

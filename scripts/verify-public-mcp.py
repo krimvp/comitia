@@ -13,14 +13,18 @@ IP = "45.88.191.59"
 # internet; fall back to the IP when the host resolves only locally.
 def public_ok():
     try:
-        addrs = {a[4][0] for a in socket.getaddrinfo(HOST, 8443, proto=socket.IPPROTO_TCP)}
+        addrs = {a[4][0] for a in socket.getaddrinfo(HOST, PORT, proto=socket.IPPROTO_TCP)}
         return any(a.startswith("45.88.191.59") for a in addrs)
     except Exception:
         return False
 
 USE_PUBLIC = public_ok()
 TARGET_HOST = HOST if USE_PUBLIC else IP
-TARGET_PORT = 8443
+# ChatGPT's connector broker only dispatches to the standard HTTPS port, so
+# 443 is the port that matters. 8443 remains available but cannot serve
+# ChatGPT however healthy it looks under curl.
+PORT = int(os.environ.get("COMITIA_PUBLIC_PORT", "443"))
+TARGET_PORT = PORT
 
 TOKEN = json.loads(
     pathlib.Path("/root/.comitia/sessions/chatgpt.json").read_text())["credential"]["Token"]
