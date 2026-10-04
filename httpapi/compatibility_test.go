@@ -132,6 +132,21 @@ func TestV1UpgradeOrderCompatibility(t *testing.T) {
 				if err != nil || message.ContextID != parent.ID || message.SessionID != owner.Session.ID || message.DedupeKey != "mixed" || message.Sequence != 1 {
 					t.Fatalf("message metadata lost: %+v %v", message, err)
 				}
+				// Filtered pages report progress past nonmatches separately from the
+				// delivered cursor in every upgrade order.
+				pager := client.(comitia.MessagePageAPI)
+				for _, wait := range []bool{false, true} {
+					var page comitia.MessagePage
+					filter := comitia.MessageFilters{FromInstance: "nobody"}
+					if wait {
+						page, err = pager.WaitMessagesPage(ctx, owner.Token, parent.ID, 0, 0, filter)
+					} else {
+						page, err = pager.ReplayMessagesPage(ctx, owner.Token, parent.ID, 0, 100, filter)
+					}
+					if err != nil || len(page.Messages) != 0 || page.NextAfter != 0 || page.ScannedThrough != message.Sequence {
+						t.Fatalf("filtered scan wait=%v: %+v %v", wait, page, err)
+					}
+				}
 				_, helper, grants, err := client.DelegateSession(ctx, owner.Token, comitia.DelegateInput{PrincipalName: "helper", TTL: 2 * time.Hour, Grants: []comitia.DelegatedGrant{{ContextID: parent.ID, Permissions: comitia.PermissionRead, ExpiresAt: now.Add(time.Hour)}, {ContextID: child.ID, Permissions: comitia.PermissionRead, ExpiresAt: now.Add(30 * time.Minute)}}})
 				if err != nil || len(grants) != 2 || helper.Token == "" || helper.Session.ParentID != owner.Session.ID || !helper.Session.ExpiresAt.Equal(now.Add(2*time.Hour)) {
 					t.Fatalf("delegate metadata lost: %+v %v", helper.Session, err)

@@ -184,9 +184,10 @@ func TestCanonicalMessageBytesBoundBothReadShapes(t *testing.T) {
 			var result struct {
 				Messages json.RawMessage `json:"messages"`
 				Page     struct {
-					Messages  json.RawMessage `json:"messages"`
-					NextAfter int64           `json:"next_after"`
-					HasMore   bool            `json:"has_more"`
+					Messages       json.RawMessage `json:"messages"`
+					NextAfter      int64           `json:"next_after"`
+					ScannedThrough int64           `json:"scanned_through"`
+					HasMore        bool            `json:"has_more"`
 				} `json:"page"`
 			}
 			if err := json.Unmarshal(w.Body.Bytes(), &result); err != nil {
@@ -199,7 +200,8 @@ func TestCanonicalMessageBytesBoundBothReadShapes(t *testing.T) {
 			if w.Code != 200 || len(array) > budget {
 				t.Fatalf("page=%v wait=%v budget=%d actual=%d status=%d", page, wait, budget, len(array), w.Code)
 			}
-			if page && (result.Page.NextAfter != 1 || !result.Page.HasMore) {
+			// A trimmed page must not report scan progress past undelivered matches.
+			if page && (result.Page.NextAfter != 1 || result.Page.ScannedThrough != 1 || !result.Page.HasMore) {
 				t.Fatalf("page continuation: %+v", result.Page)
 			}
 		}

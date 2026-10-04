@@ -238,6 +238,7 @@ func wirePageResult(page comitia.MessagePage, budget int) (readMessagesResult, e
 	}
 	if len(messages) < len(value.Messages) {
 		value.NextAfter = messages[len(messages)-1].Sequence
+		value.ScannedThrough = value.NextAfter
 		value.HasMore = true
 	}
 	value.Messages = messages

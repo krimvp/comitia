@@ -20,6 +20,9 @@ func TestClientReadsLegacyResponseNames(t *testing.T) {
 			w.Write([]byte(`{"claim":{"Task":{"ID":"t","LeaseOwnerSessionID":"s","LeaseVersion":1},"Token":"claim"}}`))
 		case "/v1/messages/replay":
 			w.Write([]byte(`{"page":{"messages":[{"ID":"m","ContextID":"c","Sequence":1,"Body":"hello","envelope":{"schema":"comitia.discussion.v1","payload":{"ID":"opaque"}}}],"next_after":1,"has_more":false,"scanned_through":4},"future_metadata":{}}`))
+		case "/v1/messages/wait":
+			// Servers before filtered scan progress omit scanned_through.
+			w.Write([]byte(`{"page":{"messages":[],"next_after":3,"has_more":false}}`))
 		}
 	}))
 	defer server.Close()
@@ -41,7 +44,11 @@ func TestClientReadsLegacyResponseNames(t *testing.T) {
 		t.Fatalf("claim: %+v %v", claim.Task, err)
 	}
 	page, err := client.ReplayMessagesPage(ctx, "caller", "c", 0, 100)
-	if err != nil || len(page.Messages) != 1 || page.Messages[0].ID != "m" || page.Messages[0].Body != "hello" || string(page.Messages[0].Envelope.Payload) != `{"ID":"opaque"}` || page.NextAfter != 1 {
+	if err != nil || len(page.Messages) != 1 || page.Messages[0].ID != "m" || page.Messages[0].Body != "hello" || string(page.Messages[0].Envelope.Payload) != `{"ID":"opaque"}` || page.NextAfter != 1 || page.ScannedThrough != 4 {
 		t.Fatalf("page: %+v %v", page, err)
+	}
+	page, err = client.WaitMessagesPage(ctx, "caller", "c", 3, 0)
+	if err != nil || page.NextAfter != 3 || page.ScannedThrough != 3 {
+		t.Fatalf("page without scan progress: %+v %v", page, err)
 	}
 }

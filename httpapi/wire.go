@@ -107,9 +107,10 @@ type claimDTO struct {
 }
 
 type pageDTO struct {
-	Messages  []messageDTO `json:"messages"`
-	NextAfter int64        `json:"next_after"`
-	HasMore   bool         `json:"has_more"`
+	Messages       []messageDTO `json:"messages"`
+	NextAfter      int64        `json:"next_after"`
+	ScannedThrough int64        `json:"scanned_through"`
+	HasMore        bool         `json:"has_more"`
 }
 
 type createContextInput struct {
@@ -392,8 +393,9 @@ func (c claimDTO) core() comitia.TaskClaim {
 	return comitia.TaskClaim{Task: comitia.Task(c.Task), Token: c.Token}
 }
 func wirePage(p comitia.MessagePage) pageDTO {
-	return pageDTO{mapSlice(p.Messages, func(m comitia.Message) messageDTO { return messageDTO(m) }), p.NextAfter, p.HasMore}
+	return pageDTO{mapSlice(p.Messages, func(m comitia.Message) messageDTO { return messageDTO(m) }), p.NextAfter, p.ScannedThrough, p.HasMore}
 }
 func (p pageDTO) core() comitia.MessagePage {
-	return comitia.MessagePage{Messages: mapSlice(p.Messages, func(m messageDTO) comitia.Message { return comitia.Message(m) }), NextAfter: p.NextAfter, HasMore: p.HasMore}
+	// Servers before scanned_through only reported delivered progress.
+	return comitia.MessagePage{Messages: mapSlice(p.Messages, func(m messageDTO) comitia.Message { return comitia.Message(m) }), NextAfter: p.NextAfter, ScannedThrough: max(p.ScannedThrough, p.NextAfter), HasMore: p.HasMore}
 }
