@@ -200,7 +200,7 @@ func TestSQLiteWALAuthorizationAndScanShareSnapshot(t *testing.T) {
 		if err != nil || len(grants) != 1 {
 			return errors.New("authorization changed within read snapshot")
 		}
-		_, scanned, err := x.messagesScanned(f.context.ID, reader.Session.ID, 0, 10, MessageFilters{FromInstance: "missing"})
+		_, scanned, err := x.MessagesScanned(f.context.ID, reader.Session.ID, 0, 10, MessageFilters{FromInstance: "missing"})
 		if err != nil || scanned != 0 {
 			return errors.New("empty scan high-water skipped a concurrent append")
 		}

@@ -218,15 +218,18 @@ func TestMessageFilterBackfillAndLegacyRepair(t *testing.T) {
 		}
 	}
 	assertReads()
-	// Each side table repair must be visible to the registered schema probe.
+	// A changed schema generation backfills each missing projection class.
 	for _, query := range []string{
 		"DELETE FROM message_filters", "DELETE FROM message_recipients WHERE kind='broadcast'", "DELETE FROM message_recipients WHERE kind='session'", "DELETE FROM message_recipients WHERE kind='instance'",
 	} {
 		if _, err := st.db.Exec(query); err != nil {
 			t.Fatal(err)
 		}
+		if _, err := st.db.Exec("DELETE FROM comitia_generations WHERE generation=?", schemaGeneration(messageSchema)); err != nil {
+			t.Fatal(err)
+		}
 		if !st.migrationPending(ctx) {
-			t.Fatalf("missing projection not detected: %s", query)
+			t.Fatalf("new projection generation not detected: %s", query)
 		}
 		if err := st.Close(); err != nil {
 			t.Fatal(err)
@@ -237,7 +240,12 @@ func TestMessageFilterBackfillAndLegacyRepair(t *testing.T) {
 		}
 		assertReads()
 	}
-	// Simulate a later older writer, which does not know either projection table.
+	// Model an older database generation before projection triggers existed.
+	for _, trigger := range []string{"comitia_message_filter_insert", "comitia_message_envelope_filter_insert", "comitia_message_instance_filter_insert"} {
+		if _, err := st.db.Exec("DROP TRIGGER " + trigger); err != nil {
+			t.Fatal(err)
+		}
+	}
 	if _, err := st.db.Exec("INSERT INTO messages VALUES(?,?,?,?,?,?,?)", "legacy", f.context.ID, f.admin.Session.ID, 4, "legacy", "legacy", ts(*f.now)); err != nil {
 		t.Fatal(err)
 	}

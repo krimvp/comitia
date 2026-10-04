@@ -581,7 +581,10 @@ and sender instances maintain them in the writer's transaction, including when
 an older CLI/binary appends while a new reader is already running. Inserting an
 envelope replaces provisional broadcast membership with its final routing;
 instance recipients retain precedence over session recipients. Startup backfills
-repair messages that predate these triggers.
+rebuild projections from the base tables when the schema generation changes or
+an object is missing, repairing messages that predate the triggers and partial
+projections from a missing trigger. Unchanged generations with complete schema
+objects keep the lock-free migration probe.
 
 ## Task claims by instance
 
