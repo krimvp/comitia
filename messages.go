@@ -8,9 +8,62 @@ import (
 	"io"
 	"sort"
 	"strings"
+	"time"
 	"unicode"
 	"unicode/utf8"
 )
+
+type Message struct {
+	ID, ContextID, SessionID, DedupeKey, Body string
+	Sequence                                  int64
+	CreatedAt                                 time.Time
+	Envelope                                  *MessageEnvelope `json:"envelope,omitempty"`
+	AgentInstance                             *AgentInstance   `json:"agent_instance,omitempty"`
+	AgentInstanceSelfReported                 bool             `json:"agent_instance_self_reported,omitempty"`
+}
+
+// AgentInstance is caller-claimed coordination metadata, never an authenticated identity.
+type AgentInstance struct {
+	ID    string `json:"id"`
+	Label string `json:"label,omitempty"`
+}
+type MessageInput struct {
+	DedupeKey, Body string
+	Envelope        *MessageEnvelope `json:"envelope,omitempty"`
+	AgentInstance   *AgentInstance   `json:"agent_instance,omitempty"`
+}
+type MessageEnvelope struct {
+	Schema              string          `json:"schema"`
+	RecipientSessionIDs []string        `json:"recipient_session_ids,omitempty"`
+	RecipientInstances  []string        `json:"recipient_instances,omitempty"`
+	TaskID              string          `json:"task_id,omitempty"`
+	ReplyTo             string          `json:"reply_to,omitempty"`
+	Payload             json.RawMessage `json:"payload"`
+}
+type PayloadValidator func(json.RawMessage) error
+type Participant struct {
+	SessionID, PrincipalID, Name string
+	ExpiresAt                    time.Time
+}
+
+type MessageAPI interface {
+	ListParticipants(context.Context, string, string, int) ([]Participant, error)
+	AppendMessage(context.Context, string, string, MessageInput) (Message, error)
+	ReplayMessages(context.Context, string, string, int64, int) ([]Message, error)
+	AckMessages(context.Context, string, string, int64, ...string) error
+	MessageCursor(context.Context, string, string, ...string) (int64, error)
+}
+type MessageReadStore interface {
+	Message(string) (Message, error)
+	Participants(string, time.Time, int) ([]Participant, error)
+	MessageByDedupe(string, string, string) (Message, error)
+	AckCursor(string, string, string) (int64, error)
+	Messages(string, int64, int) ([]Message, error)
+}
+type MessageWriteStore interface {
+	PutMessage(Message) (Message, error)
+	Ack(string, string, int64, time.Time, string) error
+}
 
 func strictPayload(raw json.RawMessage, target any) error {
 	d := json.NewDecoder(bytes.NewReader(raw))
