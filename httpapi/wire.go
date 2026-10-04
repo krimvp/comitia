@@ -62,6 +62,7 @@ type grantDTO struct {
 }
 
 type messageDTO struct {
+	TaskAttempt               *comitia.TaskAttempt     `json:"task_attempt,omitempty"`
 	ID                        string                   `json:"id"`
 	ContextID                 string                   `json:"context_id"`
 	SessionID                 string                   `json:"session_id"`
@@ -166,6 +167,7 @@ type delegateInput struct {
 }
 
 type messageInput struct {
+	TaskFence     *comitia.TaskFence       `json:"task_fence,omitempty"`
 	DedupeKey     string                   `json:"dedupe_key"`
 	Body          string                   `json:"body"`
 	Envelope      *comitia.MessageEnvelope `json:"envelope,omitempty"`
@@ -173,8 +175,9 @@ type messageInput struct {
 }
 
 type taskInput struct {
-	Title string `json:"title"`
-	Body  string `json:"body"`
+	Title       string `json:"title"`
+	Body        string `json:"body"`
+	OperationID string `json:"operation_id,omitempty"`
 }
 
 type emptyRequest struct {

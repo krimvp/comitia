@@ -9,6 +9,7 @@ import (
 )
 
 const messageSchema = `
+CREATE TABLE IF NOT EXISTS message_task_attempts (message_id TEXT PRIMARY KEY REFERENCES messages(id), task_id TEXT NOT NULL, lease_version INTEGER NOT NULL, claim_token_hash TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS messages (id TEXT PRIMARY KEY, context_id TEXT NOT NULL REFERENCES contexts(id), session_id TEXT NOT NULL REFERENCES sessions(id), seq INTEGER NOT NULL, dedupe_key TEXT NOT NULL, body TEXT NOT NULL, created_at TEXT NOT NULL, UNIQUE(context_id,session_id,dedupe_key), UNIQUE(context_id,seq));
 CREATE TABLE IF NOT EXISTS message_envelopes (message_id TEXT PRIMARY KEY REFERENCES messages(id), envelope TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS message_instances (message_id TEXT PRIMARY KEY REFERENCES messages(id), instance_id TEXT NOT NULL, label TEXT NOT NULL);
@@ -51,7 +52,7 @@ func (x *sqlStore) MessageByDedupe(cid, sid, key string, instances ...string) (M
 	return scanMessage(x.q.QueryRow(messageSelect+" WHERE d.context_id=? AND d.session_id=? AND d.instance_id=? AND d.dedupe_key=?", cid, sid, instance, key))
 }
 
-const messageSelect = "SELECT m.id,m.context_id,m.session_id,m.seq,COALESCE(d.dedupe_key,m.dedupe_key),m.body,m.created_at,COALESCE(e.envelope,''),COALESCE(i.instance_id,''),COALESCE(i.label,'') FROM messages m LEFT JOIN message_envelopes e ON e.message_id=m.id LEFT JOIN message_instances i ON i.message_id=m.id LEFT JOIN message_dedupe_scopes d ON d.message_id=m.id"
+const messageSelect = "SELECT m.id,m.context_id,m.session_id,m.seq,COALESCE(d.dedupe_key,m.dedupe_key),m.body,m.created_at,COALESCE(e.envelope,''),COALESCE(i.instance_id,''),COALESCE(i.label,''),COALESCE(a.task_id,''),COALESCE(a.lease_version,0),COALESCE(a.claim_token_hash,'') FROM messages m LEFT JOIN message_task_attempts a ON a.message_id=m.id LEFT JOIN message_envelopes e ON e.message_id=m.id LEFT JOIN message_instances i ON i.message_id=m.id LEFT JOIN message_dedupe_scopes d ON d.message_id=m.id"
 
 func (x *sqlStore) Message(id string) (Message, error) {
 	return scanMessage(x.q.QueryRow(messageSelect+" WHERE m.id=?", id))
@@ -59,13 +60,17 @@ func (x *sqlStore) Message(id string) (Message, error) {
 func scanMessage(row interface{ Scan(...any) error }) (Message, error) {
 	var m Message
 	var c, envelope, instance, label string
-	e := row.Scan(&m.ID, &m.ContextID, &m.SessionID, &m.Sequence, &m.DedupeKey, &m.Body, &c, &envelope, &instance, &label)
+	var attempt TaskAttempt
+	e := row.Scan(&m.ID, &m.ContextID, &m.SessionID, &m.Sequence, &m.DedupeKey, &m.Body, &c, &envelope, &instance, &label, &attempt.TaskID, &attempt.LeaseVersion, &attempt.ClaimTokenHash)
 	if e == nil && envelope != "" {
 		e = json.Unmarshal([]byte(envelope), &m.Envelope)
 	}
 	if instance != "" {
 		m.AgentInstance = &AgentInstance{ID: instance, Label: label}
 		m.AgentInstanceSelfReported = true
+	}
+	if attempt.TaskID != "" {
+		m.TaskAttempt = &attempt
 	}
 	m.CreatedAt = parse(c)
 	return m, dbErr(e)
@@ -109,6 +114,10 @@ func (x *sqlStore) PutMessage(m Message) (Message, error) {
 			instance = m.AgentInstance.ID
 		}
 		_, e = x.q.Exec("INSERT INTO message_dedupe_scopes VALUES(?,?,?,?,?)", m.ContextID, m.SessionID, instance, m.DedupeKey, m.ID)
+	}
+	if e == nil && m.TaskAttempt != nil {
+		a := m.TaskAttempt
+		_, e = x.q.Exec("INSERT INTO message_task_attempts VALUES(?,?,?,?)", m.ID, a.TaskID, a.LeaseVersion, a.ClaimTokenHash)
 	}
 	return m, e
 }

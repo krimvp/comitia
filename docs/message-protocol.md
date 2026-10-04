@@ -634,6 +634,27 @@ context may release without it but must pass the current `lease_version`
 conflict. The instance is stored in a `task_instances` side table created on
 open; custom stores must persist `Task.LeaseOwnerInstance` in `PutTask`.
 
+Owner results may include `task_fence: {"task_id":"TASK_ID",
+"claim_token":"CURRENT_TOKEN","lease_version":2}` on MCP `send_message` or
+HTTP `message`. The task ID must match `envelope.task_id`. CLI `send` uses
+`--claim-token` and `--lease-version` with `--envelope-file`; Go uses
+`MessageInput.TaskFence`. Append checks the authenticated holder, claim permission,
+current token/version, status and unexpired lease in the same write transaction.
+Stale workers cannot append new fenced results after renewal, release, reassignment
+or completion. The returned/replayed `task_attempt` contains only the validated
+task ID and lease version; the token is never published. Consumers should match
+`Message.SessionID`, `envelope.reply_to` (the intended request) and `task_attempt`
+against the expected owner and attempt. A fence proves ownership when appended;
+previously accepted history remains readable after reassignment. An identical
+dedupe retry returns that accepted message after token rotation, with current
+write/claim permission still required; changing or removing the fence conflicts.
+Unfenced observer reviews remain supported and carry no owner-attempt proof.
+The fence covers Comitia append, not external side effects. SQLite stores the
+attempt and a private token hash in a side table; custom stores must persist
+`Message.TaskAttempt`, including its non-JSON hash, for conflict-checked retries.
+Task create/claim/renew optionally use session-scoped durable mutation receipts;
+see [the complete lease loop](task-validation.md#complete-lease-loop).
+
 ## Validation details and capability discovery
 
 Validation errors keep the `invalid input` sentinel and name the rejected field
@@ -660,7 +681,8 @@ build version is used when available.
 
 The feature table is maintained in `server_info.go` and currently lists
 `agent_instances`, `default_agent_instance`, `child_contexts`, `invites`,
-`context_archive`, `task_status`, `approvals`, `instance_claims`,
+`context_archive`, `task_status`, `approvals`, `instance_claims`, `task_mutation_receipts`,
+`task_result_fencing`,
 `replay_filters`, `wait_messages`, `context_tools` (`create_context`,
 `list_contexts`, `list_child_contexts`), `grant_tools` (`grant_context`,
 `revoke_grant`), `delegated_sessions` (`delegate_session`, `revoke_session`) and
@@ -697,7 +719,7 @@ ID without exposing raw errors, paths, bodies, credentials or private identifier
 Authorization/not-found errors retain their existing classification without finer
 resource-state hints. Deadline/cancellation failures use `deadline_exceeded` or
 `cancelled` (HTTP 503); an interrupted write may have committed, so read its state
-or reuse its dedupe key before retrying.
+or reuse its dedupe key (task create/claim/renew: its `operation_id`) before retrying.
 
 Internal failures log only fixed operation labels, error class, generated request
 ID, duration and build identity. Caller-supplied request IDs and JSON-RPC IDs are

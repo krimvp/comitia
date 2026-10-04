@@ -3,6 +3,7 @@ package comitia
 import (
 	"context"
 	"crypto/subtle"
+	"encoding/json"
 	"errors"
 	"math"
 	"time"
@@ -30,7 +31,16 @@ type TaskClaim struct {
 	Task  Task
 	Token string
 }
-type TaskInput struct{ Title, Body string }
+type TaskInput struct {
+	Title, Body string
+	OperationID string `json:"operation_id,omitempty"`
+}
+
+// TaskReceipt is private persistence; it includes the caller's original secret result.
+type TaskReceipt struct {
+	Fingerprint string
+	Result      TaskClaim
+}
 
 // OpenLease asks for a lease that lasts until the task is completed or released.
 // Every lease is capped at the claiming session's expiry, so it is still bounded.
@@ -45,6 +55,21 @@ type TaskAPI interface {
 	CompleteTask(context.Context, string, string, string, int64) (Task, error)
 	ReleaseTask(context.Context, string, string, string, int64) (Task, error)
 }
+
+// TaskMutationAPI is optional; ordinary task calls retain their original interface.
+type TaskMutationAPI interface {
+	CreateTask(context.Context, string, string, TaskInput) (Task, error)
+	ClaimTaskWithOperation(context.Context, string, string, time.Duration, string, ...AgentInstance) (TaskClaim, error)
+	RenewClaimWithOperation(context.Context, string, string, string, int64, time.Duration, string) (TaskClaim, error)
+}
+
+type TaskReceiptReadStore interface {
+	TaskReceipt(string, string) (TaskReceipt, error)
+}
+type TaskReceiptWriteStore interface {
+	PutTaskReceipt(string, string, TaskReceipt) error
+}
+
 type TaskReadStore interface {
 	Task(string) (Task, error)
 	Tasks(string, TaskStatus, int) ([]Task, error)
@@ -55,17 +80,36 @@ type TaskWriteStore interface {
 
 func (s *Service) CreateTask(ctx context.Context, raw, cid string, in TaskInput) (Task, error) {
 	var t Task
+	if e := validOperationID(in.OperationID); e != nil {
+		return t, e
+	}
 	if in.Title == "" {
 		return t, Invalidf("title required")
 	}
 	e := s.store.Update(ctx, func(w WriteStore) error {
-		if _, _, e := s.require(w, raw, cid, PermissionWrite); e != nil {
+		a, _, e := s.require(w, raw, cid, PermissionWrite)
+		if e != nil {
 			return e
+		}
+		fingerprint := taskFingerprint("create", cid, in.Title, in.Body)
+		receipt, found, e := taskReceipt(w, a.session.ID, in.OperationID, fingerprint)
+		if e != nil {
+			return e
+		}
+		if found {
+			t = receipt.Task
+			return nil
 		}
 		now := s.now().UTC()
 		t = Task{ID: id(), ContextID: cid, Title: in.Title, Body: in.Body, Status: TaskPending, CreatedAt: now, UpdatedAt: now}
-		return w.PutTask(t)
+		if e := w.PutTask(t); e != nil {
+			return e
+		}
+		return putTaskReceipt(w, a.session.ID, in.OperationID, fingerprint, TaskClaim{Task: t})
 	})
+	if e != nil {
+		return Task{}, e
+	}
 	return t, e
 }
 func (s *Service) GetTask(ctx context.Context, raw, id string) (Task, error) {
@@ -109,7 +153,15 @@ func (s *Service) ListTasks(ctx context.Context, raw, cid string, status TaskSta
 // The optional instance records which process of a shared session holds the
 // claim. It is self-reported routing metadata and confers no permissions.
 func (s *Service) ClaimTask(ctx context.Context, raw, taskID string, lease time.Duration, instance ...AgentInstance) (TaskClaim, error) {
+	return s.ClaimTaskWithOperation(ctx, raw, taskID, lease, "", instance...)
+}
+
+// ClaimTaskWithOperation replays an identical operation without acquiring another lease.
+func (s *Service) ClaimTaskWithOperation(ctx context.Context, raw, taskID string, lease time.Duration, operationID string, instance ...AgentInstance) (TaskClaim, error) {
 	var c TaskClaim
+	if e := validOperationID(operationID); e != nil {
+		return c, e
+	}
 	if !validTTL(lease) || len(instance) > 1 {
 		return c, Invalidf("lease must be positive and agent_instance accepts at most one instance")
 	}
@@ -128,6 +180,15 @@ func (s *Service) ClaimTask(ctx context.Context, raw, taskID string, lease time.
 		a, _, e := s.require(w, raw, t.ContextID, PermissionClaim)
 		if e != nil {
 			return e
+		}
+		fingerprint := taskFingerprint("claim", taskID, lease, owner)
+		receipt, found, e := taskReceipt(w, a.session.ID, operationID, fingerprint)
+		if e != nil {
+			return e
+		}
+		if found {
+			c = receipt
+			return nil
 		}
 		now := s.now().UTC()
 		if t.Status == TaskCompleted {
@@ -153,19 +214,31 @@ func (s *Service) ClaimTask(ctx context.Context, raw, taskID string, lease time.
 		t.LeaseTokenHash = tokenHash(c.Token)
 		c.Task = t
 		c.Task.LeaseTokenHash = ""
-		return w.PutTask(t)
+		if e := w.PutTask(t); e != nil {
+			return e
+		}
+		return putTaskReceipt(w, a.session.ID, operationID, fingerprint, c)
 	})
+	if e != nil {
+		return TaskClaim{}, e
+	}
 	return c, e
 }
 func (s *Service) RenewClaim(ctx context.Context, raw, taskID, claimToken string, version int64, lease time.Duration) (TaskClaim, error) {
-	return s.changeLease(ctx, raw, taskID, claimToken, version, lease, false)
+	return s.RenewClaimWithOperation(ctx, raw, taskID, claimToken, version, lease, "")
+}
+func (s *Service) RenewClaimWithOperation(ctx context.Context, raw, taskID, claimToken string, version int64, lease time.Duration, operationID string) (TaskClaim, error) {
+	return s.changeLease(ctx, raw, taskID, claimToken, version, lease, false, operationID)
 }
 func (s *Service) CompleteTask(ctx context.Context, raw, taskID, claimToken string, version int64) (Task, error) {
-	c, e := s.changeLease(ctx, raw, taskID, claimToken, version, 0, true)
+	c, e := s.changeLease(ctx, raw, taskID, claimToken, version, 0, true, "")
 	return c.Task, e
 }
-func (s *Service) changeLease(ctx context.Context, raw, taskID, claimToken string, version int64, lease time.Duration, complete bool) (TaskClaim, error) {
+func (s *Service) changeLease(ctx context.Context, raw, taskID, claimToken string, version int64, lease time.Duration, complete bool, operationID string) (TaskClaim, error) {
 	var c TaskClaim
+	if e := validOperationID(operationID); e != nil {
+		return c, e
+	}
 	if !complete && !validTTL(lease) {
 		return c, Invalidf("lease must be positive")
 	}
@@ -177,6 +250,15 @@ func (s *Service) changeLease(ctx context.Context, raw, taskID, claimToken strin
 		a, _, e := s.require(w, raw, t.ContextID, PermissionClaim)
 		if e != nil {
 			return e
+		}
+		fingerprint := taskFingerprint("renew", taskID, tokenHash(claimToken), version, lease)
+		receipt, found, e := taskReceipt(w, a.session.ID, operationID, fingerprint)
+		if e != nil {
+			return e
+		}
+		if found {
+			c = receipt
+			return nil
 		}
 		now := s.now().UTC()
 		if t.Status != TaskLeased || t.LeaseOwnerSessionID != a.session.ID || t.LeaseVersion != version || t.LeaseExpiresAt == nil || !t.LeaseExpiresAt.After(now) || subtle.ConstantTimeCompare([]byte(t.LeaseTokenHash), []byte(tokenHash(claimToken))) != 1 {
@@ -196,8 +278,14 @@ func (s *Service) changeLease(ctx context.Context, raw, taskID, claimToken strin
 		t.UpdatedAt = now
 		c.Task = t
 		c.Task.LeaseTokenHash = ""
-		return w.PutTask(t)
+		if e := w.PutTask(t); e != nil {
+			return e
+		}
+		return putTaskReceipt(w, a.session.ID, operationID, fingerprint, c)
 	})
+	if e != nil {
+		return TaskClaim{}, e
+	}
 	return c, e
 }
 
@@ -286,4 +374,80 @@ func (s *Service) privateTask(r ReadStore, raw, taskID string) (Task, error) {
 		return Task{}, ErrForbidden
 	}
 	return t, err
+}
+
+func validOperationID(operationID string) error {
+	if len(operationID) > 256 {
+		return Invalidf("operation_id must be at most 256 bytes")
+	}
+	return nil
+}
+
+func taskFingerprint(parts ...any) string {
+	raw, _ := json.Marshal(parts)
+	return tokenHash(string(raw))
+}
+
+func taskReceipt(r TaskReadStore, sid, operationID, fingerprint string) (TaskClaim, bool, error) {
+	if operationID == "" {
+		return TaskClaim{}, false, nil
+	}
+	store, ok := r.(TaskReceiptReadStore)
+	if !ok {
+		return TaskClaim{}, false, Invalidf("task mutation receipts unsupported by store")
+	}
+	receipt, e := store.TaskReceipt(sid, operationID)
+	if errors.Is(e, ErrNotFound) {
+		return TaskClaim{}, false, nil
+	}
+	if e != nil {
+		return TaskClaim{}, false, e
+	}
+	if receipt.Fingerprint != fingerprint {
+		return TaskClaim{}, false, ErrConflict
+	}
+	return receipt.Result, true, nil
+}
+
+func putTaskReceipt(w TaskWriteStore, sid, operationID, fingerprint string, result TaskClaim) error {
+	if operationID == "" {
+		return nil
+	}
+	store, ok := w.(TaskReceiptWriteStore)
+	if !ok {
+		return Invalidf("task mutation receipts unsupported by store")
+	}
+	return store.PutTaskReceipt(sid, operationID, TaskReceipt{Fingerprint: fingerprint, Result: result})
+}
+
+// CreateTaskOperation rejects recoverable calls through APIs without that capability.
+func CreateTaskOperation(ctx context.Context, api TaskAPI, raw, cid string, in TaskInput) (Task, error) {
+	if in.OperationID != "" {
+		if _, ok := api.(TaskMutationAPI); !ok {
+			return Task{}, Invalidf("task mutation receipts unsupported by API")
+		}
+	}
+	return api.CreateTask(ctx, raw, cid, in)
+}
+
+// ClaimTaskOperation selects recovery only when an operation ID was supplied.
+func ClaimTaskOperation(ctx context.Context, api TaskAPI, raw, taskID string, lease time.Duration, operationID string, instance ...AgentInstance) (TaskClaim, error) {
+	if operationID == "" {
+		return api.ClaimTask(ctx, raw, taskID, lease, instance...)
+	}
+	recovery, ok := api.(TaskMutationAPI)
+	if !ok {
+		return TaskClaim{}, Invalidf("task mutation receipts unsupported by API")
+	}
+	return recovery.ClaimTaskWithOperation(ctx, raw, taskID, lease, operationID, instance...)
+}
+func RenewClaimOperation(ctx context.Context, api TaskAPI, raw, taskID, claimToken string, version int64, lease time.Duration, operationID string) (TaskClaim, error) {
+	if operationID == "" {
+		return api.RenewClaim(ctx, raw, taskID, claimToken, version, lease)
+	}
+	recovery, ok := api.(TaskMutationAPI)
+	if !ok {
+		return TaskClaim{}, Invalidf("task mutation receipts unsupported by API")
+	}
+	return recovery.RenewClaimWithOperation(ctx, raw, taskID, claimToken, version, lease, operationID)
 }

@@ -14,6 +14,7 @@ import (
 )
 
 type Message struct {
+	TaskAttempt                               *TaskAttempt `json:"task_attempt,omitempty"`
 	ID, ContextID, SessionID, DedupeKey, Body string
 	Sequence                                  int64
 	CreatedAt                                 time.Time
@@ -28,6 +29,7 @@ type AgentInstance struct {
 	Label string `json:"label,omitempty"`
 }
 type MessageInput struct {
+	TaskFence       *TaskFence `json:"task_fence,omitempty"`
 	DedupeKey, Body string
 	Envelope        *MessageEnvelope `json:"envelope,omitempty"`
 	AgentInstance   *AgentInstance   `json:"agent_instance,omitempty"`

@@ -93,10 +93,23 @@ After **every** successful renewal, replace `Token` and `Task.LeaseVersion`
 together. The previous pair, or either mixed pair, is stale and cannot complete
 or renew. If the lease expires, stop owner-only side effects and claim again;
 another worker may already own it. A stale-claim error is an ownership failure,
-not permission to retry completion blindly. Claim and renewal are not
-idempotent: after an uncertain network response, inspect `get_task`; it does
-not reveal the new token. Release/reclaim through an authorized coordinator if
-the renewed token is lost. To abandon work, release with the current pair; a
+not permission to retry completion blindly. Create, claim and renewal accept an optional stable `operation_id` (CLI
+`--operation-id`, at most 256 bytes). Persist a distinct key and the original
+arguments before each logical mutation; retry with exactly the same arguments
+and key after a lost response. SQLite commits a receipt atomically with the
+mutation and retains it across restart. Identical retries return the original
+Task/Token/version snapshot even after later renewal, reassignment or completion;
+changed arguments or reuse for a different mutation conflict. Keys are scoped to
+the authenticated session, across methods and contexts; instance IDs are part of
+the claim request, not a separate receipt scope. Receipt retrieval rechecks the
+original context permission and never exposes another session's token. A recovered
+historical token may already be stale: confirm task ownership before external
+side effects. Receipts do not make external jobs idempotent; give those jobs a
+stable identity and enforce their own ownership boundary. HTTP create puts
+`operation_id` inside `task`; claim/renew put it at the request top level. Go uses
+`TaskInput.OperationID`, `ClaimTaskWithOperation` and `RenewClaimWithOperation`.
+Without a key, an uncertain claim/renew response still requires authorized
+release/reclaim because `get_task` does not reveal the new token. To abandon work, release with the current pair; a
 context admin may omit the token but must supply the current version.
 
 ## Validation

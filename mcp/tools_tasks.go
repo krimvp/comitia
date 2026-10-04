@@ -10,9 +10,9 @@ import (
 
 func taskTools() []map[string]any {
 	return []map[string]any{
-		tool("create_task", "Create a task in a context", schema(map[string]any{"context_id": str("Context ID"), "title": str("Task title"), "body": str("Task details")}, "context_id", "title")),
-		tool("claim_task", "Claim a pending task; lease_seconds defaults to 300 (1–86400), or use open_ended. Returns Task + Token; keep Token and Task.LeaseVersion for renew/complete. Omitted agent_instance defaults to COMITIA_AGENT_INSTANCE / COMITIA_AGENT_INSTANCE_LABEL; explicit objects replace both defaults and an empty ID is invalid", schema(map[string]any{"task_id": str("Task ID"), "lease_seconds": integer("Lease duration in seconds"), "open_ended": openEnded(), "agent_instance": schema(map[string]any{"id": str("Self-reported instance ID holding the claim: 1-64 ASCII letters, digits, dot, underscore or hyphen; never identity proof"), "label": str("Optional self-reported display label (at most 128 bytes)")}, "id")}, "task_id")),
-		tool("renew_task", "Renew a task claim using claim_token and lease_version; lease_seconds defaults to 300 (1–86400), or use open_ended. Returns Task + Token; replace both Token and Task.LeaseVersion after renewal.", schema(map[string]any{"task_id": str("Task ID"), "claim_token": str("Opaque claim token"), "lease_version": integer("Current lease version"), "lease_seconds": integer("Lease duration in seconds"), "open_ended": openEnded()}, "task_id", "claim_token", "lease_version")),
+		tool("create_task", "Create a task in a context", schema(map[string]any{"context_id": str("Context ID"), "title": str("Task title"), "body": str("Task details"), "operation_id": taskOperationID()}, "context_id", "title")),
+		tool("claim_task", "Claim a pending task; lease_seconds defaults to 300 (1–86400), or use open_ended. Returns Task + Token; keep Token and Task.LeaseVersion for renew/complete. Omitted agent_instance defaults to COMITIA_AGENT_INSTANCE / COMITIA_AGENT_INSTANCE_LABEL; explicit objects replace both defaults and an empty ID is invalid", schema(map[string]any{"task_id": str("Task ID"), "operation_id": taskOperationID(), "lease_seconds": integer("Lease duration in seconds"), "open_ended": openEnded(), "agent_instance": schema(map[string]any{"id": str("Self-reported instance ID holding the claim: 1-64 ASCII letters, digits, dot, underscore or hyphen; never identity proof"), "label": str("Optional self-reported display label (at most 128 bytes)")}, "id")}, "task_id")),
+		tool("renew_task", "Renew a task claim using claim_token and lease_version; lease_seconds defaults to 300 (1–86400), or use open_ended. Returns Task + Token; replace both Token and Task.LeaseVersion after renewal.", schema(map[string]any{"task_id": str("Task ID"), "claim_token": str("Opaque claim token"), "lease_version": integer("Current lease version"), "operation_id": taskOperationID(), "lease_seconds": integer("Lease duration in seconds"), "open_ended": openEnded()}, "task_id", "claim_token", "lease_version")),
 		tool("complete_task", "Complete a claimed task using the latest Token as claim_token and Task.LeaseVersion as lease_version from claim/renew.", schema(map[string]any{"task_id": str("Task ID"), "claim_token": str("Opaque claim token"), "lease_version": integer("Current lease version")}, "task_id", "claim_token", "lease_version")),
 		tool("release_task", "Return a leased task to pending; the holder passes its claim token, a context admin may omit it", schema(map[string]any{"task_id": str("Task ID"), "claim_token": str("Opaque claim token; optional for a context admin"), "lease_version": integer("Current lease version")}, "task_id", "lease_version")),
 		tool("get_task", "Get a task by ID", schema(map[string]any{"task_id": str("Task ID")}, "task_id")),
@@ -24,9 +24,10 @@ func (s *Server) callTasks(ctx context.Context, name string, raw json.RawMessage
 	switch name {
 	case "create_task":
 		var a struct {
-			ContextID string `json:"context_id"`
-			Title     string `json:"title"`
-			Body      string `json:"body"`
+			OperationID string `json:"operation_id"`
+			ContextID   string `json:"context_id"`
+			Title       string `json:"title"`
+			Body        string `json:"body"`
 		}
 		if err := decode(raw, &a); err != nil {
 			return nil, err
@@ -34,9 +35,10 @@ func (s *Server) callTasks(ctx context.Context, name string, raw json.RawMessage
 		if err := required("context_id", a.ContextID, "title", a.Title); err != nil {
 			return nil, err
 		}
-		return s.API.CreateTask(ctx, s.Credential, a.ContextID, comitia.TaskInput{Title: a.Title, Body: a.Body})
+		return comitia.CreateTaskOperation(ctx, s.API, s.Credential, a.ContextID, comitia.TaskInput{Title: a.Title, Body: a.Body, OperationID: a.OperationID})
 	case "claim_task":
 		var a struct {
+			OperationID   string                 `json:"operation_id"`
 			TaskID        string                 `json:"task_id"`
 			LeaseSeconds  int64                  `json:"lease_seconds"`
 			OpenEnded     bool                   `json:"open_ended"`
@@ -56,9 +58,10 @@ func (s *Server) callTasks(ctx context.Context, name string, raw json.RawMessage
 		if owner := s.InstanceDefaults.Message(a.AgentInstance); owner != nil {
 			instance = append(instance, *owner)
 		}
-		return s.API.ClaimTask(ctx, s.Credential, a.TaskID, d, instance...)
+		return comitia.ClaimTaskOperation(ctx, s.API, s.Credential, a.TaskID, d, a.OperationID, instance...)
 	case "renew_task":
 		var a struct {
+			OperationID  string `json:"operation_id"`
 			TaskID       string `json:"task_id"`
 			ClaimToken   string `json:"claim_token"`
 			LeaseVersion *int64 `json:"lease_version"`
@@ -78,7 +81,7 @@ func (s *Server) callTasks(ctx context.Context, name string, raw json.RawMessage
 		if e != nil {
 			return nil, e
 		}
-		return s.API.RenewClaim(ctx, s.Credential, a.TaskID, a.ClaimToken, *a.LeaseVersion, d)
+		return comitia.RenewClaimOperation(ctx, s.API, s.Credential, a.TaskID, a.ClaimToken, *a.LeaseVersion, d, a.OperationID)
 	case "complete_task":
 		var a struct {
 			TaskID       string `json:"task_id"`
@@ -168,4 +171,8 @@ func lease(n int64, open bool) (time.Duration, error) {
 		return comitia.OpenLease, nil
 	}
 	return seconds(n, 300)
+}
+
+func taskOperationID() map[string]any {
+	return map[string]any{"type": "string", "maxLength": 256, "description": "Optional stable caller/session-scoped operation ID; identical retries recover the original result, changed requests conflict. Persist before sending (at most 256 bytes)."}
 }

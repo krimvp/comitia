@@ -1,8 +1,12 @@
 package comitia
 
-import "database/sql"
+import (
+	"database/sql"
+	"encoding/json"
+)
 
 const taskSchema = `
+CREATE TABLE IF NOT EXISTS task_mutation_receipts (session_id TEXT NOT NULL REFERENCES sessions(id), operation_id TEXT NOT NULL, fingerprint TEXT NOT NULL, result TEXT NOT NULL, PRIMARY KEY(session_id,operation_id));
 CREATE TABLE IF NOT EXISTS tasks (id TEXT PRIMARY KEY, context_id TEXT NOT NULL REFERENCES contexts(id), title TEXT NOT NULL, body TEXT NOT NULL, status TEXT NOT NULL, lease_owner_session_id TEXT, lease_version INTEGER NOT NULL, lease_expires_at TEXT, lease_token_hash TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL);
 CREATE INDEX IF NOT EXISTS tasks_lookup ON tasks(context_id,status,created_at);
 CREATE INDEX IF NOT EXISTS tasks_page ON tasks(context_id,created_at,id);
@@ -73,4 +77,23 @@ func (x *sqlStore) TasksAfter(cid string, status TaskStatus, created, afterID st
 		out = append(out, t)
 	}
 	return out, rows.Err()
+}
+
+func (x *sqlStore) TaskReceipt(sid, operationID string) (TaskReceipt, error) {
+	var receipt TaskReceipt
+	var raw string
+	e := x.q.QueryRow("SELECT fingerprint,result FROM task_mutation_receipts WHERE session_id=? AND operation_id=?", sid, operationID).Scan(&receipt.Fingerprint, &raw)
+	if e != nil {
+		return receipt, dbErr(e)
+	}
+	e = json.Unmarshal([]byte(raw), &receipt.Result)
+	return receipt, e
+}
+func (x *sqlStore) PutTaskReceipt(sid, operationID string, receipt TaskReceipt) error {
+	raw, e := json.Marshal(receipt.Result)
+	if e != nil {
+		return e
+	}
+	_, e = x.q.Exec("INSERT INTO task_mutation_receipts VALUES(?,?,?,?)", sid, operationID, receipt.Fingerprint, string(raw))
+	return e
 }
