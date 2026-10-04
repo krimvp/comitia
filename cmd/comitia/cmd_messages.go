@@ -1,0 +1,88 @@
+package main
+
+import (
+	"context"
+	"encoding/json"
+
+	"github.com/krimvp/comitia"
+)
+
+func runMessages(ctx context.Context, cfg config, api comitia.API, out *json.Encoder, cmd string, args []string) error {
+	switch cmd {
+	case "send":
+		fs := newFlags(cmd)
+		cid := fs.String("context-id", "", "context ID")
+		key := fs.String("dedupe-key", "", "stable deduplication key")
+		body := fs.String("body", "", "message body")
+		instanceID := fs.String("agent-instance", "", "self-reported instance ID")
+		instanceLabel := fs.String("agent-instance-label", "", "optional self-reported instance label")
+		envelopeFile := fs.String("envelope-file", "", "validated message envelope JSON file")
+		if err := fs.Parse(args); err != nil {
+			return err
+		}
+		envelope, e := readEnvelope(*envelopeFile)
+		if e != nil {
+			return e
+		}
+		var instance *comitia.AgentInstance
+		if *instanceID != "" || *instanceLabel != "" {
+			instance = &comitia.AgentInstance{ID: *instanceID, Label: *instanceLabel}
+		}
+		v, e := api.AppendMessage(ctx, needCredential(cfg), *cid, comitia.MessageInput{DedupeKey: *key, Body: *body, Envelope: envelope, AgentInstance: instance})
+		if e != nil {
+			return e
+		}
+		return out.Encode(v)
+	case "participants":
+		fs := newFlags(cmd)
+		cid := fs.String("context-id", "", "work context ID")
+		limit := fs.Int("limit", 100, "maximum participants (1-1000)")
+		if err := fs.Parse(args); err != nil {
+			return err
+		}
+		v, e := api.ListParticipants(ctx, needCredential(cfg), *cid, *limit)
+		if e != nil {
+			return e
+		}
+		return out.Encode(v)
+	case "replay":
+		fs := newFlags(cmd)
+		cid := fs.String("context-id", "", "context ID")
+		after := fs.Int64("after", 0, "exclusive sequence cursor")
+		limit := fs.Int("limit", 100, "maximum messages")
+		if err := fs.Parse(args); err != nil {
+			return err
+		}
+		v, e := api.ReplayMessages(ctx, needCredential(cfg), *cid, *after, *limit)
+		if e != nil {
+			return e
+		}
+		return out.Encode(v)
+	case "ack":
+		fs := newFlags(cmd)
+		cid := fs.String("context-id", "", "context ID")
+		seq := fs.Int64("sequence", 0, "inclusive sequence")
+		instance := fs.String("agent-instance", "", "self-reported instance ID for this cursor")
+		if err := fs.Parse(args); err != nil {
+			return err
+		}
+		if e := api.AckMessages(ctx, needCredential(cfg), *cid, *seq, *instance); e != nil {
+			return e
+		}
+		return out.Encode(map[string]bool{"ok": true})
+	case "cursor":
+		fs := newFlags(cmd)
+		cid := fs.String("context-id", "", "context ID")
+		instance := fs.String("agent-instance", "", "self-reported instance ID for this cursor")
+		if err := fs.Parse(args); err != nil {
+			return err
+		}
+		v, e := api.MessageCursor(ctx, needCredential(cfg), *cid, *instance)
+		if e != nil {
+			return e
+		}
+		return out.Encode(map[string]int64{"sequence": v})
+	default:
+		return errUnknownCommand
+	}
+}
