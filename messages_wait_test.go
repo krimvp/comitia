@@ -201,6 +201,15 @@ func (s scanProbeStore) View(ctx context.Context, fn func(ReadStore) error) erro
 }
 
 func TestWaitMessagesScansOnlyNewRows(t *testing.T) {
+	testWaitMessagesScansOnlyNewRows(t, 0)
+}
+
+func TestWaitMessagesScansOnlyNewRowsWithStall(t *testing.T) {
+	testWaitMessagesScansOnlyNewRows(t, 195*time.Millisecond)
+}
+
+func testWaitMessagesScansOnlyNewRows(t *testing.T, stall time.Duration) {
+	t.Helper()
 	path := filepath.Join(t.TempDir(), "wait.db")
 	f := setup(t, path)
 	defer f.store.Close()
@@ -232,23 +241,32 @@ func TestWaitMessagesScansOnlyNewRows(t *testing.T) {
 		t.Fatal(err)
 	}
 	result := startMessageWait(reader, ctx, f.admin.Token, f.context.ID, MessageFilters{ForInstance: "reader"})
+	last := int64(-1)
 	readAfter := func(want int64) {
 		t.Helper()
-		select {
-		case got := <-after:
-			if got != want {
-				t.Fatalf("query after=%d, want %d", got, want)
+		deadline := time.NewTimer(time.Second)
+		defer deadline.Stop()
+		for {
+			select {
+			case got := <-after:
+				if got < last || got > want || last >= 0 && got < oldRows {
+					t.Fatalf("query after=%d, previous=%d, want advancement to %d", got, last, want)
+				}
+				last = got
+				if got == want {
+					return
+				}
+			case <-deadline.C:
+				t.Fatalf("scan did not reach %d; last=%d", want, last)
 			}
-		case <-time.After(time.Second):
-			t.Fatal("scan stalled")
 		}
 	}
 	readAfter(0)
 	readAfter(oldRows)
 	readAfter(oldRows)
 	// This separate SQLite connection has no in-process notification.
+	time.Sleep(stall)
 	appendOther(writer, "new-other")
-	readAfter(oldRows)
 	readAfter(oldRows + 1)
 	readAfter(oldRows + 1)
 	m, err := writer.AppendMessage(ctx, f.admin.Token, f.context.ID, MessageInput{DedupeKey: "match", Body: "ready"})
@@ -259,6 +277,9 @@ func TestWaitMessagesScansOnlyNewRows(t *testing.T) {
 	if got.err != nil || len(got.messages) != 1 || got.messages[0].ID != m.ID {
 		t.Fatalf("external append after skipped rows: %+v", got)
 	}
+	for len(after) != 0 {
+		readAfter(oldRows + 1)
+	}
 	cursor, err := reader.MessageCursor(ctx, f.admin.Token, f.context.ID)
 	if err != nil || cursor != 0 {
 		t.Fatalf("wait changed ack cursor: %d %v", cursor, err)
@@ -268,7 +289,8 @@ func TestWaitMessagesScansOnlyNewRows(t *testing.T) {
 func TestWaitMessagesScanCursorAhead(t *testing.T) {
 	f := setup(t, ":memory:")
 	defer f.store.Close()
-	ctx := context.Background()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 	if _, err := f.svc.AppendMessage(ctx, f.admin.Token, f.context.ID, MessageInput{DedupeKey: "old", Body: "old"}); err != nil {
 		t.Fatal(err)
 	}
@@ -277,12 +299,26 @@ func TestWaitMessagesScanCursorAhead(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	got, err := reader.WaitMessages(ctx, f.admin.Token, f.context.ID, 100, 450*time.Millisecond)
-	if err != nil || len(got) != 0 {
-		t.Fatalf("cursor ahead: %v %v", got, err)
+	result := make(chan waitResult, 1)
+	go func() {
+		messages, err := reader.WaitMessages(ctx, f.admin.Token, f.context.ID, 100, 3*time.Second)
+		result <- waitResult{messages, err}
+	}()
+	deadline := time.NewTimer(2 * time.Second)
+	defer deadline.Stop()
+	for i := 0; i < 3; i++ {
+		select {
+		case cursor := <-after:
+			if cursor != 100 {
+				t.Fatalf("cursor moved backwards: %d", cursor)
+			}
+		case <-deadline.C:
+			t.Fatalf("only %d scans before deadline", i)
+		}
 	}
-	if len(after) < 3 {
-		t.Fatalf("only %d scans, want at least 3", len(after))
+	cancel()
+	if got := receiveWait(t, result); !errors.Is(got.err, context.Canceled) || len(got.messages) != 0 {
+		t.Fatalf("cursor ahead: %+v", got)
 	}
 	for len(after) != 0 {
 		if cursor := <-after; cursor != 100 {
