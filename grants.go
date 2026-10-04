@@ -24,6 +24,7 @@ type GrantAPI interface {
 }
 type GrantReadStore interface {
 	Grants(string, string, time.Time) ([]Grant, error)
+	Grant(string) (Grant, error)
 }
 type GrantWriteStore interface {
 	PutGrant(Grant) error
@@ -37,7 +38,13 @@ func (s *Service) RevokeGrant(ctx context.Context, raw, grantID string) error {
 			return e
 		}
 		if !a.principal.Admin {
-			return ErrForbidden
+			g, e := w.Grant(grantID)
+			if e != nil {
+				return e
+			}
+			if g.IssuerSessionID != a.session.ID {
+				return ErrForbidden
+			}
 		}
 		return w.RevokeGrantTree(grantID, s.now().UTC())
 	})

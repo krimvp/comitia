@@ -1,0 +1,79 @@
+package mcp
+
+import (
+	"context"
+	"encoding/json"
+
+	"github.com/krimvp/comitia"
+)
+
+func contextTools() []map[string]any {
+	return []map[string]any{
+		tool("create_context", "Create a child context with create permission on its parent. Contexts are the privacy boundary; children are private unless parent_readable grants inherited read. Top-level creation is admin/CLI only.", schema(map[string]any{"parent_context_id": str("Parent context ID"), "name": str("Child context name"), "task_id": str("Optional task in the parent"), "parent_readable": map[string]any{"type": "boolean", "description": "Allow parent readers to read the child (default false)"}}, "parent_context_id", "name")),
+		tool("list_contexts", "List readable contexts with parent/task metadata, ordered by ID. Contexts are the privacy boundary; use the last returned ID as after_id, and an empty page marks the end.", schema(map[string]any{"after_id": str("Exclusive context ID cursor"), "limit": integer("Maximum contexts, 1-1000 (default 100)")})),
+		tool("list_child_contexts", "List child metadata with read on the parent. Contexts are the privacy boundary: listing children does not grant read on their messages. Use the last returned ID as after_id.", schema(map[string]any{"parent_context_id": str("Parent context ID"), "after_id": str("Exclusive child ID cursor"), "limit": integer("Maximum children, 1-1000 (default 100)")}, "parent_context_id")),
+	}
+}
+
+func (s *Server) callContexts(ctx context.Context, name string, raw json.RawMessage) (any, error) {
+	switch name {
+	case "create_context":
+		var a struct {
+			ParentContextID string `json:"parent_context_id"`
+			Name            string `json:"name"`
+			TaskID          string `json:"task_id"`
+			ParentReadable  bool   `json:"parent_readable"`
+		}
+		if err := decode(raw, &a); err != nil {
+			return nil, err
+		}
+		if err := required(a.ParentContextID, a.Name); err != nil {
+			return nil, err
+		}
+		return s.API.CreateChildContext(ctx, s.Credential, comitia.CreateChildContextInput{ParentContextID: a.ParentContextID, Name: a.Name, TaskID: a.TaskID, ParentReadable: a.ParentReadable})
+	case "list_contexts", "list_child_contexts":
+		var a struct {
+			ParentContextID string `json:"parent_context_id"`
+			AfterID         string `json:"after_id"`
+			Limit           *int   `json:"limit"`
+		}
+		// A parent is only an argument to the child listing.
+		if name == "list_contexts" {
+			var page struct {
+				AfterID string `json:"after_id"`
+				Limit   *int   `json:"limit"`
+			}
+			if err := decode(raw, &page); err != nil {
+				return nil, err
+			}
+			a.AfterID, a.Limit = page.AfterID, page.Limit
+		} else {
+			if err := decode(raw, &a); err != nil {
+				return nil, err
+			}
+			if err := required(a.ParentContextID); err != nil {
+				return nil, err
+			}
+		}
+		limit := 100
+		if a.Limit != nil {
+			limit = *a.Limit
+		}
+		if limit < 1 || limit > 1000 || len(a.AfterID) > 128 {
+			return nil, comitia.ErrInvalid
+		}
+		var contexts []comitia.WorkContext
+		var err error
+		if name == "list_contexts" {
+			contexts, err = s.API.ListContexts(ctx, s.Credential, a.AfterID, limit)
+		} else {
+			contexts, err = s.API.ListChildContexts(ctx, s.Credential, a.ParentContextID, a.AfterID, limit)
+		}
+		if contexts == nil {
+			contexts = []comitia.WorkContext{}
+		}
+		return contexts, err
+	default:
+		return nil, errUnknownTool
+	}
+}

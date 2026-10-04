@@ -46,6 +46,8 @@ type Server struct {
 	API              comitia.API
 	Credential       string
 	InstanceDefaults comitia.InstanceDefaults
+	SessionsDir      string
+	ServerURL        string
 }
 
 type request struct {
@@ -189,6 +191,9 @@ var toolGroups = []struct {
 }{
 	{messageTools, (*Server).callMessages},
 	{taskTools, (*Server).callTasks},
+	{contextTools, (*Server).callContexts},
+	{grantTools, (*Server).callGrants},
+	{sessionTools, (*Server).callSessions},
 }
 
 func tools() []map[string]any {
@@ -223,6 +228,9 @@ func required(values ...string) error {
 	return nil
 }
 func publicError(err error) error {
+	if orphan := (orphanedSessionError{}); errors.As(err, &orphan) {
+		return orphan
+	}
 	for _, e := range []error{comitia.ErrNotFound, comitia.ErrUnauthenticated, comitia.ErrForbidden, comitia.ErrConflict, comitia.ErrInvalid, comitia.ErrStaleClaim, comitia.ErrBootstrapUsed} {
 		if errors.Is(err, e) {
 			return e

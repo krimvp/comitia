@@ -21,6 +21,12 @@ const PathPrefix = "/mcp"
 type HTTPConfig struct {
 	InstanceDefaults comitia.InstanceDefaults
 
+	SessionsDir string
+	ServerURL   string
+	// AllowDelegation offers delegate_session. It is off by default: credential
+	// files land on this host, where a remote caller cannot read them.
+	AllowDelegation bool
+
 	// AllowedOrigins is an Origin allowlist for DNS-rebinding defence, as
 	// required by the MCP transport specification. Requests without an Origin
 	// header (non-browser clients such as ChatGPT or curl) are always allowed.
@@ -165,12 +171,46 @@ func (t *httpTransport) post(w http.ResponseWriter, r *http.Request) {
 	// connection is stateful. Over HTTP each request is independent, so the
 	// per-connection gate does not apply; the credential is the real
 	// authorization boundary and is checked on every call.
-	srv := &Server{API: t.api, Credential: cred, InstanceDefaults: t.cfg.InstanceDefaults}
-	res := srv.handle(r.Context(), req)
+	res, refused := t.withoutDelegation(req)
+	if !refused {
+		srv := &Server{API: t.api, Credential: cred, SessionsDir: t.cfg.SessionsDir, ServerURL: t.cfg.ServerURL, InstanceDefaults: t.cfg.InstanceDefaults}
+		res = srv.handle(r.Context(), req)
+	}
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	_ = json.NewEncoder(w).Encode(res)
+}
+
+const delegationDisabled = "delegate_session is disabled on this server; start mcp-http with --allow-delegation"
+
+// withoutDelegation answers tools/list without delegate_session and refuses
+// calls to it unless delegation is allowed.
+func (t *httpTransport) withoutDelegation(req request) (response, bool) {
+	r := response{JSONRPC: "2.0", ID: req.ID}
+	if t.cfg.AllowDelegation {
+		return r, false
+	}
+	switch req.Method {
+	case "tools/list":
+		listed := []map[string]any{}
+		for _, tool := range tools() {
+			if tool["name"] != "delegate_session" {
+				listed = append(listed, tool)
+			}
+		}
+		r.Result = map[string]any{"tools": listed}
+		return r, true
+	case "tools/call":
+		var p struct {
+			Name string `json:"name"`
+		}
+		if json.Unmarshal(req.Params, &p) == nil && p.Name == "delegate_session" {
+			r.Result = map[string]any{"content": []any{map[string]any{"type": "text", "text": delegationDisabled}}, "isError": true}
+			return r, true
+		}
+	}
+	return r, false
 }
 
 // bearerCredential extracts a scoped Comitia credential from the request. The
