@@ -39,6 +39,7 @@ test('inspector controller uses only read endpoints, rejects stale contexts and 
     if(expired) return {ok:false,status:403};
     if(path.endsWith('/contexts/list'))return ok({contexts});
     if(path.endsWith('/contexts/get'))return ok({context:contexts.find(c=>c.ID===body.context_id)});
+    if(path.endsWith('/contexts/children'))return ok({contexts:[]});
     if(path.endsWith('/participants/list'))return ok({participants:[{SessionID:'agent',Name:'<script>not executable</script>'}]});
     if(path.endsWith('/tasks/list'))return ok({tasks:[]});
     if(path.endsWith('/messages/replay')) {
@@ -86,7 +87,7 @@ test('inspector controller uses only read endpoints, rejects stale contexts and 
     assert.match(text(elements.get('messages')),/Current B message/);
     assert.doesNotMatch(text(elements.get('messages')),/stale A result/);
     assert.doesNotMatch(text(elements.get('sequence-routes')),/stale A result/);
-    assert.ok(calls.every(c=>['/v1/contexts/list','/v1/contexts/get','/v1/messages/replay','/v1/participants/list','/v1/tasks/list'].includes(c.path)));
+    assert.ok(calls.every(c=>['/v1/contexts/list','/v1/contexts/get','/v1/contexts/children','/v1/messages/replay','/v1/participants/list','/v1/tasks/list'].includes(c.path)));
     assert.equal(calls.find(c=>c.path.endsWith('/messages/replay')&&c.body.context_id==='b').body.after,0);
     expired=true;await elements.get('load-more').fire('click');
     assert.equal(elements.get('workspace').hidden,true);

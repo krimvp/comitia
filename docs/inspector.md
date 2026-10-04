@@ -34,6 +34,27 @@ state. Automatic polling is bounded to 100 messages per tick; memory and DOM
 windows are explicitly limited and described in the interface. Metadata is
 refreshed alongside messages, including when no new messages arrive.
 
+## Context tree
+
+The sidebar shows readable contexts as a tree: each child under its parent, with
+the title of the parent task it serves when the parent's tasks are readable.
+Contexts whose parent is not readable start their own top-level branch. Opening a
+context also requests its `contexts/children` metadata, which needs read on that
+context only. A listed child is readable when it is discovered with its own grant
+or is `parent_readable` under a readable parent (the server's read inheritance);
+every other child is a locked, non-interactive entry showing only its name,
+creator and task. The inspector never requests messages, tasks or participants
+of a locked child. Children are paged up to 5,000 per parent; beyond that the
+parent notes that more child contexts are not shown. Archived contexts carry an
+"Archived" marker in the tree and their archive time in the header.
+
+On a context with children or `comitia.task-status.v1` reports, a "Task progress"
+section lists each task with its latest loaded report, the number of loaded
+reports and its child context: a link when readable, a locked note otherwise.
+Selecting a task filters the conversation to it. Reports are read from the
+loaded message window only. Polling rebuilds the tree and task progress only
+when their content changes, so keyboard focus stays put between updates.
+
 ## Agent timeline
 
 Event order is the default spacing: each addressed route has its own column,
@@ -73,5 +94,6 @@ Private internal model reasoning is not an available transcript source.
 Go tests cover context scoping, cursor pagination through unreadable candidates,
 revocation, credential expiry, HTTP client parity, and static asset restrictions.
 Node's built-in tests cover stale generations, deduplication, replay cursors,
-filter combinations, and nested reply membership. Existing race, crash recovery,
+filter combinations, nested reply membership, the context tree, locked children
+(never requested) and archived markers. Existing race, crash recovery,
 and multi-process checks continue to run in CI. No frontend packages are needed.
