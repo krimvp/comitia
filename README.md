@@ -125,8 +125,9 @@ Messages update by polling every three seconds. Pause stops automatic polling;
 manual refresh remains available. Browsing never acknowledges messages or changes
 task state.
 
-Credentials are held only in the tab's memory, never local/session storage or
-URLs, and are cleared on disconnect/reload. Serve remote deployments behind HTTPS.
+Credentials are kept in the tab's session storage so refreshing reconnects
+automatically. Disconnecting or losing authorization clears the saved credential;
+it is never placed in URLs or local storage. Serve remote deployments behind HTTPS.
 The shell is public; all conversation data uses the authenticated API. Expired or
 revoked read access clears the inspector's loaded data on the next failed request.
 

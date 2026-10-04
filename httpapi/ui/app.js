@@ -5,6 +5,16 @@ import {sequenceLayout, renderSequence, LANE_LIMIT, ARROW_LIMIT, timeLabel} from
 const $ = id => document.getElementById(id);
 const state = new ConversationState();
 const apiBase = new URL('../v1/', location.href);
+const credentialKey = `comitia.inspector.credential:${apiBase.href}`;
+function savedCredential() {
+  try { return sessionStorage.getItem(credentialKey) || ''; } catch { return ''; }
+}
+function rememberCredential(value) {
+  try {
+    if (value) sessionStorage.setItem(credentialKey, value);
+    else sessionStorage.removeItem(credentialKey);
+  } catch { /* Browsers that block storage can still connect manually. */ }
+}
 let token = '', connection = 0, controller = new AbortController(), timer;
 let contexts = [], contextsAfter = '', contextsBusy = false;
 let participants = [], tasks = [], selected = '', thread = '', paused = false, busy = false, windowStart = 0, displayStart = null, route = null, connectionPage = 0;
@@ -68,7 +78,8 @@ function instanceLabel(message) {
   return ` · ${instance.label ? `${instance.label} (${instance.id})` : instance.id} (self-reported)`;
 }
 
-function disconnect(message = '') {
+function disconnect(message = '', forget = true) {
+  if (forget) rememberCredential('');
   connection++; controller.abort(); controller = new AbortController(); clearTimeout(timer);
   token = ''; state.reset(); displayStart = null; contexts = []; contextsAfter = ''; contextsBusy = false;
   participants = []; tasks = []; selected = ''; thread = ''; route = null; connectionPage = 0; busy = false;
@@ -344,14 +355,18 @@ function renderDetails() {
     }
   } else target.append(node('p','Plain-text message · no structured envelope.', 'hint'));
 }
-$('connect-form').addEventListener('submit', async event => {
-  event.preventDefault(); const value = $('credential').value.trim(); if (!value) return;
+async function connect(value) {
+  if (!value) return;
   disconnect(); token = value; connection++; const conn = connection;
+  rememberCredential(value);
   $('connect').disabled = true; $('connect-error').textContent = '';
   $('workspace').hidden = false; $('connect-panel').hidden = true; $('disconnect').hidden = false;
   clearContext(); await loadContexts(true);
   if (conn === connection && !contexts.length) renderMessages();
   $('connect').disabled = false;
+}
+$('connect-form').addEventListener('submit', event => {
+  event.preventDefault(); return connect($('credential').value.trim());
 });
 $('disconnect').addEventListener('click',()=>disconnect());
 $('refresh-contexts').addEventListener('click',()=>loadContexts(true));
@@ -364,7 +379,8 @@ $('clear-thread').addEventListener('click',()=>{thread='';displayStart=null;rend
 $('older-matches').addEventListener('click',()=>{const count=filterMessages(state.messages,filters()).length;displayStart=Math.max(0,(displayStart ?? Math.max(0,count-200))-200);renderMessages();});
 $('newer-matches').addEventListener('click',()=>{const count=filterMessages(state.messages,filters()).length;displayStart=Math.min(Math.max(0,count-200),(displayStart ?? 0)+200);renderMessages();});
 for (const id of ['search','agent-filter','type-filter','task-filter']) $(id).addEventListener(id === 'search' ? 'input' : 'change',()=>{route=null;displayStart=null;renderTasks();renderMessages();});
-window.addEventListener('pagehide',()=>disconnect());
+window.addEventListener('pagehide',()=>disconnect('', false));
+window.addEventListener('pageshow',event=>{if(event.persisted)connect(savedCredential());});
 
 $('show-map').addEventListener('click',()=>setView('map'));
 $('show-timeline').addEventListener('click',()=>setView('timeline'));
@@ -418,3 +434,4 @@ for(const [id,change] of [['sequence-previous-lanes',-1],['sequence-next-lanes',
 for(const [id,change] of [['sequence-previous-arrows',-1],['sequence-next-arrows',1]]) $(id).addEventListener('click',()=>{sequenceOptions.arrowPage=(sequenceOptions.arrowPage||0)+change;renderMessages();});
 setView('sequence');
 window.addEventListener('resize',()=>{if(view==='sequence'&&state.contextID)renderFlow(filterMessages(state.messages,filters()));});
+await connect(savedCredential());

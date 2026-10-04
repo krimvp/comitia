@@ -23,7 +23,10 @@ test('inspector controller uses only read endpoints, rejects stale contexts and 
   const elements=new Map([...html.matchAll(/id="([^"]+)"/g)].map(m=>[m[1],new Element()]));
   const doc={getElementById:id=>elements.get(id),createElement:tag=>new Element(tag),createElementNS:(_ns,tag)=>new Element(tag)};
   let nextTimer=0; const timers=new Map(); const calls=[];
-  const saved={document:globalThis.document,window:globalThis.window,location:globalThis.location,Option:globalThis.Option,fetch:globalThis.fetch,setTimeout:globalThis.setTimeout,clearTimeout:globalThis.clearTimeout};
+  const storage=new Map();
+  const credentialKey='comitia.inspector.credential:http://localhost:8080/v1/';
+  const saved={document:globalThis.document,window:globalThis.window,location:globalThis.location,Option:globalThis.Option,fetch:globalThis.fetch,setTimeout:globalThis.setTimeout,clearTimeout:globalThis.clearTimeout,sessionStorage:globalThis.sessionStorage};
+  globalThis.sessionStorage={getItem:key=>storage.get(key) || null,setItem:(key,value)=>storage.set(key,value),removeItem:key=>storage.delete(key)};
   Object.assign(globalThis,{document:doc,window:new Element(),location:{href:'http://localhost:8080/ui/'},Option:class extends Element {constructor(label,value){super('option');this.textContent=label;this.value=value;}},setTimeout:(fn,delay)=>{timers.set(++nextTimer,{fn,delay});return nextTimer;},clearTimeout:id=>timers.delete(id)});
   const contexts=[{ID:'a',Name:'Context A',WorkspaceID:'workspace'},{ID:'b',Name:'Context B',WorkspaceID:'workspace'}];
   const msg=(cid,body,seq=1)=>({ID:`${cid}-${seq}`,ContextID:cid,SessionID:'agent',Sequence:seq,Body:body,CreatedAt:'2026-09-10T10:00:00Z',agent_instance:{id:seq===1?'worker':'reviewer',label:seq===1?'<b>Issue worker</b>':'Issue reviewer'},agent_instance_self_reported:true});
@@ -49,6 +52,7 @@ test('inspector controller uses only read endpoints, rejects stale contexts and 
     elements.get('credential').value='test-observer';
     await elements.get('connect-form').fire('submit');
     assert.equal(elements.get('credential').value,'');
+    assert.equal(storage.get(credentialKey),'test-observer');
     assert.equal(elements.get('connect-panel').hidden,true);
     assert.match(text(elements.get('messages')),/<img src=x onerror=bad\(\)>/);
     assert.match(text(elements.get('messages')),/<b>Issue worker<\/b> \(worker\) \(self-reported\)/);
@@ -92,5 +96,23 @@ test('inspector controller uses only read endpoints, rejects stale contexts and 
     for(const id of ['interaction-map','connections','sequence-canvas','sequence-routes'])assert.equal(elements.get(id).children.length,0,id);
     assert.match(elements.get('connect-error').textContent,/Read access/);
     assert.equal(timers.size,0);
+    assert.equal(storage.has(credentialKey),false);
+
+    expired=false;
+    await elements.get('disconnect').fire('click');
+    elements.get('credential').value='test-observer';
+    await elements.get('connect-form').fire('submit');
+    await globalThis.window.fire('pagehide');
+    assert.equal(storage.get(credentialKey),'test-observer');
+    // Loading a new controller models refresh while retaining tab storage.
+    await import(`../ui/app.js?refresh-test=${Date.now()}`);
+    assert.equal(elements.get('connect-panel').hidden,true);
+    assert.equal(elements.get('context-title').textContent,'Context A');
+    await elements.get('disconnect').fire('click');
+    assert.equal(storage.has(credentialKey),false);
+    const callsBefore=calls.length;
+    await import(`../ui/app.js?disconnected-test=${Date.now()}`);
+    assert.equal(calls.length,callsBefore);
+    assert.equal(elements.get('connect-panel').hidden,false);
   } finally {Object.assign(globalThis,saved);}
 });
