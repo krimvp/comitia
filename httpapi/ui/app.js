@@ -322,7 +322,7 @@ function renderTaskDetail(target, task) {
 function renderTaskStatus(target, status) {
   target.append(node('h3','Task status'), node('span', stateLabel(status.state), `badge task-state ${status.state}`), node('p', `${status.taskTitle || `Task ${shortID(status.taskID)}`} · reported by the sender`));
   if (status.childContext) target.append(button(`Open child context ${status.childContext.Name}`, () => openContext(status.childContext.ID)));
-  else if (status.childContextID) target.append(node('p', `Child context ${status.childContextID} is not among your readable contexts.`, 'hint'));
+  else if (status.childContextID) target.append(node('p', `Child context ${status.childContextID} is not in your loaded readable contexts.`, 'hint'));
   if (status.blockers.length) target.append(node('h3','Blockers'), ...status.blockers.map(b => node('p', b)));
 }
 function renderDetails() {

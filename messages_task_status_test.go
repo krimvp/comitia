@@ -92,3 +92,35 @@ func TestTaskStatusMessages(t *testing.T) {
 		t.Fatalf("task of another context: %v", err)
 	}
 }
+
+// Write without read cannot tell children from other contexts: naming any child is refused alike.
+func TestTaskStatusChildRequiresParentRead(t *testing.T) {
+	f := setup(t, ":memory:")
+	defer f.store.Close()
+	ctx := context.Background()
+	coord, _ := delegate(t, f, f.admin.Token, "coord", f.context.ID, PermissionRead|PermissionWrite|PermissionCreate, time.Hour)
+	child, err := f.svc.CreateChildContext(ctx, coord.Token, CreateChildContextInput{ParentContextID: f.context.ID, Name: "private"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	writer, _ := delegate(t, f, f.admin.Token, "writer", f.context.ID, PermissionWrite, time.Hour)
+	if _, err := f.svc.ListChildContexts(ctx, writer.Token, f.context.ID, "", 10); !errors.Is(err, ErrForbidden) {
+		t.Fatalf("list children: %v", err)
+	}
+	task, err := f.svc.CreateTask(ctx, writer.Token, f.context.ID, TaskInput{Title: "probe"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	send := func(key, payload string) error {
+		_, err := f.svc.AppendMessage(ctx, writer.Token, f.context.ID, MessageInput{DedupeKey: key, Envelope: &MessageEnvelope{Schema: TaskStatusSchema, TaskID: task.ID, Payload: json.RawMessage(payload)}})
+		return err
+	}
+	for _, cid := range []string{child.ID, "deadbeef", f.context.ID} {
+		if err := send("probe-"+cid, `{"state":"done","summary":"s","child_context_id":"`+cid+`"}`); !errors.Is(err, ErrForbidden) || errors.Is(err, ErrInvalid) {
+			t.Fatalf("probe %s: %v", cid, err)
+		}
+	}
+	if err := send("plain", `{"state":"done","summary":"s"}`); err != nil {
+		t.Fatalf("status without child: %v", err)
+	}
+}

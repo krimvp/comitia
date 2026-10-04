@@ -48,20 +48,36 @@ func validTaskStatus(raw json.RawMessage) error {
 	return nil
 }
 
-// The child context must be a direct child of the current context. The sender
-// needs no access to the child; readers still need a grant to open it.
-func validateTaskStatusReferences(r ReadStore, cid string, env *MessageEnvelope) error {
-	if env.Schema != TaskStatusSchema {
-		return nil
+func taskStatusChild(env *MessageEnvelope) (string, error) {
+	if env == nil || env.Schema != TaskStatusSchema {
+		return "", nil
 	}
 	var p TaskStatusPayload
 	if json.Unmarshal(env.Payload, &p) != nil {
-		return ErrInvalid
+		return "", ErrInvalid
 	}
-	if p.ChildContextID == "" {
-		return nil
+	return p.ChildContextID, nil
+}
+
+// Naming a child requires read on the current context, so a write-only sender
+// cannot probe child membership that ListChildContexts would deny it.
+func (s *Service) requireTaskStatusRead(r ReadStore, raw, cid string, env *MessageEnvelope) error {
+	child, err := taskStatusChild(env)
+	if err != nil || child == "" {
+		return err
 	}
-	child, err := r.Context(p.ChildContextID)
+	_, _, err = s.require(r, raw, cid, PermissionRead)
+	return err
+}
+
+// The child context must be a direct child of the current context. The sender
+// needs no access to the child; readers still need a grant to open it.
+func validateTaskStatusReferences(r ReadStore, cid string, env *MessageEnvelope) error {
+	childID, err := taskStatusChild(env)
+	if err != nil || childID == "" {
+		return err
+	}
+	child, err := r.Context(childID)
 	if err != nil && !errors.Is(err, ErrNotFound) {
 		return err
 	}

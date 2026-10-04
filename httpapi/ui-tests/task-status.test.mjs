@@ -74,7 +74,7 @@ test('inspector shows task status and links only a readable child context',async
     assert.ok(!find(elements.get('messages'),/private/));
     await elements.get('messages').children[1].children[0].fire('click');
     const hidden=text(elements.get('details'));
-    assert.match(hidden,/Child context private is not among your readable contexts/);
+    assert.match(hidden,/Child context private is not in your loaded readable contexts/);
     assert.ok(!find(elements.get('details'),/Open child context/));
     await elements.get('messages').children[0].children[0].fire('click');
     const details=text(elements.get('details'));
