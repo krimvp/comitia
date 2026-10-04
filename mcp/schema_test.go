@@ -60,3 +60,58 @@ func TestSchemaRequiredEncoding(t *testing.T) {
 		}
 	}
 }
+
+func TestMessageCapabilitiesAdvertised(t *testing.T) {
+	responses := serve(t, &fakeAPI{}, `{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18"}}`+"\n"+`{"jsonrpc":"2.0","id":2,"method":"tools/list"}`+"\n")
+	advertised := map[string]map[string]any{}
+	for _, value := range responses[1]["result"].(map[string]any)["tools"].([]any) {
+		tool := value.(map[string]any)
+		advertised[tool["name"].(string)] = tool["inputSchema"].(map[string]any)
+	}
+	for _, name := range []string{"list_message_schemas", "get_message_schema", "replay_messages", "wait_messages"} {
+		t.Run(name, func(t *testing.T) {
+			input, ok := advertised[name]
+			if !ok {
+				t.Fatalf("tools/list missing %s", name)
+			}
+			compiler := jsonschema.NewCompiler()
+			url := "https://comitia.test/advertised/" + name
+			if err := compiler.AddResource(url, input); err != nil {
+				t.Fatal(err)
+			}
+			compiled, err := compiler.Compile(url)
+			if err != nil {
+				t.Fatal(err)
+			}
+			valid := map[string]any{}
+			switch name {
+			case "get_message_schema":
+				valid["schema"] = "comitia.review-request.v1"
+			case "replay_messages", "wait_messages":
+				property, ok := input["properties"].(map[string]any)["strict_recipients"].(map[string]any)
+				if !ok || property["type"] != "boolean" {
+					t.Fatal("strict_recipients must be advertised as boolean")
+				}
+				valid = map[string]any{"context_id": "context", "for_instance": "worker", "strict_recipients": true}
+			}
+			if err := compiled.Validate(valid); err != nil {
+				t.Fatalf("valid arguments rejected: %v", err)
+			}
+			invalid := map[string]any{}
+			for key, value := range valid {
+				invalid[key] = value
+			}
+			switch name {
+			case "list_message_schemas":
+				invalid["schema"] = "unexpected"
+			case "get_message_schema":
+				delete(invalid, "schema")
+			default:
+				invalid["strict_recipients"] = "true"
+			}
+			if err := compiled.Validate(invalid); err == nil {
+				t.Fatalf("invalid arguments accepted: %v", invalid)
+			}
+		})
+	}
+}

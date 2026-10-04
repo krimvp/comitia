@@ -371,7 +371,11 @@ Each descriptor includes `id`, a draft 2020-12 `payload_schema` for built-ins,
 `requirements`, and `examples` with body/envelope pairs. JSON Schema describes
 payload shape; requirements describe additional checks such as exact artifact
 references, byte limits and conditional evidence. The registered validator is
-authoritative. Replace example task IDs with real tasks in the destination
+authoritative: JSON Schema may be looser for documented semantic checks, such as
+UTF-8 byte lengths, RFC3339 parsing and uniqueness after trimming criterion
+names. Go integer fields also reject decimal/exponent JSON lexemes such as `1.0`
+even though JSON Schema calls them integers. Supported optional null values
+are included in the schemas. Replace example task IDs with real tasks in the destination
 context before sending. Built-in IDs and their JSON Schema `$id` URNs include
 the version; discovery reflects the running service's registry.
 
@@ -400,7 +404,9 @@ rejected. A given `task_id` must still name a task in the same context. Without
 a `task_id`, every artifact ref must be exact by the same rule as approvals
 (below): `main` or `git:abcdef1` is refused, `git:<full sha>` or an opaque
 lowercase `scheme:value` such as `build:1842` is accepted. With a `task_id`,
-refs stay free-form nonempty strings.
+refs stay free-form nonempty strings. A task-backed verification may omit
+`artifact_refs` or set it to `null`; a supplied array must be nonempty and contain
+nonblank strings. Taskless verification still requires exact artifact refs.
 
 These are structured claims, **not proof of correctness**. A verification-result
 message does not accept work, and a work-submitted message does not complete a
