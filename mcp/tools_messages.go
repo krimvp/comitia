@@ -115,7 +115,7 @@ func (s *Server) callMessages(ctx context.Context, name string, raw json.RawMess
 	case "ack_messages":
 		var a struct {
 			ContextID     string  `json:"context_id"`
-			Sequence      int64   `json:"sequence"`
+			Sequence      *int64  `json:"sequence"`
 			AgentInstance *string `json:"agent_instance"`
 		}
 		if err := decode(raw, &a); err != nil {
@@ -124,11 +124,14 @@ func (s *Server) callMessages(ctx context.Context, name string, raw json.RawMess
 		if err := required("context_id", a.ContextID); err != nil {
 			return nil, err
 		}
+		if a.Sequence == nil {
+			return nil, comitia.Invalidf("sequence required")
+		}
 		instance, err := instanceID(s.InstanceDefaults, a.AgentInstance)
 		if err != nil {
 			return nil, err
 		}
-		if err := s.API.AckMessages(ctx, s.Credential, a.ContextID, a.Sequence, instance); err != nil {
+		if err := s.API.AckMessages(ctx, s.Credential, a.ContextID, *a.Sequence, instance); err != nil {
 			return nil, err
 		}
 		return map[string]any{"ok": true}, nil

@@ -343,7 +343,11 @@ func (s *Server) handle(ctx context.Context, req request) response {
 }
 
 func schema(props map[string]any, required ...string) map[string]any {
-	return map[string]any{"type": "object", "properties": props, "required": required, "additionalProperties": false}
+	s := map[string]any{"type": "object", "properties": props, "additionalProperties": false}
+	if len(required) > 0 {
+		s["required"] = required
+	}
+	return s
 }
 func str(desc string) map[string]any { return map[string]any{"type": "string", "description": desc} }
 func integer(desc string) map[string]any {
