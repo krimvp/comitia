@@ -43,7 +43,7 @@ func New(cfg Config) (*Service, error) {
 		}
 		schemas[name] = validator
 	}
-	return &Service{store: cfg.Store, now: cfg.Clock, bootstrapCredential: cfg.BootstrapCredential, messageSchemas: schemas, maxContextDepth: cfg.MaxContextDepth, maxChildContextsPerGrant: cfg.MaxChildContextsPerGrant}, nil
+	return &Service{store: &observedStore{Store: cfg.Store}, now: cfg.Clock, bootstrapCredential: cfg.BootstrapCredential, messageSchemas: schemas, maxContextDepth: cfg.MaxContextDepth, maxChildContextsPerGrant: cfg.MaxChildContextsPerGrant}, nil
 }
 
 func id() string {

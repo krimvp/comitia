@@ -44,6 +44,7 @@ func SupportedProtocolVersion(rev string) bool {
 // Server binds one already-scoped credential to an MCP connection. Credentials
 // are process configuration and are never accepted as tool arguments.
 type Server struct {
+	DiagnosticHook   comitia.DiagnosticHook
 	API              comitia.API
 	Credential       string
 	InstanceDefaults comitia.InstanceDefaults
@@ -302,7 +303,7 @@ func (s *Server) handle(ctx context.Context, req request) response {
 			r.Error = &rpcError{-32602, "invalid params"}
 			return r
 		}
-		r.Result = map[string]any{"protocolVersion": ProtocolVersion, "capabilities": map[string]any{"tools": map[string]any{}}, "serverInfo": map[string]string{"name": "comitia", "version": comitia.BuildVersion()}}
+		r.Result = map[string]any{"protocolVersion": ProtocolVersion, "capabilities": map[string]any{"tools": map[string]any{}}, "serverInfo": map[string]any{"name": "comitia", "version": comitia.BuildVersion(), "build": comitia.BuildIdentity()}}
 	case "ping":
 		r.Result = map[string]any{}
 	case "server/discover":
@@ -314,7 +315,7 @@ func (s *Server) handle(ctx context.Context, req request) response {
 		r.Result = map[string]any{
 			"supportedVersions": ProtocolVersions,
 			"capabilities":      map[string]any{"tools": map[string]any{}},
-			"serverInfo":        map[string]string{"name": "comitia", "version": comitia.BuildVersion()},
+			"serverInfo":        map[string]any{"name": "comitia", "version": comitia.BuildVersion(), "build": comitia.BuildIdentity()},
 		}
 	case "tools/list":
 		r.Result = map[string]any{"tools": tools()}
@@ -327,10 +328,17 @@ func (s *Server) handle(ctx context.Context, req request) response {
 			r.Error = &rpcError{-32602, "invalid params"}
 			return r
 		}
+		started := time.Now()
+		requestID := comitia.NewRequestID()
 		v, err := s.call(ctx, p.Name, p.Arguments)
 		if err != nil {
-			err = publicError(err)
-			r.Result = map[string]any{"content": []any{map[string]any{"type": "text", "text": err.Error()}}, "isError": true}
+			operation := comitia.SafeOperation(p.Name)
+			info := comitia.SafeError(operation, err, requestID)
+			comitia.ReportFailure(s.DiagnosticHook, operation, err, info.RequestID, time.Since(started))
+			if orphan := (orphanedSessionError{}); errors.As(err, &orphan) {
+				info.Message = orphan.Error()
+			}
+			r.Result = map[string]any{"content": []any{map[string]any{"type": "text", "text": info.String()}}, "structuredContent": map[string]any{"error": info}, "isError": true}
 			return r
 		}
 		wrapped := map[string]any{"result": v}
@@ -391,7 +399,8 @@ func decode(raw json.RawMessage, dst any) error {
 	if err := d.Decode(dst); err != nil {
 		detail := comitia.InvalidJSON(err, "arguments")
 		if strings.HasPrefix(err.Error(), "json: unknown field ") {
-			return comitia.Invalidf("%s (this client is comitia %s; restart the MCP client after upgrading)", strings.TrimPrefix(detail.Error(), "invalid input: "), comitia.BuildVersion())
+			build := comitia.BuildIdentity()
+			return comitia.Invalidf("%s (this client is comitia %s, revision %s, dirty %s; restart the MCP client after upgrading)", strings.TrimPrefix(detail.Error(), "invalid input: "), build.Version, build.Revision, build.Dirty)
 		}
 		return detail
 	}

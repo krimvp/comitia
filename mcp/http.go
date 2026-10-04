@@ -19,6 +19,7 @@ const PathPrefix = "/mcp"
 
 // HTTPConfig configures the Streamable HTTP transport.
 type HTTPConfig struct {
+	DiagnosticHook   comitia.DiagnosticHook
 	InstanceDefaults comitia.InstanceDefaults
 
 	SessionsDir string
@@ -173,7 +174,7 @@ func (t *httpTransport) post(w http.ResponseWriter, r *http.Request) {
 	// authorization boundary and is checked on every call.
 	res, refused := t.withoutDelegation(req)
 	if !refused {
-		srv := &Server{API: t.api, Credential: cred, SessionsDir: t.cfg.SessionsDir, ServerURL: t.cfg.ServerURL, InstanceDefaults: t.cfg.InstanceDefaults}
+		srv := &Server{DiagnosticHook: t.cfg.DiagnosticHook, API: t.api, Credential: cred, SessionsDir: t.cfg.SessionsDir, ServerURL: t.cfg.ServerURL, InstanceDefaults: t.cfg.InstanceDefaults}
 		res = srv.handle(r.Context(), req)
 	}
 

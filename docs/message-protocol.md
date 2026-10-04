@@ -554,9 +554,14 @@ argument fields also identify the running client version and suggest a restart.
 Call the `server_info` MCP tool with `{}`, send authenticated `POST /v1/server_info`
 with `{}`, or run `comitia --server-url URL server-info` with a credential. Any
 valid session can discover capabilities, including a session without context
-grants. The result contains `version`, `protocol_version` (the MCP revision), and
-`features`; HTTP wraps it in `server_info` and MCP in `result`. Local source builds
-use version `dev`; release builders can set
+grants. The result contains `version`, `protocol_version` (the MCP revision),
+`features`, and `build: {version, revision, dirty}`; HTTP wraps it in `server_info`
+and MCP in `result`. The same build identity appears in MCP initialize/discover,
+unknown-field guidance and internal failure diagnostics. `dirty` is the string
+`true`, `false`, or `unknown`; missing revision metadata is `unknown`. Local source
+builds may still use release version `dev`. Source installers stamp `Revision`
+and `Dirty`, including when Go VCS stamping is disabled; other builds fall back
+to Go's `vcs.revision` and `vcs.modified` settings. Release builders can set
 `-ldflags '-X github.com/krimvp/comitia.Version=v1.2.3'`, otherwise the Go module
 build version is used when available.
 
@@ -567,7 +572,8 @@ The feature table is maintained in `server_info.go` and currently lists
 `list_contexts`, `list_child_contexts`), `grant_tools` (`grant_context`,
 `revoke_grant`), `delegated_sessions` (`delegate_session`, `revoke_session`) and
 `presence` (`list_instances`, `set_instance_resume`, read heartbeats; see
-[instance presence](presence.md)).
+[instance presence](presence.md)), `storage_status`, `operational_errors` and
+`build_provenance`.
 A remote `mcp-http` adapter offers `delegate_session` only with
 `--allow-delegation`, so check the tool schema as well. Optional functionality must
 be gated on both its advertised feature and the running MCP tool schema. For
@@ -578,3 +584,48 @@ alone does not upgrade that client's tools. If a described optional field is
 rejected, retry without it, keep instance-prefixed dedupe keys in session scope,
 and restart the agent session to load the new client. If `server_info` itself is
 unavailable, use the basic session-scoped tools until the client is restarted.
+
+### Operational failures and write readiness
+
+HTTP errors retain their sentinel `code` and include `message`, a generated
+`request_id`, and, for conflict/stale/internal failures, a safe recovery `hint`.
+An explicit HTTP status override does not change the sentinel code: unknown routes
+return status 404 and `not_found`. The HTTP client preserves `errors.Is` and exposes
+metadata through `errors.As(err, &operational)` where `operational` is a
+`*comitia.OperationalError` and `operational.Info` is the public metadata.
+MCP tool errors set `isError: true`, include the hint in text, and expose
+`structuredContent: {error: {code, message, hint, request_id}}`.
+
+Dedupe conflicts suggest reusing the original content or choosing a new key;
+claim conflicts suggest refreshing the task. Stale claims explain that the latest
+`Token` and `Task.LeaseVersion` must be used together. Replay failures suggest a
+smaller page or byte budget. Generic internal failures give an operator a request
+ID without exposing raw errors, paths, bodies, credentials or private identifiers.
+Authorization/not-found errors retain their existing classification without finer
+resource-state hints. Deadline/cancellation failures use `deadline_exceeded` or
+`cancelled` (HTTP 503); an interrupted write may have committed, so read its state
+or reuse its dedupe key before retrying.
+
+Internal failures log only fixed operation labels, error class, generated request
+ID, duration and build identity. Caller-supplied request IDs and JSON-RPC IDs are
+not diagnostic labels. HTTP returns `X-Request-ID`; MCP forwards a daemon's safe
+request ID through remote errors so the operator can correlate both adapters.
+SQLite diagnostics distinguish safe primary classes `storage_busy`,
+`storage_read_only`, `storage_io` and `storage_full` without printing SQL or error
+text; the public error code remains `internal`. Embedded integrations may supply
+a `DiagnosticHook` instead of the default log.
+
+Capability discovery and the inspector loading successfully do not establish
+write availability. An administrator can call the `storage_status` MCP tool with
+`{}`, send `POST /v1/storage_status` with `{}`, or use `StorageStatusAPI` in Go.
+The probe shares a 250 ms context budget across authentication and a no-op write
+transaction, verifying writer admission/commit. Custom stores must honor context
+cancellation. The result includes `write_ready`, `probe_duration_ms`,
+`write_attempts`, `write_failures`, `last_write_duration_ms`,
+`last_write_failure_duration_ms`, `max_write_duration_ms` and optional
+`last_write_error_class`. These process-local counters reset on restart and include
+probe transactions; domain rejections such as conflict do not count as storage
+failures. A subsequent successful update clears the last error class but retains
+the failure count/duration. The probe cannot guarantee free disk space or the
+success of a future write. It returns status 200 with `write_ready: false` on
+operational write failure; it performs no write probe for unauthorized callers.
