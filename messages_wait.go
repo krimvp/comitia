@@ -20,6 +20,9 @@ func messageFilters(filters []MessageFilters) (MessageFilters, error) {
 	if f.MaxBytes < 0 || f.MaxBytes > MaxMessageBytes {
 		return f, Invalidf("max_bytes must be between 0 and %d", MaxMessageBytes)
 	}
+	if f.StrictRecipients && f.ForInstance == "" {
+		return f, Invalidf("strict_recipients requires for_instance")
+	}
 	if f.ForInstance != "" && !validInstanceID(f.ForInstance) {
 		return f, Invalidf("for_instance must be 1-64 letters, digits, '.', '_' or '-'")
 	}

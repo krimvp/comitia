@@ -15,6 +15,7 @@ type Service struct {
 	now                      Clock
 	bootstrapCredential      string
 	messageSchemas           map[string]PayloadValidator
+	messageSchemaDescriptors map[string]MessageSchemaDescriptor
 	maxContextDepth          int
 	maxChildContextsPerGrant int
 	messageNotifications     messageNotifications
@@ -43,7 +44,11 @@ func New(cfg Config) (*Service, error) {
 		}
 		schemas[name] = validator
 	}
-	return &Service{store: &observedStore{Store: cfg.Store}, now: cfg.Clock, bootstrapCredential: cfg.BootstrapCredential, messageSchemas: schemas, maxContextDepth: cfg.MaxContextDepth, maxChildContextsPerGrant: cfg.MaxChildContextsPerGrant}, nil
+	svc := &Service{store: &observedStore{Store: cfg.Store}, now: cfg.Clock, bootstrapCredential: cfg.BootstrapCredential, messageSchemas: schemas, maxContextDepth: cfg.MaxContextDepth, maxChildContextsPerGrant: cfg.MaxChildContextsPerGrant}
+	if err := svc.configureMessageSchemaDescriptors(cfg.MessageSchemaDescriptors); err != nil {
+		return nil, err
+	}
+	return svc, nil
 }
 
 func id() string {

@@ -148,6 +148,10 @@ func messageQuery(cid, sid string, after int64, limit int, f MessageFilters) (st
 		if f.ForInstance != "" {
 			where += ` AND EXISTS (SELECT 1 FROM message_recipients r WHERE r.message_id=p.message_id AND ((r.kind='broadcast' AND r.recipient='') OR (r.kind='session' AND r.recipient=?) OR (r.kind='instance' AND r.recipient=?)))`
 			args = append(args, sid, f.ForInstance)
+			if f.StrictRecipients {
+				where += " AND " + strictRecipientSessions("e.envelope")
+				args = append(args, sid)
+			}
 		}
 	} else if f.ForInstance != "" {
 		// The routing classes are disjoint. Bound each ordered seek before
@@ -155,11 +159,22 @@ func messageQuery(cid, sid string, after int64, limit int, f MessageFilters) (st
 		recipients := `SELECT message_id,seq FROM (SELECT message_id,seq FROM message_recipients WHERE context_id=? AND seq>? AND kind='broadcast' AND recipient='' ORDER BY seq LIMIT ?)
 UNION ALL SELECT message_id,seq FROM (SELECT message_id,seq FROM message_recipients WHERE context_id=? AND seq>? AND kind='session' AND recipient=? ORDER BY seq LIMIT ?)
 UNION ALL SELECT message_id,seq FROM (SELECT message_id,seq FROM message_recipients WHERE context_id=? AND seq>? AND kind='instance' AND recipient=? ORDER BY seq LIMIT ?)`
-		recipientArgs := []any{cid, after, limit, cid, after, sid, limit, cid, after, f.ForInstance, limit}
+		recipientArgs := []any{cid, after, limit, cid, after, sid, limit, cid, after, f.ForInstance}
+		if f.StrictRecipients {
+			recipients = strings.Replace(recipients, "kind='instance' AND recipient=? ORDER BY seq", "kind='instance' AND recipient=? AND "+strictRecipientSessions("(SELECT envelope FROM message_envelopes WHERE message_id=message_recipients.message_id)")+" ORDER BY seq", 1)
+			recipientArgs = append(recipientArgs, sid)
+		}
+		recipientArgs = append(recipientArgs, limit)
 		query = strings.Replace(query, "FROM messages m", "FROM ("+recipients+") p CROSS JOIN messages m ON m.id=p.message_id", 1)
 		where, order, args = "1=1", "p.seq", recipientArgs
 	}
 	return query + " WHERE " + where + " ORDER BY " + order + " LIMIT ?", append(args, limit)
+}
+
+// Instance candidates already match the selected instance. Empty session lists
+// are unrestricted; compound addresses must also name the authenticated caller.
+func strictRecipientSessions(envelope string) string {
+	return "(NOT EXISTS (SELECT 1 FROM json_each(" + envelope + ", '$.recipient_session_ids')) OR EXISTS (SELECT 1 FROM json_each(" + envelope + ", '$.recipient_session_ids') WHERE value=?))"
 }
 
 func (x *sqlStore) Messages(cid, callerSessionID string, after int64, limit int, filters ...MessageFilters) ([]Message, error) {

@@ -43,6 +43,20 @@ func TestTypedHTTPMessagesAndParticipantDiscovery(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	descriptors, err := client.ListMessageSchemas(ctx, owner.Token)
+	if err != nil || len(descriptors) != 11 {
+		t.Fatalf("HTTP schemas: %v %v", descriptors, err)
+	}
+	descriptor, err := client.GetMessageSchema(ctx, owner.Token, "comitia.discussion.v1")
+	if err != nil || !descriptor.BodyRequired || len(descriptor.Examples) != 1 {
+		t.Fatalf("HTTP descriptor: %+v %v", descriptor, err)
+	}
+	if _, err := client.GetMessageSchema(ctx, owner.Token, "unknown.v1"); !errors.Is(err, comitia.ErrNotFound) {
+		t.Fatalf("unknown schema: %v", err)
+	}
+	if _, err := client.ListMessageSchemas(ctx, "invalid"); !errors.Is(err, comitia.ErrUnauthenticated) {
+		t.Fatalf("discovery auth: %v", err)
+	}
 	ps, err := client.ListParticipants(ctx, owner.Token, c.ID, 100)
 	if err != nil || len(ps) != 1 || ps[0].SessionID != owner.Session.ID {
 		t.Fatalf("participants: %v %v", ps, err)
@@ -73,6 +87,40 @@ func TestTypedHTTPMessagesAndParticipantDiscovery(t *testing.T) {
 	if _, err = client.ListParticipants(ctx, "invalid", c.ID, 100); !errors.Is(err, comitia.ErrUnauthenticated) {
 		t.Fatalf("unauthenticated discovery: %v", err)
 	}
+	_, other, _, err := svc.DelegateSession(ctx, owner.Token, comitia.DelegateInput{PrincipalName: "other", TTL: 45 * time.Minute, Grants: []comitia.DelegatedGrant{{ContextID: c.ID, Permissions: comitia.PermissionRead, ExpiresAt: time.Now().Add(30 * time.Minute)}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = client.AppendMessage(ctx, owner.Token, c.ID, comitia.MessageInput{DedupeKey: "compound-other", Body: "other session", Envelope: &comitia.MessageEnvelope{Schema: "comitia.discussion.v1", RecipientInstances: []string{"reviewer"}, RecipientSessionIDs: []string{other.Session.ID}, Payload: json.RawMessage(`{}`)}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	filter := comitia.MessageFilters{ForInstance: "reviewer", StrictRecipients: true}
+	for _, wait := range []bool{false, true} {
+		var messages []comitia.Message
+		var page comitia.MessagePage
+		if wait {
+			messages, err = client.WaitMessages(ctx, owner.Token, c.ID, 0, 0, filter)
+			if err == nil {
+				page, err = client.WaitMessagesPage(ctx, owner.Token, c.ID, 0, 0, filter)
+			}
+		} else {
+			messages, err = client.ReplayMessages(ctx, owner.Token, c.ID, 0, 100, filter)
+			if err == nil {
+				page, err = client.ReplayMessagesPage(ctx, owner.Token, c.ID, 0, 1, filter)
+			}
+		}
+		if err != nil || len(messages) != 1 || messages[0].ID != m.ID || len(page.Messages) != 1 || page.HasMore {
+			t.Fatalf("HTTP strict wait=%t: %v %+v %v", wait, messages, page, err)
+		}
+	}
+	legacy, err := client.ReplayMessages(ctx, owner.Token, c.ID, 0, 100, comitia.MessageFilters{ForInstance: "reviewer"})
+	if err != nil || len(legacy) != 2 {
+		t.Fatalf("HTTP legacy: %v %v", legacy, err)
+	}
+	if _, err := client.ReplayMessages(ctx, owner.Token, c.ID, 0, 100, comitia.MessageFilters{StrictRecipients: true}); !errors.Is(err, comitia.ErrInvalid) {
+		t.Fatalf("HTTP missing selector: %v", err)
+	}
 	// Caller-supplied sender metadata is not part of the envelope contract.
 	body := `{"context_id":"` + c.ID + `","message":{"DedupeKey":"spoof","Body":"x","envelope":{"schema":"comitia.discussion.v1","from":"owner","payload":{}}}}`
 	req, _ := http.NewRequest(http.MethodPost, ts.URL+"/v1/messages/append", strings.NewReader(body))
@@ -85,5 +133,24 @@ func TestTypedHTTPMessagesAndParticipantDiscovery(t *testing.T) {
 	defer res.Body.Close()
 	if res.StatusCode != http.StatusBadRequest {
 		t.Fatalf("sender spoof field accepted: %d", res.StatusCode)
+	}
+}
+
+type legacyMessageDiscoveryAPI struct{ comitia.API }
+
+var _ comitia.API = legacyMessageDiscoveryAPI{}
+
+func TestHTTPMessageSchemaDiscoveryLegacyAPI(t *testing.T) {
+	ts := httptest.NewServer(NewHandler(legacyMessageDiscoveryAPI{}))
+	defer ts.Close()
+	client, err := NewClient(ts.URL, ts.Client())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := client.ListMessageSchemas(context.Background(), "fixed"); !errors.Is(err, comitia.ErrInvalid) {
+		t.Fatalf("unsupported list: %v", err)
+	}
+	if _, err := client.GetMessageSchema(context.Background(), "fixed", "comitia.discussion.v1"); !errors.Is(err, comitia.ErrInvalid) {
+		t.Fatalf("unsupported get: %v", err)
 	}
 }

@@ -52,6 +52,9 @@ type MessageFilters struct {
 	FromInstance string `json:"from_instance,omitempty"`
 	TaskID       string `json:"task_id,omitempty"`
 	Schema       string `json:"schema,omitempty"`
+	// StrictRecipients requires both nonempty recipient lists to match.
+	// It is opt-in and requires ForInstance.
+	StrictRecipients bool `json:"strict_recipients,omitempty"`
 	// AgentInstance names the caller's own instance for presence; it never
 	// narrows results. Adapters apply configured defaults when it is nil.
 	AgentInstance *string `json:"agent_instance,omitempty"`
@@ -251,19 +254,14 @@ func (s *Service) normalizeEnvelope(in *MessageEnvelope, body string) (*MessageE
 	if err != nil {
 		return nil, Invalidf("payload must be valid JSON")
 	}
-	if out.Schema == "comitia.discussion.v1" && strings.TrimSpace(body) == "" {
-		return nil, Invalidf("body required for discussion schema")
+	descriptor := s.messageSchemaDescriptors[out.Schema]
+	if descriptor.BodyRequired && strings.TrimSpace(body) == "" {
+		return nil, Invalidf("body required for %s", out.Schema)
 	}
-	switch out.Schema {
-	case "comitia.assignment.v1", "comitia.review-request.v1", "comitia.blocker.v1", EvaluationResultSchema, ExecutionEventSchema:
-		if out.TaskID == "" {
-			return nil, fmt.Errorf("%w: task_id required", ErrInvalid)
-		}
-	case "comitia.work-submitted.v1", "comitia.verification-result.v1":
-		// Without a task, exact artifact refs must identify the work instead.
-		if out.TaskID != "" {
-			break
-		}
+	if descriptor.TaskRequired && out.TaskID == "" {
+		return nil, fmt.Errorf("%w: task_id required", ErrInvalid)
+	}
+	if descriptor.TaskOrArtifactRefs && out.TaskID == "" {
 		var p struct {
 			ArtifactRefs []string `json:"artifact_refs"`
 		}
@@ -275,9 +273,6 @@ func (s *Service) normalizeEnvelope(in *MessageEnvelope, body string) (*MessageE
 				return nil, fmt.Errorf("%w: artifact_refs must be exact without task_id", ErrInvalid)
 			}
 		}
-	}
-	if out.Schema == TaskStatusSchema && out.TaskID == "" {
-		return nil, fmt.Errorf("%w: task_id required", ErrInvalid)
 	}
 	sort.Strings(out.RecipientSessionIDs)
 	for i, id := range out.RecipientSessionIDs {

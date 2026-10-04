@@ -11,6 +11,8 @@ import (
 
 func messageTools() []map[string]any {
 	return []map[string]any{
+		tool("list_message_schemas", "Discover registered message schema IDs, payload JSON Schemas, task/body requirements and examples, including configured extensions.", schema(map[string]any{})),
+		tool("get_message_schema", "Get one registered versioned message schema descriptor; use its example envelope with real context/task IDs.", schema(map[string]any{"schema": str("Exact registered versioned message schema ID")}, "schema")),
 		tool("send_message", "Append a message; optional validated envelope addresses session IDs, not names. Context readers can see all messages. Omitted agent_instance defaults to COMITIA_AGENT_INSTANCE / COMITIA_AGENT_INSTANCE_LABEL.", schema(map[string]any{"context_id": str("Context ID"), "dedupe_key": str("Stable caller-chosen key; scoped to this session and instance"), "body": str("Message explanation; required for untyped/discussion messages"), "envelope": envelopeSchema(), "agent_instance": agentInstanceSchema(), "task_fence": schema(map[string]any{"task_id": str("Must match envelope.task_id"), "claim_token": str("Current opaque lease token; never published"), "lease_version": integer("Current lease version; requires a live claim owned by this session")}, "task_id", "claim_token", "lease_version")}, "context_id", "dedupe_key")),
 		tool("list_participants", "Discover active readable sessions in a context. Names may repeat; address by SessionID.", schema(map[string]any{"context_id": str("Context ID"), "limit": integer("Maximum participants (default 100)"), "page": map[string]any{"type": "boolean", "description": "Return participants, next_after and has_more"}, "after_id": str("Exclusive session ID from next_after; implies page")}, "context_id")),
 		tool("replay_messages", "Read context messages after a sequence", schema(messageReadProperties(false), "context_id")),
@@ -22,6 +24,7 @@ func messageTools() []map[string]any {
 
 func messageReadProperties(wait bool) map[string]any {
 	p := map[string]any{"context_id": str("Context ID"), "after": integer("Exclusive sequence cursor"), "for_instance": str("Recipient instance, caller session with no instance recipients, or broadcast"), "from_instance": str("Self-reported sender instance"), "task_id": str("Envelope task ID"), "schema": str("Exact envelope schema ID"), "agent_instance": str("Optional self-reported instance ID for presence; defaults to COMITIA_AGENT_INSTANCE")}
+	p["strict_recipients"] = map[string]any{"type": "boolean", "description": "Require both nonempty recipient lists to match caller session and for_instance; requires for_instance; default false preserves instance precedence"}
 	p["max_bytes"] = integer("Encoded messages-array byte budget (default 1048576, max 4194304); first message always returned intact")
 	p["page"] = map[string]any{"type": "boolean", "description": "Return messages, next_after, scanned_through and has_more instead of the legacy array"}
 	p["compact"] = map[string]any{"type": "boolean", "description": "Short text summary; full result remains in structuredContent"}
@@ -35,6 +38,30 @@ func messageReadProperties(wait bool) map[string]any {
 
 func (s *Server) callMessages(ctx context.Context, name string, raw json.RawMessage) (any, error) {
 	switch name {
+	case "list_message_schemas", "get_message_schema":
+		var a struct {
+			Schema string `json:"schema"`
+		}
+		if name == "list_message_schemas" {
+			if err := decode(raw, &struct{}{}); err != nil {
+				return nil, err
+			}
+		} else {
+			if err := decode(raw, &a); err != nil {
+				return nil, err
+			}
+			if err := required("schema", a.Schema); err != nil {
+				return nil, err
+			}
+		}
+		api, ok := s.API.(comitia.MessageSchemaAPI)
+		if !ok {
+			return nil, comitia.Invalidf("message schema discovery unsupported by API")
+		}
+		if name == "list_message_schemas" {
+			return api.ListMessageSchemas(ctx, s.Credential)
+		}
+		return api.GetMessageSchema(ctx, s.Credential, a.Schema)
 	case "send_message":
 		var a struct {
 			TaskFence     *comitia.TaskFence       `json:"task_fence"`

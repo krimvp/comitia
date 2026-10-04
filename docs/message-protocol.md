@@ -131,6 +131,7 @@ Empty values disable a filter; all nonempty filters must match.
 | Field | Match |
 | --- | --- |
 | `for_instance` | Envelope `recipient_instances` contains this exact ID; or instance recipients are absent/empty and `recipient_session_ids` contains the caller's authenticated session; or both recipient lists are absent/empty (including legacy messages without an envelope). Session-addressed messages without instance recipients reach every instance of that session. |
+| `strict_recipients` | Opt-in boolean, default `false`; requires `for_instance`. Every nonempty recipient list must match: session recipients must contain the authenticated caller session and instance recipients must contain `for_instance`. Empty lists are unrestricted; broadcasts and legacy messages still match. |
 | `from_instance` | The message's self-reported `agent_instance.id` equals this exact ID. Legacy senders without a claim do not match. |
 | `task_id` | Envelope `task_id` equals this exact ID. |
 | `schema` | Envelope `schema` equals this exact versioned name. |
@@ -143,7 +144,9 @@ convenience selectors over the same shared context log. They neither grant
 access nor restrict what an authorized reader can obtain with another replay.
 `for_instance` uses the authenticated caller session for session-only messages.
 If instance recipients are present, the exact instance match takes precedence;
-a consumer targeting one session should check any session recipients separately.
+a consumer targeting one session can set `strict_recipients: true` (CLI
+`--strict-recipients`) to apply both lists. A strict replay is still a convenience
+selector over the context log; another authorized reader can replay without it.
 
 Replay keeps its existing output, ordering, exclusive `after` cursor and
 1–1000 `limit`. Filtering happens **in SQL before ORDER BY/LIMIT**, so a page
@@ -153,7 +156,7 @@ there are currently no later matches. Skipped sequences need no separate scan
 cursor. The default output shape, including empty-result serialization, is unchanged.
 
 ```go
-filters := comitia.MessageFilters{ForInstance: "issue-3-worker"}
+filters := comitia.MessageFilters{ForInstance: "issue-3-worker", StrictRecipients: true}
 messages, err := svc.ReplayMessages(ctx, credential, contextID, after, 100, filters)
 messages, err = svc.WaitMessages(ctx, credential, contextID, after, 30*time.Second, filters)
 ```
@@ -352,6 +355,26 @@ New messages validate all task/reply references and recipients in the same
 transaction as insertion. Revoked/expired sessions, names used as IDs,
 cross-context references, unknown schemas and invalid payloads are rejected.
 
+Runtime discovery returns all registered names, including configured extensions:
+MCP `list_message_schemas` takes `{}` and `get_message_schema` takes
+`{"schema":"comitia.review-request.v1"}`. HTTP POST
+`/v1/messages/schemas/list` takes `{}` and `/v1/messages/schemas/get` takes the
+same schema argument, returning `message_schemas` and `message_schema`,
+respectively. The optional Go `MessageSchemaAPI` supplies `ListMessageSchemas`
+and `GetMessageSchema`. Both require a valid session, independent of context
+grants; descriptors contain contracts and illustrative IDs, never context data.
+Unknown IDs return `ErrNotFound`; adapters whose API lacks the optional
+capability return an explicit unsupported error. List order is lexicographic.
+
+Each descriptor includes `id`, a draft 2020-12 `payload_schema` for built-ins,
+`body_required`, `task_required`, `task_or_artifact_refs`, semantic
+`requirements`, and `examples` with body/envelope pairs. JSON Schema describes
+payload shape; requirements describe additional checks such as exact artifact
+references, byte limits and conditional evidence. The registered validator is
+authoritative. Replace example task IDs with real tasks in the destination
+context before sending. Built-in IDs and their JSON Schema `$id` URNs include
+the version; discovery reflects the running service's registry.
+
 | Schema | Task required | Required payload fields |
 | --- | --- | --- |
 | `comitia.discussion.v1` | No | Empty object `{}`; nonblank message body required |
@@ -542,7 +565,17 @@ reject unknown envelope fields.
 
 Embedded applications can register additional versioned names and payload
 validators in `Config.MessageSchemas`, a map of names to `PayloadValidator`
-functions. Built-ins under `comitia.` cannot be replaced. Custom schemas still
+functions. Add matching entries in `Config.MessageSchemaDescriptors` to expose
+extension payload JSON Schemas, requirements and examples. Descriptor IDs default
+to their map keys; supplied IDs must match. Descriptors must describe an object,
+be self-contained (external references are not loaded), and provide at least one
+example accepted by both JSON Schema and the registered validator. Declared
+body/task requirements also apply to sends. New copies descriptor data; discovery
+returns copies, so later caller mutations cannot change the registry. Legacy
+validator-only registrations remain supported and discoverable with `opaque: true`,
+a generic object schema and no examples, since arbitrary validator functions
+cannot be reverse-engineered into field contracts. Supply descriptors for complete
+extension discovery. Built-ins under `comitia.` cannot be replaced. Custom schemas still
 receive the common recipient, context, reference, size and deduplication checks.
 Payload validators must be safe for concurrent calls; they should be pure and
 must return an error for invalid data. Registration is trusted application code,
@@ -579,7 +612,9 @@ Custom API/store implementations must accept optional `MessageFilters` in
 `ReplayMessages`/`Messages` and implement `API.WaitMessages`. Existing Go replay
 calls without filters remain valid. The `Messages` store method additionally
 receives the authenticated caller session ID after the context ID, so it can
-match session-addressed messages.
+match session-addressed messages. When `StrictRecipients` is true it must also
+match session recipients for instance-addressed messages; empty lists impose no
+condition.
 A custom store must filter before limiting (or provide equivalent paging) while
 the service retains the read-grant check.
 A `ReadStore` may additionally implement the exported optional `MessageScanStore`:

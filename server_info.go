@@ -81,6 +81,8 @@ var serverFeatures = []string{
 	"task_mutation_receipts",
 	"task_result_fencing",
 	"replay_filters",
+	"strict_recipients",
+	"message_schema_discovery",
 	"wait_messages",
 	"context_tools",
 	"grant_tools",
