@@ -91,7 +91,7 @@ func (s *Service) scanWaitMessages(ctx context.Context, raw, cid string, after i
 		return nil, after, err
 	}
 	if after < 0 {
-		return nil, after, ErrInvalid
+		return nil, after, Invalidf("after must be nonnegative")
 	}
 	var out []Message
 	scanned := after
