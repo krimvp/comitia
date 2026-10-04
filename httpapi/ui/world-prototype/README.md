@@ -58,19 +58,26 @@ Click an activity entry or a visible message path in the scene to open its full 
 
 ## Observe a real context
 
-The installed macOS viewer on port 4174 automatically connects using a credential
-kept only on the local proxy server. Its context selector lists all contexts that
-credential can read. No token is delivered to the browser or put in browser
-storage. The proxy retains the three-operation read allowlist, validates local
-Host/Origin/fetch metadata, and refuses non-loopback upstreams for automatic
-credentials. Other standalone instances keep the manual connection flow below.
+Run `comitia-viewer` for the installed macOS viewer on port 4174. Its private
+launcher passes a key in the URL fragment; the page removes it immediately and
+exchanges it for an eight-hour viewer session stored only in the tab, scoped to
+this origin and port. Reloads reuse the session; reopen the launcher after
+expiry or a proxy restart. The Comitia credential remains only on the proxy.
+The installed proxy uses `credentials/viewer.json`, a read-only observer scoped
+initially to **Local agents**. Explicit read grants can add contexts. The context
+selector lists that observer's readable contexts. Bare localhost HTTP requests
+cannot use the saved credential.
 
-For a standalone local proxy with automatic sign-in, use
-`--credential-file /private/path/to/credential.json` (a Comitia credential JSON or
-an object containing `credential`). The file must be outside the served assets.
-The browser-readable `/viewer/session` endpoint returns only whether automatic
-sign-in is configured. This mode makes the configured readable contexts available
-through the local viewer; it never grants additional Comitia permissions.
+Standalone automatic mode uses `--credential-file /private/path/viewer.json`
+and a mode-0600 `viewer-launch-key` beside it (or `--launch-key-file PATH`). Both
+files must be regular, owned by the current user, outside served assets, and
+inaccessible to group/others. `launch.py --root INSTALL_ROOT` reads
+`service.json` with `viewer_url` and `credentials/viewer-launch-key` to open an
+authenticated browser session without copying tokens. `/viewer/session` reports
+automatic sign-in only for an authenticated viewer session. The proxy retains
+the three-operation read allowlist, validates local Host/Origin/fetch metadata,
+and refuses non-loopback upstreams for automatic credentials. Other standalone
+instances keep the manual connection flow below.
 
 Start a Comitia HTTP server separately. By default the prototype proxies read requests to `http://127.0.0.1:8080`. To use another server:
 

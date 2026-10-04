@@ -41,7 +41,7 @@ func TestIssuerGrantRevocation(t *testing.T) {
 			}
 		})
 	}
-	if err := f.svc.RevokeGrant(ctx, issuer.Token, "missing"); !errors.Is(err, ErrNotFound) {
+	if err := f.svc.RevokeGrant(ctx, issuer.Token, "missing"); !errors.Is(err, ErrForbidden) {
 		t.Fatalf("missing: %v", err)
 	}
 	if err := f.svc.RevokeGrant(ctx, "bad", childGrants[0].ID); !errors.Is(err, ErrUnauthenticated) {

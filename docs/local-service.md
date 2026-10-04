@@ -212,26 +212,30 @@ No administrator privileges are required. Both listeners bind to localhost.
 
 ### First connection
 
-Open http://127.0.0.1:4174. The installed viewer signs in automatically and
-opens the first readable context. Use the header selector to navigate all contexts
-readable by the local owner; use its refresh button to discover new contexts.
-No credential copying is needed, including after reloading or restarting.
+Run `comitia-viewer` to open http://127.0.0.1:4174 with a private launcher
+handoff. No credential copying is needed. The launcher reads a mode-0600 key and
+passes it in a URL fragment, which the page immediately removes and exchanges
+for an eight-hour viewer session. That session stays in tab storage, scoped to
+the viewer origin and port; reloads in the same tab reconnect. Open the launcher
+again after session expiry or a viewer service restart. Opening the bare URL
+shows the demo/manual connection flow.
 
-The viewer proxy reads `credentials/owner.json` on the server side and forwards
-its credential only to the configured loopback Comitia server. The browser never
-receives or stores that token. Only context listing, participant listing, and
-message replay are exposed through this proxy: owner capabilities for writes,
-grants, or administration are not exposed by the viewer. Context read grants
-are still enforced by Comitia; automatic sign-in does not bypass them or merge
-separate test/Kotoba databases. The local page provides read access to these
-contexts to local users who can open it.
+The viewer proxy reads `credentials/viewer.json` on the server side and forwards
+its read-only credential only to the configured loopback Comitia server. The
+browser never receives that Comitia token. The observer initially reads only
+**Local agents**; the owner can explicitly grant it read access to additional
+contexts. The header selector lists those readable contexts. Automatic proxy
+requests require the authenticated viewer session; an unrelated machine-local
+HTTP caller cannot borrow the saved credential. Context listing, participant
+listing, and message replay are the only proxy operations. Host/Origin/fetch
+checks remain enforced, and Comitia checks every context read grant.
 
-The **Demo mode** button leaves live observation. **Connect local** reconnects,
-and reloading the viewer automatically connects again. Without the
-`--credential-file` server option, standalone prototypes retain manual sign-in.
-The embedded inspector at http://127.0.0.1:8080/ui/ still accepts a manually pasted
-credential; the read-only `credential.Token` in `credentials/viewer.json` can be
-used there for the initial **Local agents** context.
+The **Demo mode** button leaves live observation. **Connect local** reconnects
+within an authenticated viewer session. Without `--credential-file`, standalone
+prototypes retain manual sign-in. The embedded inspector at
+http://127.0.0.1:8080/ui/ still accepts a manually pasted credential; the read-only
+`credential.Token` in `credentials/viewer.json` can be used there for the initial
+**Local agents** context.
 
 The new database starts without test conversation messages. Comitia coordinates
 external agents; the service itself does not launch or run language-model agents.
@@ -243,12 +247,13 @@ Installation creates these private files and directories (credentials have mode
 - `credentials/owner.json`: initial local owner credential, valid for one year.
 - `credentials/viewer.json`: observer credential; its initial read grant is valid
   for 30 days, and its session for 31 days.
+- `credentials/viewer-launch-key`: private launcher authentication key.
 - `local-context.json`: initial workspace/context IDs, without credentials.
 - `logs/`: server and viewer standard-output/error logs.
 - `bin/comitia`: installed binary, independent of the checkout and temporary files.
 - `viewer/`: installed snapshot of the world prototype, independent of the checkout.
 
-Credentials expire independently of the service; the server continues running. Automatic viewer sign-in uses the owner credential’s lifetime (initially one year). Replacing its private file takes effect on subsequent requests without restarting the viewer.
+Credentials expire independently of the service; the server continues running. Automatic viewer reads use the observer credential’s lifetime and read grants (initially 31 and 30 days). Replacing its private credential file takes effect on subsequent requests without restarting the viewer. Restart the viewer after replacing its launcher key; restarts invalidate existing browser sessions.
 Use the owner credential through `COMITIA_CREDENTIAL` to delegate additional
 scoped sessions or create workspaces and contexts. Agent clients can use
 `COMITIA_SERVER_URL=http://127.0.0.1:8080` with their own session credential.

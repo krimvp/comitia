@@ -389,6 +389,14 @@ class MacOSInstallerTest(Base):
         self.assertEqual(json.loads((root/'local-context.json').read_text()),
                          {'workspace_id': 'w1', 'context_id': 'c1', 'server_url': 'http://127.0.0.1:8080'})
         self.assertEqual(local.token(root/'credentials/viewer.json'), 'tok-World viewer')
+        import plistlib
+        viewer_config = plistlib.loads((self.home/'Library/LaunchAgents/com.comitia.viewer.plist').read_bytes())
+        arguments = viewer_config['ProgramArguments']
+        self.assertEqual(arguments[arguments.index('--credential-file') + 1], str(root/'credentials/viewer.json'))
+        self.assertNotIn(str(root/'credentials/owner.json'), arguments)
+        self.assertEqual(mode(root/'credentials/viewer-launch-key'), 0o600)
+        self.assertTrue((self.home/'.local/bin/comitia-viewer').is_symlink())
+
         plist = (self.home/'Library/LaunchAgents/com.comitia.server.plist').read_bytes()
         self.assertIn(str(root/'bin/comitia').encode(), plist)
         self.assertIn(['launchctl', 'bootstrap', f'gui/{os.getuid()}', str(self.home/'Library/LaunchAgents/com.comitia.server.plist')], launchd)

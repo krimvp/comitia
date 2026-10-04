@@ -58,7 +58,7 @@ func TestGrantRevokeCommandEmbeddedAndRemote(t *testing.T) {
 			if err := commandErr(t, append(global, "grant-revoke", "--grant-id", source[0].ID)...); !errors.Is(err, comitia.ErrForbidden) {
 				t.Fatalf("other issuer: %v", err)
 			}
-			if err := commandErr(t, append(global, "grant-revoke", "--grant-id", "missing")...); !errors.Is(err, comitia.ErrNotFound) {
+			if err := commandErr(t, append(global, "grant-revoke", "--grant-id", "missing")...); !errors.Is(err, comitia.ErrForbidden) {
 				t.Fatalf("unknown grant: %v", err)
 			}
 			got := command(t, append(global, "grant-revoke", "--grant-id", grants[0].ID)...)

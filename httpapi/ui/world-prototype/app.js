@@ -1,9 +1,12 @@
 // THROWAWAY PROTOTYPE: three spatial interpretations of one read-only conversation.
 import * as THREE from 'three';
 import {OrbitControls} from './vendor/OrbitControls.js';
+import {takeLauncherKey,viewerSession} from './viewer-session.mjs';
 import {createReader} from './reader.js';
 import {SceneQueue} from './queue.js';
 import {rooms, initLife, react, updateLife} from './life.js';
+const launcherKey=takeLauncherKey(location,history);
+let localViewerSession='';
 const $ = id => document.getElementById(id);
 const variants = ['studio','orbit','forum'];
 let variant = variants.includes(new URLSearchParams(location.search).get('variant')) ? new URLSearchParams(location.search).get('variant') : 'studio';
@@ -246,7 +249,7 @@ $('clear-selection').onclick=()=>{selectedAgent='';selectedMessage=null;renderRo
 $('pause').onclick=()=>{paused=!paused;$('pause').textContent=paused?'▶ Resume':'Ⅱ Pause';$('pause').setAttribute('aria-pressed',String(paused));if(mode==='live'){clearTimeout(pollTimer);if(!paused)poll(generation);}};
 function motionUI(){$('motion').textContent=reduced?'Motion off':'Motion on';$('motion').setAttribute('aria-pressed',String(reduced));}
 $('motion').onclick=()=>{reduced=!reduced;motionUI();if(reduced){for(const f of flights){scene.remove(f.group);disposeTree(f.group);}for(const p of pulses){scene.remove(p.mesh);disposeTree(p.mesh);}flights=[];pulses=[];}};motionUI();
-async function api(path,body,signal=requestController.signal,credential=token){const response=await fetch('/v1/'+path,{method:'POST',headers:{'Content-Type':'application/json',...(credential&&credential!=='@local'?{Authorization:'Bearer '+credential}:{})},body:JSON.stringify(body),signal:AbortSignal.any([signal,AbortSignal.timeout(15000)]),credentials:'omit',redirect:'error'});if(!response.ok){const e=new Error(response.status===401||response.status===403?'Credential invalid, expired, or missing read access.':response.status===503?'Local sign-in is unavailable. Check the installed credential file.':response.status===502?'Comitia server unavailable. Start it or check the prototype’s --upstream setting.':`Request failed (${response.status}).`);e.status=response.status;throw e;}return response.json();}
+async function api(path,body,signal=requestController.signal,credential=token){const response=await fetch('/v1/'+path,{method:'POST',headers:{'Content-Type':'application/json',...(credential==='@local'&&localViewerSession?{'X-Comitia-Viewer-Session':localViewerSession}:{}),...(credential&&credential!=='@local'?{Authorization:'Bearer '+credential}:{})},body:JSON.stringify(body),signal:AbortSignal.any([signal,AbortSignal.timeout(15000)]),credentials:'omit',redirect:'error'});if(!response.ok){const e=new Error(response.status===401||response.status===403?'Credential invalid, expired, or missing read access.':response.status===503?'Local sign-in is unavailable. Check the installed credential file.':response.status===502?'Comitia server unavailable. Start it or check the prototype’s --upstream setting.':`Request failed (${response.status}).`);e.status=response.status;throw e;}return response.json();}
 function clearLive(){discoveryVersion++;discoveryController.abort();discoveryController=new AbortController();sceneQueue.clear();reader.clear();generation++;clearTimeout(pollTimer);requestController.abort();requestController=new AbortController();token='';contextID='';contextName='';contexts=[];sequence=0;observed=0;messages=[];agents=[];selectedAgent='';selectedMessage=null;$('credential').value='';$('context-select').replaceChildren();buildWorld();renderRoster();renderFeed();}
 function returnDemo(error=''){clearLive();mode='demo';demoIndex=0;paused=false;agents=demos.map(a=>({...a}));$('connection-state').textContent='● Demo';$('context-label').textContent='DESIGN EXPLORATION · SIMULATED MESSAGES';$('connect-open').textContent=automaticAvailable?'Connect local ↗':'Connect Comitia ↗';document.querySelector('.demo-actions').hidden=false;$('live-notice').hidden=true;$('feed-note').textContent='Demo traffic. Arrival animations illustrate routing, not read receipts.';$('pause').textContent='Ⅱ Pause';$('pause').setAttribute('aria-pressed','false');$('error').textContent=error;buildWorld();renderRoster();renderFeed();nextDemo=animationTime+3;renderContextPicker();}
 $('connect-open').onclick=()=>{if(mode==='live'){returnDemo();return;}if(automaticAvailable){connectLocal();return;}$('connect-form').hidden=false;$('context-form').hidden=true;$('connect-error').textContent='';$('connection-dialog').showModal();};
@@ -328,9 +331,7 @@ async function connectLocal(){
 }
 async function initializeLocalConnection(){
  try{
-  const response=await fetch('/viewer/session',{cache:'no-store',credentials:'omit',signal:AbortSignal.timeout(5000)});
-  if(!response.ok)return;
-  const session=await response.json();automaticAvailable=session.automatic===true;
+  localViewerSession=await viewerSession(launcherKey,{fetch,storage:sessionStorage});automaticAvailable=!!localViewerSession;
   if(automaticAvailable)await connectLocal();
  }catch{/* Standalone prototypes continue to offer manual connection. */}
 }
