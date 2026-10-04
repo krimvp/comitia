@@ -63,8 +63,9 @@ comitia-local --session-file PATH send --context-id CONTEXT_ID \
 ```
 
 The CLI and `comitia mcp` default send/claim metadata, cursor/ack/watch scope and
-replay/wait/resume [presence](presence.md) to this instance. Explicit instance arguments override it. IDs are 1–64 ASCII letters,
-digits, dots, underscores, or hyphens; labels are at most 128 UTF-8 bytes without
+replay/wait/resume [presence](presence.md) to this instance. Explicit instance
+arguments override it. IDs are 1–64 ASCII letters, digits, dots, underscores,
+or hyphens; labels are at most 128 UTF-8 bytes without
 control characters. An invalid value or a label without an ID is a startup
 error for instance-aware commands; serve, bootstrap, and administrative commands
 ignore these variables. Empty variables behave as unset. The launcher/wrapper must preserve these
@@ -78,5 +79,6 @@ scope. Changing from a legacy send to an instance, or changing instance IDs,
 creates a new message for the same key; restarting with the environment set can
 duplicate a legacy retry. With a default set, send and claims cannot opt out of an instance; an explicit
 empty send/claim ID is invalid.
-Cursor/ack accept an explicit empty ID to select the legacy cursor.
+Cursor/ack accept an explicit empty ID to select the legacy cursor; replay/wait
+with an explicit empty ID record no presence.
 Instance metadata is self-reported and does not change permissions.

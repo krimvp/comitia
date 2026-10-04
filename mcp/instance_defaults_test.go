@@ -82,13 +82,13 @@ func TestMCPInstanceDefaultsOnBothTransports(t *testing.T) {
 		`{"jsonrpc":"2.0","id":9,"method":"tools/call","params":{"name":"claim_task","arguments":{"task_id":"t"}}}`,
 		`{"jsonrpc":"2.0","id":10,"method":"tools/call","params":{"name":"claim_task","arguments":{"task_id":"t","agent_instance":{"id":"explicit"}}}}`,
 		`{"jsonrpc":"2.0","id":11,"method":"tools/call","params":{"name":"claim_task","arguments":{"task_id":"t","agent_instance":null}}}`,
-		`{"jsonrpc":"2.0","id":9,"method":"tools/call","params":{"name":"replay_messages","arguments":{"context_id":"c"}}}`,
-		`{"jsonrpc":"2.0","id":10,"method":"tools/call","params":{"name":"replay_messages","arguments":{"context_id":"c","agent_instance":"explicit"}}}`,
-		`{"jsonrpc":"2.0","id":11,"method":"tools/call","params":{"name":"replay_messages","arguments":{"context_id":"c","agent_instance":""}}}`,
-		`{"jsonrpc":"2.0","id":12,"method":"tools/call","params":{"name":"wait_messages","arguments":{"context_id":"c","timeout_seconds":0}}}`,
-		`{"jsonrpc":"2.0","id":13,"method":"tools/call","params":{"name":"wait_messages","arguments":{"context_id":"c","timeout_seconds":0,"agent_instance":""}}}`,
-		`{"jsonrpc":"2.0","id":14,"method":"tools/call","params":{"name":"set_instance_resume","arguments":{"context_id":"c","resume":{}}}}`,
-		`{"jsonrpc":"2.0","id":15,"method":"tools/call","params":{"name":"set_instance_resume","arguments":{"context_id":"c","resume":{},"agent_instance":{"id":"explicit"}}}}`,
+		`{"jsonrpc":"2.0","id":12,"method":"tools/call","params":{"name":"replay_messages","arguments":{"context_id":"c"}}}`,
+		`{"jsonrpc":"2.0","id":13,"method":"tools/call","params":{"name":"replay_messages","arguments":{"context_id":"c","agent_instance":"explicit"}}}`,
+		`{"jsonrpc":"2.0","id":14,"method":"tools/call","params":{"name":"replay_messages","arguments":{"context_id":"c","agent_instance":""}}}`,
+		`{"jsonrpc":"2.0","id":15,"method":"tools/call","params":{"name":"wait_messages","arguments":{"context_id":"c","timeout_seconds":0}}}`,
+		`{"jsonrpc":"2.0","id":16,"method":"tools/call","params":{"name":"wait_messages","arguments":{"context_id":"c","timeout_seconds":0,"agent_instance":""}}}`,
+		`{"jsonrpc":"2.0","id":17,"method":"tools/call","params":{"name":"set_instance_resume","arguments":{"context_id":"c","resume":{}}}}`,
+		`{"jsonrpc":"2.0","id":18,"method":"tools/call","params":{"name":"set_instance_resume","arguments":{"context_id":"c","resume":{},"agent_instance":{"id":"explicit"}}}}`,
 	}
 	for _, transport := range []string{"stdio", "http"} {
 		t.Run(transport, func(t *testing.T) {
