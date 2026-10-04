@@ -4,21 +4,103 @@
   comitia-client NAME COMMAND [FLAGS]
   comitia-client --identity NAME COMMAND [FLAGS]
   comitia-client --credential-file PATH COMMAND [FLAGS]
+  comitia-client sessions [--prune]
 
 NAME selects credentials/NAME.json next to this installation. A credential file
 must be private to the current user (no group or other permissions).
 """
+import datetime
 import json
 import os
 from pathlib import Path
 import re
+import stat
 import sys
+import urllib.error
+import urllib.request
 
 ROOT = Path(__file__).resolve().parent.parent
 NAME = re.compile(r'^[a-z0-9][a-z0-9_-]{0,63}$')
 # Self-reported instance routing passes through; credentials and endpoints never do.
 PASSED = ('COMITIA_AGENT_INSTANCE', 'COMITIA_AGENT_INSTANCE_LABEL')
 USAGE = 'Usage: comitia-client (NAME | --identity NAME | --credential-file PATH) COMMAND [FLAGS]'
+
+def session_status(document, server_url):
+    credential = document['credential']
+    session = credential['Session']
+    expiry = datetime.datetime.fromisoformat(session['ExpiresAt'].replace('Z', '+00:00'))
+    if expiry <= datetime.datetime.now(datetime.timezone.utc):
+        return 'expired'
+    if session.get('RevokedAt'):
+        return 'revoked'
+    request = urllib.request.Request(server_url.rstrip('/')+'/v1/contexts/list', data=b'{"limit":1}',
+                                     headers={'Authorization': 'Bearer '+credential['Token'],
+                                              'Content-Type': 'application/json'})
+    # Do not follow redirects with a credential, or use an inherited HTTP proxy.
+    class NoRedirect(urllib.request.HTTPRedirectHandler):
+        def redirect_request(self, req, fp, code, msg, headers, newurl):
+            return None
+    opener = urllib.request.build_opener(urllib.request.ProxyHandler({}), NoRedirect())
+    try:
+        with opener.open(request, timeout=3):
+            return 'active'
+    except urllib.error.HTTPError as error:
+        return 'revoked' if error.code == 401 else 'unknown'
+    except (OSError, ValueError):
+        return 'unknown'
+
+def sessions(args, root):
+    if args not in ([], ['--prune']):
+        raise SystemExit('Usage: comitia-client sessions [--prune]')
+    directory = root/'sessions'
+    # Refuse symlinks in the directory path as well as individual files.
+    for part in (directory, *directory.parents):
+        if part.is_symlink():
+            raise SystemExit(f'Refusing symlink: {part}')
+    if not directory.exists():
+        return []
+    config = json.loads((root/'local-context.json').read_text())
+    rows = []
+    flags = os.O_RDONLY | os.O_NOFOLLOW
+    fd = os.open(directory, flags | os.O_DIRECTORY)
+    try:
+        directory_info = os.fstat(fd)
+        if directory_info.st_uid != os.getuid() or directory_info.st_mode & 0o077:
+            raise SystemExit(f'Sessions directory must be private and owned by you: {directory}')
+        for name in sorted(os.listdir(fd)):
+            if not name.endswith('.json'):
+                continue
+            row = dict(credential_file=str(directory/name), status='invalid')
+            try:
+                info = os.stat(name, dir_fd=fd, follow_symlinks=False)
+                if not stat.S_ISREG(info.st_mode) or info.st_uid != os.getuid() or info.st_mode & 0o077:
+                    raise ValueError('not a private regular credential file')
+                with os.fdopen(os.open(name, flags | os.O_NONBLOCK, dir_fd=fd)) as stream:
+                    opened = os.fstat(stream.fileno())
+                    if (opened.st_dev, opened.st_ino) != (info.st_dev, info.st_ino):
+                        raise ValueError('credential file changed')
+                    document = json.load(stream)
+                credential = document['credential']
+                session = credential['Session']
+                for value in (credential['Token'], session['ID'], session['ExpiresAt']):
+                    if not isinstance(value, str) or not value:
+                        raise ValueError('incomplete credential')
+                status = session_status(document, document.get('server_url') or config['server_url'])
+                row.update(session_id=session['ID'], expires_at=session['ExpiresAt'], status=status)
+                if '--prune' in args and status in ('expired', 'revoked'):
+                    current = os.stat(name, dir_fd=fd, follow_symlinks=False)
+                    if (current.st_dev, current.st_ino) != (info.st_dev, info.st_ino):
+                        raise ValueError('credential file changed')
+                    os.unlink(name, dir_fd=fd)
+                    row['pruned'] = True
+            except (OSError, ValueError, KeyError, TypeError, AttributeError):
+                # Never expose malformed credential contents in an error or lose
+                # the report of files already removed earlier in this run.
+                row['status'] = 'invalid'
+            rows.append(row)
+    finally:
+        os.close(fd)
+    return rows
 
 def option(args, flag):
     """Return (value, rest) when args start with --flag VALUE or --flag=VALUE."""
@@ -40,11 +122,11 @@ def select(args, root=ROOT):
         if args[0].startswith('-'): raise SystemExit(USAGE)
         name, rest = args[0], args[1:]
     # The owner credential administers the installation; agents never run as it.
-    if not NAME.match(name) or name == 'owner':
+    if not NAME.match(name) or name in ('owner', 'sessions'):
         raise SystemExit(f'Invalid identity {name!r}')
     path = root/'credentials'/f'{name}.json'
     if not path.exists():
-        known = sorted(p.stem for p in (root/'credentials').glob('*.json') if p.stem != 'owner')
+        known = sorted(p.stem for p in (root/'credentials').glob('*.json') if p.stem not in ('owner', 'sessions'))
         raise SystemExit(f'Unknown identity {name!r}; installed: {", ".join(known) or "none"}')
     return path, rest
 
@@ -55,6 +137,9 @@ def load(path):
     return json.loads(path.read_text())
 
 def main(argv, root=ROOT):
+    if argv and argv[0] == 'sessions':
+        print(json.dumps(sessions(argv[1:], root)))
+        return
     path, args = select(argv, root)
     document = load(path)
     config = json.loads((root/'local-context.json').read_text())

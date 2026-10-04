@@ -166,8 +166,8 @@ def remember(root, name, spec):
     write_text(registry, json.dumps(table, indent=2)+'\n', mode=0o600)
 
 def check(name, spec):
-    if not NAME.match(name) or name in ('owner', 'viewer'):
-        raise ValueError(f'Invalid harness name {name!r}: use lowercase letters, digits, - and _ (not owner/viewer)')
+    if not NAME.match(name) or name in ('owner', 'viewer', 'sessions'):
+        raise ValueError(f'Invalid harness name {name!r}: use lowercase letters, digits, - and _ (not owner/viewer/sessions)')
     mcp, approval = spec.get('mcp') or {}, spec.get('approval') or {}
     if not spec.get('instructions') or not mcp.get('file'):
         raise ValueError(f'Harness {name!r} needs an instruction file and an MCP config file')

@@ -147,7 +147,7 @@ class InstallTest(Base):
         self.assertEqual(settings['permissions']['allow'], ['mcp__comitia__*'])
 
         agents = (self.home/'.codex/AGENTS.md').read_text()
-        self.assertTrue(agents.startswith('<!-- comitia-local:start v3 -->\n'))
+        self.assertTrue(agents.startswith('<!-- comitia-local:start v4 -->\n'))
         self.assertIn('Your configured identity is `codex`. The shared context ID is `c1` at `http://127.0.0.1:8390`.', agents)
         self.assertIn('Several Codex sessions share the `codex` credential', agents)
         self.assertIn(str(self.root/'local-context.json'), agents)
@@ -243,6 +243,7 @@ class AddHarnessTest(Base):
         self.install()
         before = len(self.calls())
         for argv, message in ((['owner', '--instructions', 'a', '--mcp-config', 'b.json'], 'Invalid harness name'),
+                              (['sessions', '--instructions', 'a', '--mcp-config', 'b.json'], 'Invalid harness name'),
                               (['Bad/Name', '--instructions', 'a', '--mcp-config', 'b.json'], 'Invalid harness name'),
                               (['pi'], 'needs an instruction file'),
                               (['pi', '--instructions', 'a', '--mcp-config', 'b.json', '--approve-entry', '=1'], 'Incomplete')):
@@ -400,14 +401,16 @@ class RealBinaryTest(Base):
     """Install, add a harness and call through the wrapper with the real binary."""
     @classmethod
     def setUpClass(cls):
+        if not shutil.which('go'):
+            raise unittest.SkipTest('go unavailable')
         cls.build = tempfile.TemporaryDirectory()
         cls.binary = Path(cls.build.name)/'comitia'
-        env = {**os.environ, 'GOFLAGS': '-buildvcs=false'}
+        env = {**os.environ, 'GOFLAGS': os.environ.get('GOFLAGS', '')+' -buildvcs=false'}
         result = subprocess.run(['go', 'build', '-o', str(cls.binary), './cmd/comitia'], cwd=SCRIPTS.parent, env=env,
                                 capture_output=True, text=True)
         if result.returncode:
             cls.build.cleanup()
-            raise unittest.SkipTest(f'go build failed: {result.stderr.strip()}')
+            raise RuntimeError(f'go build failed: {result.stderr.strip()}')
 
     @classmethod
     def tearDownClass(cls):
@@ -441,12 +444,80 @@ class RealBinaryTest(Base):
                 self.assertEqual(result.returncode, 0, result.stderr)
                 self.assertEqual([c['ID'] for c in json.loads(result.stdout)], [context['context_id']])
 
+    def test_delegated_session_identity_grants_and_cleanup(self):
+        port = free_port()
+        installer.install(self.root, self.home, port=port, binary=self.binary, service=None, check_port=False)
+        config = json.loads((self.root/'local-context.json').read_text())
+        env = {k: v for k, v in os.environ.items() if not k.startswith('COMITIA_')}
+        server = subprocess.Popen([str(self.root/'bin/comitia'), '--db', str(self.root/'data/comitia.db'), 'serve',
+                                   '--listen', f'127.0.0.1:{port}'], env=env,
+                                  stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        self.addCleanup(server.wait)
+        self.addCleanup(server.terminate)
+        for _ in range(100):
+            try:
+                urllib.request.urlopen(config['server_url']+'/ui/', timeout=1).close()
+                break
+            except OSError:
+                time.sleep(0.1)
+        def client(*args, input=None):
+            return subprocess.run([sys.executable, str(self.root/'bin/comitia-client'), *args], env=env,
+                                  input=input, capture_output=True, text=True, timeout=15)
+        def ok(*args):
+            result = client(*args)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            return json.loads(result.stdout)
+        requests = [dict(jsonrpc='2.0', id=1, method='initialize',
+                         params={'protocolVersion': '2025-06-18'}),
+                    dict(jsonrpc='2.0', id=2, method='tools/call', params={'name': 'delegate_session',
+                         'arguments': {'name': 'task-helper', 'ttl_seconds': 600,
+                                       'grants': [{'context_id': config['context_id'],
+                                                   'permissions': ['read', 'write'], 'ttl_seconds': 300}]}})]
+        result = client('codex', 'mcp', '--sessions-dir', str(self.root/'sessions'),
+                        input=''.join(json.dumps(r)+'\n' for r in requests))
+        self.assertEqual(result.returncode, 0, result.stderr)
+        reply = json.loads(result.stdout.splitlines()[-1])['result']
+        self.assertFalse(reply.get('isError'), reply)
+        delegated = reply['structuredContent']['result']
+        path = Path(delegated['credential_file'])
+        self.assertEqual(path.parent, self.root/'sessions')
+        self.assertEqual(mode(path), 0o600)
+        self.assertNotIn('Token', result.stdout)
+        selector = ('--credential-file', str(path))
+        participants = ok(*selector, 'participants', '--context-id', config['context_id'])
+        helper = next(p for p in participants if p['SessionID'] == delegated['session_id'])
+        self.assertEqual(helper['Name'], 'task-helper')
+        self.assertNotEqual(helper['SessionID'], json.loads((self.root/'credentials/codex.json').read_text())['credential']['Session']['ID'])
+        message = ok(*selector, 'send', '--context-id', config['context_id'], '--dedupe-key', 'hello', '--body', 'hello')
+        self.assertEqual(message['SessionID'], delegated['session_id'])
+        run = local.runner(self.root/'bin/comitia', self.root/'data/comitia.db')
+        owner = local.token(self.root/'credentials/owner.json')
+        other = run('context-create', '--workspace-id', config['workspace_id'], '--name', 'private', token=owner)
+        for command in ('participants', 'send'):
+            args = ['--context-id', other['ID']]
+            if command == 'send':
+                args += ['--dedupe-key', 'denied', '--body', 'denied']
+            denied = client(*selector, command, *args)
+            self.assertNotEqual(denied.returncode, 0)
+            self.assertIn('forbidden', denied.stderr)
+        self.assertEqual(ok('sessions')[0]['status'], 'active')
+        ok('codex', 'grant-revoke', '--grant-id', delegated['grant_ids'][0])
+        self.assertNotEqual(client(*selector, 'participants', '--context-id', config['context_id']).returncode, 0)
+        # Losing a grant does not revoke the session; cleanup must keep it.
+        self.assertEqual(ok('sessions', '--prune')[0]['status'], 'active')
+        self.assertTrue(path.exists())
+        ok('codex', 'revoke', '--session-id', delegated['session_id'])
+        self.assertEqual(ok('sessions')[0]['status'], 'revoked')
+        self.assertTrue(ok('sessions', '--prune')[0]['pruned'])
+        self.assertFalse(path.exists())
+        self.assertEqual(ok('sessions'), [])
+
 class BlockTest(unittest.TestCase):
     def test_render_instance_default_and_manual_guidance(self):
         with tempfile.TemporaryDirectory() as root:
             block = local.render_instructions('codex', {'display': 'Codex'},
                                               {'context_id': 'c1', 'server_url': 'http://localhost:8390'}, Path(root))
-        self.assertTrue(block.startswith('<!-- comitia-local:start v3 -->\n'))
+        self.assertTrue(block.startswith('<!-- comitia-local:start v4 -->\n'))
         self.assertIsNotNone(local.BLOCK.fullmatch(block))
         self.assertIn('When the launcher sets `COMITIA_AGENT_INSTANCE`', block)
         self.assertIn('`COMITIA_AGENT_INSTANCE_LABEL`', block)
@@ -455,6 +526,9 @@ class BlockTest(unittest.TestCase):
         self.assertIn('Include the instance ID in each `dedupe_key` for compatibility with older servers', block)
         self.assertIn('Several Codex sessions share the `codex` credential', block)
         self.assertIn('`recipient_instances` alongside `recipient_session_ids`', block)
+        self.assertIn('When an agent owns a task or child context', block)
+        self.assertIn('`delegate_session`', block)
+        self.assertIn('`revoke_session`', block)
         self.assertNotIn('${', block)
 
     def test_place_block(self):
@@ -510,6 +584,8 @@ class WrapperTest(Base):
     def test_rejections(self):
         for args, message in ((['owner', 'context-list'], 'Invalid identity'),
                               (['../owner', 'x'], 'Invalid identity'),
+                              (['--identity', 'sessions', 'mcp'], 'Invalid identity'),
+                              (['--identity=sessions', 'mcp'], 'Invalid identity'),
                               (['pi', 'x'], 'installed: claude, codex'),
                               ([], 'Usage'),
                               (['--identity'], 'Usage'),

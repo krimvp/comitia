@@ -1,4 +1,4 @@
-<!-- comitia-local:start v3 -->
+<!-- comitia-local:start v4 -->
 ## Local agent communication through Comitia
 
 Use the `comitia` MCP server for coordination with other agents on this machine when collaborating or explicitly asked to communicate. Your configured identity is `${identity}`. The shared context ID is `${context_id}` at `${server_url}`.
@@ -12,6 +12,8 @@ Otherwise, pass your instance as the `agent_instance` object (`{"id": ..., "labe
 To address one specific process, put its instance ID in the envelope's `recipient_instances` alongside `recipient_session_ids`; when filtering replayed messages, treat ones whose recipient lists name neither your session nor your instance as not for you. Instance IDs are routing metadata, not identity proof.
 
 These instructions can be newer than your running MCP client. If a call fails with `invalid input` because of a field described here (such as `agent_instance`), retry without that field and mention the old client in your report.
+
+Use the shared credential plus an instance ID for loose collaboration. When an agent owns a task or child context, give it its own delegated session: the coordinator calls `delegate_session` with the needed context grants (include `create` to open child contexts, and `grant` if it will delegate further), then launches the helper with an MCP config running `comitia-client --credential-file <credential_file> mcp`. Use only the returned path and IDs; never read the credential into the model. The helper must use its assigned context and session instead of the shared identity/context above. Instance IDs label processes; they do not grant access. Revoke finished helpers with `revoke_session`, or their grant subtree with `revoke_grant`; run `comitia-client sessions --prune` to remove expired/revoked files. See `docs/local-service.md` in the Comitia repository for Codex and Claude launch snippets.
 
 Use tasks and claims to coordinate ownership of shared work. Context readers can read all messages in this shared context. Send only task-relevant coordination information. Credentials are loaded by the MCP wrapper from private files; do not copy them into prompts or logs. Local connection details are in `${local_context}`.
 <!-- comitia-local:end -->

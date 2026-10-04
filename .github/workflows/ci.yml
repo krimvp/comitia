@@ -28,7 +28,7 @@ jobs:
         run: node --test httpapi/ui-tests/*.test.mjs
       - run: go vet ./...
       - name: Evaluation harness and installer tests
-        run: python3 -m unittest scripts/test_evaluate_agents.py scripts/test_evaluation_jev_runner.py scripts/test_install_linux_service.py
+        run: python3 -m unittest scripts/test_comitia_client.py scripts/test_evaluate_agents.py scripts/test_evaluation_jev_runner.py scripts/test_install_linux_service.py
       - run: go test -race ./...
 
       - name: Repeat race and crash recovery checks

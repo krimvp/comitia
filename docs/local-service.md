@@ -60,6 +60,79 @@ optionally with its own `server_url`) that is owned by the user and has mode
 0600; the wrapper refuses others. It never runs as `owner`. Harness MCP
 registrations call `comitia-client <name> mcp`.
 
+### Spawn flow: a delegated session per task owner
+
+Use shared `codex`/`claude` credentials plus distinct instance IDs for loose
+collaboration. Give an agent that owns a task or child context a delegated
+session: it becomes a separate participant with its own grants. Instance IDs
+alone do not restrict access.
+
+The coordinator calls MCP `delegate_session`, for example:
+
+```json
+{"name":"task-15-owner","ttl_seconds":7200,"grants":[{"context_id":"EPIC_CONTEXT_ID","permissions":["read","write","claim","grant","create"],"ttl_seconds":7000}]}
+```
+
+The coordinator must already hold a grant that covers those permissions and
+lifetimes on the epic. The installed shared harness grants do **not** include
+`create`: an owner or authorized grant holder must grant it first. Include
+`grant` only if the task owner needs to delegate further. The result contains
+`session_id`, `principal_id`, `expires_at`, `grant_ids`, and `credential_file`;
+keep these IDs for revocation. The token stays in the exclusive 0600 file.
+Delegation does not launch a process.
+
+For the Linux installation below, substitute the returned absolute path for
+`SESSION_ID.json`. Pass the epic ID, assigned task and session ID in the helper's
+prompt so it uses these instead of the installed shared-context instructions.
+Codex overrides the existing Comitia registration for this run:
+
+```sh
+codex exec \
+  -c 'mcp_servers.comitia.command="/home/alice/.local/share/comitia/bin/comitia-client"' \
+  -c 'mcp_servers.comitia.args=["--credential-file","/home/alice/.local/share/comitia/sessions/SESSION_ID.json","mcp"]' \
+  -c 'mcp_servers.comitia.default_tools_approval_mode="approve"' \
+  'Own task 15 in epic EPIC_CONTEXT_ID as session SESSION_ID. Use your delegated Comitia MCP session; create a private child context for the task and report progress to the epic.'
+```
+
+Claude uses an inline MCP JSON config for this run; strict mode avoids loading
+another Comitia registration from shared configuration:
+
+```sh
+claude --strict-mcp-config \
+  --mcp-config '{"mcpServers":{"comitia":{"type":"stdio","command":"/home/alice/.local/share/comitia/bin/comitia-client","args":["--credential-file","/home/alice/.local/share/comitia/sessions/SESSION_ID.json","mcp"]}}}' \
+  --allowedTools 'mcp__comitia__*' \
+  -p 'Own task 15 in epic EPIC_CONTEXT_ID as session SESSION_ID. Use your delegated Comitia MCP session; create a private child context for the task and report progress to the epic.'
+```
+
+The coordinator can call `revoke_session` with `{"session_id":"SESSION_ID"}`
+to revoke a directly delegated helper and its descendants, or `revoke_grant`
+with `{"grant_id":"GRANT_ID"}` to revoke a grant subtree. The CLI equivalents
+are `comitia-client codex revoke --session-id SESSION_ID` and
+`comitia-client codex grant-revoke --grant-id GRANT_ID`. Revoking a grant removes
+that authority; the session can remain active with other grants. Expiry also
+ends access. Stop the helper process separately when its work is finished.
+
+```sh
+comitia-client sessions          # JSON: credential_file, session_id, expires_at, status
+comitia-client sessions --prune  # remove expired/revoked files; report pruned: true
+```
+
+`sessions` is reserved and cannot be used as a harness or identity name.
+Listing scans only `<installation>/sessions/*.json`, never shared
+`credentials/`. It refuses to use symlinks, non-regular files and credentials not
+private to their owner. Unreadable, malformed or incomplete files are reported
+as `invalid` and kept; a bad entry does not hide the report of earlier removals. Expiry is checked locally; a server authentication
+probe detects revoked sessions (including revoked session ancestors). An
+unreachable server or an inconclusive response produces `unknown`, which is
+kept by `--prune`. `active` means the session authenticates, not that every grant
+is still valid. Tokens are never printed.
+
+The MCP default sessions directory is `~/.local/share/comitia/sessions`. If you
+install the wrapper under another root, configure the coordinator's MCP
+`mcp --sessions-dir <installation>/sessions` so listing finds its delegated
+files. These snippets require the Python `comitia-client` wrapper; the macOS
+installer's separate `comitia` wrapper is documented in [Local sessions](local-sessions.md).
+
 ## Harnesses
 
 A harness is data: an instruction file, an MCP config file, and how it
@@ -99,7 +172,7 @@ not valid TOML or the result would not be.
 
 `scripts/local/instructions.md` is the one instruction template, rendered per
 harness with its identity, display name, context and server. It sits between
-`<!-- comitia-local:start v3 -->` and `<!-- comitia-local:end -->`: the installer
+`<!-- comitia-local:start v4 -->` and `<!-- comitia-local:end -->`: the installer
 replaces any earlier block of any version in place, or puts the block first in
 the file, and leaves the rest of the file alone. Bump the version in the marker
 when the text changes meaning, so a reader can tell which text an agent saw.
