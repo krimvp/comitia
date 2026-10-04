@@ -142,26 +142,124 @@ func TestInstanceDedupeStorageKeyCollision(t *testing.T) {
 	f := setup(t, ":memory:")
 	defer f.store.Close()
 	ctx, cid, token := context.Background(), f.context.ID, f.admin.Token
-	old, err := f.svc.AppendMessage(ctx, token, cid, MessageInput{DedupeKey: "old-key", Body: "old"})
+	_, err := f.svc.AppendMessage(ctx, token, cid, MessageInput{DedupeKey: "old-key", Body: "old"})
 	if err != nil {
 		t.Fatal(err)
 	}
-	// Arbitrary legacy keys can equal an internal key chosen for a new message.
-	if _, err := f.store.db.Exec("UPDATE messages SET dedupe_key='chosen-id' WHERE id=?", old.ID); err != nil {
+	// Another instance occupies the natural key, and an arbitrary legacy key
+	// can also occupy the first opaque candidate.
+	if _, err := f.svc.AppendMessage(ctx, token, cid, MessageInput{DedupeKey: "chosen-id", Body: "blocker"}); err != nil {
 		t.Fatal(err)
 	}
 	var inserted Message
 	err = f.store.Update(ctx, func(w WriteStore) error {
 		var err error
-		inserted, err = w.PutMessage(Message{ID: "chosen-id", ContextID: cid, SessionID: f.admin.Session.ID, DedupeKey: "new-key", Body: "new", CreatedAt: *f.now, AgentInstance: &AgentInstance{ID: "worker"}})
+		inserted, err = w.PutMessage(Message{ID: "chosen-id", ContextID: cid, SessionID: f.admin.Session.ID, DedupeKey: "old-key", Body: "new", CreatedAt: *f.now, AgentInstance: &AgentInstance{ID: "worker"}})
 		return err
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
-	in := MessageInput{DedupeKey: "new-key", Body: "new", AgentInstance: &AgentInstance{ID: "worker"}}
+	in := MessageInput{DedupeKey: "old-key", Body: "new", AgentInstance: &AgentInstance{ID: "worker"}}
 	retry, err := f.svc.AppendMessage(ctx, token, cid, in)
-	if err != nil || retry.ID != inserted.ID || retry.DedupeKey != "new-key" {
+	if err != nil || retry.ID != inserted.ID || retry.DedupeKey != "old-key" {
 		t.Fatalf("storage collision lost natural key: %v %v", retry, err)
+	}
+}
+
+func TestInstanceDedupeDowngradeAndReupgrade(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "rollback.db")
+	f := setup(t, path)
+	ctx, cid, token := context.Background(), f.context.ID, f.admin.Token
+	in := MessageInput{DedupeKey: "started", Body: "ready", AgentInstance: &AgentInstance{ID: "worker"}}
+	original, err := f.svc.AppendMessage(ctx, token, cid, in)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var physicalKey string
+	if err := f.store.db.QueryRow("SELECT dedupe_key FROM messages WHERE id=?", original.ID).Scan(&physicalKey); err != nil || physicalKey != in.DedupeKey {
+		t.Fatalf("old binary sees %q: %v", physicalKey, err)
+	}
+	// A pre-instance-dedupe binary finds the original through its unchanged
+	// (context, session, key) query, so a retry does not append a new message.
+	var oldID string
+	if err := f.store.db.QueryRow("SELECT id FROM messages WHERE context_id=? AND session_id=? AND dedupe_key=?", cid, original.SessionID, in.DedupeKey).Scan(&oldID); err != nil || oldID != original.ID {
+		t.Fatalf("downgraded retry: %q %v", oldID, err)
+	}
+	// The old binary can append new messages, but knows nothing about scopes.
+	if _, err := f.store.db.Exec("INSERT INTO messages VALUES(?,?,?,?,?,?,?)", "old-binary-message", cid, original.SessionID, 2, "old-binary-key", "from old binary", ts(*f.now)); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := f.store.db.Exec("INSERT INTO message_instances VALUES(?,?,?)", "old-binary-message", "worker", ""); err != nil {
+		t.Fatal(err)
+	}
+	if err := f.store.Close(); err != nil {
+		t.Fatal(err)
+	}
+	for reopen := 0; reopen < 2; reopen++ {
+		st, err := OpenSQLite(path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		svc, err := New(Config{Store: st, Clock: func() time.Time { return *f.now }})
+		if err != nil {
+			t.Fatal(err)
+		}
+		retry, err := svc.AppendMessage(ctx, token, cid, in)
+		if err != nil || retry.ID != original.ID || retry.Sequence != original.Sequence {
+			t.Fatalf("re-upgraded retry: %v %v", retry, err)
+		}
+		oldRetry, err := svc.AppendMessage(ctx, token, cid, MessageInput{DedupeKey: "old-binary-key", Body: "from old binary", AgentInstance: &AgentInstance{ID: "worker"}})
+		if err != nil || oldRetry.ID != "old-binary-message" || oldRetry.Sequence != 2 {
+			t.Fatalf("backfilled old-binary retry: %v %v", oldRetry, err)
+		}
+		other := in
+		other.AgentInstance = &AgentInstance{ID: "reviewer"}
+		collision, err := svc.AppendMessage(ctx, token, cid, other)
+		if err != nil || collision.ID == original.ID || collision.DedupeKey != "started" {
+			t.Fatalf("colliding instance: %v %v", collision, err)
+		}
+		if err := st.db.QueryRow("SELECT dedupe_key FROM messages WHERE id=?", collision.ID).Scan(&physicalKey); err != nil || physicalKey == "started" {
+			t.Fatalf("collision storage key: %q %v", physicalKey, err)
+		}
+		var missing, count int
+		if err := st.db.QueryRow("SELECT COUNT(*) FROM messages m WHERE NOT EXISTS (SELECT 1 FROM message_dedupe_scopes d WHERE d.message_id=m.id)").Scan(&missing); err != nil || missing != 0 {
+			t.Fatalf("messages without scopes: %d %v", missing, err)
+		}
+		if err := st.db.QueryRow("SELECT COUNT(*) FROM messages").Scan(&count); err != nil || count != 3 {
+			t.Fatalf("duplicate rows after rollback: %d %v", count, err)
+		}
+		if err := st.Close(); err != nil {
+			t.Fatal(err)
+		}
+	}
+}
+
+func TestInstanceDedupeBackfillRejectsConflictingRows(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "conflicting-scopes.db")
+	f := setup(t, path)
+	ctx, cid, token := context.Background(), f.context.ID, f.admin.Token
+	m, err := f.svc.AppendMessage(ctx, token, cid, MessageInput{DedupeKey: "started", Body: "ready", AgentInstance: &AgentInstance{ID: "worker"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Reproduce a duplicate left by the earlier opaque-key implementation
+	// followed by an old-binary retry. Migration must not silently skip it.
+	if _, err := f.store.db.Exec("UPDATE messages SET dedupe_key=? WHERE id=?", m.ID, m.ID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := f.store.db.Exec("INSERT INTO messages VALUES(?,?,?,?,?,?,?)", "duplicate", cid, m.SessionID, 2, "started", "ready", ts(*f.now)); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := f.store.db.Exec("INSERT INTO message_instances VALUES(?,?,?)", "duplicate", "worker", ""); err != nil {
+		t.Fatal(err)
+	}
+	if err := f.store.Close(); err != nil {
+		t.Fatal(err)
+	}
+	st, err := OpenSQLite(path)
+	if err == nil {
+		st.Close()
+		t.Fatal("migration silently left a conflicting message without a scope")
 	}
 }

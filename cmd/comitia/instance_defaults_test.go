@@ -136,7 +136,7 @@ func TestMCPCommandUsesInstanceEnvironment(t *testing.T) {
 
 func TestInvalidInstanceEnvironmentFailsBeforeOpeningBackend(t *testing.T) {
 	for _, tc := range []struct{ id, label string }{{"bad id", ""}, {"", "orphan"}, {"ok", "bad\nlabel"}} {
-		for _, cmd := range []string{"send", "mcp", "mcp-http"} {
+		for _, cmd := range []string{"send", "cursor", "ack", "replay", "wait", "watch", "mcp", "mcp-http", "task-claim"} {
 			t.Setenv("COMITIA_AGENT_INSTANCE", tc.id)
 			t.Setenv("COMITIA_AGENT_INSTANCE_LABEL", tc.label)
 			db := filepath.Join(t.TempDir(), "must-not-exist.db")
@@ -151,5 +151,32 @@ func TestInvalidInstanceEnvironmentFailsBeforeOpeningBackend(t *testing.T) {
 				t.Fatalf("invalid startup touched backend: %v", err)
 			}
 		}
+	}
+}
+
+func TestAdministrativeCommandsIgnoreInvalidInstanceEnvironment(t *testing.T) {
+	for _, remote := range []bool{false, true} {
+		t.Run(strconv.FormatBool(remote), func(t *testing.T) {
+			base, _ := instanceCommandSetup(t, remote)
+			t.Setenv("COMITIA_AGENT_INSTANCE", "bad id")
+			t.Setenv("COMITIA_AGENT_INSTANCE_LABEL", "bad\nlabel")
+			w := command(t, append(base, "workspace-create", "--name", "admin")...)
+			c := command(t, append(base, "context-create", "--workspace-id", w["ID"].(string), "--name", "admin")...)
+			if c["Name"] != "admin" {
+				t.Fatalf("admin command: %v", c)
+			}
+			commandAny(t, append(base, "context-list")...)
+		})
+	}
+	t.Setenv("COMITIA_AGENT_INSTANCE", "bad id")
+	t.Setenv("COMITIA_AGENT_INSTANCE_LABEL", "bad\nlabel")
+	db := filepath.Join(t.TempDir(), "admin.db")
+	boot := command(t, "--db", db, "--bootstrap-credential", "once", "bootstrap")
+	if boot["credential"] == nil {
+		t.Fatalf("bootstrap: %v", boot)
+	}
+	// An invalid listen address reaches the serve path without starting a daemon.
+	if err := commandErr(t, "--db", db, "serve", "--listen", "invalid-address"); err == nil || errors.Is(err, comitia.ErrInvalid) {
+		t.Fatalf("serve rejected inherited instance configuration: %v", err)
 	}
 }

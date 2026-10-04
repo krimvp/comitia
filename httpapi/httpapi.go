@@ -212,6 +212,12 @@ func NewClient(baseURL string, hc *http.Client) (*Client, error) {
 	if err != nil {
 		return nil, err
 	}
+	return NewClientWithInstanceDefaults(baseURL, hc, defaults)
+}
+
+// NewClientWithInstanceDefaults uses explicitly configured defaults without
+// reading the environment. A zero value preserves session-scoped behavior.
+func NewClientWithInstanceDefaults(baseURL string, hc *http.Client, defaults comitia.InstanceDefaults) (*Client, error) {
 	u, err := url.Parse(baseURL)
 	if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" || u.User != nil || u.RawQuery != "" || u.Fragment != "" {
 		return nil, fmt.Errorf("invalid server URL")

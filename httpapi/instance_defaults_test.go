@@ -108,3 +108,20 @@ func TestRemoteClientRejectsInvalidInstanceEnvironment(t *testing.T) {
 		}
 	}
 }
+
+func TestRemoteClientExplicitDefaultsIgnoreEnvironment(t *testing.T) {
+	t.Setenv("COMITIA_AGENT_INSTANCE", "bad id")
+	t.Setenv("COMITIA_AGENT_INSTANCE_LABEL", "orphan\nlabel")
+	ts := httptest.NewServer(NewHandler(fakeAPI{}))
+	defer ts.Close()
+	client, err := NewClientWithInstanceDefaults(ts.URL, ts.Client(), comitia.InstanceDefaults{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if id, err := client.InstanceDefaults.ID(); err != nil || id != "" {
+		t.Fatalf("explicit zero default: %q %v", id, err)
+	}
+	if w, err := client.CreateWorkspace(context.Background(), "admin", "admin"); err != nil || w.Name != "admin" {
+		t.Fatalf("remote admin: %v %v", w, err)
+	}
+}

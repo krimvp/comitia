@@ -70,20 +70,26 @@ clients). Set the variables in the environment passed to the Comitia process.
 
 IDs must be 1–64 ASCII letters, digits, `.`, `_`, or `-`. Labels may contain up
 to 128 UTF-8 bytes, with no control characters. Invalid defaults, including a
-label without an ID, fail startup even if a call supplies an explicit instance.
-Empty variables behave as unset. Instances are self-reported routing metadata
+label without an ID, fail startup for commands that use instances (send,
+cursor, ack, replay, wait/watch, MCP, and task claims), even if a call supplies
+an explicit instance. Serve, bootstrap, and administrative commands ignore
+these variables. Empty variables behave as unset. Instances are self-reported routing metadata
 and confer no permissions.
 
 Explicit arguments win. An explicit send object replaces both the default ID
 and label; `--agent-instance` does not inherit the default label. An explicit
-empty cursor/ack ID selects the legacy session cursor. Without a default,
-omitted instances preserve legacy behavior.
+empty cursor/ack ID selects the legacy session cursor. With a default set,
+send cannot opt out of an instance: an explicit empty send ID is invalid.
+Without a default, omitted instances preserve legacy behavior.
 
 Message deduplication is scoped by context, authenticated session, instance ID,
 and natural key. Two instances can both send `dedupe_key: "started"`; retrying
 that key within one instance returns the original message and sequence. Changing
 its body, envelope, or label returns a conflict. Existing messages and keys
 remain replayable, including messages sent before instance-scoped deduplication.
+Changing between an omitted instance and a set instance, or between different
+IDs, creates a new message for the same key. A process restarted with
+`COMITIA_AGENT_INSTANCE` set can therefore duplicate a legacy retry.
 
 **Tasks** (leases give exactly-one-owner semantics)
 - `create_task`, `claim_task`, `renew_task`, `complete_task`, `release_task`,

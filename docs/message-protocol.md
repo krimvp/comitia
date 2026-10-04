@@ -90,8 +90,10 @@ svc.MessageCursor(ctx, credential, contextID, "issue-3-worker")
 Cursors are persisted independently per **(session, context, instance ID)**.
 Acknowledging one instance never advances another instance or the legacy
 session cursor. A new instance starts at zero; it does not inherit the legacy
-cursor. Omitting the ID (or supplying an empty string) uses the existing
+cursor. The CLI, MCP adapters, and Go HTTP client use `COMITIA_AGENT_INSTANCE`
+when the ID is omitted. Without that default, omitting the ID uses the existing
 session/context cursor, including acknowledgements from before the upgrade.
+An explicit empty string selects that legacy cursor even with a default set.
 Labels do not affect cursors. Acknowledgements remain monotonic and cannot
 exceed the context's current maximum sequence. Cursor operations require the
 same authenticated read access as before, even for unseen instance IDs.
@@ -121,12 +123,19 @@ acknowledge the shared-log sequence you consumed using the same instance ID.
 are optional at envelope level, with task references required by the schemas
 below. At most 64 distinct recipient sessions and 64 KiB of encoded envelope are
 accepted. Recipient order and insignificant payload whitespace/object-key order
-are normalized. Reusing a deduplication key with a changed body, envelope or
-instance claim is a conflict. Deduplication remains scoped to
-(context, session, key), so processes sharing one session should include their
-instance ID in their keys. Identical
+are normalized. Deduplication is scoped to (context, authenticated session,
+instance ID, key); an omitted instance has its own legacy scope. Reusing a key
+within that scope with a changed body, envelope, or instance label is a conflict.
+Changing the instance ID, including changing between nil and a set instance,
+appends a new message. A process restarted with `COMITIA_AGENT_INSTANCE` set can
+therefore duplicate a retry originally sent without an instance. Processes with
+distinct instances can reuse natural keys without instance prefixes. Identical
 retries return the original message; they do not redeliver or revalidate its
 recipients. The sender must still be authorized to write.
+
+With an environment default configured, send cannot opt out of an instance:
+an explicit empty send ID is invalid. Cursor/ack accept an explicit empty ID
+(`agent_instance: ""` or `--agent-instance ""`) to select the legacy cursor.
 
 New messages validate all task/reply references and recipients in the same
 transaction as insertion. Revoked/expired sessions, names used as IDs,
@@ -345,6 +354,15 @@ claim and trust marker and implement the instance ID argument on
 `ReadStore.AckCursor` and `WriteStore.Ack`; an empty ID selects the legacy cursor.
 Custom API implementations must update their cursor method signatures to accept
 one optional instance ID. Existing Go calls without an ID remain valid.
+
+Instance dedupe scopes use the additive `message_dedupe_scopes` table, backfilled
+on open for messages written by older binaries. Natural keys remain in
+`messages.dedupe_key` whenever (context, session, key) is free, preserving old
+readers and retries across downgrade/re-upgrade. A collision between instances
+uses an opaque storage key; upgraded readers expose the natural key from the
+scope table. Older binaries cannot reproduce instance-scoped dedupe for these
+colliding keys and may expose the opaque key or reject the retry. Backfill
+conflicts fail migration rather than silently leaving a message without a scope.
 
 ## Task claims by instance
 

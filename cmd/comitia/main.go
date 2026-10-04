@@ -47,11 +47,7 @@ var errUnknownCommand = errors.New("unknown command")
 func run(ctx context.Context, args []string) error {
 	global := flag.NewFlagSet("comitia", flag.ContinueOnError)
 	global.SetOutput(os.Stderr)
-	instances, err := comitia.InstanceDefaultsFromEnv()
-	if err != nil {
-		return err
-	}
-	cfg := config{instances: instances}
+	cfg := config{}
 	global.StringVar(&cfg.db, "db", env("COMITIA_DB", "comitia.db"), "SQLite database path")
 	global.StringVar(&cfg.serverURL, "server-url", env("COMITIA_SERVER_URL", ""), "remote Comitia server URL")
 	// Secret defaults are applied after parsing so `--help` never prints values
@@ -72,6 +68,13 @@ func run(ctx context.Context, args []string) error {
 		return usage()
 	}
 	cmd, args := rest[0], rest[1:]
+	if usesInstanceDefaults(cmd) {
+		instances, err := comitia.InstanceDefaultsFromEnv()
+		if err != nil {
+			return err
+		}
+		cfg.instances = instances
+	}
 	if cmd == "bootstrap" && cfg.serverURL != "" {
 		return errors.New("bootstrap is available only with embedded SQLite")
 	}
@@ -91,7 +94,7 @@ func run(ctx context.Context, args []string) error {
 
 func open(cfg config) (comitia.API, func(), error) {
 	if cfg.serverURL != "" {
-		c, e := httpapi.NewClient(cfg.serverURL, http.DefaultClient)
+		c, e := httpapi.NewClientWithInstanceDefaults(cfg.serverURL, http.DefaultClient, cfg.instances)
 		return c, func() {}, e
 	}
 	store, e := comitia.OpenSQLite(cfg.db)
@@ -138,4 +141,13 @@ func parsePermissions(s string) (comitia.Permission, error) {
 		}
 	}
 	return p, nil
+}
+
+func usesInstanceDefaults(cmd string) bool {
+	switch cmd {
+	case "send", "cursor", "ack", "replay", "wait", "watch", "mcp", "mcp-http", "task-claim":
+		return true
+	default:
+		return false
+	}
 }

@@ -13,7 +13,7 @@ CREATE TABLE IF NOT EXISTS message_envelopes (message_id TEXT PRIMARY KEY REFERE
 CREATE TABLE IF NOT EXISTS message_instances (message_id TEXT PRIMARY KEY REFERENCES messages(id), instance_id TEXT NOT NULL, label TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS instance_acks (session_id TEXT NOT NULL REFERENCES sessions(id), context_id TEXT NOT NULL REFERENCES contexts(id), instance_id TEXT NOT NULL, seq INTEGER NOT NULL, updated_at TEXT NOT NULL, PRIMARY KEY(session_id,context_id,instance_id));
 CREATE TABLE IF NOT EXISTS message_dedupe_scopes (context_id TEXT NOT NULL REFERENCES contexts(id), session_id TEXT NOT NULL REFERENCES sessions(id), instance_id TEXT NOT NULL, dedupe_key TEXT NOT NULL, message_id TEXT NOT NULL UNIQUE REFERENCES messages(id), PRIMARY KEY(context_id,session_id,instance_id,dedupe_key));
-INSERT OR IGNORE INTO message_dedupe_scopes SELECT m.context_id,m.session_id,COALESCE(i.instance_id,''),m.dedupe_key,m.id FROM messages m LEFT JOIN message_instances i ON i.message_id=m.id WHERE NOT EXISTS (SELECT 1 FROM message_dedupe_scopes d WHERE d.message_id=m.id);
+INSERT INTO message_dedupe_scopes SELECT m.context_id,m.session_id,COALESCE(i.instance_id,''),m.dedupe_key,m.id FROM messages m LEFT JOIN message_instances i ON i.message_id=m.id WHERE NOT EXISTS (SELECT 1 FROM message_dedupe_scopes d WHERE d.message_id=m.id);
 CREATE TABLE IF NOT EXISTS acks (session_id TEXT NOT NULL REFERENCES sessions(id), context_id TEXT NOT NULL REFERENCES contexts(id), seq INTEGER NOT NULL, updated_at TEXT NOT NULL, PRIMARY KEY(session_id,context_id));
 `
 
@@ -49,10 +49,10 @@ func (x *sqlStore) PutMessage(m Message) (Message, error) {
 	if e != nil {
 		return m, e
 	}
-	// Opaque storage keys avoid the legacy UNIQUE constraint without reserving
-	// any caller key namespace. Check collisions with arbitrary existing keys.
-	storageKey := m.ID
-	for {
+	// Keep natural keys readable by older binaries when the legacy tuple is
+	// free. Only instance collisions need an opaque, collision-checked key.
+	storageKey := m.DedupeKey
+	for attempt := 0; ; attempt++ {
 		var exists bool
 		if e = x.q.QueryRow("SELECT EXISTS(SELECT 1 FROM messages WHERE context_id=? AND session_id=? AND dedupe_key=?)", m.ContextID, m.SessionID, storageKey).Scan(&exists); e != nil {
 			return m, e
@@ -60,7 +60,11 @@ func (x *sqlStore) PutMessage(m Message) (Message, error) {
 		if !exists {
 			break
 		}
-		storageKey += "."
+		if attempt == 0 {
+			storageKey = m.ID
+		} else {
+			storageKey += "."
+		}
 	}
 	_, e = x.q.Exec("INSERT INTO messages VALUES(?,?,?,?,?,?,?)", m.ID, m.ContextID, m.SessionID, m.Sequence, storageKey, m.Body, ts(m.CreatedAt))
 	if e == nil && m.Envelope != nil {
