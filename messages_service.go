@@ -7,6 +7,7 @@ import (
 
 func (s *Service) AppendMessage(ctx context.Context, raw, cid string, in MessageInput) (Message, error) {
 	var m Message
+	appended := false
 	if in.DedupeKey == "" || (in.Envelope == nil && in.Body == "") {
 		return m, ErrInvalid
 	}
@@ -46,21 +47,29 @@ func (s *Service) AppendMessage(ctx context.Context, raw, cid string, in Message
 		}
 		m = Message{ID: id(), ContextID: cid, SessionID: a.session.ID, DedupeKey: in.DedupeKey, Body: in.Body, CreatedAt: s.now().UTC(), Envelope: envelope, AgentInstance: instance, AgentInstanceSelfReported: instance != nil}
 		m, e = w.PutMessage(m)
+		appended = e == nil
 		return e
 	})
+	if e == nil && appended {
+		s.messageNotifications.notify(cid)
+	}
 	return m, e
 }
-func (s *Service) ReplayMessages(ctx context.Context, raw, cid string, after int64, limit int) ([]Message, error) {
+func (s *Service) ReplayMessages(ctx context.Context, raw, cid string, after int64, limit int, filters ...MessageFilters) ([]Message, error) {
+	f, err := messageFilters(filters)
+	if err != nil {
+		return nil, err
+	}
 	var out []Message
 	if after < 0 || limit < 1 || limit > 1000 {
 		return nil, ErrInvalid
 	}
 	e := s.store.View(ctx, func(r ReadStore) error {
-		if _, _, e := s.require(r, raw, cid, PermissionRead); e != nil {
+		a, _, e := s.require(r, raw, cid, PermissionRead)
+		if e != nil {
 			return e
 		}
-		var e error
-		out, e = r.Messages(cid, after, limit)
+		out, e = r.Messages(cid, a.session.ID, after, limit, f)
 		return e
 	})
 	return out, e

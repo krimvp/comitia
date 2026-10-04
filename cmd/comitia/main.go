@@ -123,7 +123,7 @@ func newFlags(name string) *flag.FlagSet {
 	return f
 }
 func usage() error {
-	return errors.New("usage: comitia [--db PATH | --server-url URL] [--credential TOKEN] <bootstrap|workspace-create|context-create|context-list|context-children|reference-add|delegate|revoke|participants|send|replay|ack|cursor|task-create|task-get|task-list|task-claim|task-renew|task-complete|task-release|serve|mcp|mcp-http|context-archive|grant|grant-revoke> [flags]")
+	return errors.New("usage: comitia [--db PATH | --server-url URL] [--credential TOKEN] <bootstrap|workspace-create|context-create|context-list|context-children|reference-add|delegate|revoke|participants|send|replay|wait|watch|ack|cursor|task-create|task-get|task-list|task-claim|task-renew|task-complete|task-release|serve|mcp|mcp-http|context-archive|grant|grant-revoke> [flags]")
 }
 
 func parsePermissions(s string) (comitia.Permission, error) {
@@ -153,7 +153,7 @@ func parsePermissions(s string) (comitia.Permission, error) {
 
 func usesInstanceDefaults(cmd string) bool {
 	switch cmd {
-	case "send", "cursor", "ack", "replay", "wait", "watch", "mcp", "mcp-http", "task-claim":
+	case "send", "cursor", "ack", "watch", "mcp", "mcp-http", "task-claim":
 		return true
 	default:
 		return false

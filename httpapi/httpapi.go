@@ -52,8 +52,12 @@ type request struct {
 	Message       *comitia.MessageInput       `json:"message,omitempty"`
 	Task          *comitia.TaskInput          `json:"task,omitempty"`
 
-	ChildContext  *comitia.CreateChildContextInput `json:"child_context,omitempty"`
-	ClaimInstance *comitia.AgentInstance           `json:"claim_instance,omitempty"`
+	ChildContext   *comitia.CreateChildContextInput `json:"child_context,omitempty"`
+	ClaimInstance  *comitia.AgentInstance           `json:"claim_instance,omitempty"`
+	ForInstance    string                           `json:"for_instance,omitempty"`
+	FromInstance   string                           `json:"from_instance,omitempty"`
+	Schema         string                           `json:"schema,omitempty"`
+	TimeoutSeconds *float64                         `json:"timeout_seconds,omitempty"`
 }
 
 type response struct {
@@ -223,7 +227,7 @@ func NewClientWithInstanceDefaults(baseURL string, hc *http.Client, defaults com
 		return nil, fmt.Errorf("invalid server URL")
 	}
 	if hc == nil {
-		hc = &http.Client{Timeout: 30 * time.Second}
+		hc = &http.Client{Timeout: 70 * time.Second}
 	} else {
 		clone := *hc
 		hc = &clone

@@ -86,8 +86,31 @@ func (x *sqlStore) PutMessage(m Message) (Message, error) {
 	}
 	return m, e
 }
-func (x *sqlStore) Messages(cid string, after int64, limit int) ([]Message, error) {
-	rows, e := x.q.Query(messageSelect+" WHERE m.context_id=? AND m.seq>? ORDER BY m.seq LIMIT ?", cid, after, limit)
+func (x *sqlStore) Messages(cid, callerSessionID string, after int64, limit int, filters ...MessageFilters) ([]Message, error) {
+	f, err := messageFilters(filters)
+	if err != nil {
+		return nil, err
+	}
+	query := messageSelect + " WHERE m.context_id=? AND m.seq>?"
+	args := []any{cid, after}
+	if f.ForInstance != "" {
+		query += ` AND ((COALESCE(json_array_length(e.envelope,'$.recipient_instances'),0)=0 AND (COALESCE(json_array_length(e.envelope,'$.recipient_session_ids'),0)=0 OR EXISTS (SELECT 1 FROM json_each(e.envelope,'$.recipient_session_ids') WHERE value=?))) OR EXISTS (SELECT 1 FROM json_each(e.envelope,'$.recipient_instances') WHERE value=?))`
+		args = append(args, callerSessionID, f.ForInstance)
+	}
+	if f.FromInstance != "" {
+		query += " AND i.instance_id=?"
+		args = append(args, f.FromInstance)
+	}
+	if f.TaskID != "" {
+		query += " AND json_extract(e.envelope,'$.task_id')=?"
+		args = append(args, f.TaskID)
+	}
+	if f.Schema != "" {
+		query += " AND json_extract(e.envelope,'$.schema')=?"
+		args = append(args, f.Schema)
+	}
+	args = append(args, limit)
+	rows, e := x.q.Query(query+" ORDER BY m.seq LIMIT ?", args...)
 	if e != nil {
 		return nil, e
 	}

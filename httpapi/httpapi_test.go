@@ -21,7 +21,7 @@ func (fakeAPI) CreateWorkspace(_ context.Context, token, name string) (comitia.W
 	return comitia.Workspace{ID: "w1", Name: name}, nil
 }
 
-func (fakeAPI) ReplayMessages(_ context.Context, token, contextID string, after int64, limit int) ([]comitia.Message, error) {
+func (fakeAPI) ReplayMessages(_ context.Context, token, contextID string, after int64, limit int, _ ...comitia.MessageFilters) ([]comitia.Message, error) {
 	if token != "reader" || contextID != "allowed" {
 		return nil, comitia.ErrForbidden
 	}

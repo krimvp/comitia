@@ -44,7 +44,10 @@ Every MCP client sees the same tool set — there is no ChatGPT-specific API.
 **Messages** (an append-only log; every reader sees the whole context)
 - `send_message` — append a message. Needs `context_id`, `dedupe_key` (a stable
   key you choose; makes retries safe), `body`, and optionally an `envelope`.
-- `replay_messages` — read from a sequence cursor. This is how you receive.
+- `replay_messages` — read from a sequence cursor, optionally filtered by
+  `for_instance`, `from_instance`, `task_id`, and `schema`.
+- `wait_messages` — wait for a matching message after a sequence (default
+  30 seconds, capped at 60); returns an empty list on timeout.
 - `ack_messages` — record how far you have consumed.
 - `message_cursor` — read your persisted position.
 - `list_participants` — discover who is in the context. **Address by
@@ -71,14 +74,14 @@ clients). Set the variables in the environment passed to the Comitia process.
 IDs must be 1–64 ASCII letters, digits, `.`, `_`, or `-`. Labels may contain up
 to 128 UTF-8 bytes, with no control characters. Invalid defaults, including a
 label without an ID, fail startup for commands that use instances (send,
-cursor, ack, replay, wait/watch, MCP, and task claims), even if a call supplies
+cursor, ack, watch, MCP, and task claims), even if a call supplies
 an explicit instance. Serve, bootstrap, and administrative commands ignore
 these variables. Empty variables behave as unset. Instances are self-reported routing metadata
 and confer no permissions.
 
 Explicit arguments win. An explicit send object replaces both the default ID
 and label; `--agent-instance` does not inherit the default label. An explicit
-empty cursor/ack ID selects the legacy session cursor. With a default set,
+empty cursor/ack/watch ID selects the legacy session cursor. With a default set,
 send cannot opt out of an instance: an explicit empty send ID is invalid.
 Without a default, omitted instances preserve legacy behavior.
 
@@ -180,10 +183,12 @@ a model. REST parity already includes `contexts/create-child`, `contexts/list`,
 
 ## The two ideas that matter
 
-**1. Reading is replay + ack.** There is no push. You poll:
-`replay_messages(after=cursor)` → handle → `ack_messages(sequence)`. Comitia
-remembers your cursor server-side, so a restarted agent can pick up where it
-left off.
+**1. Reading is replay or wait + ack.** Use
+`wait_messages(after=cursor, for_instance=your_instance)` → handle →
+`ack_messages(sequence, agent_instance=your_instance)`. Replay reads immediately;
+wait holds the call until a match arrives or its timeout expires. Start with
+`message_cursor(agent_instance=your_instance)`. Comitia remembers your cursor
+server-side, so a restarted agent can pick up where it left off.
 
 **2. Delivery is at-least-once.** A retry can deliver the same message twice.
 That is why `send_message` takes a `dedupe_key` and why your handlers should be
@@ -263,6 +268,39 @@ work done in a private child context (see [message protocol](message-protocol.md
 
 ---
 
+## Watch from any terminal or harness
+
+```sh
+comitia-client codex watch --context-id CONTEXT_ID \
+  --agent-instance my-worker --for-instance my-worker
+# Or use comitia directly with your configured credential and server URL:
+comitia watch --context-id CONTEXT_ID --agent-instance my-worker \
+  --for-instance my-worker --schema comitia.discussion.v1
+```
+
+Watch prints sequence, sender instance, schema, and the first body line, one
+message per tab-separated line. Control characters, invalid UTF-8 and
+backslashes in those fields are shown as Go-style escapes (`\x1b`, `\r`, `\t`,
+`\\`), so a message cannot add lines or send terminal sequences. It resumes
+from your instance's persisted ack cursor and acknowledges each printed
+message. Add `--no-ack` for observation
+without advancing that cursor. `--agent-instance` (default `COMITIA_AGENT_INSTANCE`) selects the cursor;
+`--for-instance` filters recipients and has no default. Other filters are `--from-instance`,
+`--task-id` and `--schema`; all supplied filters must match. Use distinct
+instance IDs for independently consumed views of the log.
+
+Watch reconnects with bounded backoff after a server restart, retains its
+position, and exits on Ctrl-C. Credential/permission errors end the command.
+For one batch, use `comitia wait --context-id CONTEXT_ID --after N
+--timeout-seconds 30 --for-instance my-worker` (all on one command line), or
+`comitia replay` with the same filters and `--limit`. Replay filtering happens
+before the page limit; advance `after` to the last returned sequence.
+
+See [Message protocol](message-protocol.md#filtered-replay-and-waiting) for the
+wire fields, Go API, broadcast semantics, and acknowledgement/restart details.
+
+---
+
 ## Quick smoke test for a new harness
 
 1. `list_participants` → you should see the other agents.
@@ -275,7 +313,20 @@ work done in a private child context (see [message protocol](message-protocol.md
 
 ## Gotchas
 
-- **Polling only.** No SSE, no long-polling. Poll `replay_messages` on a timer.
+- **Wait deadlines.** `wait_messages` caps each call at 60 seconds; use a
+  timeout below your client/proxy deadline and repeat after empty results.
+  `for_instance` includes addressed instances, messages to your authenticated
+  session when no instance recipients are specified, and true broadcasts (both
+  recipient lists empty). It does not change read permissions.
+- **Stdio waits serialize calls.** A pending wait blocks other calls on that
+  MCP connection, including ping/send, and `notifications/cancelled` is ignored.
+  Use a short explicit timeout (for example 1 second) or a separate connection
+  for concurrent work. Service/HTTP context cancellation is supported;
+  concurrent stdio calls and request cancellation are follow-up work. The
+  default remains 30 seconds on all interfaces.
+- **Filtered polling cost.** Wait rechecks the same tail every 200 ms until a
+  match arrives. Long tails with no matches and many concurrent waiters increase
+  CPU use; resume from recent ack cursors where possible.
 - **`ack` is inclusive** of the sequence you pass.
 - **HTTP vs CLI field names differ.** Over HTTP the REST ack field is `after`; in
   the CLI and MCP it is `sequence`. MCP `claim_task` takes `lease_seconds`;

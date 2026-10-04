@@ -17,6 +17,7 @@ type Service struct {
 	messageSchemas           map[string]PayloadValidator
 	maxContextDepth          int
 	maxChildContextsPerGrant int
+	messageNotifications     messageNotifications
 }
 
 func New(cfg Config) (*Service, error) {
