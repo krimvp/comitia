@@ -139,8 +139,9 @@ cross-context references, unknown schemas and invalid payloads are rejected.
 | `comitia.review-request.v1` | Yes | Nonempty `artifact_refs` and `checks` string arrays |
 | `comitia.finding.v1` | No | `severity` (`info`, `warning`, `error`), `summary`; optional `evidence_refs` |
 | `comitia.blocker.v1` | Yes | `reason`, nonempty `needs` string array |
-| `comitia.work-submitted.v1` | Yes | `summary`, nonempty `artifact_refs` string array |
-| `comitia.verification-result.v1` | Yes | `status`, nonempty `checks`; see below |
+| `comitia.work-submitted.v1` | No | `summary`, nonempty `artifact_refs` string array |
+| `comitia.verification-result.v1` | Unless `artifact_refs` | `status`, nonempty `checks`; optional nonempty `artifact_refs`; see below |
+| `comitia.approval.v1` | No | Exact `artifact_refs`, `verdict`, nonempty `checks`, `blocking_count`; see [Approvals](#approvals-and-merge-gates) |
 | `comitia.evaluation-result.v1` | Yes | `evaluation_id`, `outcome`, `grader`, nonempty `criteria`; optional `cost`; see below |
 | `comitia.execution-event.v1` | Yes | `run_id`, positive `event_sequence`, `kind`, and kind-specific measurements; see [Execution telemetry](execution-telemetry.md) |
 | `comitia.task-status.v1` | Yes | `state`, `summary`; optional `child_context_id`, `blockers`, `links`; see [Task status](#task-status) |
@@ -150,9 +151,63 @@ require nonempty `evidence_refs`; not-run results require a nonblank `reason`.
 Unknown built-in payload fields are rejected. References are nonempty strings,
 not artifacts fetched or verified by Comitia.
 
+Work-submitted and verification-result messages identify their work by
+`task_id` or by `artifact_refs`; a verification result with neither is
+rejected. A given `task_id` must still name a task in the same context. Without
+a `task_id`, every artifact ref must be exact by the same rule as approvals
+(below): `main` or `git:abcdef1` is refused, `git:<full sha>` or an opaque
+lowercase `scheme:value` such as `build:1842` is accepted. With a `task_id`,
+refs stay free-form nonempty strings.
+
 These are structured claims, **not proof of correctness**. A verification-result
 message does not accept work, and a work-submitted message does not complete a
 task. Task state changes only through its existing authorized API operations.
+
+## Approvals and merge gates
+
+`comitia.approval.v1` records a reviewer's verdict on exact artifacts:
+
+```json
+{
+  "schema": "comitia.approval.v1",
+  "recipient_instances": ["merge-agent"],
+  "payload": {
+    "artifact_refs": ["pr:krimvp/comitia#41@4f2c9e1d0b7a5c3e8f6a1b2d4c6e8f0a1b3c5d7e"],
+    "verdict": "approved",
+    "checks": ["go test -race ./...", "code review"],
+    "blocking_count": 0,
+    "summary": "No blocking findings."
+  }
+}
+```
+
+Every artifact ref is `scheme:value` without whitespace, and the scheme is
+lowercase (letters, digits, `+`, `-`, `.`, starting with a letter), so `GIT:` or
+`Pr:` is refused rather than treated as opaque. `git:` refs must be a full
+commit: 40 (SHA-1) or 64 (SHA-256) lowercase hex digits. `pr:` refs must be
+exactly `pr:<owner>/<repo>#<positive number>@<full commit>`, with one `#`, one
+`@` and non-empty owner and repo. Abbreviated SHAs and branch names are refused,
+so an approval never silently carries over to a later push or matches a prefix.
+Other lowercase schemes (for example `sha256:`) are accepted as opaque exact
+identifiers. `verdict` is `approved` or `changes-requested`;
+`blocking_count` is a required integer that must be `0` for `approved` and at
+least `1` for `changes-requested`. `summary` is optional. No task is required.
+
+A merge agent can gate on the envelope instead of parsing prose:
+
+1. Replay the context and keep messages whose `Envelope.Schema` is
+   `comitia.approval.v1`, whose authenticated `SessionID` is a reviewer you
+   trust, and (with a shared credential) whose self-reported `agent_instance`
+   is the reviewer instance you assigned.
+2. Require `verdict: "approved"` with `blocking_count: 0` and an artifact ref
+   that is byte-for-byte the full head commit you are about to merge, e.g.
+   `pr:owner/repo#41@<full head sha>`.
+3. Treat any later `changes-requested` from the same reviewer for that commit as
+   overriding, and any new push as needing a new approval.
+
+The server validates the shape only. Which sessions count as reviewers, and
+whether the referenced commit is really the one being merged, remain the merge
+agent's decisions.
 
 ## Evidence-backed evaluation
 
@@ -290,3 +345,30 @@ claim and trust marker and implement the instance ID argument on
 `ReadStore.AckCursor` and `WriteStore.Ack`; an empty ID selects the legacy cursor.
 Custom API implementations must update their cursor method signatures to accept
 one optional instance ID. Existing Go calls without an ID remain valid.
+
+## Task claims by instance
+
+`ClaimTask` accepts one optional `AgentInstance`; MCP `claim_task` and CLI
+`task-claim` take it as `agent_instance` / `--agent-instance` (plus
+`--agent-instance-label`), and HTTP `tasks/claim` as `claim_instance`. Tasks then
+report `lease_owner_instance` from claim, renew, get and list until the task is
+claimed again or released; a completed task keeps its last holder. Like message
+instances, it is self-reported routing metadata: the lease belongs to
+`LeaseOwnerSessionID` and the claim token, not to the instance.
+
+`OpenLease` (MCP and `renew_task` `open_ended: true`, CLI `--open-ended`) asks
+for a lease that lasts until the task is completed or released. Every lease is
+capped at the holder session's expiry, so an open lease is still bounded. This is
+not reserved for orchestrators: any client with `claim` on the context can hold a
+lease up to its own session's expiry, bypassing the 86400-second
+`lease_seconds` limit of MCP. A context admin can release such a lease. A lease
+whose holder session is revoked or expired, or whose holder no longer has
+`claim` on the context, counts as expired, so another session can claim the task
+at once.
+`ReleaseTask` (MCP `release_task`, HTTP `tasks/release`, CLI `task-release`)
+returns a leased task to pending and bumps `lease_version`, so the old token goes
+stale. The holder releases with its claim token; a session with `admin` on the
+context may release without it but must pass the current `lease_version`
+(otherwise `stale task claim`). Releasing a pending or completed task is a
+conflict. The instance is stored in a `task_instances` side table created on
+open; custom stores must persist `Task.LeaseOwnerInstance` in `PutTask`.

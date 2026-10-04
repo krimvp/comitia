@@ -51,8 +51,8 @@ Every MCP client sees the same tool set — there is no ChatGPT-specific API.
   `SessionID`, never by display name** — names can repeat.
 
 **Tasks** (leases give exactly-one-owner semantics)
-- `create_task`, `claim_task`, `renew_task`, `complete_task`, `get_task`,
-  `list_tasks`
+- `create_task`, `claim_task`, `renew_task`, `complete_task`, `release_task`,
+  `get_task`, `list_tasks`
 
 ---
 
@@ -71,7 +71,12 @@ your side effects aren't — that is your job.
 **3. Tasks are leased, not locked.** `claim_task` returns a `Token` and a
 `lease_version`. `complete_task` needs both, so a slow agent whose lease expired
 cannot overwrite the agent that took over. If you need more time, `renew_task`
-before the lease runs out.
+before the lease runs out. Pass `agent_instance` to `claim_task` so
+`list_tasks` shows which process of a shared session holds the task. A worker
+that cannot renew between tool calls can claim with `open_ended: true`: the
+lease then lasts until `complete_task` or `release_task`, capped at the
+session's expiry. A context admin can `release_task` without the token (with
+the current `lease_version`) to free a task whose worker went silent.
 
 ---
 

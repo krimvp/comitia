@@ -25,7 +25,11 @@ func (h *handler) routeTasks(ctx context.Context, token, route string, q request
 		out.Tasks, err = h.api.ListTasks(ctx, token, q.ContextID, q.Status, q.Limit)
 	case "tasks/claim":
 		var v comitia.TaskClaim
-		v, err = h.api.ClaimTask(ctx, token, q.TaskID, q.TTL)
+		var instance []comitia.AgentInstance
+		if q.ClaimInstance != nil {
+			instance = append(instance, *q.ClaimInstance)
+		}
+		v, err = h.api.ClaimTask(ctx, token, q.TaskID, q.TTL, instance...)
 		out.Claim = &v
 	case "tasks/renew":
 		var v comitia.TaskClaim
@@ -34,6 +38,10 @@ func (h *handler) routeTasks(ctx context.Context, token, route string, q request
 	case "tasks/complete":
 		var v comitia.Task
 		v, err = h.api.CompleteTask(ctx, token, q.TaskID, q.ClaimToken, q.LeaseVersion)
+		out.Task = &v
+	case "tasks/release":
+		var v comitia.Task
+		v, err = h.api.ReleaseTask(ctx, token, q.TaskID, q.ClaimToken, q.LeaseVersion)
 		out.Task = &v
 	default:
 		return false, nil
@@ -62,9 +70,17 @@ func (c *Client) ListTasks(x context.Context, t, id string, status comitia.TaskS
 	e := c.call(x, t, "tasks/list", request{ContextID: id, Status: status, Limit: limit}, &o)
 	return o.Tasks, e
 }
-func (c *Client) ClaimTask(x context.Context, t, id string, d time.Duration) (comitia.TaskClaim, error) {
+func (c *Client) ClaimTask(x context.Context, t, id string, d time.Duration, instance ...comitia.AgentInstance) (comitia.TaskClaim, error) {
 	var o response
-	e := c.call(x, t, "tasks/claim", request{TaskID: id, TTL: d}, &o)
+	q := request{TaskID: id, TTL: d}
+	switch len(instance) {
+	case 0:
+	case 1:
+		q.ClaimInstance = &instance[0]
+	default:
+		return comitia.TaskClaim{}, comitia.ErrInvalid
+	}
+	e := c.call(x, t, "tasks/claim", q, &o)
 	if o.Claim == nil {
 		return comitia.TaskClaim{}, missing(e)
 	}
@@ -81,6 +97,14 @@ func (c *Client) RenewClaim(x context.Context, t, id, k string, v int64, d time.
 func (c *Client) CompleteTask(x context.Context, t, id, k string, v int64) (comitia.Task, error) {
 	var o response
 	e := c.call(x, t, "tasks/complete", request{TaskID: id, ClaimToken: k, LeaseVersion: v}, &o)
+	if o.Task == nil {
+		return comitia.Task{}, missing(e)
+	}
+	return *o.Task, e
+}
+func (c *Client) ReleaseTask(x context.Context, t, id, k string, v int64) (comitia.Task, error) {
+	var o response
+	e := c.call(x, t, "tasks/release", request{TaskID: id, ClaimToken: k, LeaseVersion: v}, &o)
 	if o.Task == nil {
 		return comitia.Task{}, missing(e)
 	}

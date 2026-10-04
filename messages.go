@@ -151,9 +151,10 @@ func builtinMessageSchemas() map[string]PayloadValidator {
 				Status       string   `json:"status"`
 				Checks       []string `json:"checks"`
 				EvidenceRefs []string `json:"evidence_refs,omitempty"`
+				ArtifactRefs []string `json:"artifact_refs,omitempty"`
 				Reason       string   `json:"reason,omitempty"`
 			}
-			if strictPayload(raw, &p) != nil || !nonempty(p.Checks) {
+			if strictPayload(raw, &p) != nil || !nonempty(p.Checks) || p.ArtifactRefs != nil && !nonempty(p.ArtifactRefs) {
 				return ErrInvalid
 			}
 			switch p.Status {
@@ -173,6 +174,7 @@ func builtinMessageSchemas() map[string]PayloadValidator {
 		EvaluationResultSchema: validEvaluationResult,
 		ExecutionEventSchema:   validExecutionEvent,
 		TaskStatusSchema:       validTaskStatus,
+		ApprovalSchema:         validApproval,
 	}
 }
 
@@ -214,9 +216,25 @@ func (s *Service) normalizeEnvelope(in *MessageEnvelope, body string) (*MessageE
 		return nil, ErrInvalid
 	}
 	switch out.Schema {
-	case "comitia.assignment.v1", "comitia.review-request.v1", "comitia.blocker.v1", "comitia.work-submitted.v1", "comitia.verification-result.v1", EvaluationResultSchema, ExecutionEventSchema:
+	case "comitia.assignment.v1", "comitia.review-request.v1", "comitia.blocker.v1", EvaluationResultSchema, ExecutionEventSchema:
 		if out.TaskID == "" {
 			return nil, fmt.Errorf("%w: task_id required", ErrInvalid)
+		}
+	case "comitia.work-submitted.v1", "comitia.verification-result.v1":
+		// Without a task, exact artifact refs must identify the work instead.
+		if out.TaskID != "" {
+			break
+		}
+		var p struct {
+			ArtifactRefs []string `json:"artifact_refs"`
+		}
+		if json.Unmarshal(out.Payload, &p) != nil || len(p.ArtifactRefs) == 0 {
+			return nil, fmt.Errorf("%w: task_id or artifact_refs required", ErrInvalid)
+		}
+		for _, ref := range p.ArtifactRefs {
+			if !exactArtifactRef(ref) {
+				return nil, fmt.Errorf("%w: artifact_refs must be exact without task_id", ErrInvalid)
+			}
 		}
 	}
 	if out.Schema == TaskStatusSchema && out.TaskID == "" {

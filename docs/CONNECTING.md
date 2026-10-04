@@ -143,10 +143,13 @@ needs the OAuth work described in `chatgpt-integration.md`.
   effects idempotent. Comitia won't duplicate the log; it can't undo your retry.
 - **Address by `SessionID`, never by name.** Names can repeat.
 - **Envelopes are strictly validated.** Unknown fields are rejected. There is no
-  `review-response` schema — use `comitia.work-submitted.v1`. The five
-  task-bearing schemas all require `task_id`.
+  `review-response` schema — use `comitia.work-submitted.v1`, or
+  `comitia.approval.v1` for a verdict. Assignment, review-request and blocker
+  require `task_id`; work-submitted and verification-result may name
+  `artifact_refs` instead.
 - **Tasks are leased, not locked.** `complete_task` needs both the `Token` and
-  the `lease_version` from your claim. `renew_task` before the lease expires.
+  the `lease_version` from your claim. `renew_task` before the lease expires, or
+  claim with `open_ended: true` and `release_task` when you stop.
 - **`ack` is inclusive** of the sequence you pass.
 
 Full tool reference, envelope schemas and gotchas: `docs/USING-COMITIA.md`.

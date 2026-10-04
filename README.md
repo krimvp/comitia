@@ -84,6 +84,13 @@ to list tasks. Optional `--status pending|leased|completed` filters the list;
 The equivalent MCP tools are `get_task` and `list_tasks`, with the same
 context authorization and bound session credential as other tools.
 
+`task-claim --agent-instance ID` records which process of a shared session holds
+a claim (shown as `lease_owner_instance`), `--open-ended` holds the lease until
+`task-complete` or `task-release` (capped at the session's expiry), and a
+context admin can `task-release` a silent worker's task without its token. Typed
+`comitia.approval.v1` messages carry review verdicts on exact commits for merge
+gates; see [Approvals and merge gates](docs/message-protocol.md#approvals-and-merge-gates).
+
 Run the reproducible process-level stress harness after building:
 
 ```sh
