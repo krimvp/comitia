@@ -1,6 +1,7 @@
 import {ConversationState, PAGE_SIZE, WINDOW_LIMIT, shortID, messageType, typeLabel, filterMessages, interactionGraph, BROADCAST, parseActor, senderActor, recipientActors, instanceClaims, taskStatus, stateLabel} from './model.mjs';
 import {renderInteractionMap} from './graph.mjs';
 import {sequenceLayout, renderSequence, LANE_LIMIT, ARROW_LIMIT, timeLabel} from './sequence.mjs';
+import {readableContexts, contextTree, taskBoard, renderContextTree, renderTaskBoard} from './tree.mjs';
 
 const $ = id => document.getElementById(id);
 const state = new ConversationState();
@@ -17,6 +18,8 @@ function rememberCredential(value) {
 }
 let token = '', connection = 0, controller = new AbortController(), timer;
 let contexts = [], contextsAfter = '', contextsBusy = false;
+// Parent ID -> child metadata from contexts/children, and task titles seen in readable task lists.
+let children = new Map(), taskTitles = new Map();
 let participants = [], tasks = [], selected = '', thread = '', paused = false, busy = false, windowStart = 0, displayStart = null, route = null, connectionPage = 0;
 let view = 'sequence', sequenceOptions = {}, sequenceFilterKey = '', sequenceCurrent;
 
@@ -81,11 +84,11 @@ function instanceLabel(message) {
 function disconnect(message = '', forget = true) {
   if (forget) rememberCredential('');
   connection++; controller.abort(); controller = new AbortController(); clearTimeout(timer);
-  token = ''; state.reset(); displayStart = null; contexts = []; contextsAfter = ''; contextsBusy = false;
+  token = ''; state.reset(); displayStart = null; contexts = []; contextsAfter = ''; contextsBusy = false; children = new Map(); taskTitles = new Map();
   participants = []; tasks = []; selected = ''; thread = ''; route = null; connectionPage = 0; busy = false;
   $('credential').value = ''; $('connect-error').textContent = message;
   $('connect-panel').hidden = false; $('workspace').hidden = true; $('disconnect').hidden = true;
-  for (const id of ['messages', 'contexts', 'tasks', 'details', 'interaction-map', 'connections', 'sequence-canvas', 'sequence-routes']) $(id).replaceChildren();
+  for (const id of ['messages', 'contexts', 'tasks', 'task-board', 'details', 'interaction-map', 'connections', 'sequence-canvas', 'sequence-routes']) $(id).replaceChildren();
   sequenceOptions = {}; sequenceCurrent = null; sequenceFilterKey = '';
   for (const id of ['sequence-summary','sequence-range','sequence-lanes','sequence-arrow-count','sequence-note','route-summary','map-summary','map-note','connection-page']) $(id).textContent = '';
   $('search').value = ''; for (const id of ['agent-filter','type-filter','task-filter']) $(id).replaceChildren();
@@ -120,13 +123,27 @@ function refreshFilters() {
   options('type-filter', [...new Set(state.messages.map(messageType))].sort().map(t => [t, typeLabel(t)]), 'All types');
   options('task-filter', [...taskIDs], 'All tasks');
 }
+function readable() { return [...readableContexts(contexts, children).values()]; }
 function renderContexts() {
-  $('contexts').replaceChildren(...contexts.map(context => {
-    const item = button(context.Name, () => openContext(context.ID), `context-item${context.ID === state.contextID ? ' active' : ''}`);
-    item.append(node('small', shortID(context.ID))); item.title = context.ID;
-    if (context.ID === state.contextID) item.setAttribute('aria-current', 'page');
-    return item;
-  }));
+  renderContextTree($('contexts'), contextTree(contexts, children), {active:state.contextID, taskTitle:id => taskTitles.get(id), creator:agentLabel, onOpen:openContext});
+}
+function renderBoard() {
+  renderTaskBoard($('task-board'), state.contextID ? taskBoard(state.contextID, state.messages, tasks, contextTree(contexts, children)) : [], {
+    onOpen:openContext,
+    onTask:id => { $('task-filter').value = id; displayStart = null; renderTasks(); renderMessages(); }
+  });
+}
+// Children metadata needs read on the parent only, so it is requested for opened contexts alone.
+async function loadChildren(id, generation) {
+  const result = await request('contexts/children', {context_id:id, limit:1000});
+  if (generation !== state.generation) return;
+  if (!Array.isArray(result.contexts || [])) throw new Error('Invalid contexts response.');
+  children.set(id, result.contexts || []); renderContexts(); renderBoard();
+}
+// Missing children metadata only hides locked entries; lost access still disconnects.
+function childrenUnavailable(error) {
+  if (error.status === 401 || error.status === 403 || error.name === 'AbortError') throw error;
+  $('contexts-note').textContent = 'Child contexts are unavailable. Refresh to retry.';
 }
 async function loadContexts(refresh = false) {
   if (contextsBusy) return;
@@ -141,6 +158,7 @@ async function loadContexts(refresh = false) {
     if (refresh) { contextsAfter = ''; }
     const result = await request('contexts/list', {after_id:contextsAfter, limit:100}, discoveryController.signal);
     if (conn !== connection || credential !== token) return;
+    if (refresh && state.contextID) { const generation = state.generation; loadChildren(state.contextID, generation).catch(childrenUnavailable).catch(error => fail(error, generation, 'contexts-note')); }
     const page = result.contexts || [];
     if (!Array.isArray(page)) throw new Error('Invalid contexts response.');
     const all = new Map((refresh ? [] : contexts).map(c => [c.ID, c]));
@@ -152,7 +170,7 @@ async function loadContexts(refresh = false) {
     if (!state.contextID && contexts.length) await openContext(contexts[0].ID);
     // A refresh can remove a revoked context. Hide it immediately; access is
     // checked again for every metadata/replay request.
-    else if (refresh && !contexts.some(c => c.ID === state.contextID)) {
+    else if (refresh && !readable().some(c => c.ID === state.contextID)) {
       if (contexts.length) await openContext(contexts[0].ID);
       else clearContext();
     }
@@ -169,7 +187,7 @@ function clearContext() {
   $('load-more').hidden = true; $('next-window').hidden = true;
   $('search').value = ''; for (const id of ['agent-filter','type-filter','task-filter']) $(id).value = '';
   displayStart = null; windowStart = 0; refreshFilters();
-  renderTasks(); renderMessages(); renderDetails();
+  renderTasks(); renderMessages(); renderDetails(); renderBoard();
 }
 async function openContext(id, after = 0) {
   sequenceOptions = {}; sequenceFilterKey = '';
@@ -178,13 +196,14 @@ async function openContext(id, after = 0) {
   participants = []; tasks = []; selected = ''; thread = ''; route = null; connectionPage = 0; busy = false; paused = false;
   $('pause').textContent = 'Pause'; $('timeline-error').textContent = '';
   $('search').value = ''; for (const id of ['agent-filter','type-filter','task-filter']) $(id).value = '';
-  $('context-title').textContent = contexts.find(c => c.ID === id)?.Name || 'Loading context…';
+  $('context-title').textContent = readable().find(c => c.ID === id)?.Name || 'Loading context…';
   $('context-meta').textContent = id; $('sync-status').textContent = 'Loading';
-  renderContexts(); refreshFilters(); renderTasks(); renderMessages(); renderDetails();
+  renderContexts(); refreshFilters(); renderTasks(); renderMessages(); renderDetails(); renderBoard();
   try {
-    const result = await request('contexts/get', {context_id:id});
+    const [result] = await Promise.all([request('contexts/get', {context_id:id}), loadChildren(id, generation).catch(childrenUnavailable)]);
     if (generation !== state.generation) return;
     $('context-title').textContent = result.context.Name;
+    if (result.context.Archived) $('context-meta').textContent = `${id} · Archived ${date(result.context.ArchivedAt)}`;
     $('workspace-label').textContent = `WORKSPACE ${shortID(result.context.WorkspaceID)}`;
     await sync(generation);
   } catch(error) { fail(error, generation); }
@@ -205,13 +224,14 @@ async function sync(generation = state.generation) {
     state.append(generation, incoming);
     participants = participantResult.participants || []; tasks = taskResult.tasks || [];
     if (!Array.isArray(participants) || !Array.isArray(tasks)) throw new Error('Invalid metadata response.');
+    for (const task of tasks) taskTitles.set(task.ID, task.Title);
     $('timeline-error').textContent = '';
     $('sync-status').textContent = paused ? 'Paused' : `Updated ${new Date().toLocaleTimeString()}`;
     $('load-more').hidden = state.messages.length >= WINDOW_LIMIT;
     $('load-more').textContent = incoming.length === PAGE_SIZE ? 'Load next messages' : 'Refresh messages';
     $('next-window').hidden = state.messages.length < WINDOW_LIMIT;
     if (state.messages.length >= WINDOW_LIMIT) { paused = true; $('pause').textContent = 'Resume'; $('sync-status').textContent = 'Window full'; }
-    refreshFilters(); renderTasks(); renderMessages(); renderDetails();
+    refreshFilters(); renderTasks(); renderMessages(); renderDetails(); renderBoard(); renderContexts();
   } catch(error) { fail(error, generation); }
   finally {
     if (generation === state.generation) {
@@ -286,7 +306,7 @@ function renderMessages() {
   $('history-note').textContent = `Filters cover loaded messages after #${windowStart}. ${filtered.length > visible.length ? `Showing matches ${start + 1}–${start + visible.length} of ${filtered.length}. ` : ''}${state.messages.length >= WINDOW_LIMIT ? '5,000-message window reached. Continue to load the next window. ' : ''}Browsing never acknowledges agent messages.`;
   if (!state.contextID) { empty($('messages'),'Choose a work context','Conversations you can read will appear here.'); return; }
   if (!filtered.length) { empty($('messages'), state.messages.length ? 'No matching messages' : 'No messages loaded', state.messages.length ? 'Try another filter or load more of the conversation.' : 'New agent messages will appear here as they arrive.'); return; }
-  const byID = new Map(state.messages.map(m => [m.ID,m]));
+  const byID = new Map(state.messages.map(m => [m.ID,m])), known = readable();
   $('messages').replaceChildren(...visible.map(message => {
     const envelope = message.envelope || {}, type = messageType(message);
     const card = node('article', undefined, `message-card${selected === message.ID ? ' selected' : ''}`); card.id = `message-${message.ID}`;
@@ -298,7 +318,7 @@ function renderMessages() {
     top.append(node('span', participantName(message.SessionID).slice(0,2).toUpperCase(), 'avatar'));
     const sender = node('span', participantName(message.SessionID) + instanceLabel(message), 'sender'); sender.append(node('span', ` · ${shortID(message.SessionID)}`, 'session-short'));
     top.append(sender, node('span', typeLabel(type), `badge ${type.replace(/^comitia\./,'').replace(/\.v\d+$/,'')}`), node('span', date(message.CreatedAt), 'message-time'));
-    const status = taskStatus(message, tasks, contexts);
+    const status = taskStatus(message, tasks, known);
     if (status) top.append(node('span', stateLabel(status.state), `badge task-state ${status.state}`));
     main.append(top, node('p', message.Body || envelope.payload?.summary || envelope.payload?.instructions || 'Structured message', 'message-body'));
     main.append(node('p', envelope.recipient_session_ids?.length ? `To ${envelope.recipient_session_ids.map(agentLabel).join(', ')}` : 'To everyone in this context', 'message-routing'));
@@ -344,11 +364,11 @@ function renderDetails() {
     if (task) renderTaskDetail(target,task);
     else target.append(button(`Load task ${shortID(envelope.task_id)}`, async () => {
       const generation = state.generation, id = selected;
-      try {const result = await request('tasks/get',{task_id:envelope.task_id});if(generation !== state.generation || selected !== id) return;if(result.task.ContextID !== state.contextID) throw new Error('Task does not belong to this context.');tasks.push(result.task);refreshFilters();renderDetails();}
+      try {const result = await request('tasks/get',{task_id:envelope.task_id});if(generation !== state.generation || selected !== id) return;if(result.task.ContextID !== state.contextID) throw new Error('Task does not belong to this context.');tasks.push(result.task);taskTitles.set(result.task.ID,result.task.Title);refreshFilters();renderDetails();}
       catch(error){fail(error,generation);}
     }));
   }
-  const status = taskStatus(message, tasks, contexts);
+  const status = taskStatus(message, tasks, readable());
   if (status) renderTaskStatus(target, status);
   const replies = state.messages.filter(m => m.envelope?.reply_to === message.ID);
   target.append(node('h3',`Replies · ${replies.length} loaded`));
