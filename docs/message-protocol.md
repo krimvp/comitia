@@ -166,13 +166,13 @@ service/HTTP errors preserve the existing authentication, authorization and
 invalid-input sentinels. Deduplicated retries do not notify because they append
 no new row.
 
-A filtered fallback poll rescans messages after `after` every 200 ms until a
-match arrives. If no row matches, the cursor stays unchanged and JSON predicates
-are evaluated over the same tail on every poll. CPU cost grows with that tail
-and the number of idle waiters. Use recent acknowledgement cursors and avoid
-many concurrent waits over old log tails. Polling remains enabled for all stores
-to support other processes writing the SQLite file; scanned cursors/indexing or
-store-specific notification capabilities are follow-up optimizations.
+SQLite waits track a private scanned-through sequence. After an empty scan,
+later notifications and 200 ms polls evaluate filters only on newly appended
+rows. The initial scan still costs more for a long tail; resume from recent
+acknowledgement cursors where possible. The private cursor lasts only for that
+wait call and does not change replay results or acknowledgement cursors.
+Polling remains enabled to detect other processes writing the SQLite file.
+Custom stores without scan tracking retain replay from the original `after`.
 
 **Stdio MCP limitation:** requests on one stdio connection are handled serially.
 A pending `wait_messages` blocks other calls on that connection, including ping

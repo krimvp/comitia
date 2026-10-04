@@ -3,12 +3,14 @@ package comitia
 import (
 	"bytes"
 	"context"
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"math"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 )
@@ -134,6 +136,183 @@ func (s observingMessageStore) View(ctx context.Context, fn func(ReadStore) erro
 type waitResult struct {
 	messages []Message
 	err      error
+}
+
+type cancellingMessageStore struct {
+	Store
+	cancel context.CancelFunc
+	err    error
+}
+
+func (s cancellingMessageStore) View(ctx context.Context, fn func(ReadStore) error) error {
+	if err := s.Store.View(ctx, fn); err != nil {
+		return err
+	}
+	s.cancel()
+	return s.err
+}
+
+func TestWaitMessagesCancellationDuringRead(t *testing.T) {
+	f := setup(t, ":memory:")
+	defer f.store.Close()
+	for _, readErr := range []error{errors.New("sql: transaction has already been committed or rolled back"), nil} {
+		t.Run(fmt.Sprint(readErr), func(t *testing.T) {
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+			reader, err := New(Config{Store: cancellingMessageStore{f.store, cancel, readErr}, Clock: f.svc.now})
+			if err != nil {
+				t.Fatal(err)
+			}
+			messages, err := reader.WaitMessages(ctx, f.admin.Token, f.context.ID, 0, 0)
+			if !errors.Is(err, context.Canceled) || messages != nil {
+				t.Fatalf("cancelled read: messages=%v error=%v", messages, err)
+			}
+		})
+	}
+}
+
+type scanProbeStore struct {
+	Store
+	after chan int64
+}
+
+type scanProbeQuerier struct {
+	querier
+	after int64
+}
+
+func (q *scanProbeQuerier) Query(query string, args ...any) (*sql.Rows, error) {
+	if strings.HasPrefix(query, messageSelect) {
+		q.after = args[1].(int64)
+	}
+	return q.querier.Query(query, args...)
+}
+
+func (s scanProbeStore) View(ctx context.Context, fn func(ReadStore) error) error {
+	var after int64
+	err := s.Store.View(ctx, func(r ReadStore) error {
+		q := &scanProbeQuerier{querier: r.(*sqlStore).q}
+		err := fn(&sqlStore{q: q})
+		after = q.after
+		return err
+	})
+	s.after <- after
+	return err
+}
+
+func TestWaitMessagesScansOnlyNewRows(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "wait.db")
+	f := setup(t, path)
+	defer f.store.Close()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	appendOther := func(svc *Service, key string) {
+		t.Helper()
+		_, err := svc.AppendMessage(ctx, f.admin.Token, f.context.ID, MessageInput{DedupeKey: key, Body: "skip", Envelope: &MessageEnvelope{Schema: "comitia.discussion.v1", RecipientInstances: []string{"other"}, Payload: json.RawMessage(`{}`)}})
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+	const oldRows = 32
+	for i := 0; i < oldRows; i++ {
+		appendOther(f.svc, fmt.Sprint(i))
+	}
+	after := make(chan int64, 100)
+	reader, err := New(Config{Store: scanProbeStore{f.store, after}, Clock: f.svc.now})
+	if err != nil {
+		t.Fatal(err)
+	}
+	st, err := OpenSQLite(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer st.Close()
+	writer, err := New(Config{Store: st, Clock: f.svc.now})
+	if err != nil {
+		t.Fatal(err)
+	}
+	result := startMessageWait(reader, ctx, f.admin.Token, f.context.ID, MessageFilters{ForInstance: "reader"})
+	readAfter := func(want int64) {
+		t.Helper()
+		select {
+		case got := <-after:
+			if got != want {
+				t.Fatalf("query after=%d, want %d", got, want)
+			}
+		case <-time.After(time.Second):
+			t.Fatal("scan stalled")
+		}
+	}
+	readAfter(0)
+	readAfter(oldRows)
+	readAfter(oldRows)
+	// This separate SQLite connection has no in-process notification.
+	appendOther(writer, "new-other")
+	readAfter(oldRows)
+	readAfter(oldRows + 1)
+	readAfter(oldRows + 1)
+	m, err := writer.AppendMessage(ctx, f.admin.Token, f.context.ID, MessageInput{DedupeKey: "match", Body: "ready"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := receiveWait(t, result)
+	if got.err != nil || len(got.messages) != 1 || got.messages[0].ID != m.ID {
+		t.Fatalf("external append after skipped rows: %+v", got)
+	}
+	cursor, err := reader.MessageCursor(ctx, f.admin.Token, f.context.ID)
+	if err != nil || cursor != 0 {
+		t.Fatalf("wait changed ack cursor: %d %v", cursor, err)
+	}
+}
+
+func TestWaitMessagesScanCursorAhead(t *testing.T) {
+	f := setup(t, ":memory:")
+	defer f.store.Close()
+	ctx := context.Background()
+	if _, err := f.svc.AppendMessage(ctx, f.admin.Token, f.context.ID, MessageInput{DedupeKey: "old", Body: "old"}); err != nil {
+		t.Fatal(err)
+	}
+	after := make(chan int64, 100)
+	reader, err := New(Config{Store: scanProbeStore{f.store, after}, Clock: f.svc.now})
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, err := reader.WaitMessages(ctx, f.admin.Token, f.context.ID, 100, 450*time.Millisecond)
+	if err != nil || len(got) != 0 {
+		t.Fatalf("cursor ahead: %v %v", got, err)
+	}
+	if len(after) < 3 {
+		t.Fatalf("only %d scans, want at least 3", len(after))
+	}
+	for len(after) != 0 {
+		if cursor := <-after; cursor != 100 {
+			t.Fatalf("cursor moved backwards: %d", cursor)
+		}
+	}
+}
+
+func TestWaitMessagesMatchesReplayPages(t *testing.T) {
+	f := setup(t, ":memory:")
+	defer f.store.Close()
+	ctx := context.Background()
+	for i := 0; i < 125; i++ {
+		if _, err := f.svc.AppendMessage(ctx, f.admin.Token, f.context.ID, MessageInput{DedupeKey: fmt.Sprint(i), Body: "match", AgentInstance: &AgentInstance{ID: "sender"}}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	filter := MessageFilters{FromInstance: "sender"}
+	var after int64
+	for _, count := range []int{100, 25} {
+		want, err := f.svc.ReplayMessages(ctx, f.admin.Token, f.context.ID, after, 100, filter)
+		if err != nil {
+			t.Fatal(err)
+		}
+		got, err := f.svc.WaitMessages(ctx, f.admin.Token, f.context.ID, after, 0, filter)
+		if err != nil || len(got) != count || !reflect.DeepEqual(got, want) {
+			t.Fatalf("wait/replay mismatch: count=%d want=%d err=%v", len(got), count, err)
+		}
+		after = got[len(got)-1].Sequence
+	}
 }
 
 func startMessageWait(svc *Service, ctx context.Context, token, cid string, filter MessageFilters) <-chan waitResult {

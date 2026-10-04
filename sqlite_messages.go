@@ -125,6 +125,19 @@ func (x *sqlStore) Messages(cid, callerSessionID string, after int64, limit int,
 	}
 	return out, rows.Err()
 }
+
+// The empty scan and high-water mark share the caller's read transaction, so
+// an append committed by another process cannot be skipped between them.
+func (x *sqlStore) messagesScanned(cid, sid string, after int64, limit int, f MessageFilters) ([]Message, int64, error) {
+	messages, err := x.Messages(cid, sid, after, limit, f)
+	if err != nil || len(messages) != 0 {
+		return messages, after, err
+	}
+	var scanned int64
+	err = x.q.QueryRow("SELECT COALESCE(MAX(seq),0) FROM messages WHERE context_id=?", cid).Scan(&scanned)
+	return messages, max(after, scanned), err
+}
+
 func (x *sqlStore) Ack(sid, cid string, seq int64, at time.Time, instance string) error {
 	var max int64
 	if e := x.q.QueryRow("SELECT COALESCE(MAX(seq),0) FROM messages WHERE context_id=?", cid).Scan(&max); e != nil {
