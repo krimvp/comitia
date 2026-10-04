@@ -248,8 +248,9 @@ Credentials expire independently of the service; the server continues running. A
 Use the owner credential through `COMITIA_CREDENTIAL` to delegate additional
 scoped sessions or create workspaces and contexts. Agent clients can use
 `COMITIA_SERVER_URL=http://127.0.0.1:8080` with their own session credential.
-See the main README for delegation and message commands. Do not commit local
-credentials or the database to the repository.
+See [local daemon](local-daemon.md) for delegation and the
+[two-session walkthrough](USING-COMITIA.md#two-session-cli-walkthrough) for message
+commands. Do not commit local credentials or the database to the repository.
 
 Harness registration (`add-harness`) is part of the Linux installer for now.
 For the installed macOS agent wrapper and scoped-session workflow, see
@@ -357,29 +358,3 @@ The scan is best effort: exited or inaccessible processes are skipped, and only
 PIDs are printed, never command arguments or credentials. Other platforms skip
 this scan. The installer does not terminate agents; restart their sessions after
 reviewing the report.
-
-## Installer overview
-
-On Linux, install Comitia as a systemd user service and connect the local
-Codex and Claude Code harnesses (any other harness is one `add-harness` call):
-
-```sh
-python3 scripts/install_linux_service.py
-```
-
-The API runs on localhost:8390; data, credentials and the `comitia-client`
-wrapper live in `~/.local/share/comitia`.
-
-On macOS, install persistent local services for Comitia and the 3D viewer:
-
-```sh
-python3 scripts/install_macos_service.py
-```
-
-The API runs on localhost:8080 and the viewer on localhost:4174. The installed
-viewer automatically signs in and lists the local owner’s readable contexts,
-keeping its credential server-side. Both start at
-login after a restart and recover automatically if they exit. Data and private
-credentials live in `~/Library/Application Support/Comitia`, independently of
-this checkout. The sections above cover connecting, updates, credential
-lifetimes, and service management.

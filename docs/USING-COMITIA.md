@@ -354,12 +354,73 @@ wire fields, Go API, broadcast semantics, and acknowledgement/restart details.
 - **Do not build a ChatGPT-specific adapter.** Point every client at the same
   `/mcp` endpoint.
 
+## Isolated demo
+
+From the repository root, with Go 1.24 or newer and `jq` installed, create an
+isolated demo:
+
+```sh
+demo=$(mktemp -d)
+go build -o "$demo/comitia" ./cmd/comitia
+export COMITIA_DB="$demo/comitia.db"
+export COMITIA_BOOTSTRAP_CREDENTIAL="demo-one-time-bootstrap"
+unset COMITIA_SERVER_URL COMITIA_CREDENTIAL COMITIA_AGENT_INSTANCE COMITIA_AGENT_INSTANCE_LABEL
+
+owner_json=$("$demo/comitia" bootstrap --name owner --ttl 24h)
+export COMITIA_CREDENTIAL=$(printf '%s' "$owner_json" | jq -r '.credential.Token')
+workspace_id=$("$demo/comitia" workspace-create --name demo | jq -r '.ID')
+context_id=$("$demo/comitia" context-create --workspace-id "$workspace_id" --name handoff | jq -r '.ID')
+agent_json=$("$demo/comitia" delegate --name demo-agent --ttl 2h \
+  --context-id "$context_id" --permissions read,write,claim --grant-ttl 1h)
+
+"$demo/comitia" serve --listen 127.0.0.1:18080 >"$demo/server.log" 2>&1 &
+server_pid=$!
+export COMITIA_SERVER_URL=http://127.0.0.1:18080
+export COMITIA_CREDENTIAL=$(printf '%s' "$agent_json" | jq -r '.credential.Token')
+until "$demo/comitia" server-info >/dev/null 2>&1; do
+  kill -0 "$server_pid" 2>/dev/null || { cat "$demo/server.log"; exit 1; }
+  sleep 0.1
+done
+unset COMITIA_BOOTSTRAP_CREDENTIAL
+```
+
+The loop waits for the HTTP API to respond; port 18080 must be free.
+Bootstrap is a one-time operation on a new embedded database.
+Keep credentials in environment variables or a secret manager.
+
+Follow [Connecting](CONNECTING.md) to configure your agent's stdio MCP client
+with this demo binary and scoped credential. Give it `context_id` and ask it to
+use `send_message` and `replay_messages`.
+
+In the original shell, send a message and watch the context:
+
+```sh
+"$demo/comitia" send --context-id "$context_id" --dedupe-key hello-1 \
+  --agent-instance demo-writer --body 'ready for review'
+"$demo/comitia" watch --context-id "$context_id" --agent-instance demo-reader
+```
+
+Watch prints sequence, sender instance, schema, and the first body line. It polls
+and acknowledges printed messages using this reader instance's cursor. Use a
+stable dedupe key for retries; stop watching with Ctrl-C. The
+[inspector](http://127.0.0.1:18080/ui/) also lets you browse with the scoped credential.
+Stop the demo server when finished:
+
+```sh
+kill "$server_pid"
+wait "$server_pid" 2>/dev/null || true
+rm -rf "$demo"
+unset COMITIA_DB COMITIA_SERVER_URL COMITIA_CREDENTIAL COMITIA_BOOTSTRAP_CREDENTIAL
+unset COMITIA_AGENT_INSTANCE COMITIA_AGENT_INSTANCE_LABEL
+unset demo server_pid owner_json workspace_id context_id agent_json
+```
+
 ## Two-session CLI walkthrough
 
 This walkthrough needs Go 1.24 or newer and `jq`. It bootstraps a local owner, creates one context, delegates two scoped sessions, and passes a durable message between them.
 
 ```sh
-GOTOOLCHAIN=go1.24.13 GOFLAGS=-buildvcs=false go build -o bin/comitia ./cmd/comitia
+go build -o bin/comitia ./cmd/comitia
 
 export COMITIA_DB="$PWD/comitia.db"
 export COMITIA_BOOTSTRAP_CREDENTIAL="replace-with-a-one-time-secret"
