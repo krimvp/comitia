@@ -89,9 +89,10 @@ func TestHTTPTaskRecoveryAfterLostResponses(t *testing.T) {
 		t.Fatalf("recover renew: %+v %v", renewed, err)
 	}
 	again, err := client.RenewClaimWithOperation(ctx, owner.Token, task.ID, claim.Token, claim.Task.LeaseVersion, time.Minute, "renew")
-	if err != nil || !reflect.DeepEqual(again, renewed) {
-		t.Fatalf("renew replay: %+v %v", again, err)
+	if err != nil || !reflect.DeepEqual(again.Task, renewed.Task) || again.Token == "" || again.Token == renewed.Token {
+		t.Fatalf("renew replay must rotate only token: %v", err)
 	}
+	renewed = again
 	tasks, err := client.ListTasks(ctx, owner.Token, c.ID, "", 10)
 	if err != nil || len(tasks) != 1 {
 		t.Fatalf("duplicate create: %+v %v", tasks, err)

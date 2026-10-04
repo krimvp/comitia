@@ -26,14 +26,18 @@ func TestCLITaskRecoveryAndFence(t *testing.T) {
 			tid := task["ID"].(string)
 			args = []string{"task-claim", "--task-id", tid, "--operation-id", "claim"}
 			claim := run(args...)
-			if again := run(args...); !reflect.DeepEqual(claim, again) {
-				t.Fatalf("claim retry: %v", again)
+			again := run(args...)
+			if !reflect.DeepEqual(claim["Task"], again["Task"]) || again["Token"] == "" || again["Token"] == claim["Token"] {
+				t.Fatal("claim retry must rotate only token")
 			}
+			claim = again
 			args = []string{"task-renew", "--task-id", tid, "--claim-token", claim["Token"].(string), "--lease-version", fmt.Sprint(claim["Task"].(map[string]any)["LeaseVersion"]), "--operation-id", "renew"}
 			renewed := run(args...)
-			if again := run(args...); !reflect.DeepEqual(renewed, again) {
-				t.Fatalf("renew retry: %v", again)
+			again = run(args...)
+			if !reflect.DeepEqual(renewed["Task"], again["Task"]) || again["Token"] == "" || again["Token"] == renewed["Token"] {
+				t.Fatal("renew retry must rotate only token")
 			}
+			renewed = again
 			token := renewed["Token"].(string)
 			version := fmt.Sprint(renewed["Task"].(map[string]any)["LeaseVersion"])
 			path := filepath.Join(t.TempDir(), "envelope.json")

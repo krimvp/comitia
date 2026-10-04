@@ -5,6 +5,7 @@ import (
 	"crypto/subtle"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"math"
 	"time"
 )
@@ -36,10 +37,10 @@ type TaskInput struct {
 	OperationID string `json:"operation_id,omitempty"`
 }
 
-// TaskReceipt is private persistence; it includes the caller's original secret result.
+// TaskReceipt records a non-secret mutation outcome. Tokens are never persisted.
 type TaskReceipt struct {
 	Fingerprint string
-	Result      TaskClaim
+	Result      Task
 }
 
 // OpenLease asks for a lease that lasts until the task is completed or released.
@@ -97,7 +98,7 @@ func (s *Service) CreateTask(ctx context.Context, raw, cid string, in TaskInput)
 			return e
 		}
 		if found {
-			t = receipt.Task
+			t = receipt
 			return nil
 		}
 		now := s.now().UTC()
@@ -105,7 +106,7 @@ func (s *Service) CreateTask(ctx context.Context, raw, cid string, in TaskInput)
 		if e := w.PutTask(t); e != nil {
 			return e
 		}
-		return putTaskReceipt(w, a.session.ID, in.OperationID, fingerprint, TaskClaim{Task: t})
+		return putTaskReceipt(w, a.session.ID, in.OperationID, fingerprint, t)
 	})
 	if e != nil {
 		return Task{}, e
@@ -156,7 +157,8 @@ func (s *Service) ClaimTask(ctx context.Context, raw, taskID string, lease time.
 	return s.ClaimTaskWithOperation(ctx, raw, taskID, lease, "", instance...)
 }
 
-// ClaimTaskWithOperation replays an identical operation without acquiring another lease.
+// ClaimTaskWithOperation retries an identical operation without acquiring another lease.
+// A retry rotates the token while the recorded lease is still current.
 func (s *Service) ClaimTaskWithOperation(ctx context.Context, raw, taskID string, lease time.Duration, operationID string, instance ...AgentInstance) (TaskClaim, error) {
 	var c TaskClaim
 	if e := validOperationID(operationID); e != nil {
@@ -187,8 +189,8 @@ func (s *Service) ClaimTaskWithOperation(ctx context.Context, raw, taskID string
 			return e
 		}
 		if found {
-			c = receipt
-			return nil
+			c, e = s.recoverTaskClaim(w, t, receipt, a.session.ID)
+			return e
 		}
 		now := s.now().UTC()
 		if t.Status == TaskCompleted {
@@ -217,7 +219,7 @@ func (s *Service) ClaimTaskWithOperation(ctx context.Context, raw, taskID string
 		if e := w.PutTask(t); e != nil {
 			return e
 		}
-		return putTaskReceipt(w, a.session.ID, operationID, fingerprint, c)
+		return putTaskReceipt(w, a.session.ID, operationID, fingerprint, c.Task)
 	})
 	if e != nil {
 		return TaskClaim{}, e
@@ -257,8 +259,8 @@ func (s *Service) changeLease(ctx context.Context, raw, taskID, claimToken strin
 			return e
 		}
 		if found {
-			c = receipt
-			return nil
+			c, e = s.recoverTaskClaim(w, t, receipt, a.session.ID)
+			return e
 		}
 		now := s.now().UTC()
 		if t.Status != TaskLeased || t.LeaseOwnerSessionID != a.session.ID || t.LeaseVersion != version || t.LeaseExpiresAt == nil || !t.LeaseExpiresAt.After(now) || subtle.ConstantTimeCompare([]byte(t.LeaseTokenHash), []byte(tokenHash(claimToken))) != 1 {
@@ -281,7 +283,7 @@ func (s *Service) changeLease(ctx context.Context, raw, taskID, claimToken strin
 		if e := w.PutTask(t); e != nil {
 			return e
 		}
-		return putTaskReceipt(w, a.session.ID, operationID, fingerprint, c)
+		return putTaskReceipt(w, a.session.ID, operationID, fingerprint, c.Task)
 	})
 	if e != nil {
 		return TaskClaim{}, e
@@ -376,6 +378,21 @@ func (s *Service) privateTask(r ReadStore, raw, taskID string) (Task, error) {
 	return t, err
 }
 
+// Recovery changes only the token hash; it cannot extend or resurrect a lease.
+func (s *Service) recoverTaskClaim(w TaskWriteStore, current, result Task, sid string) (TaskClaim, error) {
+	now := s.now().UTC()
+	if current.ID != result.ID || current.ContextID != result.ContextID || result.Status != TaskLeased || result.LeaseOwnerSessionID != sid || current.Status != TaskLeased || current.LeaseOwnerSessionID != sid || current.LeaseVersion != result.LeaseVersion || current.LeaseExpiresAt == nil || !current.LeaseExpiresAt.After(now) {
+		return TaskClaim{}, fmt.Errorf("%w: recorded lease is no longer current", ErrConflict)
+	}
+	c := TaskClaim{Task: result, Token: token()}
+	c.Task.LeaseTokenHash = ""
+	current.LeaseTokenHash = tokenHash(c.Token)
+	if e := w.PutTask(current); e != nil {
+		return TaskClaim{}, e
+	}
+	return c, nil
+}
+
 func validOperationID(operationID string) error {
 	if len(operationID) > 256 {
 		return Invalidf("operation_id must be at most 256 bytes")
@@ -388,28 +405,28 @@ func taskFingerprint(parts ...any) string {
 	return tokenHash(string(raw))
 }
 
-func taskReceipt(r TaskReadStore, sid, operationID, fingerprint string) (TaskClaim, bool, error) {
+func taskReceipt(r TaskReadStore, sid, operationID, fingerprint string) (Task, bool, error) {
 	if operationID == "" {
-		return TaskClaim{}, false, nil
+		return Task{}, false, nil
 	}
 	store, ok := r.(TaskReceiptReadStore)
 	if !ok {
-		return TaskClaim{}, false, Invalidf("task mutation receipts unsupported by store")
+		return Task{}, false, Invalidf("task mutation receipts unsupported by store")
 	}
 	receipt, e := store.TaskReceipt(sid, operationID)
 	if errors.Is(e, ErrNotFound) {
-		return TaskClaim{}, false, nil
+		return Task{}, false, nil
 	}
 	if e != nil {
-		return TaskClaim{}, false, e
+		return Task{}, false, e
 	}
 	if receipt.Fingerprint != fingerprint {
-		return TaskClaim{}, false, ErrConflict
+		return Task{}, false, ErrConflict
 	}
 	return receipt.Result, true, nil
 }
 
-func putTaskReceipt(w TaskWriteStore, sid, operationID, fingerprint string, result TaskClaim) error {
+func putTaskReceipt(w TaskWriteStore, sid, operationID, fingerprint string, result Task) error {
 	if operationID == "" {
 		return nil
 	}

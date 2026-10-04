@@ -67,13 +67,17 @@ func TestTaskMutationRecovery(t *testing.T) {
 		t.Fatal(err)
 	}
 	got, err := svc.ClaimTaskWithOperation(ctx, f.admin.Token, task.ID, time.Minute, "claim-1", owner)
-	if err != nil || !reflect.DeepEqual(got, claim) {
-		t.Fatalf("claim retry after restart/rotation: %+v %v", got, err)
+	if !errors.Is(err, ErrConflict) || got.Token != "" {
+		t.Fatalf("old claim receipt after renewal: %v", err)
 	}
 	got, err = svc.RenewClaimWithOperation(ctx, f.admin.Token, task.ID, claim.Token, claim.Task.LeaseVersion, time.Minute, "renew-1")
-	if err != nil || !reflect.DeepEqual(got, renewed) {
-		t.Fatalf("renew retry after restart: %+v %v", got, err)
+	if err != nil || !reflect.DeepEqual(got.Task, renewed.Task) || got.Token == "" || got.Token == renewed.Token {
+		t.Fatalf("renew retry after restart must rotate only token: %v", err)
 	}
+	if _, err = svc.CompleteTask(ctx, f.admin.Token, task.ID, renewed.Token, renewed.Task.LeaseVersion); !errors.Is(err, ErrStaleClaim) {
+		t.Fatalf("lost renewed token remained valid: %v", err)
+	}
+	renewed = got
 	peer := claimWorker(t, fixture{svc: svc, admin: f.admin, now: f.now}, f.context.ID)
 	if _, err = svc.ClaimTaskWithOperation(ctx, peer.Token, task.ID, time.Minute, "claim-1", owner); !errors.Is(err, ErrConflict) {
 		t.Fatalf("peer recovered secret: %v", err)
@@ -86,8 +90,8 @@ func TestTaskMutationRecovery(t *testing.T) {
 		t.Fatal(err)
 	}
 	got, err = svc.RenewClaimWithOperation(ctx, f.admin.Token, task.ID, claim.Token, claim.Task.LeaseVersion, time.Minute, "renew-1")
-	if err != nil || !reflect.DeepEqual(got, renewed) {
-		t.Fatalf("historical receipt: %+v %v", got, err)
+	if !errors.Is(err, ErrConflict) || got.Token != "" {
+		t.Fatalf("historical receipt minted a token: %v", err)
 	}
 }
 
@@ -96,46 +100,82 @@ func TestTaskReceiptConcurrentRetries(t *testing.T) {
 	defer f.store.Close()
 	ctx := context.Background()
 	const n = 12
-	results := make(chan TaskClaim, n)
-	errs := make(chan error, n)
-	var wg sync.WaitGroup
-	for i := 0; i < n; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			task, err := f.svc.CreateTask(ctx, f.admin.Token, f.context.ID, TaskInput{Title: "job", OperationID: "create"})
+	concurrent := func(call func() (TaskClaim, error)) []TaskClaim {
+		t.Helper()
+		results := make(chan TaskClaim, n)
+		errs := make(chan error, n)
+		var wg sync.WaitGroup
+		for i := 0; i < n; i++ {
+			wg.Add(1)
+			go func() { defer wg.Done(); c, err := call(); errs <- err; results <- c }()
+		}
+		wg.Wait()
+		close(errs)
+		close(results)
+		for err := range errs {
 			if err != nil {
-				errs <- err
-				return
+				t.Fatal(err)
 			}
-			claim, err := f.svc.ClaimTaskWithOperation(ctx, f.admin.Token, task.ID, time.Minute, "claim")
-			if err == nil {
-				claim, err = f.svc.RenewClaimWithOperation(ctx, f.admin.Token, task.ID, claim.Token, claim.Task.LeaseVersion, time.Minute, "renew")
+		}
+		out := []TaskClaim{}
+		seen := map[string]bool{}
+		for c := range results {
+			if c.Token == "" || seen[c.Token] {
+				t.Fatal("concurrent retry reused a token")
 			}
-			errs <- err
-			results <- claim
-		}()
+			seen[c.Token] = true
+			out = append(out, c)
+		}
+		for _, c := range out {
+			if !reflect.DeepEqual(c.Task, out[0].Task) {
+				t.Fatal("concurrent retry changed task outcome")
+			}
+		}
+		return out
 	}
-	wg.Wait()
-	close(errs)
-	close(results)
-	for err := range errs {
+	claims := concurrent(func() (TaskClaim, error) {
+		task, err := f.svc.CreateTask(ctx, f.admin.Token, f.context.ID, TaskInput{Title: "job", OperationID: "create"})
 		if err != nil {
-			t.Fatal(err)
+			return TaskClaim{}, err
+		}
+		return f.svc.ClaimTaskWithOperation(ctx, f.admin.Token, task.ID, time.Minute, "claim")
+	})
+	taskID := claims[0].Task.ID
+	// Retry serially before starting another logical operation: concurrent retries fence each other.
+	current, err := f.svc.ClaimTaskWithOperation(ctx, f.admin.Token, taskID, time.Minute, "claim")
+	if err != nil {
+		t.Fatal(err)
+	}
+	renewed, err := f.svc.RenewClaimWithOperation(ctx, f.admin.Token, taskID, current.Token, current.Task.LeaseVersion, time.Minute, "renew")
+	if err != nil {
+		t.Fatal(err)
+	}
+	retries := concurrent(func() (TaskClaim, error) {
+		return f.svc.RenewClaimWithOperation(ctx, f.admin.Token, taskID, current.Token, current.Task.LeaseVersion, time.Minute, "renew")
+	})
+	var stored Task
+	if err = f.store.View(ctx, func(r ReadStore) error { var err error; stored, err = r.Task(taskID); return err }); err != nil {
+		t.Fatal(err)
+	}
+	var latest TaskClaim
+	for _, c := range append(claims, append([]TaskClaim{renewed}, retries...)...) {
+		if tokenHash(c.Token) == stored.LeaseTokenHash {
+			latest = c
+			continue
+		}
+		if _, err = f.svc.CompleteTask(ctx, f.admin.Token, taskID, c.Token, stored.LeaseVersion); !errors.Is(err, ErrStaleClaim) {
+			t.Fatalf("superseded response token valid: %v", err)
 		}
 	}
-	var want TaskClaim
-	for got := range results {
-		if want.Token == "" {
-			want = got
-		}
-		if !reflect.DeepEqual(want, got) {
-			t.Fatalf("different receipt: %+v %+v", want, got)
-		}
+	if latest.Token == "" {
+		t.Fatal("no returned token matches current lease")
 	}
 	tasks, err := f.svc.ListTasks(ctx, f.admin.Token, f.context.ID, "", 10)
 	if err != nil || len(tasks) != 1 || tasks[0].LeaseVersion != 2 {
-		t.Fatalf("duplicate mutation: %+v %v", tasks, err)
+		t.Fatalf("duplicate mutation: %v", err)
+	}
+	if _, err = f.svc.CompleteTask(ctx, f.admin.Token, taskID, latest.Token, latest.Task.LeaseVersion); err != nil {
+		t.Fatalf("last recovered token unusable: %v", err)
 	}
 }
 
@@ -458,8 +498,8 @@ func TestLostClaimAndRenewResponses(t *testing.T) {
 				t.Fatal(err)
 			}
 			retry, err := call()
-			if err != nil || !reflect.DeepEqual(original, retry) {
-				t.Fatalf("lost %s response cannot recover exact token/version: %v", method, err)
+			if err != nil || !reflect.DeepEqual(original.Task, retry.Task) || retry.Token == "" || retry.Token == original.Token {
+				t.Fatalf("lost %s response cannot recover with a fresh token: %v", method, err)
 			}
 		})
 	}

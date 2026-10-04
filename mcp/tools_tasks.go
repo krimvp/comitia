@@ -174,5 +174,5 @@ func lease(n int64, open bool) (time.Duration, error) {
 }
 
 func taskOperationID() map[string]any {
-	return map[string]any{"type": "string", "maxLength": 256, "description": "Optional stable caller/session-scoped operation ID; identical retries recover the original result, changed requests conflict. Persist before sending (at most 256 bytes)."}
+	return map[string]any{"type": "string", "maxLength": 256, "description": "Optional stable caller/session-scoped operation ID (at most 256 bytes). Persist before sending. Exact create retries recover the task; current-lease claim/renew retries return a fresh token with the same version, invalidating earlier tokens. Changed requests or stale leases conflict."}
 }

@@ -652,8 +652,10 @@ Unfenced observer reviews remain supported and carry no owner-attempt proof.
 The fence covers Comitia append, not external side effects. SQLite stores the
 attempt and a private token hash in a side table; custom stores must persist
 `Message.TaskAttempt`, including its non-JSON hash, for conflict-checked retries.
-Task create/claim/renew optionally use session-scoped durable mutation receipts;
-see [the complete lease loop](task-validation.md#complete-lease-loop).
+Task create/claim/renew optionally use session-scoped non-secret mutation receipts.
+An exact current-lease claim/renew retry issues a fresh token at the same version
+and expiry, invalidating earlier tokens; receipts for moved-on leases conflict.
+See [the complete lease loop](task-validation.md#complete-lease-loop).
 
 ## Validation details and capability discovery
 

@@ -35,14 +35,18 @@ func TestMCPTaskRecoveryAndFence(t *testing.T) {
 			}
 			args := map[string]any{"task_id": task.ID, "operation_id": "claim", "agent_instance": map[string]any{"id": "worker"}}
 			claim := call("claim_task", args).(comitia.TaskClaim)
-			if again := call("claim_task", args).(comitia.TaskClaim); !reflect.DeepEqual(claim, again) {
-				t.Fatalf("claim replay: %+v", again)
+			again := call("claim_task", args).(comitia.TaskClaim)
+			if !reflect.DeepEqual(claim.Task, again.Task) || again.Token == "" || again.Token == claim.Token {
+				t.Fatal("claim retry must rotate only token")
 			}
+			claim = again
 			args = map[string]any{"task_id": task.ID, "operation_id": "renew", "claim_token": claim.Token, "lease_version": claim.Task.LeaseVersion}
 			renewed := call("renew_task", args).(comitia.TaskClaim)
-			if again := call("renew_task", args).(comitia.TaskClaim); !reflect.DeepEqual(renewed, again) {
-				t.Fatalf("renew replay: %+v", again)
+			again = call("renew_task", args).(comitia.TaskClaim)
+			if !reflect.DeepEqual(renewed.Task, again.Task) || again.Token == "" || again.Token == renewed.Token {
+				t.Fatal("renew retry must rotate only token")
 			}
+			renewed = again
 			result := map[string]any{"context_id": c.ID, "dedupe_key": "result", "body": "done", "envelope": map[string]any{"schema": "comitia.discussion.v1", "task_id": task.ID, "payload": map[string]any{}}, "task_fence": map[string]any{"task_id": task.ID, "claim_token": renewed.Token, "lease_version": renewed.Task.LeaseVersion}}
 			msg := call("send_message", result).(comitia.Message)
 			if msg.TaskAttempt == nil || msg.TaskAttempt.TaskID != task.ID {
