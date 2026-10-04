@@ -320,7 +320,7 @@ func assertArchivedWritesAndReads(t *testing.T, f fixture, raw string, c WorkCon
 			}
 		})
 	}
-	if ms, err := f.svc.ReplayMessages(ctx, raw, c.ID, 0, 10); err != nil || len(ms) != 2 || ms[0].ID != m.ID || ms[1].ID != statusMessage.ID {
+	if ms, err := f.svc.ReplayMessages(ctx, raw, c.ID, 0, 10); err != nil || len(ms) != 5 || ms[0].ID != m.ID || ms[4].ID != statusMessage.ID {
 		t.Fatalf("replay: %+v %v", ms, err)
 	}
 	if task, err := f.svc.GetTask(ctx, raw, leasing.ID); err != nil || task.Status != TaskLeased || task.LeaseVersion != claim.Task.LeaseVersion {

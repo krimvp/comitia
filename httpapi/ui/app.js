@@ -1,3 +1,4 @@
+import {taskMarker, taskEvent} from './task-outcomes.mjs';
 import {on, renderChildren} from './dom.mjs';
 import {normalizeResponse} from './wire.mjs';
 import {relativeSeen} from './presence.mjs';
@@ -384,7 +385,7 @@ function renderTasks() {
   renderChildren($('tasks'), ...tasks.map(task => {
     const item = button('', () => { $('task-filter').value = task.ID; displayStart = null; renderTasks(); renderMessages(); }, `task-item${$('task-filter').value === task.ID ? ' active' : ''}`);
     item.dataset.key = task.ID;
-    item.append(node('span', task.Status === 'completed' ? '✓' : task.Status === 'leased' ? '◷' : '□', `task-marker ${task.Status}`), node('span', task.Title));
+    item.append(node('span', taskMarker(task.Status), `task-marker ${task.Status}`), node('span', task.Title));
     return item;
   }));
 }
@@ -471,7 +472,7 @@ function renderMessages() {
     top.append(sender, node('span', typeLabel(type), `badge ${type.replace(/^comitia\./,'').replace(/\.v\d+$/,'')}`), node('span', date(message.CreatedAt), 'message-time'));
     const status = taskStatus(message, tasks, known);
     if (status) top.append(node('span', stateLabel(status.state), `badge task-state ${status.state}`));
-    main.append(top, node('p', messagePreview(message), 'message-body'));
+    main.append(top, node('p', taskEvent(message) || messagePreview(message), 'message-body'));
     main.append(node('p', `To ${recipientLabel(envelope, agentLabel)}`, 'message-routing'));
     card.append(main);
     const actions = node('div', undefined, 'message-actions');
@@ -486,6 +487,7 @@ function renderMessages() {
 function renderTaskDetail(target, task) {
   target.append(node('h3','Related task'), node('p',task.Title), node('span', task.Status === 'leased' && new Date(task.LeaseExpiresAt) <= new Date() ? 'Lease expired' : task.Status, 'badge'));
   if (task.Body) target.append(node('p',task.Body));
+  if (task.outcome_reason) target.append(node('p',task.outcome_reason));
   if (task.LeaseOwnerSessionID) target.append(node('p',`Owner: ${agentLabel(task.LeaseOwnerSessionID)}`, 'hint'));
   if (task.LeaseExpiresAt) target.append(node('p',`Lease ends: ${date(task.LeaseExpiresAt)}`, 'hint'));
 }
@@ -525,7 +527,7 @@ function renderDetails() {
   if (envelope.reply_to) target.append(state.messages.some(m=>m.ID === envelope.reply_to) ? button('Open parent message',()=>jumpMessage(envelope.reply_to), 'text-button', `parent:${envelope.reply_to}`) : node('p',`Parent ${envelope.reply_to} is outside the loaded window.`, 'hint'));
   replies.forEach(reply=>target.append(button(`#${reply.Sequence} · ${agentLabel(reply.SessionID)}`,()=>jumpMessage(reply.ID), 'text-button', `reply:${reply.ID}`)));
   if (envelope.schema) {
-    target.append(node('h3','Structured payload'),node('pre',JSON.stringify(envelope,null,2)),node('p','Reported claims and evidence references are supplied by agents. They do not certify a result or change task status.', 'hint'));
+    target.append(node('h3','Structured payload'),node('pre',JSON.stringify(envelope,null,2)),node('p',taskEvent(message) ? 'This task transition was committed by the server. The session identifies the authorized actor.' : 'Reported claims and evidence references are supplied by agents. They do not certify a result or change task status.', 'hint'));
     const refs = [envelope.payload?.artifact_refs, envelope.payload?.evidence_refs, status?.links].flatMap(value => Array.isArray(value) ? value : []);
     if (refs.length) target.append(node('h3','References'));
     for (const ref of refs) {

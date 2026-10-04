@@ -200,7 +200,7 @@ func TestMessageFilterBackfillAndLegacyRepair(t *testing.T) {
 				{MessageFilters{TaskID: task.ID}, "session"},
 				{MessageFilters{Schema: "comitia.discussion.v1"}, "session,instance overrides session"},
 			} {
-				messages, err := r.Messages(f.context.ID, f.admin.Session.ID, 0, 100, tc.f)
+				messages, err := r.Messages(f.context.ID, f.admin.Session.ID, 1, 100, tc.f)
 				if err != nil {
 					return err
 				}
@@ -246,7 +246,7 @@ func TestMessageFilterBackfillAndLegacyRepair(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	if _, err := st.db.Exec("INSERT INTO messages VALUES(?,?,?,?,?,?,?)", "legacy", f.context.ID, f.admin.Session.ID, 4, "legacy", "legacy", ts(*f.now)); err != nil {
+	if _, err := st.db.Exec("INSERT INTO messages VALUES(?,?,?,?,?,?,?)", "legacy", f.context.ID, f.admin.Session.ID, 5, "legacy", "legacy", ts(*f.now)); err != nil {
 		t.Fatal(err)
 	}
 	if !st.migrationPending(ctx) {
@@ -267,11 +267,11 @@ func TestMessageFilterBackfillAndLegacyRepair(t *testing.T) {
 		if !ok {
 			t.Fatal("SQLite scanner missing")
 		}
-		messages, watermark, err := scan.MessagesScanned(f.context.ID, f.admin.Session.ID, 3, 100, MessageFilters{ForInstance: "reader"})
+		messages, watermark, err := scan.MessagesScanned(f.context.ID, f.admin.Session.ID, 4, 100, MessageFilters{ForInstance: "reader"})
 		if err != nil {
 			return err
 		}
-		if len(messages) != 1 || messages[0].ID != "legacy" || watermark != 4 {
+		if len(messages) != 1 || messages[0].ID != "legacy" || watermark != 5 {
 			t.Fatalf("legacy repair: %v %d", messages, watermark)
 		}
 		return nil

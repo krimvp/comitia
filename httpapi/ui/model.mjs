@@ -145,7 +145,7 @@ export function interactionGraph(messages, participants = []) {
 }
 
 export const TASK_STATUS = 'comitia.task-status.v1';
-export const TASK_STATES = ['planned', 'in_progress', 'blocked', 'review', 'done'];
+export const TASK_STATES = ['planned', 'in_progress', 'blocked', 'review', 'done', 'failed', 'cancelled'];
 export const stateLabel = state => TASK_STATES.includes(state) ? state.replace('_', ' ') : 'unknown state';
 
 // A task-status view never trusts the payload shape; the child context links only

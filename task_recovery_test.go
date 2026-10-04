@@ -282,7 +282,7 @@ func TestMessageTaskFence(t *testing.T) {
 	if _, err = f.svc.AppendMessage(ctx, f.admin.Token, f.context.ID, input); err != nil {
 		t.Fatalf("unfenced observer review: %v", err)
 	}
-	replay, err := f.svc.ReplayMessages(ctx, f.admin.Token, f.context.ID, 0, 10)
+	replay, err := f.svc.ReplayMessages(ctx, f.admin.Token, f.context.ID, 0, 10, MessageFilters{Schema: "comitia.discussion.v1"})
 	if err != nil || len(replay) != 2 || !reflect.DeepEqual(replay[0], accepted) {
 		t.Fatalf("persisted metadata/rejected appends: %+v %v", replay, err)
 	}
@@ -526,7 +526,7 @@ func TestOldWorkerResultAfterReassignment(t *testing.T) {
 	if _, err = f.svc.AppendMessage(ctx, f.admin.Token, f.context.ID, input); !errors.Is(err, ErrStaleClaim) {
 		t.Fatalf("old worker result after reassignment: %v", err)
 	}
-	messages, err := f.svc.ReplayMessages(ctx, f.admin.Token, f.context.ID, 0, 10)
+	messages, err := f.svc.ReplayMessages(ctx, f.admin.Token, f.context.ID, 0, 10, MessageFilters{Schema: "comitia.discussion.v1"})
 	if err != nil || len(messages) != 0 {
 		t.Fatalf("stale result entered history: %v %v", messages, err)
 	}

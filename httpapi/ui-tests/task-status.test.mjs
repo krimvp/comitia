@@ -37,6 +37,7 @@ test('inspector shows task status and links only a readable child context',async
     epic:[
       {ID:'s1',ContextID:'epic',SessionID:'coord',Sequence:1,Body:'',CreatedAt:at,envelope:{schema:'comitia.task-status.v1',task_id:'t1',payload:{state:'blocked',summary:'Waiting on review',child_context_id:'child',blockers:['Need schema decision'],links:['https://example.test/pr/22']}}},
       {ID:'s2',ContextID:'epic',SessionID:'coord',Sequence:2,Body:'',CreatedAt:at,envelope:{schema:'comitia.task-status.v1',task_id:'t1',payload:{state:'done',summary:'Private child',child_context_id:'private'}}},
+      {ID:'e3',ContextID:'epic',SessionID:'coord',Sequence:3,Body:'',CreatedAt:at,envelope:{schema:'comitia.task-event.v1',task_id:'t1',payload:{kind:'failed',status:'failed',lease_version:1,reason:'Acceptance checks failed'}}},
     ],
     child:[{ID:'c1',ContextID:'child',SessionID:'coord',Sequence:1,Body:'Detail inside the child',CreatedAt:at}],
   };
@@ -48,7 +49,7 @@ test('inspector shows task status and links only a readable child context',async
     if(path.endsWith('/contexts/children'))return ok({contexts:contexts.filter(c=>c.ParentContextID===body.context_id)});
     if(path.endsWith('/participants/list'))return ok({participants:[{SessionID:'coord',Name:'Coordinator'}]});
     if(path.endsWith('/instances/list'))return ok({instances:[]});
-    if(path.endsWith('/tasks/list'))return ok({tasks:body.context_id==='epic'?[{ID:'t1',ContextID:'epic',Title:'Child contexts',Status:'leased'}]:[]});
+    if(path.endsWith('/tasks/list'))return ok({tasks:body.context_id==='epic'?[{ID:'t1',ContextID:'epic',Title:'Child contexts',Status:'failed',outcome_reason:'Acceptance checks failed'}]:[]});
     if(path.endsWith('/messages/replay'))return ok({messages:body.after?[]:messages[body.context_id]});
     throw new Error(`Unexpected endpoint ${path}`);
   };
@@ -61,6 +62,11 @@ test('inspector shows task status and links only a readable child context',async
     const list=text(elements.get('messages'));
     assert.match(list,/task status/);assert.match(list,/blocked/);assert.match(list,/done/);
     assert.match(list,/Waiting on review/);assert.match(list,/Child contexts/);
+    assert.match(list,/Task failed: Acceptance checks failed/);
+    assert.match(text(elements.get('tasks')),/✕/);
+    await elements.get('messages').children[2].children[0].fire('click');
+    assert.match(text(elements.get('details')),/This task transition was committed by the server/);
+    assert.match(text(elements.get('details')),/Acceptance checks failed/);
     assert.ok(find(elements.get('messages'),/Child context issue-6 detail/));
     assert.ok(!find(elements.get('messages'),/private/));
     await elements.get('messages').children[1].children[0].fire('click');

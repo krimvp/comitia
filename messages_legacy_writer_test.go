@@ -122,15 +122,15 @@ func TestRunningReaderSeesOlderCLIWriter(t *testing.T) {
 	waitCtx, stop := context.WithCancel(ctx)
 	defer stop()
 	go func() {
-		messages, err := f.svc.WaitMessages(waitCtx, f.admin.Token, f.context.ID, 0, 3*time.Second, filter)
+		messages, err := f.svc.WaitMessages(waitCtx, f.admin.Token, f.context.ID, 1, 3*time.Second, filter)
 		waiting <- waitResult{messages, err}
 	}()
 	m := appendLegacy("older-broadcast", nil, "")
-	all, err := f.svc.ReplayMessages(ctx, f.admin.Token, f.context.ID, 0, 100)
+	all, err := f.svc.ReplayMessages(ctx, f.admin.Token, f.context.ID, 1, 100)
 	if err != nil || len(all) != 1 {
 		t.Fatalf("unfiltered: %v %v", all, err)
 	}
-	page, err := f.svc.ReplayMessagesPage(ctx, f.admin.Token, f.context.ID, 0, 100, filter)
+	page, err := f.svc.ReplayMessagesPage(ctx, f.admin.Token, f.context.ID, 1, 100, filter)
 	if err != nil || len(page.Messages) != 1 || page.Messages[0].ID != m.ID || page.ScannedThrough != m.Sequence {
 		t.Fatalf("older broadcast lost below watermark: %+v %v", page, err)
 	}

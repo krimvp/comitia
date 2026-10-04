@@ -146,8 +146,8 @@ func taskPageCursor(status TaskStatus, after string, limit int) (taskCursor, err
 	if limit < 1 || limit > 1000 {
 		return taskCursor{}, Invalidf("limit must be between 1 and 1000")
 	}
-	if status != "" && status != TaskPending && status != TaskLeased && status != TaskCompleted {
-		return taskCursor{}, Invalidf("status must be pending, leased or completed")
+	if !validTaskStatusFilter(status) {
+		return taskCursor{}, Invalidf("status must be pending, leased, completed, failed or cancelled")
 	}
 	return decodeTaskCursor(after)
 }

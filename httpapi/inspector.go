@@ -5,7 +5,7 @@ import (
 	"net/http"
 )
 
-//go:embed ui/index.html ui/app.js ui/dom.mjs ui/model.mjs ui/graph.mjs ui/sequence.mjs ui/tree.mjs ui/presence.mjs ui/wire.mjs ui/style.css ui/*.woff2 ui/OFL.txt
+//go:embed ui/index.html ui/app.js ui/dom.mjs ui/model.mjs ui/graph.mjs ui/sequence.mjs ui/tree.mjs ui/presence.mjs ui/wire.mjs ui/task-outcomes.mjs ui/style.css ui/*.woff2 ui/OFL.txt
 var inspectorAssets embed.FS
 
 // The public shell contains no state or credential. Data requests use the same
@@ -42,6 +42,8 @@ func inspectorHandler() http.Handler {
 			path, mime = "ui/presence.mjs", "text/javascript; charset=utf-8"
 		case "/ui/wire.mjs":
 			path, mime = "ui/wire.mjs", "text/javascript; charset=utf-8"
+		case "/ui/task-outcomes.mjs":
+			path, mime = "ui/task-outcomes.mjs", "text/javascript; charset=utf-8"
 		case "/ui/style.css":
 			path, mime = "ui/style.css", "text/css; charset=utf-8"
 		case "/ui/IBMPlexSans-Regular-Latin1.woff2", "/ui/IBMPlexSans-SemiBold-Latin1.woff2", "/ui/IBMPlexMono-Regular-Latin1.woff2", "/ui/IBMPlexMono-SemiBold-Latin1.woff2":

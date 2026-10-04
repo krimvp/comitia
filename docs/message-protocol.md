@@ -548,18 +548,34 @@ in the parent context, and `task_id` names the parent's task:
 }
 ```
 
-`state` is `planned`, `in_progress`, `blocked`, `review`, or `done`. `summary`
+`state` is `planned`, `in_progress`, `blocked`, `review`, `done`, `failed`, or `cancelled`. `summary`
 is nonblank and at most 4096 bytes. `blockers` and `links` are optional lists of
 at most 64 nonblank strings of at most 1024 bytes each; links are opaque and not
 fetched. `child_context_id`, when set, must be a direct child of the context the
 message is sent in, so readers know where the detail lives; a grandchild, a
-sibling or an unknown ID is rejected as invalid. Naming a child requires read
+sibling or an unknown ID is rejected as invalid. A child with a nonempty
+`TaskID` must serve the same task as the envelope; taskless shared-team children
+remain valid. Naming a child requires read
 on the current context as well as write, so a write-only sender cannot probe
 which contexts are children. The sender does not need read access to the child, and readers still need their own grant to open it. Like the
 other schemas, a status is a claim and does not change the task's state.
 
 The inspector shows status messages with their state and task title, and links
 the child context when it is among the viewer's loaded readable contexts.
+
+## Authoritative task events
+
+`comitia.task-event.v1` is reserved for the server. Task mutations append these
+messages atomically with state changes. The envelope names `task_id`; payload
+members are `kind` (`created`, `claimed`, `renewed`, `released`, `completed`,
+`failed`, `cancelled`), `status`, `lease_version`, and optional
+`previous_status`, `lease_owner_session_id`, `lease_owner_instance`, `reason`.
+The message's authenticated `SessionID` identifies the actor whose task
+mutation was authorized. These events are broadcast in the task's context and
+carry no claim tokens or hashes. Readers can replay/wait/filter them normally;
+`send`/`send_message`/`messages/append` cannot author them. Task-status and
+execution telemetry remain advisory. See [task outcomes](task-validation.md#authoritative-events-and-terminal-outcomes)
+for failure/cancellation authority, reasons and recovery.
 
 ## Sending
 

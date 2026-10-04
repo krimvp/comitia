@@ -37,7 +37,7 @@ func TestReplayFiltersAndPaging(t *testing.T) {
 		{Body: "finding", Envelope: &MessageEnvelope{Schema: "comitia.finding.v1", RecipientInstances: []string{"alice"}, Payload: json.RawMessage(`{"severity":"info","summary":"ok"}`)}},
 		{Body: "finding broadcast", Envelope: &MessageEnvelope{Schema: "comitia.finding.v1", Payload: json.RawMessage(`{"severity":"info","summary":"ok"}`)}},
 	}
-	var appended []Message
+	appended := taskEvents(t, f)
 	for i, in := range inputs {
 		in.DedupeKey = fmt.Sprint(i)
 		if i > 0 {
@@ -64,12 +64,12 @@ func TestReplayFiltersAndPaging(t *testing.T) {
 		filter MessageFilters
 		want   []int64
 	}{
-		{"empty", MessageFilters{}, []int64{1, 2, 3, 4, 5, 6, 7, 8, 9}},
-		{"recipient", MessageFilters{ForInstance: "alice"}, []int64{1, 2, 3, 5, 6, 7, 8, 9}},
-		{"sender exact", MessageFilters{FromInstance: "worker"}, []int64{2, 3, 4, 5, 6, 7}},
-		{"task", MessageFilters{TaskID: task.ID}, []int64{7}},
-		{"schema", MessageFilters{Schema: "comitia.discussion.v1"}, []int64{2, 3, 4, 5, 6, 7}},
-		{"all filters", MessageFilters{ForInstance: "alice", FromInstance: "worker", TaskID: task.ID, Schema: "comitia.discussion.v1"}, []int64{7}},
+		{"empty", MessageFilters{}, []int64{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}},
+		{"recipient", MessageFilters{ForInstance: "alice"}, []int64{1, 2, 3, 4, 6, 7, 8, 9, 10}},
+		{"sender exact", MessageFilters{FromInstance: "worker"}, []int64{3, 4, 5, 6, 7, 8}},
+		{"task", MessageFilters{TaskID: task.ID}, []int64{1, 8}},
+		{"schema", MessageFilters{Schema: "comitia.discussion.v1"}, []int64{3, 4, 5, 6, 7, 8}},
+		{"all filters", MessageFilters{ForInstance: "alice", FromInstance: "worker", TaskID: task.ID, Schema: "comitia.discussion.v1"}, []int64{8}},
 		{"unknown task", MessageFilters{TaskID: "missing"}, nil},
 		{"unknown schema", MessageFilters{Schema: "comitia.discussion"}, nil},
 		{"unknown sender", MessageFilters{FromInstance: "work"}, nil},
@@ -88,7 +88,7 @@ func TestReplayFiltersAndPaging(t *testing.T) {
 				}
 				after = page[0].Sequence
 				seqs = append(seqs, after)
-				if len(seqs) > len(inputs) {
+				if len(seqs) > len(appended) {
 					t.Fatal("cursor did not advance")
 				}
 			}
