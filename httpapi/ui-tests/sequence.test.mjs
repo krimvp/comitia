@@ -70,3 +70,15 @@ test('time zoom, unknown timestamps and message seeking do not imply receipt tim
   assert.ok(sought.from<=69000&&sought.to>=69000);
   assert.equal(sequenceLayout([],[],{span:60000}).routes.length,0);
 });
+
+test('self-reported instances get their own lanes next to their session',()=>{
+  const messages=[
+    {...message(1,'s',['t']),agent_instance:{id:'worker'}},
+    {...message(2,'t',[]),envelope:{recipient_instances:['worker']}},
+    message(3,'s',['t'])
+  ];
+  const flow=sequenceLayout(messages,[{SessionID:'s',Name:'codex'},{SessionID:'t',Name:'claude'}]);
+  assert.deepEqual(flow.lanes.map(l=>[l.id,l.name,l.sessionName,l.instance]),[['s','codex','codex',''],['s#worker','worker','codex','worker'],['t','claude','claude','']]);
+  assert.deepEqual(flow.routes.map(r=>[r.message.ID,r.source,r.target]),[['m1','s#worker','t'],['m2','t','s#worker'],['m3','s','t']]);
+  assert.equal(sequenceLayout(messages,[],{seekMessage:'m1',span:1000}).lanePage,0);
+});

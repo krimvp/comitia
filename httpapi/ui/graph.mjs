@@ -1,4 +1,4 @@
-import {BROADCAST,shortID} from './model.mjs';
+import {BROADCAST,shortID,senderActor,recipientActors} from './model.mjs';
 const NS='http://www.w3.org/2000/svg';
 const palette=['#5372de','#9570cc','#168b87','#c77635','#ce6080','#558742'];
 export function agentColor(id) {
@@ -16,6 +16,9 @@ function actionable(el,label,action) {
   el.addEventListener('click',action);
   el.addEventListener('keydown',event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();action();}});
 }
+// Instance nodes lead with the self-reported claim, then the owning session's name.
+const nodeLabel=node=>node.instance?`${node.instance} (self-reported, ${node.name}${node.session?` ${shortID(node.session)}`:''})`:node.id===BROADCAST?node.name:`${node.name} ${shortID(node.id)}`;
+const clip=(text,size)=>text.length>size?text.slice(0,size-1)+'…':text;
 function endpoint(from,to,padding=0) {
   const dx=to.x-from.x,dy=to.y-from.y;
   const scale=Math.min((78+padding)/Math.max(.001,Math.abs(dx)),(35+padding)/Math.max(.001,Math.abs(dy)));
@@ -69,13 +72,13 @@ export function renderInteractionMap(container,graph,{agent='',route=null,select
     let label={x:.25*start.x+.5*control.x+.25*end.x,y:.25*start.y+.5*control.y+.25*end.y};
     if(edge.source===edge.target){start={x:source.x+48,y:source.y-35};end={x:source.x+78,y:source.y-5};d=`M ${start.x} ${start.y} C ${source.x+135} ${source.y-100}, ${source.x+155} ${source.y+10}, ${end.x} ${end.y}`;label={x:source.x+113,y:source.y-48};}
     const selectedRoute=route?.from===edge.source&&route?.to===edge.target;
-    const messageRoute=selectedMessage?.SessionID===edge.source&&(edge.target===BROADCAST?!(selectedMessage.envelope?.recipient_session_ids?.length):selectedMessage.envelope?.recipient_session_ids?.includes(edge.target));
+    const messageRoute=Boolean(selectedMessage)&&senderActor(selectedMessage)===edge.source&&recipientActors(selectedMessage,graph.claims).includes(edge.target);
     const related=!agent||edge.source===agent||edge.target===agent;
     const active=route?selectedRoute:messageRoute||Boolean(agent&&related);
     const faded=Boolean(route&&!selectedRoute)||!related;
     const group=svg('g',{'class':`map-edge${active?' active':''}${faded?' faded':''}`});
     const from=byID.get(edge.source),to=byID.get(edge.target);
-    const labelText=`${from.name} ${shortID(from.id)} to ${to.name} ${edge.target===BROADCAST?'':shortID(to.id)}: ${edge.count} messages`;
+    const labelText=`${nodeLabel(from)} to ${nodeLabel(to)}: ${edge.count} messages`;
     group.append(svg('title',{},labelText),svg('path',{d,'class':'edge-hit'}),svg('path',{d,'class':'edge-line','stroke-width':Math.min(4,1.2+Math.log2(edge.count+1)*.65),'marker-end':`url(#arrow-${active?'active':'normal'})`}),svg('rect',{x:label.x-16,y:label.y-12,width:32,height:24,rx:12,'class':'edge-count-bg'}),svg('text',{x:label.x,y:label.y+4,'text-anchor':'middle','class':'edge-count'},edge.count));
     actionable(group,labelText,()=>onRoute?.(edge.source,edge.target));edgeGroup.append(group);
   }
@@ -84,8 +87,9 @@ export function renderInteractionMap(container,graph,{agent='',route=null,select
     const {x,y}=positions.get(node.id),isBroadcast=node.id===BROADCAST;
     const active=agent===node.id||route?.from===node.id||route?.to===node.id;
     const group=svg('g',{'class':`map-node${active?' active':''}${isBroadcast?' broadcast':''}`,transform:`translate(${x-78} ${y-35})`,id:`map-node-${node.id}`});
-    group.append(svg('title',{},`${node.name} · ${node.id}\n${node.sent} sent · ${node.received} received${node.active?' · active session':''}`),svg('rect',{width:156,height:70,rx:12,'class':'node-bg'}),svg('circle',{cx:25,cy:27,r:13,fill:isBroadcast?'#71819a':agentColor(node.id)}),svg('text',{x:25,y:31,'text-anchor':'middle','class':'node-initials'},isBroadcast?'◎':node.name.slice(0,2).toUpperCase()),svg('text',{x:46,y:26,'class':'node-name'},node.name.length>14?node.name.slice(0,13)+'…':node.name),svg('text',{x:46,y:44,'class':'node-id'},isBroadcast?'Shared context':shortID(node.id)),svg('text',{x:14,y:61,'class':'node-stats'},isBroadcast?`${node.received} broadcasts`:`${node.sent} sent · ${node.received} received`));
-    actionable(group,isBroadcast?`Show ${node.received} broadcast messages`:`Show messages involving ${node.name} ${shortID(node.id)}`,()=>isBroadcast?onRoute?.('',BROADCAST):onAgent?.(node.id));canvas.append(group);
+    const title=node.instance?node.instance:node.name, sub=isBroadcast?'Shared context':node.instance?`${node.name} · self-reported`:shortID(node.id);
+    group.append(svg('title',{},`${node.instance?`${node.instance} (self-reported instance) · ${node.name} · ${node.session||'unknown session'}`:`${node.name} · ${node.id}`}\n${node.sent} sent · ${node.received} received${node.active?' · active session':''}`),svg('rect',{width:156,height:70,rx:12,'class':'node-bg'}),svg('circle',{cx:25,cy:27,r:13,fill:isBroadcast?'#71819a':agentColor(node.id)}),svg('text',{x:25,y:31,'text-anchor':'middle','class':'node-initials'},isBroadcast?'◎':node.name.slice(0,2).toUpperCase()),svg('text',{x:46,y:26,'class':'node-name'},clip(title,14)),svg('text',{x:46,y:44,'class':'node-id'},clip(sub,17)),svg('text',{x:14,y:61,'class':'node-stats'},isBroadcast?`${node.received} broadcasts`:`${node.sent} sent · ${node.received} received`));
+    actionable(group,isBroadcast?`Show ${node.received} broadcast messages`:`Show messages involving ${nodeLabel(node)}`,()=>isBroadcast?onRoute?.('',BROADCAST):onAgent?.(node.id));canvas.append(group);
   }
   if(!nodes.length) canvas.append(svg('text',{x:width/2,y:height/2,'text-anchor':'middle','class':'map-empty'},'Interactions appear as agent messages arrive.'));
   container.replaceChildren(canvas);

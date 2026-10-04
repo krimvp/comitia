@@ -54,3 +54,31 @@ test('interaction graph preserves direction, broadcasts, duplicate names and mul
   assert.deepEqual(filterMessages(messages,{to:BROADCAST}).map(m=>m.ID),['a2']);
   assert.deepEqual(filterMessages(messages,{from:'a',to:'a'}).map(m=>m.ID),['a3']);
 });
+
+test('self-reported instances split session nodes and route instance recipients',async()=>{
+  const {interactionGraph,recipientActors,instanceClaims,BROADCAST}=await import('../ui/model.mjs');
+  const claim=id=>({agent_instance:{id},agent_instance_self_reported:true});
+  const messages=[
+    {...message('w1',1,{recipient_session_ids:['orch'],recipient_instances:['lead']}),SessionID:'codex',...claim('worker')},
+    {...message('o1',2,{recipient_instances:['worker']}),SessionID:'orch',...claim('lead')},
+    {...message('o2',3,{recipient_session_ids:['codex']}),SessionID:'orch'},
+    {...message('o3',4,{recipient_instances:['ghost']}),SessionID:'orch',...claim('lead')},
+    {...message('w2',5),SessionID:'codex',...claim('worker')}
+  ];
+  const graph=interactionGraph(messages,[{SessionID:'codex',Name:'codex'},{SessionID:'orch',Name:'claude'}]);
+  // codex only ever spoke as an instance but still received a session-addressed message.
+  assert.deepEqual(graph.nodes.map(n=>n.id).sort(),['#ghost',BROADCAST,'codex','codex#worker','orch','orch#lead']);
+  const worker=graph.nodes.find(n=>n.id==='codex#worker');
+  assert.deepEqual([worker.session,worker.instance,worker.name,worker.sent,worker.received],['codex','worker','codex',2,1]);
+  assert.equal(graph.edges.find(e=>e.source==='codex#worker'&&e.target==='orch#lead').count,1);
+  assert.equal(graph.edges.find(e=>e.source==='orch#lead'&&e.target==='codex#worker').count,1);
+  assert.equal(graph.edges.find(e=>e.source==='orch'&&e.target==='codex').count,1);
+  assert.equal(graph.nodes.find(n=>n.id==='#ghost').name,'Session');
+  assert.deepEqual(recipientActors(messages[1],instanceClaims(messages)),['codex#worker']);
+  assert.deepEqual(filterMessages(messages,{agent:'codex#worker'}).map(m=>m.ID),['w1','o1','w2']);
+  assert.deepEqual(filterMessages(messages,{agent:'codex'}).map(m=>m.ID),['w1','o2','w2']);
+  assert.deepEqual(filterMessages(messages,{from:'orch#lead',to:'codex#worker'}).map(m=>m.ID),['o1']);
+  assert.deepEqual(filterMessages(messages,{to:BROADCAST}).map(m=>m.ID),['w2']);
+  // Without any instance participants, an idle participant still appears.
+  assert.ok(interactionGraph([],[{SessionID:'idle',Name:'idle'}]).nodes.some(n=>n.id==='idle'));
+});

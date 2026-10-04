@@ -1,4 +1,4 @@
-import {ConversationState, PAGE_SIZE, WINDOW_LIMIT, shortID, messageType, typeLabel, filterMessages, interactionGraph, BROADCAST} from './model.mjs';
+import {ConversationState, PAGE_SIZE, WINDOW_LIMIT, shortID, messageType, typeLabel, filterMessages, interactionGraph, BROADCAST, parseActor, senderActor, recipientActors, instanceClaims} from './model.mjs';
 import {renderInteractionMap} from './graph.mjs';
 import {sequenceLayout, renderSequence, LANE_LIMIT, ARROW_LIMIT, timeLabel} from './sequence.mjs';
 
@@ -33,7 +33,11 @@ function date(value) {
 function participantName(id) {
   return participants.find(p => p.SessionID === id)?.Name || 'Session';
 }
-function agentLabel(id) { return `${participantName(id)} · ${shortID(id)}`; }
+function agentLabel(id) {
+  const {session, instance} = parseActor(id);
+  if (!instance) return `${participantName(id)} · ${shortID(id)}`;
+  return `${instance} (self-reported) · ${session ? `${participantName(session)} · ${shortID(session)}` : 'unknown session'}`;
+}
 function filters() { return {query:$('search').value, agent:$('agent-filter').value, type:$('type-filter').value, task:$('task-filter').value, thread, from:route?.from || '', to:route?.to || ''}; }
 
 async function request(path, body, signal = controller.signal) {
@@ -94,9 +98,11 @@ function options(id, entries, placeholder) {
 function refreshFilters() {
   const ids = new Set(participants.map(p => p.SessionID));
   const taskIDs = new Map(tasks.map(t => [t.ID, t.Title]));
+  const claims = instanceClaims(state.messages);
   for (const message of state.messages) {
-    ids.add(message.SessionID);
+    ids.add(message.SessionID); ids.add(senderActor(message));
     for (const id of message.envelope?.recipient_session_ids || []) ids.add(id);
+    for (const id of recipientActors(message, claims)) if (id !== BROADCAST) ids.add(id);
     if (message.envelope?.task_id && !taskIDs.has(message.envelope.task_id)) taskIDs.set(message.envelope.task_id, `Task · ${shortID(message.envelope.task_id)}`);
   }
   options('agent-filter', [...ids].map(id => [id, agentLabel(id)]), 'All agents');
@@ -213,8 +219,8 @@ function renderMap() {
     onRoute:selectRoute
   });
   const sessionCount=graph.nodes.filter(n=>n.id!==BROADCAST).length;
-  $('map-summary').textContent=`${sessionCount} agent sessions · ${graph.messageCount} messages · ${graph.edges.length} directed connections`;
-  $('map-note').textContent=result.total>result.shown?`Showing ${result.shown} of ${result.total} sessions. Choose an agent to focus its connections.`:'Select an agent or an arrow to follow the exchange. Counts follow the filters below.';
+  $('map-summary').textContent=`${sessionCount} agents · ${graph.messageCount} messages · ${graph.edges.length} directed connections`;
+  $('map-note').textContent=result.total>result.shown?`Showing ${result.shown} of ${result.total} agents. Choose an agent to focus its connections.`:'Select an agent or an arrow to follow the exchange. Counts follow the filters below.';
   $('route-summary').textContent=route?`${route.from?agentLabel(route.from):'Any sender'} → ${route.to===BROADCAST?'Everyone':agentLabel(route.to)}`:current.agent?`Involving ${agentLabel(current.agent)}`:'All interactions';
   $('clear-route').hidden=!route&&!current.agent;
   const edges=[...graph.edges].sort((a,b)=>b.count-a.count||a.source.localeCompare(b.source)||a.target.localeCompare(b.target));

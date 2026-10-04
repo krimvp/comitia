@@ -62,35 +62,84 @@ export function threadIDs(messages, id) {
   return ids;
 }
 
+export const BROADCAST = '@broadcast';
+// Actors split a session by its self-reported instance claim. The claim is
+// display/routing metadata only; the session remains the authenticated sender.
+// Instance IDs cannot contain '#', so the key is unambiguous.
+export const actorKey = (session, instance = '') => instance ? `${session}#${instance}` : session;
+export function parseActor(key) {
+  const i = String(key).indexOf('#');
+  return i < 0 ? {session:key, instance:''} : {session:key.slice(0, i), instance:key.slice(i + 1)};
+}
+export const senderActor = message => actorKey(message.SessionID, message.agent_instance?.id);
+// Instance ID -> sessions that claimed it, used to place instance-only recipients.
+export function instanceClaims(messages) {
+  const claims = new Map();
+  for (const message of messages) {
+    const id = message.agent_instance?.id;
+    if (!id) continue;
+    if (!claims.has(id)) claims.set(id, new Set());
+    claims.get(id).add(message.SessionID);
+  }
+  return claims;
+}
+// Session recipients alone address the whole session. With instance recipients,
+// consumers match both lists, so each named session/instance pair is an actor;
+// instance-only recipients resolve through observed claims, else stay sessionless.
+export function recipientActors(message, claims = new Map()) {
+  const sessions = message.envelope?.recipient_session_ids || [], instances = message.envelope?.recipient_instances || [];
+  if (!instances.length) return [...new Set(sessions.length ? sessions : [BROADCAST])];
+  const keys = [];
+  for (const instance of instances) {
+    const owners = sessions.length ? sessions : [...(claims.get(instance) || [''])];
+    for (const session of owners) keys.push(actorKey(session, instance));
+  }
+  return [...new Set(keys)];
+}
+
 export function filterMessages(messages, {query = '', agent = '', type = '', task = '', thread = '', from = '', to = ''} = {}) {
   const text = query.trim().toLocaleLowerCase();
   const ids = thread ? threadIDs(messages, thread) : null;
+  const claims = instanceClaims(messages);
+  // A plain session filter still covers every instance of that session.
+  const involves = message => parseActor(agent).instance
+    ? senderActor(message) === agent || recipientActors(message, claims).includes(agent)
+    : message.SessionID === agent || (message.envelope?.recipient_session_ids || []).includes(agent);
   return messages.filter(message => {
     const envelope = message.envelope || {};
     return (!ids || ids.has(message.ID)) &&
-      (!agent || message.SessionID === agent || (envelope.recipient_session_ids || []).includes(agent)) &&
+      (!agent || involves(message)) &&
       (!type || messageType(message) === type) &&
       (!task || envelope.task_id === task) &&
-      (!from || message.SessionID === from) &&
-      (!to || (to === '@broadcast' ? !(envelope.recipient_session_ids?.length) : (envelope.recipient_session_ids || []).includes(to))) &&
+      (!from || senderActor(message) === from) &&
+      (!to || recipientActors(message, claims).includes(to)) &&
       (!text || [message.Body, message.ID, message.SessionID, JSON.stringify(message.agent_instance), JSON.stringify(envelope)].join(' ').toLocaleLowerCase().includes(text));
   });
 }
 
-export const BROADCAST = '@broadcast';
 export function interactionGraph(messages, participants = []) {
-  const sessions = new Map(participants.map(p => [p.SessionID, {id:p.SessionID,name:p.Name,sent:0,received:0,active:true}]));
+  const names = new Map(participants.map(p => [p.SessionID, p.Name]));
+  const sessions = new Map(participants.map(p => [p.SessionID, {id:p.SessionID,session:p.SessionID,instance:'',name:p.Name,sent:0,received:0,active:true}]));
   const links = new Map();
-  const ensure = id => {if (!sessions.has(id)) sessions.set(id,{id,name:id===BROADCAST?'Everyone':'Session',sent:0,received:0,active:false});return sessions.get(id);};
+  const claims = instanceClaims(messages);
+  const ensure = id => {
+    if (!sessions.has(id)) {
+      const {session, instance} = parseActor(id);
+      sessions.set(id,{id,session,instance,name:id===BROADCAST?'Everyone':names.get(session)||'Session',sent:0,received:0,active:names.has(session)});
+    }
+    return sessions.get(id);
+  };
   for (const message of messages) {
-    const sender = ensure(message.SessionID); sender.sent++;
-    const recipients = [...new Set(message.envelope?.recipient_session_ids?.length ? message.envelope.recipient_session_ids : [BROADCAST])];
-    for (const target of recipients) {
+    const sender = ensure(senderActor(message)); sender.sent++;
+    for (const target of recipientActors(message, claims)) {
       ensure(target).received++;
       const key = JSON.stringify([sender.id,target]);
       if (!links.has(key)) links.set(key,{source:sender.id,target,count:0,messageIDs:[]});
       const link = links.get(key);link.count++;link.messageIDs.push(message.ID);
     }
   }
-  return {nodes:[...sessions.values()],edges:[...links.values()],messageCount:messages.length};
+  // A participant whose traffic is all under instance claims needs no empty node.
+  const split = new Set([...sessions.values()].filter(n => n.instance).map(n => n.session));
+  const nodes = [...sessions.values()].filter(n => n.instance || n.sent || n.received || !split.has(n.id));
+  return {nodes,edges:[...links.values()],messageCount:messages.length,claims};
 }

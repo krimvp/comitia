@@ -1,4 +1,4 @@
-import {BROADCAST, shortID, threadIDs} from './model.mjs';
+import {BROADCAST, shortID, threadIDs, parseActor, senderActor, recipientActors, instanceClaims} from './model.mjs';
 import {agentColor} from './graph.mjs';
 
 export const LANE_LIMIT = 8;
@@ -6,24 +6,30 @@ export const ARROW_LIMIT = 36;
 const NS = 'http://www.w3.org/2000/svg';
 const clampPage = (page, count, size) => Math.min(Math.max(0, Math.floor(page) || 0), Math.max(0, Math.ceil(count / size) - 1));
 export const timeLabel = time => new Date(time).toLocaleTimeString(undefined, {hour:'2-digit', minute:'2-digit', second:'2-digit'});
-const recipients = message => [...new Set(message.envelope?.recipient_session_ids?.length ? message.envelope.recipient_session_ids : [BROADCAST])];
 
 // Layout uses send timestamps only. A vertical arrow is an addressed message,
 // not elapsed delivery time. Off-page endpoints preserve cross-page routes.
 export function sequenceLayout(messages, participants = [], {lanePage = 0, arrowPage = 0, span = 0, start = null, seekMessage = '', spacing = 'time'} = {}) {
   const names = new Map(participants.map(p => [p.SessionID, p.Name]));
+  const claims = instanceClaims(messages);
+  const recipients = message => recipientActors(message, claims);
   const ids = new Set();
   const timed = [];
   let unknownTimes = 0;
   for (const message of messages) {
-    ids.add(message.SessionID);
+    ids.add(senderActor(message));
     for (const id of recipients(message)) ids.add(id);
     const time = Date.parse(message.CreatedAt);
     if (Number.isFinite(time)) timed.push({message,time}); else unknownTimes++;
   }
-  const lanes = [...ids].sort().map(id => ({id, name:id === BROADCAST ? 'Everyone' : names.get(id) || 'Session'}));
+  // Instance lanes sort beside their session lane; their names are self-reported.
+  const lanes = [...ids].sort().map(id => {
+    const {session, instance} = parseActor(id);
+    const sessionName = id === BROADCAST ? 'Everyone' : session ? names.get(session) || 'Session' : 'Unknown session';
+    return {id, session, instance, sessionName, name:instance || sessionName};
+  });
   const sought=timed.find(item=>item.message.ID===seekMessage);
-  if(sought) {lanePage=Math.floor(lanes.findIndex(lane=>lane.id===sought.message.SessionID)/LANE_LIMIT);start=sought.time-span/2;}
+  if(sought) {lanePage=Math.floor(lanes.findIndex(lane=>lane.id===senderActor(sought.message))/LANE_LIMIT);start=sought.time-span/2;}
   lanePage = clampPage(lanePage, lanes.length, LANE_LIMIT);
   const visible = lanes.slice(lanePage * LANE_LIMIT, (lanePage + 1) * LANE_LIMIT);
   const shown = new Set(visible.map(lane => lane.id));
@@ -38,8 +44,9 @@ export function sequenceLayout(messages, participants = [], {lanePage = 0, arrow
     if (time < from || time > to) continue;
     inRange++;
     for (const target of recipients(message)) {
-      if (!shown.has(message.SessionID) && !shown.has(target)) continue;
-      routes.push({message,source:message.SessionID,target,time,position:(time-from)/duration});
+      const source = senderActor(message);
+      if (!shown.has(source) && !shown.has(target)) continue;
+      routes.push({message,source,target,time,position:(time-from)/duration});
     }
   }
   if(spacing === 'order') routes.sort((a,b)=>a.message.Sequence-b.message.Sequence || a.message.ID.localeCompare(b.message.ID));
@@ -89,8 +96,9 @@ export function renderSequence(container, layout, {selected = '', messages = [],
     canvas.append(svg('line',{x1:left,x2:right,y1:y,y2:y,'class':'sequence-lane'}));
     canvas.append(svg('circle',{cx:15,cy:y-5,r:5,fill:agentColor(lane.id)}));
     const label=svg('text',{x:28,y:y-3,'class':'sequence-name'},lane.name.length>18?lane.name.slice(0,17)+'…':lane.name);
-    label.append(svg('title',{},`${lane.name} · ${lane.id}`));
-    canvas.append(label,svg('text',{x:28,y:y+14,'class':'sequence-id'},lane.id===BROADCAST?'Shared context':shortID(lane.id)));
+    label.append(svg('title',{},lane.instance?`${lane.instance} (self-reported instance) · ${lane.sessionName} · ${lane.session || 'unknown session'}`:`${lane.name} · ${lane.id}`));
+    const sub=lane.id===BROADCAST?'Shared context':lane.instance?`${lane.sessionName} · self-reported`:shortID(lane.id);
+    canvas.append(label,svg('text',{x:28,y:y+14,'class':'sequence-id'},sub.length>22?sub.slice(0,21)+'…':sub));
   }
   if(hasOutside) canvas.append(svg('line',{x1:left,x2:right,y1:outsideY,y2:outsideY,'class':'sequence-external'}),svg('text',{x:15,y:outsideY-3,'class':'sequence-name'},'Off-page agents'),svg('text',{x:15,y:outsideY+14,'class':'sequence-id'},'Names in route list'));
   const related = selected ? threadIDs(messages,selected) : new Set();
