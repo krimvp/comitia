@@ -152,8 +152,10 @@ Selection on desktop keeps focus on the message or route control;
 a polite status announcement identifies the selected message. On screens up to
 960px wide, selection opens details in a modal dialog near the viewport, with
 focus on its title. Use **Return to message** or Escape to restore focus and page
-position to the originating control. Resizing to a desktop layout returns the
-same details to the side panel. Losing access closes the dialog and clears data.
+position to the originating control. If parent/reply navigation removes that
+control from the displayed page, Return or Escape reveals and focuses the
+currently inspected message's details trigger instead. Resizing to a desktop
+layout returns the same details to the side panel. Losing access closes the dialog and clears data.
 
 Credentials are kept in the tab's session storage so refreshing reconnects
 automatically. Disconnecting or losing authorization clears the saved credential;

@@ -35,10 +35,10 @@ function node(tag, text, className) {
   if (className) element.className = className;
   return element;
 }
-function button(text, action, className = 'text-button') {
+function button(text, action, className = 'text-button', key = '') {
   const element = node('button', text, className);
   element.type = 'button'; on(element, 'click', action);
-  if (text) element.dataset.key = text;
+  if (key) element.dataset.key = key;
   return element;
 }
 function empty(target, title, description) {
@@ -331,13 +331,25 @@ function clearFilters() {
   $('search').value = ''; for (const id of ['agent-filter','type-filter','task-filter']) $(id).value = '';
   thread = ''; route = null; displayStart = null; renderTasks(); renderMessages();
 }
+function selectedTrigger() {
+  if (view === 'sequence') {
+    const route = sequenceCurrent?.routes.find(item => item.message.ID === selected);
+    const trigger = route && document.getElementById(`sequence-route-${encodeURIComponent(selected)}-${encodeURIComponent(route.target)}`);
+    if (trigger) return trigger;
+    setView('timeline');
+  }
+  return document.getElementById(`message-${selected}`)?.querySelector('button');
+}
 function closeDetails(restore = true) {
   const dialog = $('details-dialog');
   if (!dialog.open) return;
   dialog.close(); $('details-home').append($('details'));
   if (restore) {
-    const target = detailReturn?.isConnected ? detailReturn : $('conversation');
-    target.focus({preventScroll:true}); window.scrollTo(0, detailScroll);
+    const origin = detailReturn?.isConnected;
+    const target = origin ? detailReturn : selectedTrigger() || $('conversation');
+    target.focus({preventScroll:true});
+    if (origin) window.scrollTo(0, detailScroll);
+    else target.scrollIntoView({block:'center'});
   }
   detailReturn = null;
 }
@@ -389,7 +401,7 @@ function renderMessages() {
     let depth = 0, ancestor = message, seen = new Set();
     while (thread && ancestor.envelope?.reply_to && byID.has(ancestor.envelope.reply_to) && depth < 3 && !seen.has(ancestor.ID)) {seen.add(ancestor.ID);depth++;ancestor=byID.get(ancestor.envelope.reply_to);}
     card.dataset.depth = depth;
-    const main = button('', event => selectMessage(message.ID, event.currentTarget), 'message-select'); main.setAttribute('aria-label', `Inspect message ${message.Sequence} from ${agentLabel(message.SessionID)}${instanceLabel(message)}`);
+    const main = button('', event => selectMessage(message.ID, event.currentTarget), 'message-select', `inspect:${message.ID}`); main.setAttribute('aria-label', `Inspect message ${message.Sequence} from ${agentLabel(message.SessionID)}${instanceLabel(message)}`);
     const top = node('div', undefined, 'message-top');
     top.append(node('span', participantName(message.SessionID).slice(0,2).toUpperCase(), 'avatar'));
     const sender = node('span', participantName(message.SessionID) + instanceLabel(message), 'sender'); sender.append(node('span', ` · ${shortID(message.SessionID)}`, 'session-short'));
@@ -401,10 +413,10 @@ function renderMessages() {
     card.append(main);
     if (envelope.recipient_instances?.length) main.append(node('p', `Recipient instances (self-reported): ${envelope.recipient_instances.join(', ')}`, 'message-routing'));
     const actions = node('div', undefined, 'message-actions');
-    if (envelope.reply_to) actions.append(byID.has(envelope.reply_to) ? button(`Reply to #${byID.get(envelope.reply_to).Sequence}`, () => jumpMessage(envelope.reply_to)) : node('span', `Reply to ${shortID(envelope.reply_to)} · outside loaded window`));
-    actions.append(button('View thread', event => { thread = message.ID; selected = message.ID; displayStart = 0; renderMessages(); renderDetails(); showDetails(event.currentTarget); }));
-    if (envelope.task_id) actions.append(button(tasks.find(t => t.ID === envelope.task_id)?.Title || `Task ${shortID(envelope.task_id)}`, () => {$('task-filter').value = envelope.task_id;displayStart=null;renderTasks();renderMessages();}));
-    if (status?.childContext) actions.append(button(`Child context ${status.childContext.Name}`, () => openContext(status.childContext.ID)));
+    if (envelope.reply_to) actions.append(byID.has(envelope.reply_to) ? button(`Reply to #${byID.get(envelope.reply_to).Sequence}`, () => jumpMessage(envelope.reply_to), 'text-button', `parent:${envelope.reply_to}`) : node('span', `Reply to ${shortID(envelope.reply_to)} · outside loaded window`));
+    actions.append(button('View thread', event => { thread = message.ID; selected = message.ID; displayStart = 0; renderMessages(); renderDetails(); showDetails(event.currentTarget); }, 'text-button', `thread:${message.ID}`));
+    if (envelope.task_id) actions.append(button(tasks.find(t => t.ID === envelope.task_id)?.Title || `Task ${shortID(envelope.task_id)}`, () => {$('task-filter').value = envelope.task_id;displayStart=null;renderTasks();renderMessages();}, 'text-button', `filter-task:${envelope.task_id}`));
+    if (status?.childContext) actions.append(button(`Child context ${status.childContext.Name}`, () => openContext(status.childContext.ID), 'text-button', `open-context:${status.childContext.ID}`));
     actions.append(node('span', `#${message.Sequence}`, 'sequence')); card.append(actions);
     return card;
   }));
@@ -417,7 +429,7 @@ function renderTaskDetail(target, task) {
 }
 function renderTaskStatus(target, status) {
   target.append(node('h3','Task status'), node('span', stateLabel(status.state), `badge task-state ${status.state}`), node('p', `${status.taskTitle || `Task ${shortID(status.taskID)}`} · reported by the sender`));
-  if (status.childContext) target.append(button(`Open child context ${status.childContext.Name}`, () => openContext(status.childContext.ID)));
+  if (status.childContext) target.append(button(`Open child context ${status.childContext.Name}`, () => openContext(status.childContext.ID), 'text-button', `open-context:${status.childContext.ID}`));
   else if (status.childContextID) target.append(node('p', `Child context ${status.childContextID} is not in your loaded readable contexts.`, 'hint'));
   if (status.blockers.length) target.append(node('h3','Blockers'), ...status.blockers.map(b => node('p', b)));
 }
@@ -442,14 +454,14 @@ function renderDetails() {
       const generation = state.generation, id = selected;
       try {const result = await request('tasks/get',{task_id:envelope.task_id});if(generation !== state.generation || selected !== id) return;if(result.task.ContextID !== state.contextID) throw new Error('Task does not belong to this context.');tasks.push(result.task);taskTitles.set(result.task.ID,result.task.Title);refreshFilters();renderDetails();}
       catch(error){fail(error,generation);}
-    }));
+    }, 'text-button', `load-task:${envelope.task_id}`));
   }
   const status = taskStatus(message, tasks, readable());
   if (status) renderTaskStatus(target, status);
   const replies = state.messages.filter(m => m.envelope?.reply_to === message.ID);
   target.append(node('h3',`Replies · ${replies.length} loaded`));
-  if (envelope.reply_to) target.append(state.messages.some(m=>m.ID === envelope.reply_to) ? button('Open parent message',()=>jumpMessage(envelope.reply_to)) : node('p',`Parent ${envelope.reply_to} is outside the loaded window.`, 'hint'));
-  replies.forEach(reply=>target.append(button(`#${reply.Sequence} · ${agentLabel(reply.SessionID)}`,()=>jumpMessage(reply.ID))));
+  if (envelope.reply_to) target.append(state.messages.some(m=>m.ID === envelope.reply_to) ? button('Open parent message',()=>jumpMessage(envelope.reply_to), 'text-button', `parent:${envelope.reply_to}`) : node('p',`Parent ${envelope.reply_to} is outside the loaded window.`, 'hint'));
+  replies.forEach(reply=>target.append(button(`#${reply.Sequence} · ${agentLabel(reply.SessionID)}`,()=>jumpMessage(reply.ID), 'text-button', `reply:${reply.ID}`)));
   if (envelope.schema) {
     target.append(node('h3','Structured payload'),node('pre',JSON.stringify(envelope,null,2)),node('p','Reported claims and evidence references are supplied by agents. They do not certify a result or change task status.', 'hint'));
     const refs = [envelope.payload?.artifact_refs, envelope.payload?.evidence_refs, status?.links].flatMap(value => Array.isArray(value) ? value : []);

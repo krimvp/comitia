@@ -7,7 +7,7 @@ import {readFile, mkdtemp, rm} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {spawn} from 'node:child_process';
-let server, browser, base, liveMessages, taskTitle, resume, expired, daemon, daemonHome, embedded;
+let server, browser, base, liveMessages, taskTitle, tasksAvailable, participantsAvailable, resume, expired, daemon, daemonHome, embedded;
 let unavailable;
 try {
   const {chromium} = await import(process.env.COMITIA_PLAYWRIGHT_MODULE || 'playwright');
@@ -49,7 +49,7 @@ before(async () => {
       let input='';for await(const chunk of req) input+=chunk;
       const body=JSON.parse(input), path=req.url.split('/').at(-1);
       if(expired) {res.writeHead(403).end();return;}
-      const data=path==='get'?{context}:path==='children'?{contexts:[]}:req.url.includes('/contexts/')?{contexts:[context]}:req.url.includes('/participants/')?{participants:[{SessionID:'worker',Name:'Worker'},{SessionID:'reviewer',Name:'Reviewer'}]}:req.url.includes('/tasks/')?{tasks:[{ID:'task',Title:taskTitle,Status:'pending',ContextID:context.ID}]}:req.url.includes('/instances/')?{instances:[{id:'worker',session_id:'worker',last_seen:new Date().toISOString(),resume}]}:{messages:liveMessages.filter(m=>m.Sequence>body.after).slice(0,body.limit || 100)};
+      const data=path==='get'?{context}:path==='children'?{contexts:[]}:req.url.includes('/contexts/')?{contexts:[context]}:req.url.includes('/participants/')?{participants:participantsAvailable?[{SessionID:'worker',Name:'Worker'},{SessionID:'reviewer',Name:'Reviewer'}]:[]}:req.url.includes('/tasks/')?{tasks:tasksAvailable?[{ID:'task',Title:taskTitle,Status:'pending',ContextID:context.ID}]:[]}:req.url.includes('/instances/')?{instances:[{id:'worker',session_id:'worker',last_seen:new Date().toISOString(),resume}]}:{messages:liveMessages.filter(m=>m.Sequence>body.after).slice(0,body.limit || 100)};
       res.setHeader('Content-Type','application/json');res.end(JSON.stringify(data));
     } catch(error) {res.writeHead(500).end(error.message);}
   });
@@ -62,14 +62,17 @@ after(async()=>{
   if(daemon&&daemon.exitCode===null) {const stopped=new Promise(resolve=>daemon.once('exit',resolve));daemon.kill();await stopped;}
   if(daemonHome)await rm(daemonHome,{recursive:true,force:true});
 });
-async function pageFor(t,width=1440) {
-  liveMessages=[...messages];taskTitle='Pending task';resume={harness:'codex',checkpoint:'ready'};expired=false;
+async function pageFor(t,width=1440,options={}) {
+  const count=options.messageCount || messages.length;
+  liveMessages=Array.from({length:count},(_,i)=>({...messages[i%messages.length],ID:`m${i+1}`,Sequence:i+1}));
+  if(count>200)liveMessages.at(-1).envelope={...liveMessages.at(-1).envelope,reply_to:'m1'};
+  tasksAvailable=options.tasksAvailable!==false;participantsAvailable=options.participantsAvailable!==false;taskTitle='Pending task';resume={harness:'codex',checkpoint:'ready'};expired=false;
   const page=await browser.newPage({viewport:{width,height:844}});
   t.after(()=>page.close());
   const errors=[];page.on('pageerror',e=>errors.push(e.message));t.after(()=>assert.deepEqual(errors,[]));
   await page.goto(`${base}/ui/`);
   await page.locator('#credential').fill('test-observer');await page.locator('#connect').click();
-  await page.waitForFunction(()=>document.getElementById('message-count').textContent.includes('72 loaded'));
+  await page.waitForFunction(count=>document.getElementById('message-count').textContent.includes(`${count} loaded`),Math.min(count,100));
   return page;
 }
 async function poll(page) {
@@ -219,4 +222,37 @@ browserTest('mobile pointer selection returns to the retained SVG control',async
   await page.locator('.sequence-message').first().click();
   assert.equal(await page.locator('#details-dialog').evaluate(e=>e.open),true);
   await page.locator('#return-message').click();await sameFocus(page);
+});
+
+browserTest('task action focus survives previously absent task metadata arriving',async t=>{
+  const page=await pageFor(t,1440,{tasksAvailable:false});await page.locator('#show-timeline').click();
+  const action=page.locator('#message-m1 .message-actions button').filter({hasText:'Task task'});
+  await action.focus();await action.evaluate(e=>window.focusBefore=e);
+  tasksAvailable=true;await poll(page);await sameFocus(page);
+  assert.equal(await page.evaluate(()=>window.focusBefore.textContent),'Pending task');
+});
+browserTest('reply action focus survives previously absent participant metadata arriving',async t=>{
+  const page=await pageFor(t,1440,{participantsAvailable:false});await page.locator('#show-timeline').click();
+  liveMessages.push({...messages[0],ID:'m73',Sequence:73,envelope:{...messages[0].envelope,reply_to:'m1'}});
+  await poll(page);await page.locator('#message-m1 .message-select').click();
+  const action=page.locator('#details button').filter({hasText:'#73'});await action.focus();await action.evaluate(e=>window.focusBefore=e);
+  participantsAvailable=true;await poll(page);await sameFocus(page);
+  assert.match(await page.evaluate(()=>window.focusBefore.textContent),/Worker/);
+});
+for(const direction of ['parent','reply']) for(const close of ['Return','Escape']) browserTest(`mobile ${direction} navigation across message pages restores a displayed trigger with ${close}`,async t=>{
+  const page=await pageFor(t,390,{messageCount:201});await page.locator('#pause').click();
+  await page.locator('#load-more').click();await page.locator('#load-more').click();
+  await page.locator('#show-timeline').click();
+  if(direction==='reply')await page.locator('#older-matches').click();
+  const origin=direction==='parent'?'m201':'m1', current=direction==='parent'?'m1':'m201';
+  const trigger=page.locator(`#message-${origin} .message-select`);
+  await trigger.focus();await trigger.evaluate(e=>window.originTrigger=e);await page.keyboard.press('Enter');
+  await page.locator('#details button').filter({hasText:direction==='parent'?'Open parent message':'#201'}).click();
+  assert.equal(await page.evaluate(()=>window.originTrigger.isConnected),false);
+  if(close==='Return')await page.locator('#return-message').click();else await page.keyboard.press('Escape');
+  assert.equal(await page.evaluate(()=>document.activeElement.closest('.message-card')?.id),`message-${current}`);
+  assert.equal(await page.evaluate(()=>document.activeElement.matches('.message-select')),true);
+  const box=await page.locator(`#message-${current} .message-select`).boundingBox();
+  assert.ok(box.y<844&&box.y+box.height>0,'Returned message control must be in the viewport');
+  assert.ok(await page.locator('.message-card').count()<=200);
 });

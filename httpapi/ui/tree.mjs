@@ -74,9 +74,10 @@ function node(tag, text, className) {
   if (className) element.className = className;
   return element;
 }
-function button(text, action, className) {
+function button(text, action, className, key = '') {
   const element = node('button', text, className);
   element.type = 'button'; on(element, 'click', action);
+  if (key) element.dataset.key = key;
   return element;
 }
 
@@ -121,13 +122,13 @@ export function renderTaskBoard(target, entries, {onOpen, onTask}) {
   if (!entries.length) { renderChildren(target); remember(target, key); return; }
   renderChildren(target, node('h2', 'Task progress'), ...entries.map(item => {
     const row = node('div', undefined, 'task-board-item'); row.dataset.key = item.taskID;
-    const task = button('', () => onTask(item.taskID), 'task-board-task');
+    const task = button('', () => onTask(item.taskID), 'task-board-task', `task:${item.taskID}`);
     task.append(node('span', item.title || `Task ${shortID(item.taskID)}`));
     task.append(item.latest ? node('span', stateLabel(item.latest.state), `badge task-state ${item.latest.state}`) : node('span', 'No status reported', 'badge'));
     row.append(task);
     if (item.latest?.summary) row.append(node('p', item.latest.summary, 'task-board-summary'));
     if (item.reports) row.append(node('small', `${item.reports} status report${item.reports === 1 ? '' : 's'} loaded`));
-    if (item.child && !item.child.locked) row.append(button(`Open child context ${item.child.context.Name}`, () => onOpen(item.child.context.ID), 'text-button'));
+    if (item.child && !item.child.locked) row.append(button(`Open child context ${item.child.context.Name}`, () => onOpen(item.child.context.ID), 'text-button', `open-context:${item.child.context.ID}`));
     else if (item.child) row.append(node('small', `Child context ${item.child.context.Name} · locked`, 'context-locked-note'));
     else if (item.childContextID) row.append(node('small', `Child context ${shortID(item.childContextID)} · not visible`, 'context-locked-note'));
     return row;
