@@ -1,7 +1,7 @@
 import {BROADCAST, shortID, threadIDs, parseActor, senderActor, recipientActors, instanceClaims} from './model.mjs';
 import {agentColor} from './graph.mjs';
 
-export const LANE_LIMIT = 8;
+export const LANE_LIMIT = 12;
 export const ARROW_LIMIT = 36;
 const NS = 'http://www.w3.org/2000/svg';
 const clampPage = (page, count, size) => Math.min(Math.max(0, Math.floor(page) || 0), Math.max(0, Math.ceil(count / size) - 1));
@@ -9,7 +9,8 @@ export const timeLabel = time => new Date(time).toLocaleTimeString(undefined, {h
 
 // Layout uses send timestamps only. A vertical arrow is an addressed message,
 // not elapsed delivery time. Off-page endpoints preserve cross-page routes.
-export function sequenceLayout(messages, participants = [], {lanePage = 0, arrowPage = 0, span = 0, start = null, seekMessage = '', spacing = 'time'} = {}) {
+// Unset pages and start follow the newest activity, as a live view should.
+export function sequenceLayout(messages, participants = [], {lanePage = null, arrowPage = null, span = 0, start = null, seekMessage = '', spacing = 'time'} = {}) {
   const names = new Map(participants.map(p => [p.SessionID, p.Name]));
   const claims = instanceClaims(messages);
   const recipients = message => recipientActors(message, claims);
@@ -30,13 +31,15 @@ export function sequenceLayout(messages, participants = [], {lanePage = 0, arrow
   });
   const sought=timed.find(item=>item.message.ID===seekMessage);
   if(sought) {lanePage=Math.floor(lanes.findIndex(lane=>lane.id===senderActor(sought.message))/LANE_LIMIT);start=sought.time-span/2;}
+  const newest=timed.reduce((a,b)=>!a||b.message.Sequence>a.message.Sequence?b:a,null);
+  if(lanePage===null&&newest) lanePage=Math.floor(lanes.findIndex(lane=>lane.id===senderActor(newest.message))/LANE_LIMIT);
   lanePage = clampPage(lanePage, lanes.length, LANE_LIMIT);
   const visible = lanes.slice(lanePage * LANE_LIMIT, (lanePage + 1) * LANE_LIMIT);
   const shown = new Set(visible.map(lane => lane.id));
   timed.sort((a,b) => a.time-b.time || a.message.Sequence-b.message.Sequence || a.message.ID.localeCompare(b.message.ID));
   const min = timed[0]?.time ?? 0, max = timed.at(-1)?.time ?? min;
   const duration = span > 0 ? span : Math.max(1000, max - min);
-  const from = span > 0 ? Math.max(min, Math.min(start ?? min, Math.max(min,max-duration))) : min;
+  const from = span > 0 ? Math.max(min, Math.min(start ?? max-duration, Math.max(min,max-duration))) : min;
   const to = from + duration;
   const routes = [];
   let inRange = 0;
@@ -51,6 +54,7 @@ export function sequenceLayout(messages, participants = [], {lanePage = 0, arrow
   }
   if(spacing === 'order') routes.sort((a,b)=>a.message.Sequence-b.message.Sequence || a.message.ID.localeCompare(b.message.ID));
   if(sought)arrowPage=Math.floor(routes.findIndex(route=>route.message.ID===seekMessage)/ARROW_LIMIT);
+  else if(arrowPage===null)arrowPage=Infinity;
   arrowPage = clampPage(arrowPage,routes.length,ARROW_LIMIT);
   return {lanes,visible,lanePage,arrowPage,spacing,routes:routes.slice(arrowPage*ARROW_LIMIT,(arrowPage+1)*ARROW_LIMIT),routeCount:routes.length,inRange,unknownTimes,from,to,min,max};
 }

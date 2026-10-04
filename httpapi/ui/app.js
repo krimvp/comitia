@@ -405,7 +405,9 @@ function renderFlow(filtered) {
   const key=JSON.stringify([state.contextID,windowStart,filters()]);
   if(key!==sequenceFilterKey) {sequenceOptions={};sequenceFilterKey=key;}
   sequenceCurrent=sequenceLayout(filtered,participants,{...sequenceOptions,span:Number($('sequence-span').value),spacing:$('sequence-spacing').value || 'order'});
-  sequenceOptions={...sequenceOptions,lanePage:sequenceCurrent.lanePage,arrowPage:sequenceCurrent.arrowPage,start:sequenceCurrent.from,seekMessage:''};
+  // Stay on the newest routes/time while viewing them, so polling follows new messages.
+  const latestRoutes=(sequenceCurrent.arrowPage+1)*ARROW_LIMIT>=sequenceCurrent.routeCount;
+  sequenceOptions={...sequenceOptions,lanePage:sequenceCurrent.lanePage,arrowPage:latestRoutes?null:sequenceCurrent.arrowPage,start:sequenceCurrent.to>=sequenceCurrent.max?null:sequenceCurrent.from,seekMessage:''};
   const flow=sequenceCurrent;
   renderSequence($('sequence-canvas'),flow,{selected,messages:state.messages,onSelect:selectMessage});
   $('sequence-summary').textContent=`${flow.lanes.filter(l=>l.id!==BROADCAST).length} agents · ${flow.inRange} messages in time range · ${filtered.length} matching loaded messages`;
@@ -427,11 +429,11 @@ function renderFlow(filtered) {
   $('sequence-next-arrows').disabled=(flow.arrowPage+1)*ARROW_LIMIT>=flow.routeCount;
   $('sequence-note').textContent=`Only the loaded message window is shown. Other lane pages may contain more messages. ${flow.routeCount>ARROW_LIMIT?'Use route pages to see all arrows on these lanes. ':''}${flow.unknownTimes?`${flow.unknownTimes} messages have no valid timestamp; open Message list to inspect them. `:''}Coincident arrows are individually selectable in the route list. Selected messages and their loaded reply thread are highlighted.`;
 }
-$('sequence-span').addEventListener('change',()=>{sequenceOptions.start=null;sequenceOptions.arrowPage=0;renderMessages();});
-$('sequence-spacing').addEventListener('change',()=>{sequenceOptions.arrowPage=0;renderMessages();});
-for(const [id,change] of [['sequence-earlier',-1],['sequence-later',1]]) $(id).addEventListener('click',()=>{if(!sequenceCurrent)return;sequenceOptions.start=sequenceCurrent.from+change*Number($('sequence-span').value);sequenceOptions.arrowPage=0;renderMessages();});
-for(const [id,change] of [['sequence-previous-lanes',-1],['sequence-next-lanes',1]]) $(id).addEventListener('click',()=>{sequenceOptions.lanePage=(sequenceOptions.lanePage||0)+change;sequenceOptions.arrowPage=0;renderMessages();});
-for(const [id,change] of [['sequence-previous-arrows',-1],['sequence-next-arrows',1]]) $(id).addEventListener('click',()=>{sequenceOptions.arrowPage=(sequenceOptions.arrowPage||0)+change;renderMessages();});
+$('sequence-span').addEventListener('change',()=>{sequenceOptions.start=null;sequenceOptions.arrowPage=null;renderMessages();});
+$('sequence-spacing').addEventListener('change',()=>{sequenceOptions.arrowPage=null;renderMessages();});
+for(const [id,change] of [['sequence-earlier',-1],['sequence-later',1]]) $(id).addEventListener('click',()=>{if(!sequenceCurrent)return;sequenceOptions.start=sequenceCurrent.from+change*Number($('sequence-span').value);sequenceOptions.arrowPage=null;renderMessages();});
+for(const [id,change] of [['sequence-previous-lanes',-1],['sequence-next-lanes',1]]) $(id).addEventListener('click',()=>{sequenceOptions.lanePage=(sequenceOptions.lanePage||0)+change;sequenceOptions.arrowPage=null;renderMessages();});
+for(const [id,change] of [['sequence-previous-arrows',-1],['sequence-next-arrows',1]]) $(id).addEventListener('click',()=>{if(!sequenceCurrent)return;sequenceOptions.arrowPage=sequenceCurrent.arrowPage+change;renderMessages();});
 setView('sequence');
 window.addEventListener('resize',()=>{if(view==='sequence'&&state.contextID)renderFlow(filterMessages(state.messages,filters()));});
 await connect(savedCredential());

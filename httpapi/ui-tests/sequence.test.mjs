@@ -55,7 +55,7 @@ test('200 agents and dense equal-time messages stay bounded with every addressed
   }
   assert.equal(found.size,600);
   const flow=sequenceLayout(messages,[],{lanePage:900,arrowPage:900});
-  assert.equal(flow.lanePage,24);
+  assert.equal(flow.lanePage,Math.ceil(200/LANE_LIMIT)-1);
   assert.ok(flow.routes.length>0);
 });
 
@@ -81,4 +81,17 @@ test('self-reported instances get their own lanes next to their session',()=>{
   assert.deepEqual(flow.lanes.map(l=>[l.id,l.name,l.sessionName,l.instance]),[['s','codex','codex',''],['s#worker','worker','codex','worker'],['t','claude','claude','']]);
   assert.deepEqual(flow.routes.map(r=>[r.message.ID,r.source,r.target]),[['m1','s#worker','t'],['m2','t','s#worker'],['m3','s','t']]);
   assert.equal(sequenceLayout(messages,[],{seekMessage:'m1',span:1000}).lanePage,0);
+});
+
+test('unset pages and time window open on the newest activity',()=>{
+  const agents=Array.from({length:LANE_LIMIT+2},(_,i)=>`a${String(i).padStart(2,'0')}`);
+  const messages=Array.from({length:ARROW_LIMIT*2},(_,i)=>message(i+1,agents[0],[agents[1+i%LANE_LIMIT]],i*1000));
+  messages.push(message(ARROW_LIMIT*2+1,agents.at(-1),[agents.at(-2)],ARROW_LIMIT*2000));
+  const flow=sequenceLayout(messages,[],{spacing:'order'});
+  assert.equal(flow.lanePage,1);
+  assert.equal(flow.routes.at(-1).message.Sequence,ARROW_LIMIT*2+1);
+  assert.equal(sequenceLayout(messages,[],{lanePage:0}).arrowPage,1);
+  assert.equal(sequenceLayout(messages,[],{lanePage:0,arrowPage:0}).routes[0].message.Sequence,1);
+  const zoom=sequenceLayout(messages,[],{span:10000});
+  assert.equal(zoom.to,zoom.max);
 });
