@@ -9,6 +9,7 @@ import (
 
 const MaxInstanceResumeBytes = 4096
 const InstanceHeartbeatInterval = 30 * time.Second
+const instanceHeartbeatBudget = 25 * time.Millisecond
 
 // InstancePresence is self-reported process metadata, never proof of identity or liveness.
 type InstancePresence struct {
@@ -28,6 +29,9 @@ type PresenceAPI interface {
 type PresenceReadStore interface {
 	Instances(string, time.Time) ([]InstancePresence, error)
 	InstanceLastSeen(string, string, string) (time.Time, error)
+}
+type instanceLabelStore interface {
+	InstanceLabel(string, string, string) (string, error)
 }
 type PresenceWriteStore interface {
 	PutInstancePresence(InstancePresence) error
@@ -80,13 +84,39 @@ func (s *Service) instanceHeartbeatDue(r ReadStore, sid, cid, instance string) b
 
 // Send and ack reuse their transaction; SQLite isolates the heartbeat with a savepoint.
 func (s *Service) touchInstanceIn(w WriteStore, sid, cid string, instance *AgentInstance) {
-	if instance == nil || !s.instanceHeartbeatDue(w, sid, cid, instance.ID) {
+	if instance == nil || instance.ID == "" {
+		return
+	}
+	due := s.instanceHeartbeatDue(w, sid, cid, instance.ID)
+	if !due && instance.Label != "" {
+		label, err := s.instanceLabel(w, sid, cid, instance.ID)
+		due = err == nil && label != instance.Label
+	}
+	if !due {
 		return
 	}
 	_ = w.TouchInstancePresence(InstancePresence{ID: instance.ID, Label: instance.Label, SessionID: sid, ContextID: cid, LastSeen: s.now().UTC()})
 }
 
+func (s *Service) instanceLabel(r ReadStore, sid, cid, instance string) (string, error) {
+	if labels, ok := r.(instanceLabelStore); ok {
+		return labels.InstanceLabel(sid, cid, instance)
+	}
+	rows, err := r.Instances(cid, s.now().UTC())
+	if err != nil {
+		return "", err
+	}
+	for _, p := range rows {
+		if p.SessionID == sid && p.ID == instance {
+			return p.Label, nil
+		}
+	}
+	return "", ErrNotFound
+}
+
 func (s *Service) touchInstance(ctx context.Context, sid, cid string, instance *AgentInstance) {
+	ctx, cancel := context.WithTimeout(ctx, instanceHeartbeatBudget)
+	defer cancel()
 	_ = s.store.Update(ctx, func(w WriteStore) error {
 		// Another reader may have recorded activity since the original View.
 		s.touchInstanceIn(w, sid, cid, instance)

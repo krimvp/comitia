@@ -16,8 +16,8 @@ check. Old rows remain available after their session expires or is revoked;
 Comitia does not launch or resume processes using this metadata.
 
 Successful `send_message`, `replay_messages`, `wait_messages`, `message_cursor`,
-and `ack_messages` calls that name an instance update its last seen, including
-send retries and empty replay or timed-out wait results. Replay and wait accept
+and `ack_messages` calls that name an instance attempt to update its last seen,
+including send retries and empty replay or timed-out wait results. Replay and wait accept
 an optional **ID string** `agent_instance`, like cursor and ack; CLI `replay`,
 `wait`, and `watch` accept `--agent-instance ID`, and `watch` records activity
 through its waits and acks. When the argument is omitted, MCP, the CLI and the
@@ -25,18 +25,23 @@ HTTP client use `COMITIA_AGENT_INSTANCE` like send, cursor and ack; an explicit
 empty ID records no activity. Without an instance no anonymous presence row is
 created. Heartbeats do not change replay filtering or acknowledgement cursors.
 
-Heartbeats are throttled to at most once every **30 seconds per (session, context,
-instance)**. Send and ack check the stored timestamp and perform any due upsert
-inside their existing write transaction. A SQLite savepoint isolates heartbeat
-failures and rolls back their effects without undoing the message or ack. Replay
-and cursor check freshness inside their existing read-only View; recent rows
+Heartbeats are normally throttled to at most once every **30 seconds per (session,
+context, instance)**. A changed nonempty label on send also makes a heartbeat due,
+so the label refreshes immediately within that interval. Send and ack check the
+stored timestamp and perform any due upsert inside their existing write
+transaction. A SQLite savepoint isolates heartbeat failures and rolls back their
+effects without undoing the message or ack. Replay,
+wait and cursor check freshness inside their existing read-only View; recent rows
 skip the Update entirely. A missing or stale row gets a separate small Update,
-which rechecks freshness in case another caller already recorded activity.
+which rechecks freshness in case another caller already recorded activity. These
+optional read-triggered writes have a **25 ms budget**, further limited by the
+caller or wait deadline, and are skipped or rolled back on contention or timeout.
 
 Heartbeat errors remain best-effort; explicit resume writes are unthrottled and
-return storage errors. Last seen may lag activity by up to 30 seconds. ID-only
-activity preserves the previous label and resume data; a supplied nonempty label
-replaces the label when a heartbeat is due. Use set_instance_resume to update
+return storage errors. Last seen normally lags activity by up to 30 seconds and
+may lag longer when optional writes fail or time out. ID-only activity preserves
+the previous label and resume data; a supplied nonempty label
+replaces a differing label immediately on send. Use set_instance_resume to update
 metadata immediately.
 
 A process can set or replace its resume object through MCP (an omitted
@@ -105,8 +110,11 @@ without an instance remain valid. Custom API implementations must add
 `Instances(contextID, now)`, `InstanceLastSeen(sessionID, contextID, instanceID)`,
 `PutInstancePresence` for explicit resume writes, and `TouchInstancePresence` for
 best-effort heartbeats. TouchInstancePresence must isolate a failed heartbeat
-from its caller's transaction. SQLite adds `instance_presence` without
-altering existing tables; earlier message history is not backfilled as activity.
+from its caller's transaction. Stores may optionally implement
+`InstanceLabel(sessionID, contextID, instanceID)` for a direct label lookup;
+otherwise the service uses `Instances` to find the existing label. SQLite adds
+`instance_presence` without altering existing tables; earlier message history
+is not backfilled as activity.
 The inspector shows instances in its sidebar and refreshes them alongside messages.
 
 ## CLI discovery

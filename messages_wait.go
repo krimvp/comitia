@@ -147,6 +147,12 @@ func (s *Service) WaitMessages(ctx context.Context, raw, cid string, after int64
 	if timeout > MaxMessageWait {
 		timeout = MaxMessageWait
 	}
+	scanCtx := ctx
+	if timeout > 0 {
+		var cancel context.CancelFunc
+		scanCtx, cancel = context.WithTimeout(ctx, timeout)
+		defer cancel()
+	}
 	v, unsubscribe := s.messageNotifications.subscribe(cid)
 	defer unsubscribe()
 	timer := time.NewTimer(timeout)
@@ -158,11 +164,17 @@ func (s *Service) WaitMessages(ctx context.Context, raw, cid string, after int64
 			return nil, err
 		}
 		changed := s.messageNotifications.channel(v)
-		messages, scanned, err := s.scanWaitMessages(ctx, raw, cid, after, filters)
+		messages, scanned, err := s.scanWaitMessages(scanCtx, raw, cid, after, filters)
 		if err := ctx.Err(); err != nil {
 			return nil, err
 		}
-		if err != nil || len(messages) != 0 {
+		if err == nil && len(messages) != 0 {
+			return messages, nil
+		}
+		if scanCtx.Err() != nil {
+			return []Message{}, nil
+		}
+		if err != nil {
 			return messages, err
 		}
 		after = scanned
