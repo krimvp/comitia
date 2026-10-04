@@ -4,6 +4,9 @@ Every function takes the installation root and home directory explicitly, so
 the installers and their tests never depend on the caller's real home.
 """
 import datetime
+import contextlib
+import fcntl
+import functools
 import json
 import os
 from pathlib import Path
@@ -14,6 +17,7 @@ import string
 import sys
 import subprocess
 import tempfile
+import threading
 import urllib.request
 try:
     import tomllib
@@ -34,6 +38,41 @@ RECOVERY = ('Run rotate-credentials before owner expiry (macOS: --rotate-credent
             '--owner-credential with another active admin. If all admin sessions have expired, '
             'API recovery is unavailable; preserve the database and restore a backup with a live admin. '
             'Reinstall cannot bootstrap an existing database.')
+INSTALL_LOCKS = threading.local()
+
+@contextlib.contextmanager
+def installation_lock(root):
+    """Exclude other installer processes/threads; allow nested calls in this thread."""
+    root = Path(root).resolve()
+    held = getattr(INSTALL_LOCKS, 'roots', set())
+    if root in held:
+        yield
+        return
+    root.mkdir(parents=True, exist_ok=True, mode=0o700)
+    fd = os.open(root/'.install.lock', os.O_RDWR | os.O_CREAT, 0o600)
+    try:
+        try:
+            fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError as error:
+            raise RuntimeError(f'Installation {root} is busy: another installer is running; retry after it completes.') from error
+        held.add(root)
+        INSTALL_LOCKS.roots = held
+        try:
+            yield
+        finally:
+            held.remove(root)
+    finally:
+        os.close(fd)
+
+def locked_installation(root_index):
+    def decorate(function):
+        @functools.wraps(function)
+        def invoke(*args, **kwargs):
+            root = args[root_index] if len(args) > root_index else kwargs['root']
+            with installation_lock(root):
+                return function(*args, **kwargs)
+        return invoke
+    return decorate
 
 def expand(path, home):
     """Expand a leading ~ against home rather than the process's HOME."""
@@ -194,9 +233,11 @@ def validate_credential(run, path, context_id=None):
             raise RuntimeError('expired')
         document = json.loads(Path(path).read_text())
         grants = document.get('grants', [])
-        # Write-only harnesses still need authentication, but cannot list participants.
-        readable = Path(path).stem == 'owner' or any(g['Permissions'] & 1 for g in grants)
-        if context_id and readable:
+        if Path(path).stem != 'owner' and grants:
+            for grant in grants:
+                permissions = ','.join(p for i, p in enumerate(PERMISSIONS) if grant['Permissions'] & (1 << i))
+                run('credential-check', '--context-id', grant['ContextID'], '--permissions', permissions, token=token(path))
+        elif context_id and Path(path).stem == 'owner':
             run('participants', '--context-id', context_id, token=token(path))
         else:
             run('context-list', '--limit', '1', token=token(path))
@@ -232,6 +273,7 @@ def mint_owner(server_url, document):
         raise RuntimeError('Owner mint did not return an independent session for the admin principal')
     return {**document, 'credential': replacement, 'grants': []}
 
+@locked_installation(0)
 def rotate_credentials(root, run, owner_credential=None, revoke_old=False):
     """Stage and verify independent owner/grants and fresh local harness ancestry."""
     context = json.loads((root/'local-context.json').read_text())
@@ -251,13 +293,20 @@ def rotate_credentials(root, run, owner_credential=None, revoke_old=False):
             bits |= grant['Permissions']
         scopes[name] = ','.join(p for i, p in enumerate(PERMISSIONS) if bits & (1 << i))
     contexts = {context['context_id']}
+    skipped = {}
     cursor = ''
     while True:
         page = run('context-list', '--limit', '1000', '--after-id', cursor, token=token(source))
-        contexts.update(c['ID'] for c in page)
+        for c in page:
+            if c.get('Archived'):
+                skipped[c['ID']] = 'archived'
+            else:
+                contexts.add(c['ID'])
         if len(page) < 1000:
             break
         cursor = page[-1]['ID']
+    if context['context_id'] in skipped:
+        raise RuntimeError('The shared installation context is archived; credentials cannot be rotated for active harnesses.')
     # Older macOS installs recorded the daemon URL only in service.json.
     server_url = context.get('server_url') or json.loads((root/'service.json').read_text())['server_url']
     replacement = mint_owner(server_url, json.loads(source.read_text()))
@@ -272,9 +321,16 @@ def rotate_credentials(root, run, owner_credential=None, revoke_old=False):
             # Root grants outlive full-year harness grants, while ending before the owner.
             ttl = duration(expires_at(staged_owner)-datetime.datetime.now(datetime.timezone.utc)-datetime.timedelta(minutes=1))
             for context_id in sorted(contexts):
-                replacement['grants'].append(run('grant', '--session-id', replacement['credential']['Session']['ID'],
-                    '--context-id', context_id, '--permissions', ','.join(PERMISSIONS), '--ttl', ttl,
-                    token=token(staged_owner)))
+                try:
+                    grant = run('grant', '--session-id', replacement['credential']['Session']['ID'],
+                        '--context-id', context_id, '--permissions', ','.join(PERMISSIONS), '--ttl', ttl,
+                        token=token(staged_owner))
+                except RuntimeError:
+                    if context_id == context['context_id']:
+                        raise
+                    skipped[context_id] = 'grant could not be issued'
+                    continue
+                replacement['grants'].append(grant)
             staged_owner.write_text(json.dumps(replacement, indent=2)+'\n')
             validate_credential(run, staged_owner, context['context_id'])
             for name, permissions in scopes.items():
@@ -308,8 +364,12 @@ def rotate_credentials(root, run, owner_credential=None, revoke_old=False):
     if installation.exists():
         write_text(installation, re.sub(r'^Owner expiry:.*$', 'Owner expiry: '+expires_at(owner).isoformat(),
                                        installation.read_text(), flags=re.M))
+    for context_id, reason in sorted(skipped.items()):
+        print(f'Skipped context {context_id}: {reason}. Historical access stays with the old owner '
+              'until expiry or revocation; it is not transferred to the replacement.')
     return archive
 
+@locked_installation(1)
 def bootstrap(run, root, database):
     """Create the owner, workspace and shared context; resume an interrupted run.
 
@@ -501,6 +561,7 @@ def place_block(text, block):
         return BLOCK.sub(swap, text)
     return block+('\n'+text if text else '')
 
+@locked_installation(2)
 def add_harness(name, spec, root, home, run, permissions='read,write,claim,grant'):
     """Mint the harness credential once, register the MCP server and its auto-approval, render instructions."""
     check(name, spec)

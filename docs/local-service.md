@@ -386,8 +386,10 @@ message dedupe key because the outcome can be uncertain.
 ### Credential expiry and rotation
 
 Repair validates the saved expiry and authenticates the installed owner and
-existing harness/viewer credentials against the database. Expired or revoked
-sessions, broken grant ancestry, and lost read access cause an actionable error;
+existing harness/viewer credentials against the database. Each recorded context
+permission is checked against effective grants without writing a message,
+including write-only credentials. Expired or revoked sessions or grants, broken
+grant ancestry, and lost recorded permissions cause an actionable error;
 a successful reinstall no longer leaves expired clients installed. Repair keeps
 the database and credentials. Linux `INSTALLATION.txt` records the owner expiry.
 
@@ -402,8 +404,14 @@ python3 scripts/install_macos_service.py --rotate-credentials
 
 Rotation uses the existing REST mint endpoint to create an independent session
 for the admin principal, rather than a child of the expiring owner. The new
-owner issues its own root grants for the shared context and contexts readable by
-the source admin. It then creates fresh sessions and grants for installed local
+owner issues its own root grants for the shared context and active contexts
+readable by the source admin. Archived contexts and extra contexts that reject a
+new grant are skipped and their IDs and reasons reported. Their historical read
+access is **not transferred**: it remains with the old owner and existing readers
+only while their sessions and grant ancestry remain valid. Old-owner expiry or
+`--revoke-old` ends that access; archived data remains stored in the database.
+The shared context must still accept grants, or rotation fails without publishing.
+It then creates fresh sessions and grants for installed local
 harnesses and the viewer, preserving their recorded local permissions. The new
 owner lasts one year plus one hour; harness sessions last up to one year, with
 root grants lasting longer than harness grants. This changes session IDs: restart
@@ -412,8 +420,12 @@ created for individual tasks retain their original ancestry and must be migrated
 separately; credentials with non-local grants require manual rotation.
 
 Every replacement is staged privately and checked against the installation's
-database before publishing. Original files are backed up under a private
-`backups/credentials-*` directory; each file is replaced atomically. If publishing
+database before publishing. An installation-wide `.install.lock` serializes
+snapshot, minting, publication, and optional revocation, as well as install and
+add-harness credential mutations. A concurrent installer command fails clearly
+with an installation-busy error; retry after the other command completes. The
+lock is released automatically if its process exits. Original files are backed
+up under a private `backups/credentials-*` directory; each file is replaced atomically. If publishing
 is interrupted, credentials already replaced remain usable and rotation can be
 rerun. Old sessions remain active until expiry by default. When other clients and
 task sessions are ready to migrate, include `--revoke-old` on that rotation to

@@ -9,6 +9,7 @@ import runpy
 import subprocess
 import sys
 import tempfile
+import threading
 import time
 import unittest
 import urllib.request
@@ -199,6 +200,133 @@ class CredentialsTest(helpers.Base):
         with self.assertRaisesRegex(RuntimeError, 'all.*admin|every.*admin'):
             local.rotate_credentials(self.root, self.run)
         self.assertEqual(self.snapshot(), before)
+
+    def test_archived_context_does_not_prevent_rotation(self):
+        self.start_server()
+        owner = local.token(self.credential('owner'))
+        extra = self.run('context-create', '--workspace-id', self.context['workspace_id'],
+                         '--name', 'Completed work', token=owner)
+        self.run('context-archive', '--context-id', extra['ID'], token=owner)
+        output = io.StringIO()
+        with contextlib.redirect_stdout(output):
+            local.rotate_credentials(self.root, self.run)
+        self.assertIn(extra['ID'], output.getvalue())
+        self.assertIn('archived', output.getvalue())
+        self.run('participants', '--context-id', extra['ID'], token=owner)
+        with self.assertRaisesRegex(RuntimeError, 'forbidden'):
+            self.run('participants', '--context-id', extra['ID'], token=local.token(self.credential('owner')))
+        self.reinstall()
+
+    def test_ungrantable_extra_context_is_reported_and_skipped(self):
+        self.start_server()
+        extra = self.run('context-create', '--workspace-id', self.context['workspace_id'],
+                         '--name', 'Unavailable work', token=local.token(self.credential('owner')))
+        def reject(*args, **kwargs):
+            if args[0] == 'grant' and extra['ID'] in args:
+                raise RuntimeError('context cannot accept a grant')
+            return self.run(*args, **kwargs)
+        output = io.StringIO()
+        with contextlib.redirect_stdout(output):
+            local.rotate_credentials(self.root, reject)
+        self.assertIn(extra['ID'], output.getvalue())
+        self.assertIn('Skipped', output.getvalue())
+        self.reinstall()
+
+    def test_write_only_expired_or_revoked_grant_is_rejected_during_repair(self):
+        for change in ('expires_at', 'revoked_at'):
+            with self.subTest(change=change):
+                name = 'writer-'+change.replace('_', '-')
+                local.add_harness(name, {'instructions': str(self.home/(name+'.md')),
+                                  'mcp': {'file': str(self.home/(name+'.json')), 'format': 'json'}},
+                                  self.root, self.home, self.run, 'write')
+                document = json.loads(self.credential(name).read_text())
+                writer = local.token(self.credential(name))
+                self.run('send', '--context-id', self.context['context_id'], '--dedupe-key', 'before',
+                         '--body', 'valid before grant loss', token=writer)
+                before = self.snapshot()
+                with sqlite3.connect(self.root/'data/comitia.db') as db:
+                    db.execute(f'UPDATE grants SET {change}=? WHERE id=?',
+                               ('2000-01-01T00:00:00Z', document['grants'][0]['ID']))
+                with self.assertRaisesRegex(RuntimeError, 'forbidden'):
+                    self.run('send', '--context-id', self.context['context_id'], '--dedupe-key', 'after',
+                             '--body', 'invalid after grant loss', token=writer)
+                with self.assertRaisesRegex(RuntimeError, name+'.*unusable'):
+                    local.validate_credential(self.run, self.credential(name), self.context['context_id'])
+                with self.assertRaisesRegex(RuntimeError, 'writer-.*unusable'):
+                    self.reinstall(names=[])
+                self.assertEqual(self.snapshot(), before)
+                with sqlite3.connect(self.root/'data/comitia.db') as db:
+                    db.execute(f'UPDATE grants SET {change}=? WHERE id=?',
+                               (document['grants'][0]['ExpiresAt'] if change == 'expires_at' else None,
+                                document['grants'][0]['ID']))
+
+    def test_repair_rejects_loss_of_write_permission_when_read_remains(self):
+        document = json.loads(self.credential('codex').read_text())
+        with sqlite3.connect(self.root/'data/comitia.db') as db:
+            db.execute('UPDATE grants SET permissions=1 WHERE id=?', (document['grants'][0]['ID'],))
+        self.run('participants', '--context-id', self.context['context_id'], token=local.token(self.credential('codex')))
+        with self.assertRaisesRegex(RuntimeError, 'codex.*unusable'):
+            self.reinstall(names=[])
+
+    def test_concurrent_rotation_does_not_publish_revoked_harnesses(self):
+        self.start_server()
+        first_owner_published = threading.Event()
+        second_finished = threading.Event()
+        errors = []
+        replace = local.os.replace
+        def interleave(source, destination):
+            result = replace(source, destination)
+            if threading.current_thread().name == 'rotation-A' and Path(destination) == self.credential('owner'):
+                first_owner_published.set()
+                if not second_finished.wait(10):
+                    raise RuntimeError('second rotation timed out')
+            return result
+        def rotate_a():
+            try:
+                local.rotate_credentials(self.root, self.run)
+            except Exception as error:
+                errors.append(error)
+        second_error = None
+        with mock.patch.object(local.os, 'replace', side_effect=interleave):
+            first = threading.Thread(target=rotate_a, name='rotation-A')
+            first.start()
+            try:
+                self.assertTrue(first_owner_published.wait(10))
+                try:
+                    local.rotate_credentials(self.root, self.run, revoke_old=True)
+                except RuntimeError as error:
+                    second_error = error
+            finally:
+                second_finished.set()
+                first.join(10)
+        self.assertFalse(first.is_alive())
+        self.assertEqual(errors, [])
+        self.reinstall()
+        self.assertIsNotNone(second_error, 'concurrent rotation must fail clearly while the lock is held')
+        self.assertRegex(str(second_error), 'installation.*busy|another.*installer')
+
+    def test_installation_lock_excludes_other_process_and_related_installers(self):
+        script = ('import sys; sys.path.insert(0, sys.argv[1]); import comitia_install as local; '
+                  'from pathlib import Path; '
+                  'lock = local.installation_lock(Path(sys.argv[2])); lock.__enter__(); '
+                  'print("locked", flush=True); sys.stdin.readline(); lock.__exit__(None, None, None)')
+        process = subprocess.Popen([sys.executable, '-c', script, str(helpers.SCRIPTS), str(self.root)],
+                                   stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        try:
+            self.assertEqual(process.stdout.readline().strip(), 'locked')
+            with self.assertRaisesRegex(RuntimeError, 'another installer'):
+                local.rotate_credentials(self.root, self.run, revoke_old=True)
+            with self.assertRaisesRegex(RuntimeError, 'another installer'):
+                self.reinstall()
+            with self.assertRaisesRegex(RuntimeError, 'another installer'):
+                local.bootstrap(self.run, self.root, self.root/'data/comitia.db')
+            with self.assertRaisesRegex(RuntimeError, 'another installer'):
+                local.add_harness('codex', local.harnesses(self.root)['codex'], self.root, self.home, self.run)
+        finally:
+            process.communicate('\n', timeout=10)
+        self.assertEqual(process.returncode, 0)
+        self.assertEqual(helpers.mode(self.root/'.install.lock'), 0o600)
+        self.reinstall()
 
 
 class BuildProvenanceTest(unittest.TestCase):

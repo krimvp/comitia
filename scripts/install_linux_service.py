@@ -80,6 +80,7 @@ def default_harnesses(root, home):
             names.append(name)
     return names
 
+@local.locked_installation(0)
 def install(root, home, port=8390, names=None, binary=None, service=systemctl, linger=None, check_port=True):
     """Install or update; service=None writes the unit but never calls systemctl."""
     unit = home/'.config/systemd/user'/UNIT_NAME
