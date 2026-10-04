@@ -1,13 +1,14 @@
 import {on, renderChildren} from './dom.mjs';
 import {normalizeResponse} from './wire.mjs';
 import {relativeSeen} from './presence.mjs';
-import {ConversationState, PAGE_SIZE, WINDOW_LIMIT, shortID, messageType, typeLabel, filterMessages, interactionGraph, BROADCAST, parseActor, senderActor, recipientActors, instanceClaims, taskStatus, stateLabel} from './model.mjs';
+import {ConversationState, HistoryWindows, recipientLabel, messagePreview, PAGE_SIZE, WINDOW_LIMIT, shortID, messageType, typeLabel, filterMessages, interactionGraph, BROADCAST, parseActor, senderActor, recipientActors, instanceClaims, taskStatus, stateLabel} from './model.mjs';
 import {renderInteractionMap} from './graph.mjs';
-import {sequenceLayout, renderSequence, LANE_LIMIT, ARROW_LIMIT, timeLabel} from './sequence.mjs';
+import {sequenceLayout, renderSequence, LANE_LIMIT, timeLabel} from './sequence.mjs';
 import {readableContexts, contextTree, taskBoard, renderContextTree, renderTaskBoard} from './tree.mjs';
 
 const $ = id => document.getElementById(id);
 const state = new ConversationState();
+const history = new HistoryWindows();
 const apiBase = new URL('../v1/', location.href);
 const credentialKey = `comitia.inspector.credential:${apiBase.href}`;
 function savedCredential() {
@@ -78,6 +79,7 @@ async function moreDiscovery(kind) {
 let participants = [], tasks = [], instances = [], selected = '', thread = '', paused = false, busy = false, windowStart = 0, displayStart = null, route = null, connectionPage = 0;
 let instancesUnavailable = false;
 let detailReturn = null, detailScroll = 0;
+let followLatest = true;
 let view = 'sequence', sequenceOptions = {}, sequenceFilterKey = '', sequenceCurrent;
 
 function node(tag, text, className) {
@@ -143,7 +145,7 @@ function disconnect(message = '', forget = true) {
   closeDetails(false); $('selection-status').textContent = '';
   if (forget) rememberCredential('');
   connection++; controller.abort(); controller = new AbortController(); clearTimeout(timer);
-  token = ''; state.reset(); displayStart = null; contexts = []; contextsAfter = ''; contextsBusy = false; children = new Map(); truncated = new Set(); taskTitles = new Map();
+  token = ''; state.reset(); history.reset(); displayStart = null; contexts = []; contextsAfter = ''; contextsBusy = false; children = new Map(); truncated = new Set(); taskTitles = new Map();
   participants = []; tasks = []; resetDiscovery(); instances = []; instancesUnavailable = false; selected = ''; thread = ''; route = null; connectionPage = 0; busy = false;
   $('credential').value = ''; $('connect-error').textContent = message;
   $('connect-panel').hidden = false; $('workspace').hidden = true; $('disconnect').hidden = true;
@@ -248,7 +250,7 @@ async function loadContexts(refresh = false) {
 function clearContext() {
   closeDetails(false); $('selection-status').textContent = '';
   sequenceOptions = {}; sequenceFilterKey = '';
-  controller.abort(); controller = new AbortController(); clearTimeout(timer); state.reset();
+  controller.abort(); controller = new AbortController(); clearTimeout(timer); state.reset(); history.reset();
   participants = []; tasks = []; resetDiscovery(); instances = []; instancesUnavailable = false; selected = ''; thread = ''; route = null; connectionPage = 0; busy = false;
   $('context-title').textContent = 'Choose a context'; $('context-meta').textContent = '';
   $('workspace-label').textContent = 'WORK CONTEXT'; $('sync-status').textContent = 'No context selected';
@@ -257,7 +259,9 @@ function clearContext() {
   displayStart = null; windowStart = 0; refreshFilters();
   renderTasks(); renderInstances(); renderMessages(); renderDetails(); renderBoard();
 }
-async function openContext(id, after = 0) {
+async function openContext(id, after = 0, navigate = false) {
+  if (!navigate) history.reset(after);
+  followLatest = true;
   closeDetails(false); $('selection-status').textContent = '';
   sequenceOptions = {}; sequenceFilterKey = '';
   controller.abort(); controller = new AbortController(); clearTimeout(timer);
@@ -282,16 +286,19 @@ async function sync(generation = state.generation) {
   busy = true; $('load-more').disabled = true; renderDiscoveryControls(); clearTimeout(timer);
   const cid = state.contextID;
   try {
-    const room = WINDOW_LIMIT - state.messages.length;
+    const end = history.current.end;
+    const room = Math.min(WINDOW_LIMIT - state.messages.length, end === null ? WINDOW_LIMIT : Math.max(0, end - state.after));
     const [messageResult, participantResult, taskResult, instanceResult] = await Promise.all([
-      room > 0 ? request('messages/replay', {context_id:cid, after:state.after, limit:Math.min(PAGE_SIZE,room)}) : Promise.resolve({messages:[]}),
+      room > 0 ? request('messages/replay', {context_id:cid, after:state.after, limit:Math.min(PAGE_SIZE,room), page:true}) : Promise.resolve({messages:[]}),
       loadDiscovery('participants',participantPages,generation),
       loadDiscovery('tasks',taskPages,generation),
       loadInstances(cid)
     ]);
     if (generation !== state.generation) return;
-    const incoming = messageResult.messages || [];
+    const page = messageResult.page;
+    const incoming = (page?.messages || messageResult.messages || []).filter(message => end === null || message.Sequence <= end);
     state.append(generation, incoming);
+    if (Number.isSafeInteger(page?.scanned_through)) state.after = Math.max(state.after, Math.min(page.scanned_through, end ?? Number.MAX_SAFE_INTEGER));
     participantAfter = participantResult.next_after; participantsMore = participantResult.has_more;
     taskAfter = taskResult.next_after; tasksMore = taskResult.has_more;
     participants = participantResult.participants || []; tasks = taskResult.tasks || []; instances = instanceResult.instances; instancesUnavailable = instanceResult.unavailable;
@@ -299,10 +306,10 @@ async function sync(generation = state.generation) {
     for (const task of tasks) taskTitles.set(task.ID, task.Title);
     $('timeline-error').textContent = '';
     $('sync-status').textContent = paused ? 'Paused' : `Updated ${new Date().toLocaleTimeString()}`;
-    $('load-more').hidden = state.messages.length >= WINDOW_LIMIT;
+    $('load-more').hidden = state.messages.length >= WINDOW_LIMIT || (end !== null && state.after >= end);
     $('load-more').textContent = incoming.length === PAGE_SIZE ? 'Load next messages' : 'Refresh messages';
-    $('next-window').hidden = state.messages.length < WINDOW_LIMIT;
-    if (state.messages.length >= WINDOW_LIMIT) { paused = true; $('pause').textContent = 'Resume'; $('sync-status').textContent = 'Window full'; }
+    $('next-window').hidden = history.index + 1 >= history.frames.length && state.messages.length < WINDOW_LIMIT && !(end !== null && state.after >= end);
+    if (state.messages.length >= WINDOW_LIMIT || (end !== null && state.after >= end)) { paused = true; $('pause').textContent = 'Resume'; $('sync-status').textContent = 'Window full'; }
     refreshFilters(); renderTasks(); renderInstances(); renderMessages(); renderDetails(); renderBoard(); renderContexts();
   } catch(error) { fail(error, generation); }
   finally {
@@ -423,7 +430,7 @@ function selectMessage(id, source) {
 }
 function jumpMessage(id) {
   if (!state.messages.some(m => m.ID === id)) return;
-  clearFilters(); selected = id; sequenceOptions.seekMessage=id; displayStart = Math.floor(state.messages.findIndex(m => m.ID === id) / 200) * 200; renderMessages(); renderDetails();
+  clearFilters(); selected = id; followLatest=false; sequenceOptions.seekMessage=id; displayStart = Math.floor(state.messages.findIndex(m => m.ID === id) / 200) * 200; renderMessages(); renderDetails();
   const card = document.getElementById(`message-${id}`);
   if (window.innerWidth <= 960) {showDetails(); return;}
   card?.scrollIntoView({block:'center', behavior:'smooth'});
@@ -434,6 +441,8 @@ function engaged(id) {
   return target.contains(document.activeElement) || ($('details-dialog').open && target.contains(detailReturn));
 }
 function renderMessages() {
+  $('previous-window').hidden = !state.contextID || windowStart === 0;
+  $('jump-sequence').disabled = !state.contextID;
   renderMap();
   const filtered = filterMessages(state.messages, filters());
   renderFlow(filtered);
@@ -445,7 +454,7 @@ function renderMessages() {
   $('newer-matches').hidden = view==='sequence' || start + visible.length >= filtered.length;
   $('message-count').textContent = `${filtered.length} matching · ${state.messages.length} loaded`;
   $('clear-thread').hidden = !thread;
-  $('history-note').textContent = `Filters cover loaded messages after #${windowStart}. ${filtered.length > visible.length ? `Showing matches ${start + 1}–${start + visible.length} of ${filtered.length}. ` : ''}${state.messages.length >= WINDOW_LIMIT ? '5,000-message window reached. Continue to load the next window. ' : ''}Browsing never acknowledges agent messages.`;
+  $('history-note').textContent = `Filters cover loaded messages after #${windowStart}. ${filtered.length > visible.length ? `Showing matches ${start + 1}–${start + visible.length} of ${filtered.length}. ` : ''}${state.messages.length >= WINDOW_LIMIT ? '5,000-message window reached. Continue to load the next window. ' : ''}Previous window reloads saved boundaries; Jump to sequence reaches any history. Browsing never acknowledges agent messages.`;
   if (!state.contextID) { empty($('messages'),'Choose a work context','Conversations you can read will appear here.'); return; }
   if (!filtered.length) { empty($('messages'), state.messages.length ? 'No matching messages' : 'No messages loaded', state.messages.length ? 'Try another filter or load more of the conversation.' : 'New agent messages will appear here as they arrive.'); return; }
   const byID = new Map(state.messages.map(m => [m.ID,m])), known = readable();
@@ -462,10 +471,9 @@ function renderMessages() {
     top.append(sender, node('span', typeLabel(type), `badge ${type.replace(/^comitia\./,'').replace(/\.v\d+$/,'')}`), node('span', date(message.CreatedAt), 'message-time'));
     const status = taskStatus(message, tasks, known);
     if (status) top.append(node('span', stateLabel(status.state), `badge task-state ${status.state}`));
-    main.append(top, node('p', message.Body || envelope.payload?.summary || envelope.payload?.instructions || 'Structured message', 'message-body'));
-    main.append(node('p', envelope.recipient_session_ids?.length ? `To ${envelope.recipient_session_ids.map(agentLabel).join(', ')}` : 'To everyone in this context', 'message-routing'));
+    main.append(top, node('p', messagePreview(message), 'message-body'));
+    main.append(node('p', `To ${recipientLabel(envelope, agentLabel)}`, 'message-routing'));
     card.append(main);
-    if (envelope.recipient_instances?.length) main.append(node('p', `Recipient instances (self-reported): ${envelope.recipient_instances.join(', ')}`, 'message-routing'));
     const actions = node('div', undefined, 'message-actions');
     if (envelope.reply_to) actions.append(byID.has(envelope.reply_to) ? button(`Reply to #${byID.get(envelope.reply_to).Sequence}`, () => jumpMessage(envelope.reply_to), 'text-button', `parent:${envelope.reply_to}`) : node('span', `Reply to ${shortID(envelope.reply_to)} · outside loaded window`));
     actions.append(button('View thread', event => { thread = message.ID; selected = message.ID; displayStart = 0; renderMessages(); renderDetails(); showDetails(event.currentTarget); }, 'text-button', `thread:${message.ID}`));
@@ -491,9 +499,9 @@ function renderDetails() {
   const target = node('div'), message = state.messages.find(m => m.ID === selected);
   if (!message) {renderChildren($('details'), node('div', 'Select a message to inspect its recipients, task, replies, and structured payload.', 'empty-details'));return;}
   const envelope = message.envelope || {};
-  target.append(node('span', typeLabel(messageType(message)), 'badge'), node('h3', `Message #${message.Sequence}`), node('p',message.Body || 'Structured message'));
+  target.append(node('span', typeLabel(messageType(message)), 'badge'), node('h3', `Message #${message.Sequence}`), node('p',messagePreview(message)));
   const dl = node('dl');
-  for (const [key,value] of [['Message ID',message.ID],['Sender',`${participantName(message.SessionID)}\n${message.SessionID}`],['Created',date(message.CreatedAt)],['Recipients',envelope.recipient_session_ids?.map(id=>`${participantName(id)} · ${id}`).join('\n') || 'Everyone in this context'],['Context',message.ContextID]]) dl.append(node('dt',key),node('dd',value));
+  for (const [key,value] of [['Message ID',message.ID],['Sender',`${participantName(message.SessionID)}\n${message.SessionID}`],['Created',date(message.CreatedAt)],['Recipients',recipientLabel(envelope, id=>`${participantName(id)} · ${id}`)],['Context',message.ContextID]]) dl.append(node('dt',key),node('dd',value));
   target.append(dl);
   if (message.agent_instance) {
     dl.append(node('dt','Agent instance (self-reported)'),node('dd',`${message.agent_instance.id}${message.agent_instance.label ? ` · ${message.agent_instance.label}` : ''}`));
@@ -551,7 +559,14 @@ $('more-participants').addEventListener('click',()=>moreDiscovery('participants'
 $('more-contexts').addEventListener('click',()=>loadContexts());
 $('pause').addEventListener('click',()=>{paused=!paused;$('pause').textContent=paused?'Resume':'Pause';$('sync-status').textContent=paused?'Paused':'Updating';if(paused)clearTimeout(timer);else sync();});
 $('load-more').addEventListener('click',()=>sync());
-$('next-window').addEventListener('click',()=>openContext(state.contextID,state.after));
+$('next-window').addEventListener('click',()=>{if(busy)return;const frame=history.next(state.after);return openContext(state.contextID,frame.after,true);});
+$('previous-window').addEventListener('click',()=>{if(busy)return;const frame=history.previous();return openContext(state.contextID,frame.after,true);});
+$('jump-history').addEventListener('submit',event=>{
+  event.preventDefault();
+  const sequence=Number($('jump-sequence').value);
+  if (!Number.isSafeInteger(sequence) || sequence < 1) { $('timeline-error').textContent='Enter a positive, safe sequence number.'; return; }
+  return openContext(state.contextID,sequence-1);
+});
 $('clear-filters').addEventListener('click',clearFilters);
 $('clear-thread').addEventListener('click',()=>{thread='';displayStart=null;renderMessages();});
 $('older-matches').addEventListener('click',()=>{const count=filterMessages(state.messages,filters()).length;displayStart=Math.max(0,(displayStart ?? Math.max(0,count-200))-200);renderMessages();});
@@ -581,14 +596,14 @@ $('next-connections').addEventListener('click',()=>{connectionPage++;renderMap()
 
 function renderFlow(filtered) {
   const key=JSON.stringify([state.contextID,windowStart,filters()]);
-  if(key!==sequenceFilterKey) {sequenceOptions={};sequenceFilterKey=key;}
-  // Keep the page being inspected visible as new messages advance the latest page.
-  const followRoutes=sequenceOptions.arrowPage==null, followTime=sequenceOptions.start==null;
+  if(key!==sequenceFilterKey) {const seekMessage=sequenceOptions.seekMessage;sequenceOptions={seekMessage};sequenceCurrent=null;followLatest=!seekMessage;sequenceFilterKey=key;}
+  // Following resumes explicitly; focused SVG/list controls keep their page.
   const inspecting=sequenceCurrent && (engaged('sequence-canvas') || engaged('sequence-routes'));
-  sequenceCurrent=sequenceLayout(filtered,participants,{...sequenceOptions,...(inspecting?{arrowPage:sequenceCurrent.arrowPage,start:sequenceCurrent.from}:{}),span:Number($('sequence-span').value),spacing:$('sequence-spacing').value || 'order'});
-  // Stay on the newest routes/time while viewing them, so polling follows new messages.
-  const latestRoutes=(sequenceCurrent.arrowPage+1)*ARROW_LIMIT>=sequenceCurrent.routeCount;
-  sequenceOptions={...sequenceOptions,lanePage:sequenceCurrent.lanePage,arrowPage:followRoutes||latestRoutes?null:sequenceCurrent.arrowPage,start:followTime||sequenceCurrent.to>=sequenceCurrent.max?null:sequenceCurrent.from,seekMessage:''};
+  const pinned=inspecting ? {lanePage:sequenceCurrent.lanePage,arrowPage:sequenceCurrent.arrowPage,start:sequenceCurrent.from} : {};
+  sequenceCurrent=sequenceLayout(filtered,participants,{...(followLatest?{seekMessage:sequenceOptions.seekMessage}:sequenceOptions),...pinned,span:Number($('sequence-span').value),spacing:$('sequence-spacing').value || 'order',width:$('sequence-canvas').clientWidth || 920});
+  if (!followLatest) sequenceOptions={lanePage:sequenceCurrent.lanePage,arrowPage:sequenceCurrent.arrowPage,start:sequenceCurrent.from};
+  else sequenceOptions={};
+  $('sequence-follow').setAttribute('aria-pressed',String(followLatest));
   const flow=sequenceCurrent;
   renderSequence($('sequence-canvas'),flow,{selected,messages:state.messages,onSelect:selectMessage});
   $('sequence-summary').textContent=`${flow.lanes.filter(l=>l.id!==BROADCAST).length} agents · ${flow.inRange} messages in time range · ${filtered.length} matching loaded messages`;
@@ -603,19 +618,20 @@ function renderFlow(filtered) {
     const control=button('',event=>selectMessage(item.message.ID,event.currentTarget),'sequence-route');
     control.dataset.key=JSON.stringify([item.message.ID,item.target]);
     control.setAttribute('aria-pressed',String(selected===item.message.ID));
-    control.append(node('span',`#${item.message.Sequence} · ${timeLabel(item.time)}`,'sequence-route-time'),node('span',`${routeName(item.source)}${instanceLabel(item.message)} → ${routeName(item.target)}${item.message.envelope?.recipient_instances?.length ? ` · instances: ${item.message.envelope.recipient_instances.join(", ")} (self-reported)` : ""}`),node('span',item.message.Body || 'Structured message','sequence-route-preview'));
+    control.append(node('span',`#${item.message.Sequence} · ${timeLabel(item.time)}`,'sequence-route-time'),node('span',`${routeName(item.source)}${instanceLabel(item.message)} → ${routeName(item.target)}${item.message.envelope?.recipient_instances?.length ? ` · instances: ${item.message.envelope.recipient_instances.join(", ")} (self-reported)` : ""}`),node('span',messagePreview(item.message),'sequence-route-preview'));
     return control;
   }));
-  $('sequence-arrow-count').textContent=flow.routeCount?`Routes ${flow.arrowPage*ARROW_LIMIT+1}–${flow.arrowPage*ARROW_LIMIT+flow.routes.length} of ${flow.routeCount}`:'No routes on these lanes';
+  $('sequence-arrow-count').textContent=flow.routeCount?`Routes ${flow.arrowPage*flow.routeLimit+1}–${flow.arrowPage*flow.routeLimit+flow.routes.length} of ${flow.routeCount}`:'No routes on these lanes';
   $('sequence-previous-arrows').disabled=flow.arrowPage===0;
-  $('sequence-next-arrows').disabled=(flow.arrowPage+1)*ARROW_LIMIT>=flow.routeCount;
-  $('sequence-note').textContent=`Only the loaded message window is shown. Other lane pages may contain more messages. ${flow.routeCount>ARROW_LIMIT?'Use route pages to see all arrows on these lanes. ':''}${flow.unknownTimes?`${flow.unknownTimes} messages have no valid timestamp; open Message list to inspect them. `:''}Coincident arrows are individually selectable in the route list. Selected messages and their loaded reply thread are highlighted.`;
+  $('sequence-next-arrows').disabled=(flow.arrowPage+1)*flow.routeLimit>=flow.routeCount;
+  $('sequence-note').textContent=`Only the loaded message window is shown. Other lane pages may contain more messages. ${flow.routeCount>flow.routeLimit?'Use route pages to see all arrows on these lanes. ':''}${flow.unknownTimes?`${flow.unknownTimes} messages have no valid timestamp; open Message list to inspect them. `:''}Coincident arrows are individually selectable in the route list. Selected messages and their loaded reply thread are highlighted.`;
 }
+$('sequence-follow').addEventListener('click',()=>{followLatest=true;sequenceOptions={};sequenceCurrent=null;renderMessages();$('sequence-canvas').scrollLeft=0;});
 $('sequence-span').addEventListener('change',()=>{sequenceOptions.start=null;sequenceOptions.arrowPage=null;renderMessages();});
 $('sequence-spacing').addEventListener('change',()=>{sequenceOptions.arrowPage=null;renderMessages();});
-for(const [id,change] of [['sequence-earlier',-1],['sequence-later',1]]) $(id).addEventListener('click',()=>{if(!sequenceCurrent)return;sequenceOptions.start=sequenceCurrent.from+change*Number($('sequence-span').value);sequenceOptions.arrowPage=null;renderMessages();});
-for(const [id,change] of [['sequence-previous-lanes',-1],['sequence-next-lanes',1]]) $(id).addEventListener('click',()=>{sequenceOptions.lanePage=(sequenceOptions.lanePage||0)+change;sequenceOptions.arrowPage=null;renderMessages();});
-for(const [id,change] of [['sequence-previous-arrows',-1],['sequence-next-arrows',1]]) $(id).addEventListener('click',()=>{if(!sequenceCurrent)return;sequenceOptions.arrowPage=sequenceCurrent.arrowPage+change;renderMessages();});
+for(const [id,change] of [['sequence-earlier',-1],['sequence-later',1]]) $(id).addEventListener('click',()=>{if(!sequenceCurrent)return;followLatest=false;sequenceOptions.start=sequenceCurrent.from+change*Number($('sequence-span').value);sequenceOptions.arrowPage=null;renderMessages();});
+for(const [id,change] of [['sequence-previous-lanes',-1],['sequence-next-lanes',1]]) $(id).addEventListener('click',()=>{if(!sequenceCurrent)return;followLatest=false;sequenceOptions.lanePage=sequenceCurrent.lanePage+change;sequenceOptions.arrowPage=null;renderMessages();});
+for(const [id,change] of [['sequence-previous-arrows',-1],['sequence-next-arrows',1]]) $(id).addEventListener('click',()=>{if(!sequenceCurrent)return;followLatest=false;sequenceOptions.arrowPage=sequenceCurrent.arrowPage+change;renderMessages();});
 setView('sequence');
 window.addEventListener('resize',()=>{if(window.innerWidth>960)closeDetails();if(view==='sequence'&&state.contextID)renderFlow(filterMessages(state.messages,filters()));});
 await connect(savedCredential());

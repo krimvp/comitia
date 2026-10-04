@@ -17,7 +17,8 @@ list exposes every route. Dense diagrams show up to 16 sessions with an explicit
 limit notice; agent focus includes the selected session and its neighbors.
 Names are display labels; full session IDs remain
 available in details. Addressed messages remain shared within their context.
-Unknown/extension schemas show their name and raw JSON without executing content.
+Known schema previews show reason, status or summary as text, including payload-only
+blockers. Unknown/extension schemas show their name and raw JSON without executing content.
 References are displayed as text; HTTP(S) references are opened only on user
 interaction. Text is rendered through DOM text nodes, never interpreted as HTML.
 
@@ -84,8 +85,15 @@ invented individual readers. Selecting a message opens its existing details and
 reply navigation. Task, agent, type and text filters help isolate conversations.
 
 The timeline operates on the loaded replay window, not the entire database.
-Bounded diagram pages keep dense conversations navigable; use the message list
-and recipient details when an exchange extends beyond the visible lanes.
+Bounded diagram pages keep dense conversations navigable. Event-order route pages
+fit the container width, up to the 36-arrow ceiling; lane names remain pinned while
+the diagram scrolls in a separate gutter that leaves the first sender and its
+sequence/time captions unobstructed. **Follow latest** returns to the newest
+activity and follows new lanes as messages arrive. Paging freezes that view until Follow latest is
+selected; a focused diagram or route control keeps its page during polling. Use
+the message list and recipient details when an exchange extends beyond the visible
+lanes. Both session and self-reported instance recipient lists are displayed;
+“Everyone” appears only when both lists are empty.
 Server-side time-range aggregation and recorded read receipts remain future
 work. Inspecting an arrow never advances an agent's acknowledgement cursor.
 
@@ -110,7 +118,9 @@ filter combinations, nested reply membership, the context tree, locked children
 and multi-process checks continue to run in CI. No frontend packages are needed
 to build or use the inspector. A separate CI job uses pinned Playwright/Chromium
 to check actual keyboard selection, three-second polling, disclosure and scroll
-preservation, changed metadata/replies, and mobile/tablet modal focus and return.
+preservation, changed metadata/replies, mobile/tablet modal focus and return,
+5,000-message window navigation, safe payload previews, pinned lanes, Follow latest,
+and computed presence/diagram text contrast and size.
 The browser suite serves the embedded assets when `COMITIA_BINARY` is supplied;
 its read-only API fixtures are deterministic.
 
@@ -172,7 +182,13 @@ effective grants before returning candidates to callers.
 
 Filters and thread links cover loaded history, not an implicit global search.
 Replay loads up to 100 messages per refresh and keeps at most 5,000 per window;
-continue to the next window for longer conversations. Up to 200 matches render
+continue to the next window for longer conversations. **Previous window** reloads
+a saved window boundary, and **Jump to sequence** starts a window at the entered
+sequence (or the next existing sequence if there is a gap). Reloading uses the
+same 100-message batches; saved previous windows stop at their original boundary.
+Only one message window is retained, with up to 128 cursor bookmarks. After older
+bookmarks are discarded, Previous restarts at the beginning; Jump remains available
+for any sequence. Context selection resets these bookmarks. Up to 200 matches render
 at once; use Earlier/Later matches or filters to browse other loaded messages. Task and active participant
 lists load 1,000 entries per page. Use Load more tasks or Load more participants
 to reach later entries (participants appear in the agent filter). Polling refreshes

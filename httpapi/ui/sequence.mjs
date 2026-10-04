@@ -1,17 +1,20 @@
 import {on, renderChildren} from './dom.mjs';
-import {BROADCAST, shortID, threadIDs, parseActor, senderActor, recipientActors, instanceClaims} from './model.mjs';
+import {BROADCAST, shortID, threadIDs, parseActor, senderActor, recipientActors, instanceClaims, messagePreview} from './model.mjs';
 import {agentColor} from './graph.mjs';
 
 export const LANE_LIMIT = 12;
 export const ARROW_LIMIT = 36;
+export const routePageSize = width => Math.max(1, Math.min(ARROW_LIMIT, Math.floor((width - 275) / 140)));
 const NS = 'http://www.w3.org/2000/svg';
+const LABEL_WIDTH = 165;
 const clampPage = (page, count, size) => Math.min(Math.max(0, Math.floor(page) || 0), Math.max(0, Math.ceil(count / size) - 1));
 export const timeLabel = time => new Date(time).toLocaleTimeString(undefined, {hour:'2-digit', minute:'2-digit', second:'2-digit'});
 
 // Layout uses send timestamps only. A vertical arrow is an addressed message,
 // not elapsed delivery time. Off-page endpoints preserve cross-page routes.
 // Unset pages and start follow the newest activity, as a live view should.
-export function sequenceLayout(messages, participants = [], {lanePage = null, arrowPage = null, span = 0, start = null, seekMessage = '', spacing = 'time'} = {}) {
+export function sequenceLayout(messages, participants = [], {lanePage = null, arrowPage = null, span = 0, start = null, seekMessage = '', spacing = 'time', width = null} = {}) {
+  const routeLimit = spacing === 'order' && width !== null ? routePageSize(width) : ARROW_LIMIT;
   const names = new Map(participants.map(p => [p.SessionID, p.Name]));
   const claims = instanceClaims(messages);
   const recipients = message => recipientActors(message, claims);
@@ -54,10 +57,10 @@ export function sequenceLayout(messages, participants = [], {lanePage = null, ar
     }
   }
   if(spacing === 'order') routes.sort((a,b)=>a.message.Sequence-b.message.Sequence || a.message.ID.localeCompare(b.message.ID));
-  if(sought)arrowPage=Math.floor(routes.findIndex(route=>route.message.ID===seekMessage)/ARROW_LIMIT);
+  if(sought)arrowPage=Math.floor(routes.findIndex(route=>route.message.ID===seekMessage)/routeLimit);
   else if(arrowPage===null)arrowPage=Infinity;
-  arrowPage = clampPage(arrowPage,routes.length,ARROW_LIMIT);
-  return {lanes,visible,lanePage,arrowPage,spacing,routes:routes.slice(arrowPage*ARROW_LIMIT,(arrowPage+1)*ARROW_LIMIT),routeCount:routes.length,inRange,unknownTimes,from,to,min,max};
+  arrowPage = clampPage(arrowPage,routes.length,routeLimit);
+  return {lanes,visible,lanePage,arrowPage,spacing,routeLimit,routes:routes.slice(arrowPage*routeLimit,(arrowPage+1)*routeLimit),routeCount:routes.length,inRange,unknownTimes,from,to,min,max};
 }
 
 function svg(tag, attributes = {}, text) {
@@ -74,7 +77,9 @@ export function occurrenceLink(x, y1, y2) {
 }
 export function renderSequence(container, layout, {selected = '', messages = [], onSelect} = {}) {
   const ordered = layout.spacing === 'order';
-  const width = Math.max(680,container.clientWidth || 920,ordered ? 290+Math.max(0,layout.routes.length-1)*140 : 0), left = 165, right = width-110, top = 90, gap = 88;
+  // Labels occupy their own gutter; leave room for centered captions and the
+  // full sender circle inside the separate route canvas.
+  const width = Math.max(515,(container.clientWidth || 920)-LABEL_WIDTH,ordered ? 215+Math.max(0,layout.routes.length-1)*140 : 0), left = 90, right = width-110, top = 90, gap = 88;
   const routeX = new Map(layout.routes.map((route,i)=>[route,ordered ? left+i*140 : left+route.position*(right-left)]));
   const positions = new Map(layout.visible.map((lane,i) => [lane.id,top+i*gap]));
   const outsideY = top+layout.visible.length*gap;
@@ -96,16 +101,20 @@ export function renderSequence(container, layout, {selected = '', messages = [],
     const x=left+(right-left)*i/4;
     canvas.append(svg('line',{x1:x,x2:x,y1:45,y2:height-25,'class':'sequence-grid'}),svg('text',{x,y:25,'text-anchor':'middle','class':'sequence-time'},timeLabel(layout.from+(layout.to-layout.from)*i/4)));
   }
+  const labels = svg('svg',{width:LABEL_WIDTH,height,viewBox:`0 0 ${LABEL_WIDTH} ${height}`,'class':'sequence-labels','aria-label':'Pinned agent lane names'});
   for (const lane of layout.visible) {
     const y=positions.get(lane.id);
     canvas.append(svg('line',{x1:left,x2:right,y1:y,y2:y,'class':'sequence-lane'}));
-    canvas.append(svg('circle',{cx:15,cy:y-5,r:5,fill:agentColor(lane.id)}));
+    labels.append(svg('circle',{cx:15,cy:y-5,r:5,fill:agentColor(lane.id)}));
     const label=svg('text',{x:28,y:y-3,'class':'sequence-name'},lane.name.length>18?lane.name.slice(0,17)+'…':lane.name);
     label.append(svg('title',{},lane.instance?`${lane.instance} (self-reported instance) · ${lane.sessionName} · ${lane.session || 'unknown session'}`:`${lane.name} · ${lane.id}`));
     const sub=lane.id===BROADCAST?'Shared context':lane.instance?`${lane.sessionName} · self-reported`:shortID(lane.id);
-    canvas.append(label,svg('text',{x:28,y:y+14,'class':'sequence-id'},sub.length>22?sub.slice(0,21)+'…':sub));
+    labels.append(label,svg('text',{x:28,y:y+14,'class':'sequence-id'},sub.length>22?sub.slice(0,21)+'…':sub));
   }
-  if(hasOutside) canvas.append(svg('line',{x1:left,x2:right,y1:outsideY,y2:outsideY,'class':'sequence-external'}),svg('text',{x:15,y:outsideY-3,'class':'sequence-name'},'Off-page agents'),svg('text',{x:15,y:outsideY+14,'class':'sequence-id'},'Names in route list'));
+  if(hasOutside) {
+    canvas.append(svg('line',{x1:left,x2:right,y1:outsideY,y2:outsideY,'class':'sequence-external'}));
+    labels.append(svg('text',{x:15,y:outsideY-3,'class':'sequence-name'},'Off-page agents'),svg('text',{x:15,y:outsideY+14,'class':'sequence-id'},'Names in route list'));
+  }
   const related = selected ? threadIDs(messages,selected) : new Set();
   // Paint selection last so overlapping timestamps remain inspectable. The
   // companion route list always exposes every route, including exact ties.
@@ -118,7 +127,7 @@ export function renderSequence(container, layout, {selected = '', messages = [],
     const isSelected=route.message.ID===selected;
     const routeID=`sequence-route-${encodeURIComponent(route.message.ID)}-${encodeURIComponent(route.target)}`;
     const group=svg('g',{id:routeID,'class':`sequence-message${isSelected?' selected':related.has(route.message.ID)?' related':''}`,role:'button',tabindex:0,'aria-pressed':String(isSelected),'aria-label':`Message ${route.message.Sequence}, ${route.source}${claim} to ${route.target===BROADCAST?'Everyone':route.target}, sent ${timeLabel(route.time)}`});
-    group.append(svg('title',{},`#${route.message.Sequence} · ${route.source}${claim} → ${route.target}\n${route.message.Body || 'Structured message'}\nSent ${new Date(route.time).toISOString()} · Read status unknown`),svg('path',{d,'class':'sequence-hit'}),svg('path',{d,'class':'sequence-arrow','marker-end':'url(#sequence-arrow)'}));
+    group.append(svg('title',{},`#${route.message.Sequence} · ${route.source}${claim} → ${route.target}\n${messagePreview(route.message)}\nSent ${new Date(route.time).toISOString()} · Read status unknown`),svg('path',{d,'class':'sequence-hit'}),svg('path',{d,'class':'sequence-arrow','marker-end':'url(#sequence-arrow)'}));
     for(const [id,cx,cy,role] of [[route.source,x,y1,'Sender'],[route.target,targetX,y2,'Recipient']]) {
       const name=layout.lanes.find(lane=>lane.id===id)?.name || 'Session';
       const circle=svg('circle',{cx,cy,r:radius,fill:agentColor(id),'class':'sequence-occurrence'});
@@ -132,5 +141,7 @@ export function renderSequence(container, layout, {selected = '', messages = [],
     canvas.append(group);
   }
   if(!layout.routes.length)canvas.append(svg('text',{x:(left+right)/2,y:height-28,'text-anchor':'middle','class':'sequence-time'},'No routes in this time range and lane page.'));
-  renderChildren(container, canvas);
+  const stage = document.createElement('div'); stage.className='sequence-stage';
+  stage.append(labels,canvas);
+  renderChildren(container, stage);
 }
