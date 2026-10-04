@@ -49,3 +49,30 @@ jobs:
           path: dist/stress.json
           if-no-files-found: error
           retention-days: 7
+
+  inspector-browser:
+    runs-on: ubuntu-latest
+    env:
+      GOTOOLCHAIN: go1.24.13
+      GOFLAGS: -buildvcs=false
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: httpapi/ui-tests/browser/package-lock.json
+      - name: Install browser test dependencies
+        run: |
+          npm ci --prefix httpapi/ui-tests/browser
+          httpapi/ui-tests/browser/node_modules/.bin/playwright install --with-deps chromium
+      - name: Build inspector server
+        run: go build -o "$RUNNER_TEMP/comitia-inspector" ./cmd/comitia
+      - name: Inspector browser regressions
+        env:
+          COMITIA_BROWSER_REQUIRED: '1'
+        run: COMITIA_BINARY="$RUNNER_TEMP/comitia-inspector" node --test httpapi/ui-tests/browser/*.test.mjs

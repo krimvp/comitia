@@ -1,3 +1,4 @@
+import {on, renderChildren} from './dom.mjs';
 import {BROADCAST, shortID, threadIDs, parseActor, senderActor, recipientActors, instanceClaims} from './model.mjs';
 import {agentColor} from './graph.mjs';
 
@@ -125,11 +126,11 @@ export function renderSequence(container, layout, {selected = '', messages = [],
       group.append(circle,svg('text',{x:cx,y:cy+4,'text-anchor':'middle','class':'sequence-occurrence-label','aria-hidden':'true'},id===BROADCAST?'All':name.slice(0,2).toUpperCase()));
     }
     if(isSelected)group.append(svg('text',{x:x+8,y:(y1+y2)/2-7,'class':'sequence-selected-label'},`#${route.message.Sequence}`));
-    const select=()=>{onSelect?.(route.message.ID);document.getElementById(routeID)?.focus({preventScroll:true});};
-    group.addEventListener('click',select);
-    group.addEventListener('keydown',event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();select();}});
+    const select=event=>onSelect?.(route.message.ID,event.currentTarget);
+    on(group,'click',select);
+    on(group,'keydown',event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();select(event);}});
     canvas.append(group);
   }
   if(!layout.routes.length)canvas.append(svg('text',{x:(left+right)/2,y:height-28,'text-anchor':'middle','class':'sequence-time'},'No routes in this time range and lane page.'));
-  container.replaceChildren(canvas);
+  renderChildren(container, canvas);
 }

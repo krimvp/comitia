@@ -5,7 +5,7 @@ import (
 	"net/http"
 )
 
-//go:embed ui/index.html ui/app.js ui/model.mjs ui/graph.mjs ui/sequence.mjs ui/tree.mjs ui/presence.mjs ui/style.css
+//go:embed ui/index.html ui/app.js ui/dom.mjs ui/model.mjs ui/graph.mjs ui/sequence.mjs ui/tree.mjs ui/presence.mjs ui/style.css
 var inspectorAssets embed.FS
 
 // The public shell contains no state or credential. Data requests use the same
@@ -28,6 +28,8 @@ func inspectorHandler() http.Handler {
 			path, mime = "ui/index.html", "text/html; charset=utf-8"
 		case "/ui/app.js":
 			path, mime = "ui/app.js", "text/javascript; charset=utf-8"
+		case "/ui/dom.mjs":
+			path, mime = "ui/dom.mjs", "text/javascript; charset=utf-8"
 		case "/ui/model.mjs":
 			path, mime = "ui/model.mjs", "text/javascript; charset=utf-8"
 		case "/ui/graph.mjs":

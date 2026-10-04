@@ -1,20 +1,9 @@
+import {Element} from './dom-fixture.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 
 // A minimal DOM seam for controller tests, not a browser or visual-layout test.
-class Element {
-  constructor(tag='div') {this.tag=tag;this.children=[];this.events={};this.dataset={};this.value='';this.hidden=false;this.textContent='';}
-  append(...children) {this.children.push(...children);}
-  replaceChildren(...children) {this.children=children;}
-  add(child) {this.children.push(child);}
-  addEventListener(event, fn) {this.events[event]=fn;}
-  setAttribute(name,value) {this[name]=value;}
-  focus() {}
-  scrollIntoView() {}
-  querySelector() {return this.children.find(c=>c.tag==='button');}
-  async fire(event) {return this.events[event]?.({preventDefault(){}});}
-}
 const text = element => [element.textContent,...element.children.map(text)].join(' ');
 const settle = async () => {for(let i=0;i<25;i++) await Promise.resolve();};
 
