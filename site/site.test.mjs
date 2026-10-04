@@ -98,3 +98,32 @@ test("the home link opens the page itself", () => {
   assert.ok(home);
   assert.equal(home[1], "index.html");
 });
+
+test("hero leads with practical coordination and the agent runner boundary", () => {
+  const hero = html.slice(html.indexOf('<div class="hero-text">'), html.indexOf('<figure class="hero-fig">'));
+  const lede = hero.match(/<p class="lede">([^<]+)<\/p>/)?.[1];
+  assert.ok(lede);
+  assert.match(lede, /hand off/i);
+  assert.match(lede, /claim/i);
+  assert.match(lede, /history/i);
+  assert.match(hero, /agents you already run/i);
+  assert.match(hero, /does not launch/i);
+  assert.doesNotMatch(hero, /SQLite|Go service|application API/);
+});
+
+test("Pages checks the checkout before staging and uploading the site", () => {
+  const workflow = readFileSync(join(root, "../.github/workflows/pages.yml"), "utf8");
+  const build = workflow.slice(workflow.indexOf("  build:"), workflow.indexOf("  deploy:"));
+  const setup = build.indexOf("actions/setup-node@v4");
+  const checks = build.indexOf("node --test site/*.test.mjs");
+  const browser = build.indexOf("node --test site/browser/*.test.mjs");
+  const stage = build.indexOf("rsync");
+  const upload = build.indexOf("actions/upload-pages-artifact@v3");
+  assert.ok(setup >= 0 && setup < checks && checks < browser && browser < stage && stage < upload);
+  assert.match(build, /node-version: 22/);
+  assert.match(build, /npm ci --prefix site\/browser/);
+  assert.match(build, /playwright install --with-deps chromium/);
+  assert.doesNotMatch(build, /continue-on-error|if:.*always|\|\|\s*true/);
+  assert.match(build, /--exclude 'browser\/'/);
+  assert.match(workflow, /deploy:\s+needs: build/);
+});

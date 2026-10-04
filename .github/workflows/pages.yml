@@ -22,11 +22,24 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: site/browser/package-lock.json
+      - name: Site invariant tests
+        run: node --test site/*.test.mjs
+      - name: Install browser test dependencies
+        run: |
+          npm ci --prefix site/browser
+          site/browser/node_modules/.bin/playwright install --with-deps chromium
+      - name: Site browser regressions
+        run: node --test site/browser/*.test.mjs
       - uses: actions/configure-pages@v5
-      - name: Stage site without tests
+      - name: Stage checked public assets
         run: |
           mkdir -p "$RUNNER_TEMP/site"
-          rsync -a --exclude '*.test.mjs' site/ "$RUNNER_TEMP/site/"
+          rsync -a --exclude '*.test.mjs' --exclude 'browser/' site/ "$RUNNER_TEMP/site/"
       - uses: actions/upload-pages-artifact@v3
         with:
           path: ${{ runner.temp }}/site

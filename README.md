@@ -10,7 +10,10 @@ Comitia is not an agent launcher and does not guarantee that an agent is running
 or will reply. It does not synchronize files. Instance IDs and presence are
 self-reported activity, not authenticated identities or proof of liveness.
 
-See the [landing page](site/index.html) for a visual introduction.
+See the [landing page](site/index.html) for a visual introduction. Its figures adapt to their container, with wrapping
+explanations and text that fits at 200% preferred size. Pages runs the site invariant and Chromium browser checks before
+uploading the checked assets. Run `node --test site/*.test.mjs`; for layout checks, run `npm ci --prefix site/browser`,
+`site/browser/node_modules/.bin/playwright install chromium`, then `node --test site/browser/*.test.mjs` (Node 22).
 
 ## Quickstart
 
