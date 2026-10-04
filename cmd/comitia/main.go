@@ -14,7 +14,10 @@ import (
 	"github.com/krimvp/comitia/httpapi"
 )
 
-type config struct{ db, serverURL, credential, bootstrapCredential string }
+type config struct {
+	db, serverURL, credential, bootstrapCredential string
+	instances                                      comitia.InstanceDefaults
+}
 
 func env(key, fallback string) string {
 	if v := os.Getenv(key); v != "" {
@@ -44,7 +47,11 @@ var errUnknownCommand = errors.New("unknown command")
 func run(ctx context.Context, args []string) error {
 	global := flag.NewFlagSet("comitia", flag.ContinueOnError)
 	global.SetOutput(os.Stderr)
-	cfg := config{}
+	instances, err := comitia.InstanceDefaultsFromEnv()
+	if err != nil {
+		return err
+	}
+	cfg := config{instances: instances}
 	global.StringVar(&cfg.db, "db", env("COMITIA_DB", "comitia.db"), "SQLite database path")
 	global.StringVar(&cfg.serverURL, "server-url", env("COMITIA_SERVER_URL", ""), "remote Comitia server URL")
 	// Secret defaults are applied after parsing so `--help` never prints values

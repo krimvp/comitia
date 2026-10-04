@@ -56,7 +56,7 @@ type MessageAPI interface {
 type MessageReadStore interface {
 	Message(string) (Message, error)
 	Participants(string, time.Time, int) ([]Participant, error)
-	MessageByDedupe(string, string, string) (Message, error)
+	MessageByDedupe(string, string, string, ...string) (Message, error)
 	AckCursor(string, string, string) (int64, error)
 	Messages(string, int64, int) ([]Message, error)
 }

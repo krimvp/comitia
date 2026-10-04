@@ -12,14 +12,20 @@ CREATE TABLE IF NOT EXISTS messages (id TEXT PRIMARY KEY, context_id TEXT NOT NU
 CREATE TABLE IF NOT EXISTS message_envelopes (message_id TEXT PRIMARY KEY REFERENCES messages(id), envelope TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS message_instances (message_id TEXT PRIMARY KEY REFERENCES messages(id), instance_id TEXT NOT NULL, label TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS instance_acks (session_id TEXT NOT NULL REFERENCES sessions(id), context_id TEXT NOT NULL REFERENCES contexts(id), instance_id TEXT NOT NULL, seq INTEGER NOT NULL, updated_at TEXT NOT NULL, PRIMARY KEY(session_id,context_id,instance_id));
+CREATE TABLE IF NOT EXISTS message_dedupe_scopes (context_id TEXT NOT NULL REFERENCES contexts(id), session_id TEXT NOT NULL REFERENCES sessions(id), instance_id TEXT NOT NULL, dedupe_key TEXT NOT NULL, message_id TEXT NOT NULL UNIQUE REFERENCES messages(id), PRIMARY KEY(context_id,session_id,instance_id,dedupe_key));
+INSERT OR IGNORE INTO message_dedupe_scopes SELECT m.context_id,m.session_id,COALESCE(i.instance_id,''),m.dedupe_key,m.id FROM messages m LEFT JOIN message_instances i ON i.message_id=m.id WHERE NOT EXISTS (SELECT 1 FROM message_dedupe_scopes d WHERE d.message_id=m.id);
 CREATE TABLE IF NOT EXISTS acks (session_id TEXT NOT NULL REFERENCES sessions(id), context_id TEXT NOT NULL REFERENCES contexts(id), seq INTEGER NOT NULL, updated_at TEXT NOT NULL, PRIMARY KEY(session_id,context_id));
 `
 
-func (x *sqlStore) MessageByDedupe(cid, sid, key string) (Message, error) {
-	return scanMessage(x.q.QueryRow(messageSelect+" WHERE m.context_id=? AND m.session_id=? AND m.dedupe_key=?", cid, sid, key))
+func (x *sqlStore) MessageByDedupe(cid, sid, key string, instances ...string) (Message, error) {
+	instance, err := cursorInstance(instances)
+	if err != nil {
+		return Message{}, err
+	}
+	return scanMessage(x.q.QueryRow(messageSelect+" WHERE d.context_id=? AND d.session_id=? AND d.instance_id=? AND d.dedupe_key=?", cid, sid, instance, key))
 }
 
-const messageSelect = "SELECT m.id,m.context_id,m.session_id,m.seq,m.dedupe_key,m.body,m.created_at,COALESCE(e.envelope,''),COALESCE(i.instance_id,''),COALESCE(i.label,'') FROM messages m LEFT JOIN message_envelopes e ON e.message_id=m.id LEFT JOIN message_instances i ON i.message_id=m.id"
+const messageSelect = "SELECT m.id,m.context_id,m.session_id,m.seq,COALESCE(d.dedupe_key,m.dedupe_key),m.body,m.created_at,COALESCE(e.envelope,''),COALESCE(i.instance_id,''),COALESCE(i.label,'') FROM messages m LEFT JOIN message_envelopes e ON e.message_id=m.id LEFT JOIN message_instances i ON i.message_id=m.id LEFT JOIN message_dedupe_scopes d ON d.message_id=m.id"
 
 func (x *sqlStore) Message(id string) (Message, error) {
 	return scanMessage(x.q.QueryRow(messageSelect+" WHERE m.id=?", id))
@@ -43,7 +49,20 @@ func (x *sqlStore) PutMessage(m Message) (Message, error) {
 	if e != nil {
 		return m, e
 	}
-	_, e = x.q.Exec("INSERT INTO messages VALUES(?,?,?,?,?,?,?)", m.ID, m.ContextID, m.SessionID, m.Sequence, m.DedupeKey, m.Body, ts(m.CreatedAt))
+	// Opaque storage keys avoid the legacy UNIQUE constraint without reserving
+	// any caller key namespace. Check collisions with arbitrary existing keys.
+	storageKey := m.ID
+	for {
+		var exists bool
+		if e = x.q.QueryRow("SELECT EXISTS(SELECT 1 FROM messages WHERE context_id=? AND session_id=? AND dedupe_key=?)", m.ContextID, m.SessionID, storageKey).Scan(&exists); e != nil {
+			return m, e
+		}
+		if !exists {
+			break
+		}
+		storageKey += "."
+	}
+	_, e = x.q.Exec("INSERT INTO messages VALUES(?,?,?,?,?,?,?)", m.ID, m.ContextID, m.SessionID, m.Sequence, storageKey, m.Body, ts(m.CreatedAt))
 	if e == nil && m.Envelope != nil {
 		var raw []byte
 		raw, e = json.Marshal(m.Envelope)
@@ -53,6 +72,13 @@ func (x *sqlStore) PutMessage(m Message) (Message, error) {
 	}
 	if e == nil && m.AgentInstance != nil {
 		_, e = x.q.Exec("INSERT INTO message_instances VALUES(?,?,?)", m.ID, m.AgentInstance.ID, m.AgentInstance.Label)
+	}
+	if e == nil {
+		instance := ""
+		if m.AgentInstance != nil {
+			instance = m.AgentInstance.ID
+		}
+		_, e = x.q.Exec("INSERT INTO message_dedupe_scopes VALUES(?,?,?,?,?)", m.ContextID, m.SessionID, instance, m.DedupeKey, m.ID)
 	}
 	return m, e
 }

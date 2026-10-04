@@ -33,6 +33,7 @@ func (h *handler) routeMessages(ctx context.Context, token, route string, q requ
 }
 
 func (c *Client) AppendMessage(x context.Context, t, id string, i comitia.MessageInput) (comitia.Message, error) {
+	i.AgentInstance = c.InstanceDefaults.Message(i.AgentInstance)
 	var o response
 	e := c.call(x, t, "messages/append", request{ContextID: id, Message: &i}, &o)
 	if o.Message == nil {
@@ -46,22 +47,16 @@ func (c *Client) ReplayMessages(x context.Context, t, id string, a int64, l int)
 	return o.Messages, e
 }
 func (c *Client) AckMessages(x context.Context, t, id string, s int64, instances ...string) error {
-	if len(instances) > 1 {
-		return comitia.ErrInvalid
-	}
-	instance := ""
-	if len(instances) == 1 {
-		instance = instances[0]
+	instance, err := c.InstanceDefaults.ID(instances...)
+	if err != nil {
+		return err
 	}
 	return c.call(x, t, "messages/ack", request{ContextID: id, After: s, AgentInstance: instance}, &response{})
 }
 func (c *Client) MessageCursor(x context.Context, t, id string, instances ...string) (int64, error) {
-	if len(instances) > 1 {
-		return 0, comitia.ErrInvalid
-	}
-	instance := ""
-	if len(instances) == 1 {
-		instance = instances[0]
+	instance, err := c.InstanceDefaults.ID(instances...)
+	if err != nil {
+		return 0, err
 	}
 	var o response
 	e := c.call(x, t, "messages/cursor", request{ContextID: id, AgentInstance: instance}, &o)

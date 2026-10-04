@@ -23,7 +23,11 @@ func (s *Service) AppendMessage(ctx context.Context, raw, cid string, in Message
 		if e != nil {
 			return e
 		}
-		old, e := w.MessageByDedupe(cid, a.session.ID, in.DedupeKey)
+		instanceID := ""
+		if instance != nil {
+			instanceID = instance.ID
+		}
+		old, e := w.MessageByDedupe(cid, a.session.ID, in.DedupeKey, instanceID)
 		if e == nil {
 			if old.Body != in.Body || !sameEnvelope(old.Envelope, envelope) || !sameAgentInstance(old.AgentInstance, instance) {
 				return ErrConflict

@@ -1,0 +1,99 @@
+package mcp
+
+import (
+	"bytes"
+	"context"
+	"encoding/json"
+	"strings"
+	"testing"
+
+	"github.com/krimvp/comitia"
+)
+
+type instanceAPI struct {
+	comitia.API
+	messages []comitia.MessageInput
+	acks     []string
+	cursors  []string
+}
+
+func (a *instanceAPI) AppendMessage(_ context.Context, _, _ string, in comitia.MessageInput) (comitia.Message, error) {
+	a.messages = append(a.messages, in)
+	return comitia.Message{AgentInstance: in.AgentInstance}, nil
+}
+
+func (a *instanceAPI) AckMessages(_ context.Context, _, _ string, _ int64, instances ...string) error {
+	a.acks = append(a.acks, instances[0])
+	return nil
+}
+
+func (a *instanceAPI) MessageCursor(_ context.Context, _, _ string, instances ...string) (int64, error) {
+	a.cursors = append(a.cursors, instances[0])
+	return 0, nil
+}
+
+func TestMCPInstanceDefaultsOnBothTransports(t *testing.T) {
+	t.Setenv("COMITIA_AGENT_INSTANCE", "worker")
+	t.Setenv("COMITIA_AGENT_INSTANCE_LABEL", "Worker")
+	defaults, err := comitia.InstanceDefaultsFromEnv()
+	if err != nil {
+		t.Fatal(err)
+	}
+	requests := []string{
+		`{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"send_message","arguments":{"context_id":"c","dedupe_key":"started","body":"ready"}}}`,
+		`{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"send_message","arguments":{"context_id":"c","dedupe_key":"started","body":"ready","agent_instance":{"id":"explicit"}}}}`,
+		`{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"ack_messages","arguments":{"context_id":"c","sequence":1}}}`,
+		`{"jsonrpc":"2.0","id":4,"method":"tools/call","params":{"name":"ack_messages","arguments":{"context_id":"c","sequence":1,"agent_instance":"explicit"}}}`,
+		`{"jsonrpc":"2.0","id":5,"method":"tools/call","params":{"name":"message_cursor","arguments":{"context_id":"c"}}}`,
+		`{"jsonrpc":"2.0","id":6,"method":"tools/call","params":{"name":"message_cursor","arguments":{"context_id":"c","agent_instance":"explicit"}}}`,
+		`{"jsonrpc":"2.0","id":7,"method":"tools/call","params":{"name":"message_cursor","arguments":{"context_id":"c","agent_instance":""}}}`,
+		`{"jsonrpc":"2.0","id":8,"method":"tools/call","params":{"name":"ack_messages","arguments":{"context_id":"c","sequence":1,"agent_instance":""}}}`,
+	}
+	for _, transport := range []string{"stdio", "http"} {
+		t.Run(transport, func(t *testing.T) {
+			api := &instanceAPI{}
+			if transport == "stdio" {
+				input := `{"jsonrpc":"2.0","id":0,"method":"initialize","params":{"protocolVersion":"2025-06-18"}}` + "\n" + strings.Join(requests, "\n")
+				var out bytes.Buffer
+				if err := (&Server{API: api, Credential: "token", InstanceDefaults: defaults}).Serve(context.Background(), strings.NewReader(input), &out); err != nil {
+					t.Fatal(err)
+				}
+				if strings.Contains(out.String(), `"isError":true`) {
+					t.Fatalf("tool failure: %s", out.String())
+				}
+			} else {
+				h := NewHTTPHandler(api, HTTPConfig{InstanceDefaults: defaults})
+				for _, req := range requests {
+					res := post(t, h, req, map[string]string{"Authorization": "Bearer token"})
+					if res.Code != 200 || toolError(t, res.Body.String()) {
+						t.Fatalf("tool failure: %s", res.Body.String())
+					}
+				}
+			}
+			if len(api.messages) != 2 || *api.messages[0].AgentInstance != (comitia.AgentInstance{ID: "worker", Label: "Worker"}) || *api.messages[1].AgentInstance != (comitia.AgentInstance{ID: "explicit"}) {
+				t.Fatalf("message defaults: %v", api.messages)
+			}
+			if strings.Join(api.acks, ",") != "worker,explicit," || strings.Join(api.cursors, ",") != "worker,explicit," {
+				t.Fatalf("cursor defaults: ack=%v cursor=%v", api.acks, api.cursors)
+			}
+		})
+	}
+}
+
+func TestInstanceToolDescriptions(t *testing.T) {
+	for _, name := range []string{"send_message", "ack_messages", "message_cursor"} {
+		found := false
+		for _, tool := range tools() {
+			if tool["name"] == name {
+				b, _ := json.Marshal(tool)
+				if !strings.Contains(string(b), "COMITIA_AGENT_INSTANCE") {
+					t.Fatalf("%s does not describe default", name)
+				}
+				found = true
+			}
+		}
+		if !found {
+			t.Fatalf("missing tool %s", name)
+		}
+	}
+}

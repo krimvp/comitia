@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"flag"
 
 	"github.com/krimvp/comitia"
 )
@@ -14,8 +15,8 @@ func runMessages(ctx context.Context, cfg config, api comitia.API, out *json.Enc
 		cid := fs.String("context-id", "", "context ID")
 		key := fs.String("dedupe-key", "", "stable deduplication key")
 		body := fs.String("body", "", "message body")
-		instanceID := fs.String("agent-instance", "", "self-reported instance ID")
-		instanceLabel := fs.String("agent-instance-label", "", "optional self-reported instance label")
+		instanceID := fs.String("agent-instance", "", "self-reported instance ID (defaults to COMITIA_AGENT_INSTANCE)")
+		instanceLabel := fs.String("agent-instance-label", "", "optional self-reported instance label (defaults to COMITIA_AGENT_INSTANCE_LABEL)")
 		envelopeFile := fs.String("envelope-file", "", "validated message envelope JSON file")
 		if err := fs.Parse(args); err != nil {
 			return err
@@ -24,9 +25,14 @@ func runMessages(ctx context.Context, cfg config, api comitia.API, out *json.Enc
 		if e != nil {
 			return e
 		}
-		var instance *comitia.AgentInstance
-		if *instanceID != "" || *instanceLabel != "" {
+		instance := cfg.instances.Message(nil)
+		if flagProvided(fs, "agent-instance") {
 			instance = &comitia.AgentInstance{ID: *instanceID, Label: *instanceLabel}
+		} else if flagProvided(fs, "agent-instance-label") {
+			if instance == nil {
+				instance = &comitia.AgentInstance{}
+			}
+			instance.Label = *instanceLabel
 		}
 		v, e := api.AppendMessage(ctx, needCredential(cfg), *cid, comitia.MessageInput{DedupeKey: *key, Body: *body, Envelope: envelope, AgentInstance: instance})
 		if e != nil {
@@ -62,7 +68,8 @@ func runMessages(ctx context.Context, cfg config, api comitia.API, out *json.Enc
 		fs := newFlags(cmd)
 		cid := fs.String("context-id", "", "context ID")
 		seq := fs.Int64("sequence", 0, "inclusive sequence")
-		instance := fs.String("agent-instance", "", "self-reported instance ID for this cursor")
+		defaultID, _ := cfg.instances.ID()
+		instance := fs.String("agent-instance", defaultID, "self-reported instance ID for this cursor (defaults to COMITIA_AGENT_INSTANCE)")
 		if err := fs.Parse(args); err != nil {
 			return err
 		}
@@ -73,7 +80,8 @@ func runMessages(ctx context.Context, cfg config, api comitia.API, out *json.Enc
 	case "cursor":
 		fs := newFlags(cmd)
 		cid := fs.String("context-id", "", "context ID")
-		instance := fs.String("agent-instance", "", "self-reported instance ID for this cursor")
+		defaultID, _ := cfg.instances.ID()
+		instance := fs.String("agent-instance", defaultID, "self-reported instance ID for this cursor (defaults to COMITIA_AGENT_INSTANCE)")
 		if err := fs.Parse(args); err != nil {
 			return err
 		}
@@ -85,4 +93,14 @@ func runMessages(ctx context.Context, cfg config, api comitia.API, out *json.Enc
 	default:
 		return errUnknownCommand
 	}
+}
+
+func flagProvided(fs *flag.FlagSet, name string) bool {
+	provided := false
+	fs.Visit(func(f *flag.Flag) {
+		if f.Name == name {
+			provided = true
+		}
+	})
+	return provided
 }

@@ -30,7 +30,7 @@ func runServe(ctx context.Context, cfg config, api comitia.API, out *json.Encode
 		if err := newFlags(cmd).Parse(args); err != nil {
 			return err
 		}
-		return (&mcp.Server{API: api, Credential: needCredential(cfg)}).Serve(ctx, os.Stdin, os.Stdout)
+		return (&mcp.Server{API: api, Credential: needCredential(cfg), InstanceDefaults: cfg.instances}).Serve(ctx, os.Stdin, os.Stdout)
 	case "mcp-http":
 		// Streamable HTTP transport for remote MCP clients. Unlike serve, this
 		// adapter must run against a remote Comitia daemon: it authenticates each
@@ -60,6 +60,7 @@ func runServe(ctx context.Context, cfg config, api comitia.API, out *json.Encode
 		}
 		handler := mcp.NewHTTPHandler(api, mcp.HTTPConfig{
 			AllowedOrigins:    allow,
+			InstanceDefaults:  cfg.instances,
 			MaxBody:           *maxBody,
 			RatePerSecond:     *rate,
 			RateBurst:         *burst,
