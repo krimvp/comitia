@@ -32,22 +32,22 @@ def main():
         env = dict(os.environ, COMITIA_BOOTSTRAP_CREDENTIAL=secrets.token_urlsafe(32))
         env.pop("COMITIA_SERVER_URL", None)
         boot = subprocess.run([a.binary, "--db", db, "bootstrap", "--name", "stress"], text=True, capture_output=True, timeout=15, env=env)
-        if boot.returncode != 0: raise RuntimeError(boot.stderr)
+        if boot.returncode != 0: raise RuntimeError("bootstrap: " + boot.stderr)
         b = json.loads(boot.stdout); cred = b["credential"]["Token"]
-        rc, ws, err = call(a.binary, db, cred, "workspace-create", "--name", "stress-ws"); assert rc == 0, err
-        rc, ctx, err = call(a.binary, db, cred, "context-create", "--workspace-id", ws["ID"], "--name", "stress-context"); assert rc == 0, err
+        rc, ws, err = call(a.binary, db, cred, "workspace-create", "--name", "stress-ws"); assert rc == 0, "workspace-create: " + err
+        rc, ctx, err = call(a.binary, db, cred, "context-create", "--workspace-id", ws["ID"], "--name", "stress-context"); assert rc == 0, "context-create: " + err
         cid = ctx["ID"]
         def worker(w):
             n = retries = 0
             for i in range(messages):
                 key = "w{}-m{}".format(w, i)
                 rc, first, err = call(a.binary, db, cred, "send", "--context-id", cid, "--dedupe-key", key, "--body", key)
-                if rc != 0: raise RuntimeError(err)
+                if rc != 0: raise RuntimeError("send {}: {}".format(key, err))
                 n += 1
                 # durable retry of every tenth operation
                 if i % 10 == 0:
                     rc2, second, err2 = call(a.binary, db, cred, "send", "--context-id", cid, "--dedupe-key", key, "--body", key)
-                    if rc2 != 0 or second != first: raise RuntimeError("dedupe retry mismatch")
+                    if rc2 != 0 or second != first: raise RuntimeError("send retry {}: dedupe retry mismatch: {}".format(key, err2))
                     retries += 1
             return n, retries
         with ThreadPoolExecutor(max_workers=workers) as ex:
@@ -55,7 +55,7 @@ def main():
             counts["writes"] = sum(x[0] for x in results); counts["dedupe_retries"] = sum(x[1] for x in results)
         assert counts["writes"] == workers * messages and counts["dedupe_retries"] == workers * ((messages + 9)//10)
         rc, task, err = call(a.binary, db, cred, "task-create", "--context-id", cid, "--title", "contended", "--body", "stress")
-        assert rc == 0, err
+        assert rc == 0, "task-create: " + err
         barrier = Barrier(workers, timeout=15)
         def claim():
             barrier.wait()
@@ -63,16 +63,17 @@ def main():
         with ThreadPoolExecutor(max_workers=workers) as ex: results = [f.result() for f in as_completed([ex.submit(claim) for _ in range(workers)])]
         counts["claims"], counts["claim_wins"] = len(results), sum(x[0] == 0 for x in results)
         assert counts["claim_wins"] == 1, "expected exactly one lease owner"
-        assert all(rc == 0 or json.loads(err).get("error") == "conflict" for rc, _, err in results), "unexpected claim failure"
+        bad = [err for rc, _, err in results if rc != 0 and json.loads(err).get("error") != "conflict"]
+        assert not bad, "task-claim: unexpected claim failure: " + "; ".join(bad)
         winner = next(value for rc, value, _ in results if rc == 0)
         def finish(claim):
             return call(a.binary, db, cred, "task-complete", "--task-id", claim["Task"]["ID"],
                         "--claim-token", claim["Token"], "--lease-version", str(claim["Task"]["LeaseVersion"]))
         assert finish(winner)[0] == 0, "winning claim could not complete"
         rc, probe, err = call(a.binary, db, cred, "task-create", "--context-id", cid, "--title", "expiry-probe")
-        assert rc == 0, err
+        assert rc == 0, "task-create probe: " + err
         rc, stale, err = call(a.binary, db, cred, "task-claim", "--task-id", probe["ID"], "--lease", "10ms")
-        assert rc == 0, err
+        assert rc == 0, "task-claim probe: " + err
         time.sleep(0.02)
         rc, fresh, err = call(a.binary, db, cred, "task-claim", "--task-id", probe["ID"], "--lease", "60s")
         assert rc == 0 and fresh["Task"]["LeaseVersion"] > stale["Task"]["LeaseVersion"], "reclaim failed"
@@ -83,7 +84,7 @@ def main():
         counts["stale_completions_rejected"] = 1
         replay=[]; after=0
         while True:
-            rc, page, err = call(a.binary, db, cred, "replay", "--context-id", cid, "--after", str(after), "--limit", "1000"); assert rc == 0, err
+            rc, page, err = call(a.binary, db, cred, "replay", "--context-id", cid, "--after", str(after), "--limit", "1000"); assert rc == 0, "replay: " + err
             if not page: break
             replay.extend(page); after=page[-1]["Sequence"]
         counts["replays"] = len(replay); last = replay[-1]["Sequence"] if replay else 0
