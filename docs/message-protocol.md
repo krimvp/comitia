@@ -652,6 +652,10 @@ Unfenced observer reviews remain supported and carry no owner-attempt proof.
 The fence covers Comitia append, not external side effects. SQLite stores the
 attempt and a private token hash in a side table; custom stores must persist
 `Message.TaskAttempt`, including its non-JSON hash, for conflict-checked retries.
+HTTP returns `task_attempt` with the same snake_case members in legacy and
+canonical responses. Servers without the `task_result_fencing` feature reject
+`task_fence` while decoding, so nothing is appended; the Go HTTP client returns
+`httpapi.ErrTaskResultFencingUnsupported` instead of retrying unfenced.
 Task create/claim/renew optionally use session-scoped non-secret mutation receipts.
 An exact current-lease claim/renew retry issues a fresh token at the same version
 and expiry, invalidating earlier tokens; receipts for moved-on leases conflict.

@@ -40,6 +40,15 @@ func NewHandlerWithDiagnostics(api comitia.API, hook comitia.DiagnosticHook) htt
 	return mux
 }
 
+// Core inputs gained members after the freeze (issue 62). These copies keep
+// the frozen Handler rejecting them and the frozen Client unable to send them.
+type messageInput struct {
+	DedupeKey, Body string
+	Envelope        *comitia.MessageEnvelope `json:"envelope,omitempty"`
+	AgentInstance   *comitia.AgentInstance   `json:"agent_instance,omitempty"`
+}
+type taskInput struct{ Title, Body string }
+
 type request struct {
 	MaxBytes      int                         `json:"max_bytes,omitempty"`
 	Page          bool                        `json:"page,omitempty"`
@@ -61,8 +70,8 @@ type request struct {
 	Reference     *comitia.AddReferenceInput  `json:"reference,omitempty"`
 	Grant         *comitia.GrantInput         `json:"grant,omitempty"`
 	Delegate      *comitia.DelegateInput      `json:"delegate,omitempty"`
-	Message       *comitia.MessageInput       `json:"message,omitempty"`
-	Task          *comitia.TaskInput          `json:"task,omitempty"`
+	Message       *messageInput               `json:"message,omitempty"`
+	Task          *taskInput                  `json:"task,omitempty"`
 
 	ChildContext   *comitia.CreateChildContextInput `json:"child_context,omitempty"`
 	ClaimInstance  *comitia.AgentInstance           `json:"claim_instance,omitempty"`

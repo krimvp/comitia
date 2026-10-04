@@ -115,6 +115,10 @@ Retrieval rechecks the original context permission. Receipts do not make externa
 stable identity and enforce their own ownership boundary. HTTP create puts
 `operation_id` inside `task`; claim/renew put it at the request top level. Go uses
 `TaskInput.OperationID`, `ClaimTaskWithOperation` and `RenewClaimWithOperation`.
+Servers without the `task_mutation_receipts` feature reject `operation_id`
+while decoding, before applying the request; the Go HTTP client then returns
+`httpapi.ErrTaskMutationReceiptsUnsupported` and never resends the call without
+its key. Upgrade the server before relying on recovery.
 Without a key, an uncertain claim/renew response still requires authorized
 release/reclaim because `get_task` does not reveal the new token. To abandon work, release with the current pair; a
 context admin may omit the token but must supply the current version.

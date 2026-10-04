@@ -17,7 +17,7 @@ func (h *handler) routeMessages(ctx context.Context, token, route string, q requ
 			break
 		}
 		var v comitia.Message
-		v, err = h.api.AppendMessage(ctx, token, q.ContextID, *q.Message)
+		v, err = h.api.AppendMessage(ctx, token, q.ContextID, comitia.MessageInput{DedupeKey: q.Message.DedupeKey, Body: q.Message.Body, Envelope: q.Message.Envelope, AgentInstance: q.Message.AgentInstance})
 		out.Message = &v
 	case "messages/replay":
 		if q.Page {
@@ -56,7 +56,7 @@ func (h *handler) routeMessages(ctx context.Context, token, route string, q requ
 func (c *Client) AppendMessage(x context.Context, t, id string, i comitia.MessageInput) (comitia.Message, error) {
 	i.AgentInstance = c.InstanceDefaults.Message(i.AgentInstance)
 	var o response
-	e := c.call(x, t, "messages/append", request{ContextID: id, Message: &i}, &o)
+	e := c.call(x, t, "messages/append", request{ContextID: id, Message: &messageInput{i.DedupeKey, i.Body, i.Envelope, i.AgentInstance}}, &o)
 	if o.Message == nil {
 		return comitia.Message{}, missing(e)
 	}

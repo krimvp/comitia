@@ -2,7 +2,13 @@ package httpapi_test
 
 import (
 	"context"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"io"
+	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -254,5 +260,219 @@ func TestV1TaskUpgradeOrderProbe(t *testing.T) {
 				}
 			})
 		}
+	}
+}
+
+// Task receipts and result fences are new request members. A new Client must
+// report an old server's strict rejection as unsupported, never resend the
+// request without its operation ID or fence, and old Clients keep working.
+func TestV1TaskRecoveryUpgradeOrder(t *testing.T) {
+	for _, newServer := range []bool{false, true} {
+		for _, newClient := range []bool{false, true} {
+			name := map[bool]string{false: "old", true: "new"}[newClient] + "-client_" + map[bool]string{false: "old", true: "new"}[newServer] + "-handler"
+			t.Run(name, func(t *testing.T) {
+				ctx := context.Background()
+				store, err := comitia.OpenSQLite(":memory:")
+				if err != nil {
+					t.Fatal(err)
+				}
+				defer store.Close()
+				svc, err := comitia.New(comitia.Config{Store: store, BootstrapCredential: "boot"})
+				if err != nil {
+					t.Fatal(err)
+				}
+				_, owner, err := svc.Bootstrap(ctx, comitia.BootstrapInput{Credential: "boot", AdminName: "owner", SessionTTL: time.Hour})
+				if err != nil {
+					t.Fatal(err)
+				}
+				workspace, err := svc.CreateWorkspace(ctx, owner.Token, "w")
+				if err != nil {
+					t.Fatal(err)
+				}
+				room, err := svc.CreateContext(ctx, owner.Token, comitia.CreateContextInput{WorkspaceID: workspace.ID, Name: "c"})
+				if err != nil {
+					t.Fatal(err)
+				}
+				handler := legacy.NewHandler(svc)
+				if newServer {
+					handler = httpapi.NewHandler(svc)
+				}
+				server := httptest.NewServer(handler)
+				defer server.Close()
+				var client comitia.API
+				if newClient {
+					client, err = httpapi.NewClientWithInstanceDefaults(server.URL, server.Client(), comitia.InstanceDefaults{})
+				} else {
+					client, err = legacy.NewClientWithInstanceDefaults(server.URL, server.Client(), comitia.InstanceDefaults{})
+				}
+				if err != nil {
+					t.Fatal(err)
+				}
+				countTasks := func() int {
+					tasks, err := svc.ListTasks(ctx, owner.Token, room.ID, "", 100)
+					if err != nil {
+						t.Fatal(err)
+					}
+					return len(tasks)
+				}
+				result := func(key, taskID string, fence *comitia.TaskFence) comitia.MessageInput {
+					return comitia.MessageInput{DedupeKey: key, Body: "done", TaskFence: fence, Envelope: &comitia.MessageEnvelope{Schema: "comitia.discussion.v1", TaskID: taskID, Payload: json.RawMessage(`{}`)}}
+				}
+				switch {
+				case !newClient:
+					// Old Clients have no recovery capability, and plain task calls and
+					// reads of fenced results from either server keep working.
+					if _, err := comitia.CreateTaskOperation(ctx, client, owner.Token, room.ID, comitia.TaskInput{Title: "x", OperationID: "op"}); !errors.Is(err, comitia.ErrInvalid) || countTasks() != 0 {
+						t.Fatalf("old client operation: %v", err)
+					}
+					task, err := client.CreateTask(ctx, owner.Token, room.ID, comitia.TaskInput{Title: "plain"})
+					if err != nil {
+						t.Fatal(err)
+					}
+					claim, err := client.ClaimTask(ctx, owner.Token, task.ID, time.Minute)
+					if err != nil {
+						t.Fatal(err)
+					}
+					fenced, err := svc.AppendMessage(ctx, owner.Token, room.ID, result("fenced", task.ID, &comitia.TaskFence{TaskID: task.ID, ClaimToken: claim.Token, LeaseVersion: claim.Task.LeaseVersion}))
+					if err != nil || fenced.TaskAttempt == nil {
+						t.Fatalf("fenced append: %+v %v", fenced, err)
+					}
+					messages, err := client.ReplayMessages(ctx, owner.Token, room.ID, 0, 10)
+					if err != nil || len(messages) != 1 || messages[0].ID != fenced.ID {
+						t.Fatalf("old client reads fenced result: %+v %v", messages, err)
+					}
+				case !newServer:
+					recovery := client.(comitia.TaskMutationAPI)
+					if _, err := client.CreateTask(ctx, owner.Token, room.ID, comitia.TaskInput{Title: "x", OperationID: "create"}); !errors.Is(err, httpapi.ErrTaskMutationReceiptsUnsupported) || countTasks() != 0 {
+						t.Fatalf("create receipt on old server: %v (tasks=%d)", err, countTasks())
+					}
+					task, err := client.CreateTask(ctx, owner.Token, room.ID, comitia.TaskInput{Title: "plain"})
+					if err != nil {
+						t.Fatal(err)
+					}
+					if _, err := recovery.ClaimTaskWithOperation(ctx, owner.Token, task.ID, time.Minute, "claim"); !errors.Is(err, httpapi.ErrTaskMutationReceiptsUnsupported) {
+						t.Fatalf("claim receipt on old server: %v", err)
+					}
+					if current, _ := svc.GetTask(ctx, owner.Token, task.ID); current.Status != comitia.TaskPending {
+						t.Fatalf("unsupported claim was applied: %+v", current)
+					}
+					claim, err := client.ClaimTask(ctx, owner.Token, task.ID, time.Minute)
+					if err != nil {
+						t.Fatal(err)
+					}
+					if _, err := recovery.RenewClaimWithOperation(ctx, owner.Token, task.ID, claim.Token, claim.Task.LeaseVersion, time.Minute, "renew"); !errors.Is(err, httpapi.ErrTaskMutationReceiptsUnsupported) {
+						t.Fatalf("renew receipt on old server: %v", err)
+					}
+					if current, _ := svc.GetTask(ctx, owner.Token, task.ID); current.LeaseVersion != claim.Task.LeaseVersion {
+						t.Fatalf("unsupported renew was applied: %+v", current)
+					}
+					fence := &comitia.TaskFence{TaskID: task.ID, ClaimToken: claim.Token, LeaseVersion: claim.Task.LeaseVersion}
+					if _, err := client.AppendMessage(ctx, owner.Token, room.ID, result("fenced", task.ID, fence)); !errors.Is(err, httpapi.ErrTaskResultFencingUnsupported) {
+						t.Fatalf("fence on old server: %v", err)
+					}
+					if messages, _ := svc.ReplayMessages(ctx, owner.Token, room.ID, 0, 10); len(messages) != 0 {
+						t.Fatalf("unfenced copy appended: %+v", messages)
+					}
+				default:
+					recovery := client.(comitia.TaskMutationAPI)
+					in := comitia.TaskInput{Title: "job", OperationID: "create"}
+					task, err := client.CreateTask(ctx, owner.Token, room.ID, in)
+					if err != nil {
+						t.Fatal(err)
+					}
+					if again, err := client.CreateTask(ctx, owner.Token, room.ID, in); err != nil || again.ID != task.ID || countTasks() != 1 {
+						t.Fatalf("create retry: %+v %v", again, err)
+					}
+					first, err := recovery.ClaimTaskWithOperation(ctx, owner.Token, task.ID, time.Minute, "claim")
+					if err != nil {
+						t.Fatal(err)
+					}
+					claim, err := recovery.ClaimTaskWithOperation(ctx, owner.Token, task.ID, time.Minute, "claim")
+					if err != nil || claim.Task.LeaseVersion != first.Task.LeaseVersion || claim.Token == first.Token || claim.Task.LeaseTokenHash != "" {
+						t.Fatalf("claim retry: %+v %v", claim.Task, err)
+					}
+					renewed, err := recovery.RenewClaimWithOperation(ctx, owner.Token, task.ID, claim.Token, claim.Task.LeaseVersion, time.Minute, "renew")
+					if err != nil || renewed.Task.LeaseVersion != claim.Task.LeaseVersion+1 {
+						t.Fatalf("renew: %+v %v", renewed.Task, err)
+					}
+					fence := &comitia.TaskFence{TaskID: task.ID, ClaimToken: renewed.Token, LeaseVersion: renewed.Task.LeaseVersion}
+					accepted, err := client.AppendMessage(ctx, owner.Token, room.ID, result("fenced", task.ID, fence))
+					if err != nil || accepted.TaskAttempt == nil || accepted.TaskAttempt.TaskID != task.ID || accepted.TaskAttempt.LeaseVersion != renewed.Task.LeaseVersion || accepted.TaskAttempt.ClaimTokenHash != "" {
+						t.Fatalf("fenced append: %+v %v", accepted.TaskAttempt, err)
+					}
+					stale := &comitia.TaskFence{TaskID: task.ID, ClaimToken: first.Token, LeaseVersion: first.Task.LeaseVersion}
+					if _, err := client.AppendMessage(ctx, owner.Token, room.ID, result("stale", task.ID, stale)); !errors.Is(err, comitia.ErrStaleClaim) {
+						t.Fatalf("stale fence: %v", err)
+					}
+					// Both representations publish the attempt, never its token hash.
+					for _, canonical := range []bool{false, true} {
+						req, _ := http.NewRequest(http.MethodPost, server.URL+"/v1/messages/replay", strings.NewReader(`{"context_id":"`+room.ID+`"}`))
+						req.Header.Set("Authorization", "Bearer "+owner.Token)
+						req.Header.Set("Content-Type", "application/json")
+						if canonical {
+							req.Header.Set("X-Comitia-Wire", "canonical")
+						}
+						resp, err := server.Client().Do(req)
+						if err != nil {
+							t.Fatal(err)
+						}
+						body, _ := io.ReadAll(resp.Body)
+						resp.Body.Close()
+						want := fmt.Sprintf(`"task_attempt":{"task_id":%q,"lease_version":%d}`, task.ID, renewed.Task.LeaseVersion)
+						if !strings.Contains(string(body), want) || strings.Contains(strings.ToLower(string(body)), "token") {
+							t.Fatalf("canonical=%v replay: %s", canonical, body)
+						}
+					}
+				}
+			})
+		}
+	}
+}
+
+// Endpoint-DTO Handlers before issue 62 reject the members while decoding.
+// The Client must surface that once instead of retrying without them.
+func TestClientReportsUnsupportedTaskRecoveryFromDTOHandler(t *testing.T) {
+	requests := 0
+	field := ""
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		requests++
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		_ = json.NewEncoder(w).Encode(comitia.ErrorInfo{Code: "invalid", Message: fmt.Sprintf("invalid: unknown field %q", field)})
+	}))
+	defer server.Close()
+	client, err := httpapi.NewClientWithInstanceDefaults(server.URL, server.Client(), comitia.InstanceDefaults{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx := context.Background()
+	for name, call := range map[string]func() error{
+		"create": func() error {
+			_, err := client.CreateTask(ctx, "tok", "c", comitia.TaskInput{Title: "x", OperationID: "op"})
+			return err
+		},
+		"claim": func() error {
+			_, err := client.ClaimTaskWithOperation(ctx, "tok", "t", time.Minute, "op")
+			return err
+		},
+		"renew": func() error {
+			_, err := client.RenewClaimWithOperation(ctx, "tok", "t", "k", 1, time.Minute, "op")
+			return err
+		},
+	} {
+		requests, field = 0, "operation_id"
+		if err := call(); !errors.Is(err, httpapi.ErrTaskMutationReceiptsUnsupported) || requests != 1 {
+			t.Fatalf("%s: requests=%d err=%v", name, requests, err)
+		}
+	}
+	requests, field = 0, "task_fence"
+	_, err = client.AppendMessage(ctx, "tok", "c", comitia.MessageInput{DedupeKey: "k", Body: "b", TaskFence: &comitia.TaskFence{TaskID: "t", ClaimToken: "k", LeaseVersion: 1}})
+	if !errors.Is(err, httpapi.ErrTaskResultFencingUnsupported) || requests != 1 {
+		t.Fatalf("fence: requests=%d err=%v", requests, err)
+	}
+	// Calls without the new members keep the server's own error.
+	requests, field = 0, "operation_id"
+	if _, err := client.CreateTask(ctx, "tok", "c", comitia.TaskInput{Title: "x"}); errors.Is(err, httpapi.ErrTaskMutationReceiptsUnsupported) || !errors.Is(err, comitia.ErrInvalid) {
+		t.Fatalf("plain create: %v", err)
 	}
 }

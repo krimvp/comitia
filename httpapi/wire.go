@@ -258,6 +258,7 @@ type listTasksRequest struct {
 
 type claimRequest struct {
 	TaskID        string                 `json:"task_id"`
+	OperationID   string                 `json:"operation_id,omitempty"`
 	LeaseSeconds  *float64               `json:"lease_seconds,omitempty"`
 	TTL           *time.Duration         `json:"ttl,omitempty"`
 	OpenEnded     bool                   `json:"open_ended,omitempty"`
@@ -266,6 +267,7 @@ type claimRequest struct {
 
 type renewRequest struct {
 	TaskID       string         `json:"task_id"`
+	OperationID  string         `json:"operation_id,omitempty"`
 	ClaimToken   string         `json:"claim_token"`
 	LeaseVersion *int64         `json:"lease_version"`
 	LeaseSeconds *float64       `json:"lease_seconds,omitempty"`
