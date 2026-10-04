@@ -62,8 +62,8 @@ export COMITIA_AGENT_INSTANCE_LABEL="My task worker" # optional
 comitia --server-url http://127.0.0.1:8390 mcp
 ```
 
-`send_message`, `message_cursor`, and `ack_messages` use this default when
-`agent_instance` is omitted. CLI `send`, `cursor`, and `ack` do the same when
+`send_message`, `claim_task`, `message_cursor`, and `ack_messages` use this default when
+`agent_instance` is omitted. CLI `send`, `task-claim`, `cursor`, and `ack` do the same when
 `--agent-instance` is omitted. This works with embedded SQLite, stdio MCP over
 a remote server, and the Go HTTP client's `NewClient`. The `mcp-http` process
 also applies its configured default to incoming calls, within each caller's
@@ -79,10 +79,14 @@ an explicit instance. Serve, bootstrap, and administrative commands ignore
 these variables. Empty variables behave as unset. Instances are self-reported routing metadata
 and confer no permissions.
 
-Explicit arguments win. An explicit send object replaces both the default ID
+Explicit arguments win. An explicit send or claim object replaces both the default ID
 and label; `--agent-instance` does not inherit the default label. An explicit
 empty cursor/ack/watch ID selects the legacy session cursor. With a default set,
-send cannot opt out of an instance: an explicit empty send ID is invalid.
+send and claims cannot opt out of an instance: an explicit empty ID is invalid.
+CLI label-only overrides retain the default ID; without a default ID they are
+invalid. MCP `null` behaves as omission for send and claim objects; `{}` or
+`{"id":""}` is invalid. The Go HTTP client defaults omitted `ClaimTask`
+instances; an explicit `comitia.AgentInstance{}` is invalid.
 Without a default, omitted instances preserve legacy behavior.
 
 Message deduplication is scoped by context, authenticated session, instance ID,

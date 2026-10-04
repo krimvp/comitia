@@ -70,14 +70,23 @@ func runTasks(ctx context.Context, cfg config, api comitia.API, out *json.Encode
 		tid := fs.String("task-id", "", "task ID")
 		lease := fs.Duration("lease", 5*time.Minute, "lease duration")
 		openEnded := fs.Bool("open-ended", false, "hold the lease until completed or released (capped at session expiry)")
-		instanceID := fs.String("agent-instance", "", "self-reported instance ID holding the claim")
-		instanceLabel := fs.String("agent-instance-label", "", "optional self-reported instance label")
+		instanceID := fs.String("agent-instance", "", "self-reported instance ID holding the claim (defaults to COMITIA_AGENT_INSTANCE)")
+		instanceLabel := fs.String("agent-instance-label", "", "optional self-reported instance label (defaults to COMITIA_AGENT_INSTANCE_LABEL)")
 		if err := fs.Parse(args); err != nil {
 			return err
 		}
+		owner := cfg.instances.Message(nil)
+		if flagProvided(fs, "agent-instance") {
+			owner = &comitia.AgentInstance{ID: *instanceID, Label: *instanceLabel}
+		} else if flagProvided(fs, "agent-instance-label") {
+			if owner == nil {
+				owner = &comitia.AgentInstance{}
+			}
+			owner.Label = *instanceLabel
+		}
 		var instance []comitia.AgentInstance
-		if *instanceID != "" || *instanceLabel != "" {
-			instance = append(instance, comitia.AgentInstance{ID: *instanceID, Label: *instanceLabel})
+		if owner != nil {
+			instance = append(instance, *owner)
 		}
 		v, e := api.ClaimTask(ctx, needCredential(cfg), *tid, openLease(*lease, *openEnded), instance...)
 		if e != nil {

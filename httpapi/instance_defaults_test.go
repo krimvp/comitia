@@ -97,6 +97,49 @@ func TestRemoteInstanceDefaults(t *testing.T) {
 			t.Fatalf("invalid explicit cursor: %v", err)
 		}
 	}
+	for _, tc := range []struct {
+		name      string
+		client    *Client
+		instances []comitia.AgentInstance
+		want      *comitia.AgentInstance
+		invalid   bool
+	}{
+		{name: "default", client: worker, want: &comitia.AgentInstance{ID: "worker", Label: "Worker"}},
+		{name: "explicit", client: worker, instances: []comitia.AgentInstance{{ID: "explicit"}}, want: &comitia.AgentInstance{ID: "explicit"}},
+		{name: "empty", client: worker, instances: []comitia.AgentInstance{{}}, invalid: true},
+		{name: "invalid", client: worker, instances: []comitia.AgentInstance{{ID: "bad id"}}, invalid: true},
+		{name: "multiple", client: worker, instances: []comitia.AgentInstance{{ID: "a"}, {ID: "b"}}, invalid: true},
+	} {
+		t.Run("claim-"+tc.name, func(t *testing.T) {
+			task, err := tc.client.CreateTask(ctx, owner.Token, c.ID, comitia.TaskInput{Title: tc.name})
+			if err != nil {
+				t.Fatal(err)
+			}
+			claim, err := tc.client.ClaimTask(ctx, owner.Token, task.ID, time.Minute, tc.instances...)
+			if tc.invalid {
+				if !errors.Is(err, comitia.ErrInvalid) {
+					t.Fatalf("claim: %v", err)
+				}
+			} else if err != nil || claim.Task.LeaseOwnerInstance == nil || *claim.Task.LeaseOwnerInstance != *tc.want {
+				t.Fatalf("claim: %+v %v want=%v", claim, err, tc.want)
+			}
+		})
+	}
+	legacy, err := NewClientWithInstanceDefaults(ts.URL, ts.Client(), comitia.InstanceDefaults{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	task, err := legacy.CreateTask(ctx, owner.Token, c.ID, comitia.TaskInput{Title: "legacy"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	claim, err := legacy.ClaimTask(ctx, owner.Token, task.ID, time.Minute)
+	if err != nil || claim.Task.LeaseOwnerInstance != nil {
+		t.Fatalf("legacy claim: %+v %v", claim, err)
+	}
+	if _, err := legacy.ClaimTask(ctx, owner.Token, task.ID, time.Minute, comitia.AgentInstance{}); !errors.Is(err, comitia.ErrInvalid) {
+		t.Fatalf("empty legacy claim: %v", err)
+	}
 }
 
 func TestRemoteClientRejectsInvalidInstanceEnvironment(t *testing.T) {

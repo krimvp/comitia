@@ -75,6 +75,7 @@ func (c *Client) ClaimTask(x context.Context, t, id string, d time.Duration, ins
 	q := request{TaskID: id, TTL: d}
 	switch len(instance) {
 	case 0:
+		q.ClaimInstance = c.InstanceDefaults.Message(nil)
 	case 1:
 		q.ClaimInstance = &instance[0]
 	default:
