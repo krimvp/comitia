@@ -10,6 +10,28 @@ import (
 )
 
 func runGrants(ctx context.Context, cfg config, api comitia.API, out *json.Encoder, cmd string, args []string) error {
+	if cmd == "credential-check" {
+		fs := newFlags(cmd)
+		cid := fs.String("context-id", "", "context whose permissions to check")
+		perms := fs.String("permissions", "read", "required comma-separated permissions")
+		if err := fs.Parse(args); err != nil {
+			return err
+		}
+		p, err := parsePermissions(*perms)
+		if err != nil {
+			return err
+		}
+		checker, ok := api.(interface {
+			CheckPermissions(context.Context, string, string, comitia.Permission) error
+		})
+		if !ok {
+			return comitia.Invalidf("credential-check is available only with embedded SQLite")
+		}
+		if err := checker.CheckPermissions(ctx, needCredential(cfg), *cid, p); err != nil {
+			return err
+		}
+		return out.Encode(map[string]bool{"ok": true})
+	}
 	if cmd == "grant-revoke" {
 		fs := newFlags(cmd)
 		id := fs.String("grant-id", "", "grant ID issued by this session (or any grant for admins)")

@@ -165,7 +165,8 @@ class InstallTest(Base):
         owner = (self.root/'credentials/owner.json').read_text()
         first = len(self.calls())
         self.install(port=8391)
-        self.assertEqual(len(self.calls()), first, 'reinstall must not bootstrap or mint again')
+        self.assertTrue(all(c['args'][0] in ('participants', 'context-list') for c in self.calls()[first:]),
+                        'reinstall must authenticate without bootstrapping or minting again')
         self.assertEqual((self.root/'credentials/owner.json').read_text(), owner)
         self.assertEqual(json.loads((self.root/'local-context.json').read_text())['server_url'], 'http://127.0.0.1:8391')
 
@@ -385,7 +386,8 @@ class MacOSInstallerTest(Base):
                 contextlib.redirect_stdout(io.StringIO()):
             runpy.run_path(str(SCRIPTS/'install_macos_service.py'), run_name='__main__')
         root = self.home/'Library/Application Support/Comitia'
-        self.assertEqual(json.loads((root/'local-context.json').read_text()), {'workspace_id': 'w1', 'context_id': 'c1'})
+        self.assertEqual(json.loads((root/'local-context.json').read_text()),
+                         {'workspace_id': 'w1', 'context_id': 'c1', 'server_url': 'http://127.0.0.1:8080'})
         self.assertEqual(local.token(root/'credentials/viewer.json'), 'tok-World viewer')
         plist = (self.home/'Library/LaunchAgents/com.comitia.server.plist').read_bytes()
         self.assertIn(str(root/'bin/comitia').encode(), plist)
@@ -405,7 +407,7 @@ class RealBinaryTest(Base):
             raise unittest.SkipTest('go unavailable')
         cls.build = tempfile.TemporaryDirectory()
         cls.binary = Path(cls.build.name)/'comitia'
-        env = {**os.environ, 'GOFLAGS': os.environ.get('GOFLAGS', '')+' -buildvcs=false'}
+        env = {**os.environ, 'GOTOOLCHAIN': 'go1.24.13', 'GOFLAGS': '-buildvcs=false'}
         result = subprocess.run(['go', 'build', '-o', str(cls.binary), './cmd/comitia'], cwd=SCRIPTS.parent, env=env,
                                 capture_output=True, text=True)
         if result.returncode:

@@ -4,6 +4,9 @@ Every function takes the installation root and home directory explicitly, so
 the installers and their tests never depend on the caller's real home.
 """
 import datetime
+import contextlib
+import fcntl
+import functools
 import json
 import os
 from pathlib import Path
@@ -13,6 +16,9 @@ import shutil
 import string
 import sys
 import subprocess
+import tempfile
+import threading
+import urllib.request
 try:
     import tomllib
 except ImportError:  # Python < 3.11 edits without the final parse check.
@@ -27,6 +33,46 @@ ONE_YEAR = datetime.timedelta(hours=8760)
 # Children must expire before their parent; the owner outlives a full-year child by this margin.
 MARGIN = datetime.timedelta(hours=1)
 SERVER = 'comitia'
+PERMISSIONS = ('read', 'write', 'claim', 'grant', 'admin', 'create')
+RECOVERY = ('Run rotate-credentials before owner expiry (macOS: --rotate-credentials), or use '
+            '--owner-credential with another active admin. If all admin sessions have expired, '
+            'API recovery is unavailable; preserve the database and restore a backup with a live admin. '
+            'Reinstall cannot bootstrap an existing database.')
+INSTALL_LOCKS = threading.local()
+
+@contextlib.contextmanager
+def installation_lock(root):
+    """Exclude other installer processes/threads; allow nested calls in this thread."""
+    root = Path(root).resolve()
+    held = getattr(INSTALL_LOCKS, 'roots', set())
+    if root in held:
+        yield
+        return
+    root.mkdir(parents=True, exist_ok=True, mode=0o700)
+    fd = os.open(root/'.install.lock', os.O_RDWR | os.O_CREAT, 0o600)
+    try:
+        try:
+            fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError as error:
+            raise RuntimeError(f'Installation {root} is busy: another installer is running; retry after it completes.') from error
+        held.add(root)
+        INSTALL_LOCKS.roots = held
+        try:
+            yield
+        finally:
+            held.remove(root)
+    finally:
+        os.close(fd)
+
+def locked_installation(root_index):
+    def decorate(function):
+        @functools.wraps(function)
+        def invoke(*args, **kwargs):
+            root = args[root_index] if len(args) > root_index else kwargs['root']
+            with installation_lock(root):
+                return function(*args, **kwargs)
+        return invoke
+    return decorate
 
 def expand(path, home):
     """Expand a leading ~ against home rather than the process's HOME."""
@@ -68,6 +114,18 @@ def token(path):
     document = json.loads(Path(path).read_text())
     return document.get('credential', document)['Token']
 
+def build_flags():
+    revision, dirty = 'unknown', 'unknown'
+    try:
+        revision = subprocess.run(['git', 'rev-parse', 'HEAD'], cwd=REPO, check=True,
+                                  capture_output=True, text=True).stdout.strip()
+        status = subprocess.run(['git', 'status', '--porcelain', '--untracked-files=all'], cwd=REPO,
+                                check=True, capture_output=True, text=True).stdout
+        dirty = 'true' if status else 'false'
+    except (OSError, subprocess.CalledProcessError):
+        pass
+    return f'-X github.com/krimvp/comitia.Revision={revision} -X github.com/krimvp/comitia.Dirty={dirty}'
+
 def install_binary(root, source=None):
     """Install bin/comitia from source, or build it from this checkout."""
     binary = root/'bin/comitia'
@@ -75,7 +133,8 @@ def install_binary(root, source=None):
     if source:
         shutil.copy2(Path(source).resolve(), staged)
     else:
-        subprocess.run(['go', 'build', '-o', str(staged), './cmd/comitia'], cwd=REPO, check=True)
+        subprocess.run(['go', 'build', '-ldflags', build_flags(), '-o', str(staged), './cmd/comitia'],
+                       cwd=REPO, check=True)
     staged.chmod(0o700)
     os.replace(staged, binary)
     report_stale_mcp_clients(binary)
@@ -167,6 +226,150 @@ def child_ttl(owner, limit=ONE_YEAR):
         raise RuntimeError(f'The owner credential {owner} expires at {expires_at(owner)}; renew it before adding harnesses.')
     return duration(min(limit, left))
 
+def validate_credential(run, path, context_id=None):
+    """Check both the saved expiry and the authoritative session/grant ancestry."""
+    try:
+        if expires_at(path) <= datetime.datetime.now(datetime.timezone.utc):
+            raise RuntimeError('expired')
+        document = json.loads(Path(path).read_text())
+        grants = document.get('grants', [])
+        if Path(path).stem != 'owner' and grants:
+            for grant in grants:
+                permissions = ','.join(p for i, p in enumerate(PERMISSIONS) if grant['Permissions'] & (1 << i))
+                run('credential-check', '--context-id', grant['ContextID'], '--permissions', permissions, token=token(path))
+        elif context_id and Path(path).stem == 'owner':
+            run('participants', '--context-id', context_id, token=token(path))
+        else:
+            run('context-list', '--limit', '1', token=token(path))
+    except (OSError, ValueError, TypeError, KeyError, RuntimeError) as error:
+        raise RuntimeError(f'Credential {Path(path).stem} at {path} is unusable '
+                           f'(expired, revoked, invalid, or missing context access). {RECOVERY}') from error
+
+def validate_install(run, root, context_id):
+    for path in sorted((root/'credentials').glob('*.json')):
+        if path.name != 'owner.json':
+            validate_credential(run, path, context_id)
+
+def mint_owner(server_url, document):
+    """Use the existing admin-only REST mint; delegation cannot outlive its parent."""
+    credential = document['credential']
+    request = urllib.request.Request(server_url.rstrip('/')+'/v1/sessions/mint',
+        data=json.dumps({'principal_id': credential['Session']['PrincipalID'],
+                         'ttl': int((ONE_YEAR+MARGIN).total_seconds())*10**9}).encode(),
+        headers={'Authorization': 'Bearer '+credential['Token'], 'Content-Type': 'application/json'})
+    # Local administration must not send credentials to a proxy or a redirected host.
+    class NoRedirect(urllib.request.HTTPRedirectHandler):
+        def redirect_request(self, *args, **kwargs):
+            return None
+    opener = urllib.request.build_opener(urllib.request.ProxyHandler({}), NoRedirect())
+    try:
+        with opener.open(request, timeout=10) as response:
+            result = json.load(response)
+    except (OSError, ValueError) as error:
+        raise RuntimeError('Owner mint failed. Start the installed Comitia service and check that '
+                           'local-context.json points to it; an active admin is required. '+RECOVERY) from error
+    replacement = result['credential']
+    if replacement['Session'].get('ParentID') or replacement['Session']['PrincipalID'] != credential['Session']['PrincipalID']:
+        raise RuntimeError('Owner mint did not return an independent session for the admin principal')
+    return {**document, 'credential': replacement, 'grants': []}
+
+@locked_installation(0)
+def rotate_credentials(root, run, owner_credential=None, revoke_old=False):
+    """Stage and verify independent owner/grants and fresh local harness ancestry."""
+    context = json.loads((root/'local-context.json').read_text())
+    owner = root/'credentials/owner.json'
+    source = Path(owner_credential) if owner_credential else owner
+    validate_credential(run, source)
+    old = {p.name: json.loads(p.read_text()) for p in sorted((root/'credentials').glob('*.json'))}
+    scopes = {}
+    for name, document in old.items():
+        if name == 'owner.json':
+            continue
+        grants = document.get('grants', [])
+        if not grants or any(g['ContextID'] != context['context_id'] for g in grants):
+            raise RuntimeError(f'{name} has non-local or missing grants; rotate that credential manually')
+        bits = 0
+        for grant in grants:
+            bits |= grant['Permissions']
+        scopes[name] = ','.join(p for i, p in enumerate(PERMISSIONS) if bits & (1 << i))
+    contexts = {context['context_id']}
+    skipped = {}
+    cursor = ''
+    while True:
+        page = run('context-list', '--limit', '1000', '--after-id', cursor, token=token(source))
+        for c in page:
+            if c.get('Archived'):
+                skipped[c['ID']] = 'archived'
+            else:
+                contexts.add(c['ID'])
+        if len(page) < 1000:
+            break
+        cursor = page[-1]['ID']
+    if context['context_id'] in skipped:
+        raise RuntimeError('The shared installation context is archived; credentials cannot be rotated for active harnesses.')
+    # Older macOS installs recorded the daemon URL only in service.json.
+    server_url = context.get('server_url') or json.loads((root/'service.json').read_text())['server_url']
+    replacement = mint_owner(server_url, json.loads(source.read_text()))
+    publishing = False
+    try:
+        with tempfile.TemporaryDirectory(prefix='.rotation-', dir=root/'credentials') as staging:
+            staging = Path(staging)
+            staged_owner = staging/'owner.json'
+            private_json(staged_owner, replacement)
+            # Confirm the daemon minted into this installation's database before granting access.
+            validate_credential(run, staged_owner)
+            # Root grants outlive full-year harness grants, while ending before the owner.
+            ttl = duration(expires_at(staged_owner)-datetime.datetime.now(datetime.timezone.utc)-datetime.timedelta(minutes=1))
+            for context_id in sorted(contexts):
+                try:
+                    grant = run('grant', '--session-id', replacement['credential']['Session']['ID'],
+                        '--context-id', context_id, '--permissions', ','.join(PERMISSIONS), '--ttl', ttl,
+                        token=token(staged_owner))
+                except RuntimeError:
+                    if context_id == context['context_id']:
+                        raise
+                    skipped[context_id] = 'grant could not be issued'
+                    continue
+                replacement['grants'].append(grant)
+            staged_owner.write_text(json.dumps(replacement, indent=2)+'\n')
+            validate_credential(run, staged_owner, context['context_id'])
+            for name, permissions in scopes.items():
+                ttl = child_ttl(staged_owner)
+                document = run('delegate', '--name', Path(name).stem, '--ttl', ttl,
+                    '--context-id', context['context_id'], '--permissions', permissions, '--grant-ttl', ttl,
+                    token=token(staged_owner))
+                private_json(staging/name, document)
+                validate_credential(run, staging/name, context['context_id'])
+            # Preserve originals before publishing; each credential replacement is atomic.
+            (root/'backups').mkdir(parents=True, exist_ok=True, mode=0o700)
+            archive = root/'backups'/('credentials-'+secrets.token_hex(8))
+            archive.mkdir(mode=0o700)
+            for name in old:
+                shutil.copy2(root/'credentials'/name, archive/name)
+                (archive/name).chmod(0o600)
+            publishing = True
+            for name in ['owner.json']+sorted(old.keys()-{'owner.json'}):
+                os.replace(staging/name, root/'credentials'/name)
+    except Exception:
+        if not publishing:
+            try:
+                run('revoke', '--session-id', replacement['credential']['Session']['ID'], token=token(source))
+            except RuntimeError:
+                pass
+        raise
+    if revoke_old:
+        for document in old.values():
+            run('revoke', '--session-id', document['credential']['Session']['ID'], token=token(owner))
+    installation = root/'INSTALLATION.txt'
+    if installation.exists():
+        write_text(installation, re.sub(r'^Owner expiry:.*$', 'Owner expiry: '+expires_at(owner).isoformat(),
+                                       installation.read_text(), flags=re.M))
+    for context_id, reason in sorted(skipped.items()):
+        print(f'Skipped context {context_id}: {reason}. Historical access stays with the old owner '
+              'until expiry or revocation; it is not transferred to the replacement.')
+    return archive
+
+@locked_installation(1)
 def bootstrap(run, root, database):
     """Create the owner, workspace and shared context; resume an interrupted run.
 
@@ -175,6 +378,7 @@ def bootstrap(run, root, database):
     local-context.json records the workspace before the context exists.
     """
     owner = root/'credentials/owner.json'
+    existing_owner = owner.exists()
     staged = database.with_name(database.name+'.init')
     sidecars = ('', '-wal', '-shm')
     if not database.exists():
@@ -192,6 +396,8 @@ def bootstrap(run, root, database):
         database.chmod(0o600)
     path = root/'local-context.json'
     state = json.loads(path.read_text()) if path.exists() else {}
+    if existing_owner or not owner.exists():
+        validate_credential(run, owner, state.get('context_id'))
     if 'workspace_id' not in state:
         state['workspace_id'] = run('workspace-create', '--name', 'Local workspace', token=token(owner))['ID']
         write_text(path, json.dumps(state, indent=2)+'\n', mode=0o600)
@@ -355,12 +561,15 @@ def place_block(text, block):
         return BLOCK.sub(swap, text)
     return block+('\n'+text if text else '')
 
+@locked_installation(2)
 def add_harness(name, spec, root, home, run, permissions='read,write,claim,grant'):
     """Mint the harness credential once, register the MCP server and its auto-approval, render instructions."""
     check(name, spec)
     backups = root/'backups'
     local = json.loads((root/'local-context.json').read_text())
     credential = root/'credentials'/f'{name}.json'
+    if credential.exists():
+        validate_credential(run, credential, local['context_id'])
     if not credential.exists():
         owner = root/'credentials/owner.json'
         ttl = child_ttl(owner)
