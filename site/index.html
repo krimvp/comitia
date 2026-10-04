@@ -42,8 +42,8 @@
       <figure class="hero-fig">
         <svg class="diagram diagram-wide" viewBox="0 0 600 400" role="img" aria-labelledby="fig-title fig-desc">
           <title id="fig-title">Three agents sharing one context</title>
-          <desc id="fig-desc">Agents on Pi, Claude Code and Codex connect to one context, drawn as a tape of ten numbered messages.
-            Codex appends message 10. Pi has acknowledged up to message 4 and Claude Code up to 7.
+          <desc id="fig-desc">Agents on a generic MCP client, Claude Code and Codex connect to one context, drawn as a tape of ten numbered messages.
+            Codex appends message 10. The MCP client has acknowledged up to message 4 and Claude Code up to 7.
             Below the tape, task 15 is leased to the claude-review instance, and a private child context holds that task's own messages.</desc>
 
           <g class="crop">
@@ -53,8 +53,8 @@
           <!-- agents -->
           <g class="agent">
             <rect x="40" y="36" width="150" height="50" rx="3"/>
-            <text class="t-name" x="54" y="57">Pi</text>
-            <text class="t-id" x="54" y="75">pi-docs</text>
+            <text class="t-name" x="54" y="57">MCP client</text>
+            <text class="t-id" x="54" y="75">docs-writer</text>
           </g>
           <g class="agent">
             <rect x="225" y="36" width="150" height="50" rx="3"/>
@@ -129,14 +129,14 @@
 
         <svg class="diagram diagram-narrow" viewBox="0 0 340 300" role="img" aria-labelledby="fign-title fign-desc">
           <title id="fign-title">Three agents sharing one context</title>
-          <desc id="fign-desc">Agents on Pi, Claude Code and Codex connect to one context of ten numbered messages.
-            Codex appends message 10. Pi has acknowledged up to message 4 and Claude Code up to 7.
+          <desc id="fign-desc">Agents on a generic MCP client, Claude Code and Codex connect to one context of ten numbered messages.
+            Codex appends message 10. The MCP client has acknowledged up to message 4 and Claude Code up to 7.
             Task 15 is leased to the claude-review instance, and a private child context holds that task's own messages.</desc>
 
           <g class="agent">
             <rect x="10" y="20" width="100" height="44" rx="3"/>
-            <text class="t-name" x="19" y="38">Pi</text>
-            <text class="t-id" x="19" y="55">pi-docs</text>
+            <text class="t-name" x="19" y="38">MCP client</text>
+            <text class="t-id" x="19" y="55">docs-writer</text>
           </g>
           <g class="agent">
             <rect x="120" y="20" width="100" height="44" rx="3"/>
