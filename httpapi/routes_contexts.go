@@ -22,6 +22,16 @@ func (h *handler) routeContexts(ctx context.Context, token, route string, q requ
 		var v comitia.WorkContext
 		v, err = h.api.CreateContext(ctx, token, *q.CreateContext)
 		out.Context = &v
+	case "contexts/create-child":
+		if q.ChildContext == nil {
+			err = comitia.ErrInvalid
+			break
+		}
+		var v comitia.WorkContext
+		v, err = h.api.CreateChildContext(ctx, token, *q.ChildContext)
+		out.Context = &v
+	case "contexts/children":
+		out.Contexts, err = h.api.ListChildContexts(ctx, token, q.ContextID, q.AfterID, q.Limit)
 	case "contexts/get":
 		var v comitia.WorkContext
 		v, err = h.api.GetContext(ctx, token, q.ContextID)
@@ -55,6 +65,19 @@ func (c *Client) CreateContext(x context.Context, t string, i comitia.CreateCont
 		return comitia.WorkContext{}, missing(e)
 	}
 	return *o.Context, e
+}
+func (c *Client) CreateChildContext(x context.Context, t string, i comitia.CreateChildContextInput) (comitia.WorkContext, error) {
+	var o response
+	e := c.call(x, t, "contexts/create-child", request{ChildContext: &i}, &o)
+	if o.Context == nil {
+		return comitia.WorkContext{}, missing(e)
+	}
+	return *o.Context, e
+}
+func (c *Client) ListChildContexts(ctx context.Context, token, parentID, afterID string, limit int) ([]comitia.WorkContext, error) {
+	var out response
+	err := c.call(ctx, token, "contexts/children", request{ContextID: parentID, AfterID: afterID, Limit: limit}, &out)
+	return out.Contexts, err
 }
 func (c *Client) GetContext(x context.Context, t, id string) (comitia.WorkContext, error) {
 	var o response

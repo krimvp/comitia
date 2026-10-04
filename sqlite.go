@@ -44,7 +44,7 @@ func OpenSQLite(path string) (*SQLiteStore, error) {
 }
 func (s *SQLiteStore) Close() error { return s.db.Close() }
 func (s *SQLiteStore) migrate(ctx context.Context) error {
-	for _, schema := range []string{sessionSchema, contextSchema, grantSchema, messageSchema, taskSchema} {
+	for _, schema := range []string{sessionSchema, contextSchema, grantSchema, messageSchema, taskSchema, contextTreeSchema} {
 		if _, e := s.db.ExecContext(ctx, schema); e != nil {
 			return e
 		}

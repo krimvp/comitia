@@ -21,6 +21,8 @@ The current contract requires these invariants:
 5. Authorization is checked when an operation executes; a previously successful check is not a durable entitlement.
 6. Context-scoped storage operations retain the applicable context boundary so an unrelated identifier cannot grant access.
 
+Child contexts follow the same rules. Creating one requires `create` on the parent; administrative status alone is not enough. The creator's child grant names its parent grant as `ParentGrantID` and expires no later than it, so the existing grant-tree revocation and ancestry checks remove the creator's and its delegates' access to the child. A child is private by default: read on the parent reveals only its metadata (ID, name, creator session, parent task). Only a child created with `parent_readable` extends read, and only read, to sessions with read on the parent; inherited read is never a source for further delegation. The child always belongs to the parent's workspace, and its task must be a task of the parent.
+
 The target multi-tenant model additionally requires explicit principal membership in a workspace before accessing that workspace's resources.
 
 Grant revocation in the initial API is restricted to an administrative principal. Delegated sessions can lose authority through expiry or through revocation of their session, issuer, or an ancestor grant, but they cannot directly invoke grant revocation.

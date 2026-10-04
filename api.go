@@ -25,8 +25,10 @@ const (
 	PermissionClaim
 	PermissionGrant
 	PermissionAdmin
+	// PermissionCreate allows creating child contexts under the context.
+	PermissionCreate
 )
-const PermissionAll = PermissionRead | PermissionWrite | PermissionClaim | PermissionGrant | PermissionAdmin
+const PermissionAll = PermissionRead | PermissionWrite | PermissionClaim | PermissionGrant | PermissionAdmin | PermissionCreate
 
 // API is the library-first application surface. Service and remote HTTP clients implement it.
 type API interface {
