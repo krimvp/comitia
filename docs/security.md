@@ -122,7 +122,7 @@ Task leases require fencing. Every owner-only mutation must verify the current l
 - Terminate and authenticate network connections according to the deployment's threat model.
 - Rotate credentials and revoke affected sessions and descendant grants after suspected compromise.
 - Avoid logging bearer credentials and sensitive message bodies.
-- Use a SQLite-supported consistent backup procedure and test restoration, including authorization ancestry and lease state. Copying live database and WAL files is not assumed to be safe.
+- Use the [private online snapshot and isolated restore drill](backup-restore.md), including authorization ancestry, instance cursors and lease state. Copying live database and WAL files is not assumed to be safe. Restores can resurrect old claims and revoked credentials; fence workers and reconcile external effects before resumption.
 - Keep SQLite and the Comitia binary updated for security fixes.
 
 Owner access is time bounded. Before the current owner session expires, use its administrative authority to mint a replacement owner session and store the new credential securely. A live administrative credential can restore access by granting its replacement session the required contexts. If every administrative credential expires or is lost, the current API has no supported account-recovery or offline bypass; the existing coordination data remains inaccessible through Comitia.
