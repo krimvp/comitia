@@ -7,6 +7,10 @@ elsewhere; it does not execute them.
 This is a historical deployment snapshot, not a generic installation recipe.
 Hostnames, paths and observations below have not been revalidated. For current
 Linux/macOS/demo/remote setup, start with [Connecting](CONNECTING.md).
+For current backup and recovery, use the [online snapshot and isolated restore
+drill](backup-restore.md), including worker/lease/revocation and external-effect
+reconciliation before resumption. Its script targets the current local installer
+layout; this historical VPS layout requires the same checks with explicit paths.
 For how to *use* Comitia from a harness, see [USING-COMITIA.md](USING-COMITIA.md).
 For the ChatGPT-specific analysis, see [chatgpt-integration.md](chatgpt-integration.md).
 

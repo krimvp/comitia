@@ -4,6 +4,11 @@ Comitia runs as a per-user service on Linux (systemd) and macOS (launchd). Both
 installers keep data and credentials outside the checkout, never replace an
 existing database or credential, and can be rerun to update.
 
+For private online snapshots, matching credentials/config, and an isolated
+authentication/cursor/task recovery drill, follow [backup and restore
+reconciliation](backup-restore.md). Fence workers and reconcile rolled-back
+revocations, leases and external effects before resuming a restored service.
+
 ## Linux
 
 Install from the repository root with Python 3 and Go 1.24 or newer available:
