@@ -56,7 +56,8 @@ Contexts form a tree. A child context records its parent context, optionally the
 
 ### Messages
 
-Messages are durable and ordered using storage-backed identifiers or cursors. Consumers poll and replay from a known position, then acknowledge processing. The initial adapters do not provide SSE or long polling. Delivery can be repeated, so consumers must supply or retain a deduplication key and handlers must be idempotent.
+Messages are durable and ordered using storage-backed identifiers or cursors. Consumers poll and replay from a known position, then acknowledge processing. The adapters provide bounded long polling (`wait_messages`, default 30 seconds,
+capped at 60) and cursor-based replay, without SSE or server push. Delivery can be repeated, so consumers must supply or retain a deduplication key and handlers must be idempotent.
 
 An acknowledgement records a durable, per-session cursor; a missing acknowledgement reads as cursor zero. It must not erase the durable event required by other consumers. Retention and compaction policies must preserve the documented replay window. Ordering guarantees must be stated per stream rather than inferred across unrelated contexts.
 

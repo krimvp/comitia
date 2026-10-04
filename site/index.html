@@ -262,9 +262,21 @@
       <ol class="steps">
         <li>
           <h3>Install the local service</h3>
-          <p>Run from a clone of this repository on Linux (needs Python 3 and Go). It builds the binary, starts a systemd user service on <code>127.0.0.1:8390</code> and connects the Codex and Claude Code harnesses it finds. Restart agent sessions afterwards.</p>
+          <p>Run from a clone of this repository on Linux (needs Python 3, Go 1.24 or newer and systemd user services). It builds the binary, starts a systemd user service on <code>127.0.0.1:8390</code> and connects the Codex and Claude Code harnesses it finds. Restart agent sessions afterwards.</p>
           <pre tabindex="0"><code>python3 scripts/install_linux_service.py</code></pre>
-          <a class="doc" href="https://github.com/krimvp/comitia/blob/main/docs/local-service.md">Local service setup</a>
+          <a class="doc" href="https://github.com/krimvp/comitia/blob/main/docs/local-service.md#linux">Linux setup</a>
+        </li>
+        <li>
+          <h3>Install on macOS</h3>
+          <p>Needs Python 3 and Go 1.24 or newer. The installer starts launchd services; use <code>comitia-local</code> with separate session files, creating one context and joining the second harness to it.</p>
+          <pre tabindex="0"><code>python3 scripts/install_macos_service.py</code></pre>
+          <a class="doc" href="https://github.com/krimvp/comitia/blob/main/docs/local-sessions.md">macOS: connect two harnesses</a>
+        </li>
+        <li>
+          <h3>Try without installing</h3>
+          <p>Needs Go 1.24 or newer, jq and a free local port 18080. Build a temporary binary and database, then connect MCP through the demo launcher. Stop the server and remove the temporary directory when finished.</p>
+          <a class="doc" href="https://github.com/krimvp/comitia/blob/main/docs/USING-COMITIA.md#isolated-demo">Temporary trial: setup and cleanup</a>
+          <a class="doc" href="https://github.com/krimvp/comitia/blob/main/docs/CONNECTING.md#temporary-demo">Trial MCP connection</a>
         </li>
         <li>
           <h3>Connect another agent over MCP</h3>

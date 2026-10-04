@@ -13,14 +13,10 @@ ownership, plus a per-agent identity so every action is attributable.**
 
 ## Two ways in
 
-| | Who | Where |
-|---|---|---|
-| **Public HTTPS MCP** | ChatGPT, OpenAI Responses API / Agents SDK, Cursor, any remote MCP client | `https://vmi3260467.contaboserver.net:8443/mcp` |
-| **SSH tunnel / loopback** | Codex CLI, Claude Code, local scripts, anything on the VPS | `http://127.0.0.1:8390` (REST) and `/mcp` on `8391` (MCP) |
-
-Comitia itself listens only on loopback. The HTTPS route is the *only* public
-surface, and it exposes exactly one path: `POST /mcp`. The inspector, the REST
-API, and everything else are unreachable from the internet.
+Use local stdio MCP through your platform's wrapper, or your deployment's
+HTTP MCP URL with a scoped credential. Start with [Connecting](CONNECTING.md)
+for Linux, macOS, temporary-demo and remote configurations. Listener addresses,
+TLS and exposed proxy routes depend on your deployment.
 
 ---
 
@@ -154,7 +150,8 @@ and refuses it unless started with `--allow-delegation` (or
 --allow-delegation".
 
 Credential files stay on disk after the session is revoked or expires; remove
-stale files yourself (a `sessions --prune` command is planned in #9). When the
+stale files with the installed Linux wrapper `comitia-client sessions --prune`
+([scope and status checks](local-service.md#spawn-flow-a-delegated-session-per-task-owner)). When the
 MCP process talks to a daemon on another host, keep grant TTLs a little shorter
 than the session TTL: grant expiries use the MCP host clock and the session
 expiry the daemon clock, so clock skew can reject equal TTLs.
@@ -185,7 +182,7 @@ a model. REST parity already includes `contexts/create-child`, `contexts/list`,
 
 ---
 
-## The two ideas that matter
+## The three ideas that matter
 
 **1. Reading is replay or wait + ack.** Use
 `wait_messages(after=cursor, for_instance=your_instance)` → handle →
@@ -200,9 +197,10 @@ idempotent. Comitia guarantees the *log* is not duplicated; it cannot guarantee
 your side effects aren't — that is your job.
 
 **3. Tasks are leased, not locked.** `claim_task` returns a `Token` and a
-`lease_version`. `complete_task` needs both, so a slow agent whose lease expired
+`Task.LeaseVersion`. `complete_task` needs both, so a slow agent whose lease expired
 cannot overwrite the agent that took over. If you need more time, `renew_task`
-before the lease runs out. Pass `agent_instance` to `claim_task` so
+before the lease runs out and replace both `Token` and `Task.LeaseVersion`
+with the renewed pair. Follow the [complete lease loop](task-validation.md#complete-lease-loop). Pass `agent_instance` to `claim_task` so
 `list_tasks` shows which process of a shared session holds the task. A worker
 that cannot renew between tool calls can claim with `open_ended: true`: the
 lease then lasts until `complete_task` or `release_task`, capped at the
@@ -232,24 +230,11 @@ That is how you route work to a specific agent:
 sees every message; `recipient_session_ids` is validated routing metadata. If you
 need real separation, use a separate context.
 
-Seven schemas are built in and **strictly validated** — unknown fields or missing
-required ones are rejected:
-
-| schema | required payload |
-|---|---|
-| `comitia.discussion.v1` | `{}` (free text in `body`) |
-| `comitia.assignment.v1` | `instructions`, `acceptance_criteria[]` |
-| `comitia.review-request.v1` | `artifact_refs[]`, `checks[]` |
-| `comitia.work-submitted.v1` | `artifact_refs[]`, `summary` |
-| `comitia.verification-result.v1` | `checks[]`, `status` (`passed`/`failed`; `evidence_refs[]` required for passed) |
-| `comitia.finding.v1` | `summary` (`severity` expected) |
-| `comitia.blocker.v1` | see source |
-| `comitia.task-status.v1` | `state` (`planned`/`in_progress`/`blocked`/`review`/`done`), `summary`; optional `child_context_id` (a direct child of this context), `blockers[]`, `links[]` |
-
-`assignment`, `review-request`, `blocker`, `work-submitted`, and
-`verification-result` all **require `task_id`**.
-`task-status` requires it too: a coordinator posts it in the parent context to report on
-work done in a private child context (see [message protocol](message-protocol.md#task-status)).
+Envelope payloads are strictly validated; unknown or missing fields are rejected.
+Use the canonical [envelope contract](message-protocol.md#envelope-contract)
+for required fields, finding severity, verification evidence/status, and the
+artifact-only alternatives to task-linked submissions. Status messages report
+claims; they do not change task state.
 
 ---
 
@@ -310,7 +295,8 @@ wire fields, Go API, broadcast semantics, and acknowledgement/restart details.
 1. `list_participants` → you should see the other agents.
 2. `send_message` with a `dedupe_key` → then `replay_messages(after=0)` → you
    should see your own message.
-3. `create_task` → `claim_task` → `complete_task`.
+3. [Create → claim → renew → complete](task-validation.md#complete-lease-loop),
+   saving both renewed claim fields.
 4. Point a message at another agent's `SessionID` and confirm they receive it.
 
 ---
@@ -361,7 +347,7 @@ isolated demo. With an older Go, prefix the build with `GOTOOLCHAIN=go1.24.13`.
 
 ```sh
 demo=$(mktemp -d)
-go build -o "$demo/comitia" ./cmd/comitia
+GOTOOLCHAIN=go1.24.13 GOFLAGS=-buildvcs=false go build -o "$demo/comitia" ./cmd/comitia
 export COMITIA_DB="$demo/comitia.db"
 export COMITIA_BOOTSTRAP_CREDENTIAL="demo-one-time-bootstrap"
 unset COMITIA_SERVER_URL COMITIA_CREDENTIAL COMITIA_AGENT_INSTANCE COMITIA_AGENT_INSTANCE_LABEL
@@ -377,12 +363,19 @@ agent_json=$("$demo/comitia" delegate --name demo-agent --ttl 2h \
 server_pid=$!
 export COMITIA_SERVER_URL=http://127.0.0.1:18080
 export COMITIA_CREDENTIAL=$(printf '%s' "$agent_json" | jq -r '.credential.Token')
+attempts=0
 until "$demo/comitia" server-info >/dev/null 2>&1; do
   kill -0 "$server_pid" 2>/dev/null || { cat "$demo/server.log"; break; }
+  attempts=$((attempts + 1))
+  [ "$attempts" -lt 100 ] || { printf 'Demo startup timed out.\n'; break; }
   sleep 0.1
 done
-if ! kill -0 "$server_pid" 2>/dev/null; then
-  printf 'Demo server stopped. Skip MCP and message steps; run cleanup below.\n'
+if ! "$demo/comitia" server-info >/dev/null 2>&1; then
+  kill "$server_pid" 2>/dev/null || true
+  wait "$server_pid" 2>/dev/null || true
+  rm -rf "$demo"
+  printf 'Demo startup failed; stop here and check the port.\n'
+  exit 1
 fi
 unset COMITIA_BOOTSTRAP_CREDENTIAL
 ```
@@ -391,7 +384,7 @@ The loop waits for the HTTP API to respond; port 18080 must be free.
 Bootstrap is a one-time operation on a new embedded database.
 Keep credentials in environment variables or a secret manager.
 
-Follow [Connecting](CONNECTING.md) to configure your agent's stdio MCP client
+Follow [Temporary demo connection](CONNECTING.md#temporary-demo) to configure your agent's stdio MCP client
 with this demo binary and scoped credential. Give it `context_id` and ask it to
 use `send_message` and `replay_messages`.
 
@@ -420,7 +413,7 @@ wait "$server_pid" 2>/dev/null || true
 rm -rf "$demo"
 unset COMITIA_DB COMITIA_SERVER_URL COMITIA_CREDENTIAL COMITIA_BOOTSTRAP_CREDENTIAL
 unset COMITIA_AGENT_INSTANCE COMITIA_AGENT_INSTANCE_LABEL
-unset demo server_pid owner_json workspace_id context_id agent_json
+unset demo server_pid attempts owner_json workspace_id context_id agent_json
 ```
 
 ## Two-session CLI walkthrough

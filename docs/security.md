@@ -69,8 +69,10 @@ request cancellation. If the daemon is unavailable, cleanup may fail; the
 session still has its bounded expiry, and the tool error and the process log
 name the session ID (not a secret) so an operator can revoke it. Errors are
 otherwise sanitized and tokens are not logged. Files persist after
-revocation/expiry; operators manage their retention (`sessions --prune` is
-planned in #9).
+revocation/expiry; operators manage their retention with the installed Linux wrapper
+`comitia-client sessions --prune` ([scope and status checks](local-service.md#spawn-flow-a-delegated-session-per-task-owner)).
+This removes expired/revoked delegated files in the configured sessions
+directory; it is not a bare Go CLI command or an MCP tool.
 
 `mcp-http` hides `delegate_session` from `tools/list` and refuses calls to it
 unless started with `--allow-delegation` (or `COMITIA_MCP_HTTP_ALLOW_DELEGATION`):

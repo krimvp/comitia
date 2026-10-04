@@ -25,6 +25,61 @@ must be able to read that context or no session is created. The default
 permissions are `read,write,claim,grant`, the session TTL is `24h`, and the
 grant TTL is `23h`.
 
+## Connect two harnesses
+
+After [installing on macOS](local-service.md#macos), use Python 3 and `jq`.
+Create one context for Codex (A), then join Claude (B) to that exact context:
+
+```sh
+local_wrapper="$HOME/Library/Application Support/Comitia/bin/comitia-local"
+session_a=$("$local_wrapper" new-session --name codex --ttl 2h --grant-ttl 1h --context-name first-handoff)
+context_id=$(printf '%s' "$session_a" | jq -r '.context_id')
+session_b=$("$local_wrapper" new-session --name claude --ttl 2h --grant-ttl 1h --context-id "$context_id")
+file_a=$(printf '%s' "$session_a" | jq -r '.session_file')
+file_b=$(printf '%s' "$session_b" | jq -r '.session_file')
+"$local_wrapper" --session-file "$file_a" send --context-id "$context_id" \
+  --dedupe-key first-handoff --body 'Codex ready for Claude'
+"$local_wrapper" --session-file "$file_b" replay --context-id "$context_id" --after 0
+"$local_wrapper" --session-file "$file_b" participants --context-id "$context_id"
+task_id=$("$local_wrapper" --session-file "$file_a" task-create \
+  --context-id "$context_id" --title 'Shared first task' | jq -r '.ID')
+"$local_wrapper" --session-file "$file_b" task-claim --task-id "$task_id" --lease 5m
+printf 'Context: %s\nCodex session file: %s\nClaude session file: %s\n' "$context_id" "$file_a" "$file_b"
+```
+
+Acceptance: B sees A's message, participants lists both session IDs, and B's
+claim has `Task.ID` equal to the created task and a nonempty `Token`. Continue
+with [renew and complete](task-validation.md#complete-lease-loop), using B's
+wrapper/session and saving both fields. Two separate `new-session` calls without
+`--context-id` create separate contexts and cannot exchange these messages.
+
+Set up Codex in `~/.codex/config.toml` using the **absolute** wrapper path and
+A's printed session-file path (replace `/Users/alice` and `SESSION_A_ID`):
+
+```toml
+[mcp_servers.comitia]
+command = "/Users/alice/Library/Application Support/Comitia/bin/comitia-local"
+args = ["--session-file", "/Users/alice/Library/Application Support/Comitia/sessions/SESSION_A_ID.json", "mcp"]
+```
+
+For Claude Code, register B from the same setup shell:
+
+```sh
+claude mcp add comitia --scope user -- "$local_wrapper" --session-file "$file_b" mcp
+```
+
+The equivalent Claude MCP JSON config is:
+
+```json
+{"mcpServers":{"comitia":{"type":"stdio","command":"/Users/alice/Library/Application Support/Comitia/bin/comitia-local","args":["--session-file","/Users/alice/Library/Application Support/Comitia/sessions/SESSION_B_ID.json","mcp"]}}}
+```
+
+Restart both harnesses to load registration; give both `$context_id` and repeat
+the [first connection acceptance](CONNECTING.md#first-connection-acceptance)
+through their MCP tools. Config files do not expand `$HOME` or `~`; shell
+commands above quote paths containing spaces. For short terminal commands,
+`export PATH="$HOME/.local/bin:$PATH"` enables the installed symlinks.
+
 ## Use a session
 
 Pass the saved file explicitly:
@@ -45,10 +100,13 @@ the explicitly selected embedded database.
 The wrapper rejects the legacy board commands (`ws`, `join`, `post`, `view`,
 `decide`, `resolve`, `release`, and `wait`). Existing board runs must continue
 using the original binary and database. Use `new-session` and the HTTP API for
-new work.
+new work. The Go daemon supports bounded long polling, but this macOS wrapper
+rejects the name `wait` as a legacy command. Use MCP `wait_messages`, wrapper
+`watch`, or `replay` instead; do not infer that the service lacks waits.
 
 Session credentials expire independently of the service. Create a replacement
-session when one expires, and keep session files out of source control.
+session when one expires, and keep session files out of source control. For
+installed credential repair, see [expiry and rotation](local-service.md#credential-expiry-and-rotation).
 
 ## Processes sharing a session
 

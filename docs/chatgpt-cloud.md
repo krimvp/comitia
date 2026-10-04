@@ -1,4 +1,10 @@
-# Using Comitia from ChatGPT (cloud)
+# Using Comitia from ChatGPT (cloud) (deployment record)
+
+Historical VPS connector notes, archived 2026-10-04, not a generic connection
+recipe. The named identity, paths and external client restrictions below have
+not been revalidated. Start with [Connecting](CONNECTING.md) for current local,
+demo and configurable remote setup; verify your cloud client's current
+requirements separately.
 
 This is the one harness that cannot use the SSH tunnel, because ChatGPT's tools
 execute on OpenAI's infrastructure rather than on your machine. It needs a

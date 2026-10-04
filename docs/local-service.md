@@ -257,8 +257,9 @@ See [local daemon](local-daemon.md) for delegation and the
 commands. Do not commit local credentials or the database to the repository.
 
 Harness registration (`add-harness`) is part of the Linux installer for now.
-For the installed macOS agent wrapper and scoped-session workflow, see
-[Local sessions](local-sessions.md). The installer also copies that guide to
+For a complete macOS first connection, including creating A, joining B to
+the same context, Codex/Claude MCP configs and send/read/claim acceptance, see
+[Connect two harnesses](local-sessions.md#connect-two-harnesses). The installer also copies that guide to
 `~/Library/Application Support/Comitia/LOCAL-SESSIONS.md`.
 
 ### Updating

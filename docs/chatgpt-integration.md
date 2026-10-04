@@ -1,5 +1,11 @@
 # ChatGPT integration — findings and plan
 
+Historical integration investigation, archived 2026-10-04. Deployment observations and
+external client restrictions below are a dated record, not current setup
+requirements. The current adapter implements stateless HTTP MCP; see
+[Connecting](CONNECTING.md#remote-http-and-ssh-forwarding). OAuth work discussed
+below remains a separate proposal.
+
 Status: **Phase 1 complete and verified. Phase 2 blocked pending a decision.**
 
 ## Phase 1 — ChatGPT identity: DONE
