@@ -32,7 +32,11 @@ cursors. Each context selection/disconnect increments a generation and aborts
 in-flight conversation requests; stale results cannot replace another context's
 state. Automatic polling is bounded to 100 messages per tick; memory and DOM
 windows are explicitly limited and described in the interface. Metadata is
-refreshed alongside messages, including when no new messages arrive.
+refreshed alongside messages, including when no new messages arrive. The sidebar
+lists self-reported instances from `instances/list`, with relative last-seen times
+and expandable resume metadata. Hover over a last-seen time for its timestamp.
+Presence is historical activity, not proof that a process is still running.
+Switching contexts or losing read access clears the displayed instance data.
 
 ## Context tree
 

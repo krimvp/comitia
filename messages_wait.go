@@ -23,7 +23,17 @@ func messageFilters(filters []MessageFilters) (MessageFilters, error) {
 	if f.FromInstance != "" && !validInstanceID(f.FromInstance) {
 		return f, Invalidf("from_instance must be 1-64 letters, digits, '.', '_' or '-'")
 	}
+	if instance := f.agentInstance(); instance != "" && !validInstanceID(instance) {
+		return f, Invalidf("agent_instance must be 1-64 letters, digits, '.', '_' or '-'")
+	}
 	return f, nil
+}
+
+func (f MessageFilters) agentInstance() string {
+	if f.AgentInstance == nil {
+		return ""
+	}
+	return *f.AgentInstance
 }
 
 // MessageWaitTimeout converts wire seconds without overflowing a duration.

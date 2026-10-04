@@ -41,6 +41,7 @@ test('inspector controller uses only read endpoints, rejects stale contexts and 
     if(path.endsWith('/contexts/get'))return ok({context:contexts.find(c=>c.ID===body.context_id)});
     if(path.endsWith('/contexts/children'))return ok({contexts:[]});
     if(path.endsWith('/participants/list'))return ok({participants:[{SessionID:'agent',Name:'<script>not executable</script>'}]});
+    if(path.endsWith('/instances/list'))return ok({instances:[{id:`${body.context_id}-worker`,label:'<b>Worker</b>',session_id:'agent',last_seen:new Date(Date.now()-120000).toISOString(),resume:{harness:'codex',pid:123}}]});
     if(path.endsWith('/tasks/list'))return ok({tasks:[]});
     if(path.endsWith('/messages/replay')) {
       if(body.context_id==='a'&&body.after===2) return new Promise(resolve=>{delayed=()=>resolve(ok({messages:[msg('a','stale A result',3)]}));});
@@ -61,6 +62,10 @@ test('inspector controller uses only read endpoints, rejects stale contexts and 
     assert.match(text(elements.get('sequence-routes')),/Issue worker/);
     assert.match(text(elements.get('sequence-routes')),/Issue reviewer/);
     assert.equal(elements.get('context-title').textContent,'Context A');
+    assert.match(text(elements.get('instances')),/<b>Worker<\/b> \(a-worker\)/);
+    assert.match(text(elements.get('instances')),/Last seen 2m ago/);
+    assert.match(text(elements.get('instances')),/codex/);
+    assert.match(text(elements.get('instances-note')),/Self-reported/);
     assert.equal(elements.get('sequence-panel').hidden,false);
     assert.equal(elements.get('interaction-panel').hidden,true);
     assert.equal(elements.get('messages').hidden,true);
@@ -83,18 +88,20 @@ test('inspector controller uses only read endpoints, rejects stale contexts and 
     const pending=elements.get('load-more').fire('click');await settle();assert.ok(delayed);
     const switchContext=elements.get('contexts').children[1].fire('click');await switchContext;
     assert.equal(elements.get('context-title').textContent,'Context B');
+    assert.match(text(elements.get('instances')),/b-worker/);
+    assert.doesNotMatch(text(elements.get('instances')),/a-worker/);
     delayed();await pending;
     assert.match(text(elements.get('messages')),/Current B message/);
     assert.doesNotMatch(text(elements.get('messages')),/stale A result/);
     assert.doesNotMatch(text(elements.get('sequence-routes')),/stale A result/);
-    assert.ok(calls.every(c=>['/v1/contexts/list','/v1/contexts/get','/v1/contexts/children','/v1/messages/replay','/v1/participants/list','/v1/tasks/list'].includes(c.path)));
+    assert.ok(calls.every(c=>['/v1/contexts/list','/v1/contexts/get','/v1/contexts/children','/v1/messages/replay','/v1/participants/list','/v1/tasks/list','/v1/instances/list'].includes(c.path)));
     assert.equal(calls.find(c=>c.path.endsWith('/messages/replay')&&c.body.context_id==='b').body.after,0);
     expired=true;await elements.get('load-more').fire('click');
     assert.equal(elements.get('workspace').hidden,true);
     assert.equal(elements.get('connect-panel').hidden,false);
     assert.equal(elements.get('messages').children.length,0);
     assert.equal(elements.get('details').children.length,0);
-    for(const id of ['interaction-map','connections','sequence-canvas','sequence-routes'])assert.equal(elements.get(id).children.length,0,id);
+    for(const id of ['interaction-map','connections','sequence-canvas','sequence-routes','instances'])assert.equal(elements.get(id).children.length,0,id);
     assert.match(elements.get('connect-error').textContent,/Read access/);
     assert.equal(timers.size,0);
     assert.equal(storage.has(credentialKey),false);

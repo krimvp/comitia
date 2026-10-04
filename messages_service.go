@@ -56,6 +56,9 @@ func (s *Service) AppendMessage(ctx context.Context, raw, cid string, in Message
 	if e == nil && appended {
 		s.messageNotifications.notify(cid)
 	}
+	if e == nil {
+		s.touchInstance(ctx, m.SessionID, cid, instance)
+	}
 	return m, e
 }
 func (s *Service) ReplayMessages(ctx context.Context, raw, cid string, after int64, limit int, filters ...MessageFilters) ([]Message, error) {
@@ -63,6 +66,8 @@ func (s *Service) ReplayMessages(ctx context.Context, raw, cid string, after int
 	if err != nil {
 		return nil, err
 	}
+	instance := f.agentInstance()
+	var sid string
 	var out []Message
 	if after < 0 {
 		return nil, Invalidf("after must be nonnegative")
@@ -75,9 +80,13 @@ func (s *Service) ReplayMessages(ctx context.Context, raw, cid string, after int
 		if e != nil {
 			return e
 		}
+		sid = a.session.ID
 		out, e = r.Messages(cid, a.session.ID, after, limit, f)
 		return e
 	})
+	if e == nil {
+		s.touchInstance(ctx, sid, cid, &AgentInstance{ID: instance})
+	}
 	return out, e
 }
 func (s *Service) AckMessages(ctx context.Context, raw, cid string, seq int64, instances ...string) error {
@@ -88,27 +97,38 @@ func (s *Service) AckMessages(ctx context.Context, raw, cid string, seq int64, i
 	if seq < 0 {
 		return Invalidf("sequence must be nonnegative")
 	}
-	return s.store.Update(ctx, func(w WriteStore) error {
+	var sid string
+	e := s.store.Update(ctx, func(w WriteStore) error {
 		a, _, e := s.require(w, raw, cid, PermissionRead)
 		if e != nil {
 			return e
 		}
+		sid = a.session.ID
 		return w.Ack(a.session.ID, cid, seq, s.now().UTC(), instance)
 	})
+	if e == nil {
+		s.touchInstance(ctx, sid, cid, &AgentInstance{ID: instance})
+	}
+	return e
 }
 func (s *Service) MessageCursor(ctx context.Context, raw, cid string, instances ...string) (int64, error) {
 	instance, err := cursorInstance(instances)
 	if err != nil {
 		return 0, err
 	}
+	var sid string
 	var cursor int64
 	e := s.store.View(ctx, func(r ReadStore) error {
 		a, _, e := s.require(r, raw, cid, PermissionRead)
 		if e != nil {
 			return e
 		}
+		sid = a.session.ID
 		cursor, e = r.AckCursor(a.session.ID, cid, instance)
 		return e
 	})
+	if e == nil {
+		s.touchInstance(ctx, sid, cid, &AgentInstance{ID: instance})
+	}
 	return cursor, e
 }

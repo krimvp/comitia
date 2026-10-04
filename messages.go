@@ -48,6 +48,9 @@ type MessageFilters struct {
 	FromInstance string `json:"from_instance,omitempty"`
 	TaskID       string `json:"task_id,omitempty"`
 	Schema       string `json:"schema,omitempty"`
+	// AgentInstance names the caller's own instance for presence; it never
+	// narrows results. Adapters apply configured defaults when it is nil.
+	AgentInstance *string `json:"agent_instance,omitempty"`
 }
 
 type PayloadValidator func(json.RawMessage) error

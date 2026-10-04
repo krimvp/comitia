@@ -64,13 +64,16 @@ func runMessages(ctx context.Context, cfg config, api comitia.API, out *json.Enc
 		if cmd == "watch" {
 			defaultID, _ = cfg.instances.ID()
 		}
-		instance := fs.String("agent-instance", defaultID, "self-reported instance ID for watch cursor (defaults to COMITIA_AGENT_INSTANCE)")
+		instance := fs.String("agent-instance", defaultID, "self-reported instance ID for replay presence or watch cursor (watch defaults to COMITIA_AGENT_INSTANCE)")
 		noAck := fs.Bool("no-ack", false, "do not acknowledge printed watch messages")
 		filters := messageFilterFlags(fs)
 		if err := fs.Parse(args); err != nil {
 			return err
 		}
 		if cmd == "replay" {
+			if *instance != "" {
+				filters.AgentInstance = instance
+			}
 			v, e := api.ReplayMessages(ctx, needCredential(cfg), *cid, *after, *limit, *filters)
 			if e != nil {
 				return e

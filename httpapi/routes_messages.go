@@ -86,7 +86,11 @@ func (c *Client) ListParticipants(ctx context.Context, token, cid string, limit 
 }
 
 func (q request) messageFilters() comitia.MessageFilters {
-	return comitia.MessageFilters{ForInstance: q.ForInstance, FromInstance: q.FromInstance, TaskID: q.TaskID, Schema: q.Schema}
+	f := comitia.MessageFilters{ForInstance: q.ForInstance, FromInstance: q.FromInstance, TaskID: q.TaskID, Schema: q.Schema}
+	if q.AgentInstance != "" {
+		f.AgentInstance = &q.AgentInstance
+	}
+	return f
 }
 func messageReadRequest(cid string, after int64, filters []comitia.MessageFilters) (request, error) {
 	if len(filters) > 1 {
@@ -96,6 +100,9 @@ func messageReadRequest(cid string, after int64, filters []comitia.MessageFilter
 	if len(filters) == 1 {
 		f := filters[0]
 		q.ForInstance, q.FromInstance, q.TaskID, q.Schema = f.ForInstance, f.FromInstance, f.TaskID, f.Schema
+		if f.AgentInstance != nil {
+			q.AgentInstance = *f.AgentInstance
+		}
 	}
 	return q, nil
 }
