@@ -24,6 +24,9 @@ func runMessages(ctx context.Context, cfg config, api comitia.API, out *json.Enc
 		if err := fs.Parse(args); err != nil {
 			return err
 		}
+		if cfg.parseOnly {
+			return nil
+		}
 		envelope, e := readEnvelope(*envelopeFile)
 		if e != nil {
 			return e
@@ -40,6 +43,9 @@ func runMessages(ctx context.Context, cfg config, api comitia.API, out *json.Enc
 		limit := fs.Int("limit", 100, "maximum participants (1-1000)")
 		if err := fs.Parse(args); err != nil {
 			return err
+		}
+		if cfg.parseOnly {
+			return nil
 		}
 		v, e := api.ListParticipants(ctx, needCredential(cfg), *cid, *limit)
 		if e != nil {
@@ -60,6 +66,9 @@ func runMessages(ctx context.Context, cfg config, api comitia.API, out *json.Enc
 		fs.IntVar(&filters.MaxBytes, "max-bytes", 0, "encoded messages-array byte budget (default 1048576, max 4194304; first message intact)")
 		if err := fs.Parse(args); err != nil {
 			return err
+		}
+		if cfg.parseOnly {
+			return nil
 		}
 		filters.AgentInstance = instance
 		if cmd == "watch" && *page {
@@ -109,6 +118,9 @@ func runMessages(ctx context.Context, cfg config, api comitia.API, out *json.Enc
 		if err := fs.Parse(args); err != nil {
 			return err
 		}
+		if cfg.parseOnly {
+			return nil
+		}
 		if e := api.AckMessages(ctx, needCredential(cfg), *cid, *seq, *instance); e != nil {
 			return e
 		}
@@ -120,6 +132,9 @@ func runMessages(ctx context.Context, cfg config, api comitia.API, out *json.Enc
 		instance := fs.String("agent-instance", defaultID, "self-reported instance ID for this cursor (defaults to COMITIA_AGENT_INSTANCE)")
 		if err := fs.Parse(args); err != nil {
 			return err
+		}
+		if cfg.parseOnly {
+			return nil
 		}
 		v, e := api.MessageCursor(ctx, needCredential(cfg), *cid, *instance)
 		if e != nil {

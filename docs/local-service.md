@@ -23,8 +23,14 @@ workspace and one shared context (**Local agents**). It then connects every
 known harness whose configuration directory exists (`--harness NAME`, repeatable,
 selects explicitly), writes `INSTALLATION.txt`, and installs and restarts the
 systemd user unit `~/.config/systemd/user/comitia.service`, listening on
-http://127.0.0.1:8390 (`--port`). `--no-start` writes the unit without calling
-`systemctl`. An interrupted first run resumes on the next run: the owner is
+http://127.0.0.1:8390 on the first install (`--port`). Rerunning without `--port`
+keeps the URL saved in `local-context.json`. Fresh or changed ports must be free
+before the installer changes binaries, credentials, harness settings or the unit.
+An unchanged port is exempt only for a matching active Comitia service.
+`--no-start` writes the unit without starting it and still checks fresh/changed
+ports. Generated command paths are escaped for systemd, including spaces and
+percent specifiers; `/usr/bin/env` execs the installed binary so quotes and
+backslashes in its path are also supported. An interrupted first run resumes on the next run: the owner is
 bootstrapped into a staged database that moves into place only after
 `owner.json` is saved, and `local-context.json` records each created ID. The service starts before login only when the account has systemd
 linger enabled (`loginctl enable-linger`); `INSTALLATION.txt` records which.
@@ -40,13 +46,38 @@ Files under `~/.local/share/comitia` (directories mode 0700, files 0600):
   `add-harness` reports an owner that is about to expire.
 - `local-context.json`: workspace and context IDs and the server URL, without credentials.
 - `harnesses.json`: harnesses connected so far; a rerun reconnects all of them.
+- `managed-harnesses.json`: records managed harness locations (including previous
+  locations and interrupted registrations) and approval-list values added by the
+  installer, so uninstall preserves approvals that were already present.
 - `backups/`: the original of every harness file the installer changed.
 - `INSTALLATION.txt`: addresses and management commands.
 
 Manage the service with `systemctl --user status|restart comitia.service`,
 `journalctl --user -u comitia.service`, and stop it with
 `systemctl --user disable --now comitia.service`. Restart agent sessions after
-installing so they load the MCP server and the instructions.
+installing so they load the MCP server and the instructions. To remove the managed
+integration, run `python3 scripts/install_linux_service.py uninstall` from the
+checkout. It stops/disables the matching service, removes its generated unit,
+reloads systemd, removes matching MCP fields and instruction blocks, and removes
+installer-added approval-list values. Custom keys, other MCP servers, instructions
+outside the managed block, and replaced command entries are kept. Changed units
+are stopped when they still launch this installation but retained for manual
+review; unrelated units are left alone. The command is repeatable and uses the
+same installation lock as repair and credential rotation. Restart agent sessions
+after removal so existing MCP clients exit.
+
+Uninstall keeps the entire installation root, including the database, credentials,
+delegated sessions and backups. For installations predating approval tracking,
+review the registered harness's settings and remove the exact `mcp__comitia__*`
+approval (or its configured equivalent) only if it came from Comitia; provenance
+is unknown, so uninstall keeps it. Review any retained entries printed by uninstall
+before deleting files manually. Data/credential deletion is a separate, optional
+step: after stopping clients and keeping any required backup, remove the intended
+files under `~/.local/share/comitia/data`, `credentials` and `sessions`, or remove
+the whole `~/.local/share/comitia` root when nothing needs to be retained. Deleting
+credential files does not revoke sessions; use `revoke` before stopping the daemon
+if remote copies must also lose access. Do not restore whole harness backup files
+over newer user edits.
 
 ### The comitia-client wrapper
 
@@ -278,6 +309,13 @@ Run the installer again after pulling changes. It replaces the installed binary
 and viewer snapshot and restarts the services. Existing databases and credentials
 are preserved; installation never imports, merges, or replaces test/Kotoba data.
 The old temporary test servers are separate and are not stopped by the installer.
+Omitted `--port` and `--viewer-port` keep the saved URLs in `service.json`
+(the server also falls back to `local-context.json` for older installs).
+Fresh/changed ports are checked before any installation files are rewritten,
+even when launchd has the old services loaded; unchanged ports are exempt only
+for matching loaded Comitia services. The server LaunchAgent overrides inherited
+`COMITIA_SERVER_URL`, `COMITIA_CREDENTIAL` and `COMITIA_BOOTSTRAP_CREDENTIAL`
+with empty values, while using its configured database and listen arguments.
 
 Optional ports or an existing built binary:
 
@@ -315,6 +353,18 @@ The installer enables the services again when rerun. Plists live in
 `~/Library/LaunchAgents/com.comitia.server.plist` and
 `~/Library/LaunchAgents/com.comitia.viewer.plist`. Disabling services does not
 remove the data or credentials.
+For removal, run `python3 scripts/install_macos_service.py --uninstall`. It
+stops/disables the matching services, removes generated Comitia plists and only
+the `~/.local/bin/comitia`/`comitia-local` symlinks that still point to this
+installation. Unrelated commands and plists, plus customized Comitia plists,
+are retained and reported for review. It also removes any harness integration
+recorded in this root using the same selective rules as Linux. Manually connected
+macOS harnesses are outside the installer registry: remove only their Comitia
+MCP registration and managed instruction block, keeping other configuration.
+Restart agent sessions after removal. The command is repeatable and keeps
+`~/Library/Application Support/Comitia`, including data, credentials and backups.
+Apply the same separate data/credential deletion procedure described above to
+this root only after reviewing retained integration and keeping required backups.
 
 ### Validation
 
@@ -432,7 +482,7 @@ separately; credentials with non-local grants require manual rotation.
 Every replacement is staged privately and checked against the installation's
 database before publishing. An installation-wide `.install.lock` serializes
 snapshot, minting, publication, and optional revocation, as well as install and
-add-harness credential mutations. A concurrent installer command fails clearly
+add-harness credential mutations and uninstall. A concurrent installer command fails clearly
 with an installation-busy error; retry after the other command completes. The
 lock is released automatically if its process exits. Original files are backed
 up under a private `backups/credentials-*` directory; each file is replaced atomically. If publishing

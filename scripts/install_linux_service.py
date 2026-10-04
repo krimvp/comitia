@@ -10,7 +10,6 @@ import json
 import os
 from pathlib import Path
 import shutil
-import socket
 import subprocess
 import sys
 
@@ -24,8 +23,7 @@ After=network.target
 
 [Service]
 Type=simple
-WorkingDirectory={root}
-ExecStart={root}/bin/comitia --db {root}/data/comitia.db serve --listen 127.0.0.1:{port}
+ExecStart=/usr/bin/env -- {executable} --db {database} serve --listen 127.0.0.1:{port}
 UnsetEnvironment=COMITIA_SERVER_URL COMITIA_CREDENTIAL COMITIA_BOOTSTRAP_CREDENTIAL
 Restart=always
 RestartSec=3
@@ -35,6 +33,31 @@ NoNewPrivileges=true
 [Install]
 WantedBy=default.target
 """
+
+def systemd_path(path):
+    """Quote a literal ExecStart argument, escaping specifiers and environment expansion."""
+    if any(ord(c) < 32 or ord(c) == 127 for c in str(path)):
+        raise ValueError('systemd executable paths cannot contain control characters')
+    value = str(path).replace('%', '%%').replace('$', '$$')
+    value = value.replace('\\', '\\\\').replace('"', '\\"')
+    return '"'+value+'"'
+
+def service_unit(root, port):
+    # env execs the binary; systemd rejects quotes/backslashes in executable names.
+    # All daemon paths are absolute; no WorkingDirectory escaping is needed.
+    return UNIT.format(executable=systemd_path(root/'bin/comitia'), database=systemd_path(root/'data/comitia.db'), port=port)
+
+def legacy_unit(root, port):
+    return UNIT.format(executable=root/'bin/comitia', database=root/'data/comitia.db', port=port).replace(
+        'Type=simple\n', f'Type=simple\nWorkingDirectory={root}\n').replace('/usr/bin/env -- ', '')
+
+def owns_unit(unit, root, port):
+    if not unit.exists() or port is None:
+        return False
+    commands = [line for line in unit.read_text().splitlines() if line.startswith('ExecStart=')]
+    current = next(line for line in service_unit(root, port).splitlines() if line.startswith('ExecStart='))
+    legacy = f'ExecStart={root}/bin/comitia --db {root}/data/comitia.db serve --listen 127.0.0.1:{port}'
+    return commands in ([current], [legacy])
 
 def installation_text(root, local_context, names, linger):
     examples = names[:2] or ['NAME']
@@ -57,6 +80,7 @@ Status: systemctl --user status {UNIT_NAME}
 Restart: systemctl --user restart {UNIT_NAME}
 Logs: journalctl --user -u {UNIT_NAME}
 Disable: systemctl --user disable --now {UNIT_NAME}
+Uninstall managed integration: scripts/install_linux_service.py uninstall (keeps data/credentials)
 
 {startup}
 Restart agent sessions to load the MCP server and communication instructions.
@@ -81,15 +105,17 @@ def default_harnesses(root, home):
     return names
 
 @local.locked_installation(0)
-def install(root, home, port=8390, names=None, binary=None, service=systemctl, linger=None, check_port=True):
+def install(root, home, port=None, names=None, binary=None, service=systemctl, linger=None, check_port=True):
     """Install or update; service=None writes the unit but never calls systemctl."""
     unit = home/'.config/systemd/user'/UNIT_NAME
-    if check_port and not unit.exists():
-        with socket.socket() as probe:
-            try:
-                probe.bind(('127.0.0.1', port))
-            except OSError:
-                raise RuntimeError(f'Port {port} is already occupied. Choose another port.')
+    port = local.installation_port(root, port, 8390)
+    unit_text = service_unit(root, port)
+    if check_port:
+        owned = False
+        if port == local.saved_port(root) and owns_unit(unit, root, port):
+            owned = subprocess.run(['systemctl', '--user', 'is-active', '--quiet', UNIT_NAME],
+                                   capture_output=True).returncode == 0
+        local.preflight_port(port, owned)
     for directory in (root, root/'bin', root/'data', root/'credentials', root/'backups'):
         directory.mkdir(parents=True, exist_ok=True)
         directory.chmod(0o700)
@@ -112,7 +138,7 @@ def install(root, home, port=8390, names=None, binary=None, service=systemctl, l
             raise RuntimeError(f'Unknown harness {name!r}; register it with add-harness first')
         local.add_harness(name, table[name], root, home, run)
     local.write_text(root/'INSTALLATION.txt', installation_text(root, context, names, linger), mode=0o600)
-    local.write_text(unit, UNIT.format(root=root, port=port), mode=0o644)
+    local.write_text(unit, unit_text, mode=0o644)
     if service:
         service('daemon-reload')
         service('enable', UNIT_NAME)
@@ -144,12 +170,33 @@ def harness_spec(args, known):
         spec.pop('approval', None)
     return spec
 
+@local.locked_installation(0)
+def uninstall(root, home, service=systemctl):
+    unit = home/'.config/systemd/user'/UNIT_NAME
+    retained = []
+    port = local.saved_port(root)
+    if owns_unit(unit, root, port):
+        if service:
+            service('disable', '--now', UNIT_NAME)
+        # Keep a customized unit for manual review, even after stopping it.
+        if unit.read_text() in (service_unit(root, port), legacy_unit(root, port)):
+            unit.unlink()
+            if service:
+                service('daemon-reload')
+        else:
+            retained.append(str(unit))
+    elif unit.exists():
+        retained.append(str(unit))
+    retained.extend(local.remove_harnesses(root, home))
+    return retained
+
 def parser():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     commands = parser.add_subparsers(dest='command')
+    commands.add_parser('uninstall', help='Stop/disable and remove managed integration; keep data and credentials')
     setup = commands.add_parser('install', help='Install or update the service and harnesses')
     setup.add_argument('--binary', type=Path, help='Use an already built Comitia binary')
-    setup.add_argument('--port', type=int, default=8390)
+    setup.add_argument('--port', type=int, help='Listen port (default: saved port, or 8390 on first install)')
     setup.add_argument('--harness', action='append', help='Harness to connect (repeatable); default: registered '
                        'harnesses plus built-in ones whose config directory exists')
     setup.add_argument('--no-start', action='store_true', help='Write the unit without calling systemctl')
@@ -176,14 +223,20 @@ def main(argv):
     args = parser().parse_args(argv)
     home = Path.home()
     root = home/'.local/share/comitia'
+    if args.command == 'uninstall':
+        retained = uninstall(root, home, systemctl)
+        print(f'Removed managed integration. Data, credentials and backups remain in {root}. Restart agent sessions.')
+        if retained:
+            print('Retained changed/unrelated entries for manual review: '+', '.join(retained))
+        return
     if args.command == 'install':
         if not sys.platform.startswith('linux'):
             raise SystemExit('This installer requires Linux with systemd; on macOS use install_macos_service.py.')
-        if not 1024 <= args.port <= 65535:
+        if args.port is not None and not 1024 <= args.port <= 65535:
             raise SystemExit('Choose a port between 1024 and 65535.')
         context = install(root, home, args.port, args.harness, args.binary,
                           None if args.no_start else systemctl, None if args.no_start else linger_enabled(),
-                          check_port=not args.no_start)
+                          check_port=True)
         print((root/'INSTALLATION.txt').read_text(), end='')
         return context
     if not (root/'local-context.json').exists():

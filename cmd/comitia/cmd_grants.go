@@ -17,6 +17,9 @@ func runGrants(ctx context.Context, cfg config, api comitia.API, out *json.Encod
 		if err := fs.Parse(args); err != nil {
 			return err
 		}
+		if cfg.parseOnly {
+			return nil
+		}
 		p, err := parsePermissions(*perms)
 		if err != nil {
 			return err
@@ -38,6 +41,9 @@ func runGrants(ctx context.Context, cfg config, api comitia.API, out *json.Encod
 		if err := fs.Parse(args); err != nil {
 			return err
 		}
+		if cfg.parseOnly {
+			return nil
+		}
 		if *id == "" {
 			return comitia.Invalidf("grant-revoke requires --grant-id")
 		}
@@ -56,6 +62,9 @@ func runGrants(ctx context.Context, cfg config, api comitia.API, out *json.Encod
 	ttl := fs.Duration("ttl", time.Hour, "grant lifetime")
 	if e := fs.Parse(args); e != nil {
 		return e
+	}
+	if cfg.parseOnly {
+		return nil
 	}
 	if *sid == "" || *cid == "" || *ttl <= 0 {
 		return fmt.Errorf("%w: session-id, context-id and positive ttl are required", comitia.ErrInvalid)

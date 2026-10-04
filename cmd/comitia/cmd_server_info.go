@@ -14,6 +14,9 @@ func runServerInfo(ctx context.Context, cfg config, api comitia.API, out *json.E
 	if err := newFlags(cmd).Parse(args); err != nil {
 		return err
 	}
+	if cfg.parseOnly {
+		return nil
+	}
 	info, err := api.ServerInfo(ctx, needCredential(cfg))
 	if err != nil {
 		return err

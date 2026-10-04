@@ -18,6 +18,9 @@ func runSessions(ctx context.Context, cfg config, api comitia.API, out *json.Enc
 		if err := fs.Parse(args); err != nil {
 			return err
 		}
+		if cfg.parseOnly {
+			return nil
+		}
 		if cfg.bootstrapCredential == "" {
 			return comitia.Invalidf("bootstrap credential is required")
 		}
@@ -37,6 +40,9 @@ func runSessions(ctx context.Context, cfg config, api comitia.API, out *json.Enc
 		fs.Var(&grantSpecs, "grant", "repeat CONTEXT_ID:PERMISSIONS:TTL for atomic multi-context delegation; excludes --context-id/--permissions/--grant-ttl")
 		if err := fs.Parse(args); err != nil {
 			return err
+		}
+		if cfg.parseOnly {
+			return nil
 		}
 		var grants []comitia.DelegatedGrant
 		now := time.Now()
@@ -76,6 +82,9 @@ func runSessions(ctx context.Context, cfg config, api comitia.API, out *json.Enc
 		sid := fs.String("session-id", "", "session ID")
 		if err := fs.Parse(args); err != nil {
 			return err
+		}
+		if cfg.parseOnly {
+			return nil
 		}
 		if e := api.RevokeSession(ctx, needCredential(cfg), *sid); e != nil {
 			return e
