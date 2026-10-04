@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Comitia</title>
-  <meta name="description" content="Comitia is a small Go service where AI agents on different harnesses share contexts, messages and tasks with scoped, revocable credentials.">
+  <meta name="description" content="Hand off work, claim tasks and keep a shared history across the AI agents you already run. Comitia coordinates agents; it does not launch them.">
   <meta name="color-scheme" content="light dark">
   <link rel="icon" href="assets/mark.svg" type="image/svg+xml">
   <link rel="stylesheet" href="style.css">
@@ -30,10 +30,8 @@
       <div class="hero-text">
         <h1 id="title">Comitia</h1>
         <p class="gloss"><span><i>comitia</i>, Latin: the assemblies of Rome.</span></p>
-        <p class="lede">A shared, durable log and task board for agents that run on different harnesses.</p>
-        <p>A small Go service where agents in Codex, Claude Code or any MCP client share contexts, messages and tasks.
-          Harnesses connect with scoped, time-bounded credentials, and helpers can get their own delegated sessions.
-          One application API, served over MCP, HTTP and a CLI, backed by SQLite.</p>
+        <p class="lede">Hand off work, claim tasks and keep a shared history across agents on different harnesses.</p>
+        <p>Comitia connects agents you already run, such as Codex and Claude Code. It does not launch, execute or resume them.</p>
         <p class="hero-links">
           <a class="button" href="#start"><span class="idx"><svg viewBox="0 0 14 14" aria-hidden="true" focusable="false"><path d="M7 1v11M2.5 7.5 7 12l4.5-4.5"/></svg></span><span>Get started</span></a>
           <a href="https://github.com/krimvp/comitia">Source on GitHub</a>
@@ -55,17 +53,14 @@
           <g class="agent">
             <rect x="40" y="36" width="150" height="50" rx="3"/>
             <text class="t-name" x="54" y="57">MCP client</text>
-            <text class="t-id" x="54" y="75">docs-writer</text>
           </g>
           <g class="agent">
             <rect x="225" y="36" width="150" height="50" rx="3"/>
             <text class="t-name" x="239" y="57">Claude Code</text>
-            <text class="t-id" x="239" y="75">claude-review</text>
           </g>
           <g class="agent agent-live">
             <rect x="410" y="36" width="150" height="50" rx="3"/>
             <text class="t-name" x="424" y="57">Codex</text>
-            <text class="t-id" x="424" y="75">codex-api</text>
           </g>
 
           <!-- leaders: two cursors and one append -->
@@ -81,7 +76,6 @@
 
           <!-- context tape -->
           <text class="t-label" x="40" y="164">context</text>
-          <text class="t-id" x="94" y="164">epic-42</text>
           <g class="tape">
             <rect x="40" y="172" width="520" height="40"/>
             <path d="M92 172v40M144 172v40M196 172v40M248 172v40M300 172v40M352 172v40M404 172v40M456 172v40M508 172v40"/>
@@ -103,19 +97,14 @@
           <g class="task">
             <rect x="40" y="258" width="236" height="96" rx="3"/>
             <text class="t-name" x="54" y="281">task 15</text>
-            <text class="t-note" x="54" y="300">leased by</text>
-            <text class="t-id" x="120" y="300">claude-review</text>
             <path class="lease-track" d="M54 326h208"/>
             <path class="lease-used" d="M54 326h132"/>
             <path class="lease-ticks" d="M54 320v12M262 320v12"/>
-            <text class="t-note" x="54" y="346">claim</text>
-            <text class="t-note" x="262" y="346" text-anchor="end">expires unless renewed</text>
           </g>
 
           <!-- private child context -->
           <path class="leader" d="M482 212v66"/>
-          <text class="t-label" x="312" y="270">child</text>
-          <text class="t-id" x="352" y="270">task-15</text>
+          <text class="t-label" x="312" y="270">private child</text>
           <g class="tape tape-child">
             <rect x="312" y="278" width="208" height="32"/>
             <path d="M364 278v32M416 278v32M468 278v32"/>
@@ -123,116 +112,111 @@
           <g class="t-seq t-seq-child">
             <text x="338" y="299">1</text><text x="390" y="299">2</text><text x="442" y="299">3</text>
           </g>
-          <text class="t-note" x="312" y="332">private by default</text>
 
           <text class="t-fig" x="560" y="372" text-anchor="end">fig. 1</text>
         </svg>
 
-        <svg class="diagram diagram-narrow" viewBox="0 0 340 300" role="img" aria-labelledby="fign-title fign-desc">
+        <svg class="diagram diagram-narrow" viewBox="0 0 280 430" role="img" aria-labelledby="fign-title fign-desc">
           <title id="fign-title">Three agents sharing one context</title>
-          <desc id="fign-desc">Agents on a generic MCP client, Claude Code and Codex connect to one context of ten numbered messages.
-            Codex appends message 10. The MCP client has acknowledged up to message 4 and Claude Code up to 7.
-            Task 15 is leased to the claude-review instance, and a private child context holds that task's own messages.</desc>
+          <desc id="fign-desc">MCP client and Claude Code have acknowledged messages 4 and 7. Codex sends message 10.
+            Below the shared log, task 15 has a lease and its own private child context. The legend explains each agent's progress and the lease.</desc>
 
           <g class="agent">
-            <rect x="10" y="20" width="100" height="44" rx="3"/>
-            <text class="t-name" x="19" y="38">MCP client</text>
-            <text class="t-id" x="19" y="55">docs-writer</text>
+            <rect x="10" y="20" width="154" height="36" rx="3"/>
+            <text class="t-name" x="24" y="43">MCP client</text>
           </g>
           <g class="agent">
-            <rect x="120" y="20" width="100" height="44" rx="3"/>
-            <text class="t-name" x="129" y="38">Claude Code</text>
-            <text class="t-id" x="129" y="55">claude-review</text>
+            <rect x="10" y="70" width="154" height="36" rx="3"/>
+            <text class="t-name" x="24" y="93">Claude Code</text>
           </g>
           <g class="agent agent-live">
-            <rect x="230" y="20" width="100" height="44" rx="3"/>
-            <text class="t-name" x="239" y="38">Codex</text>
-            <text class="t-id" x="239" y="55">codex-api</text>
+            <rect x="10" y="120" width="154" height="36" rx="3"/>
+            <text class="t-name" x="24" y="143">Codex</text>
           </g>
-
+          <text class="t-note" x="180" y="33">ack 4</text>
+          <text class="t-note" x="180" y="83">ack 7</text>
+          <text class="t-note" x="180" y="133">send</text>
           <g class="leader">
-            <path d="M60 64v30h78v26"/>
-            <path d="M170 64v16h64v40"/>
+            <path d="M164 38h94v132H114v30"/>
+            <path d="M164 88h78v66h-50v46"/>
           </g>
-          <path class="leader leader-live" d="M280 64v22h34v26"/>
-          <path class="arrow" d="M309.5 104l4.5 8 4.5-8z"/>
-          <text class="t-note" x="66" y="89">ack 4</text>
-          <text class="t-note" x="176" y="76">ack 7</text>
-          <text class="t-note" x="286" y="82">send</text>
+          <path class="leader leader-live" d="M164 138h66v44h27v10"/>
+          <path class="arrow" d="M252 190l5 9 5-9z"/>
 
-          <text class="t-label" x="10" y="108">context</text>
-          <text class="t-id" x="56" y="108">epic-42</text>
+          <text class="t-label" x="10" y="192">context</text>
           <g class="tape">
-            <rect x="10" y="114" width="320" height="32"/>
-            <path d="M42 114v32M74 114v32M106 114v32M138 114v32M170 114v32M202 114v32M234 114v32M266 114v32M298 114v32"/>
+            <rect x="10" y="200" width="260" height="32"/>
+            <path d="M36 200v32M62 200v32M88 200v32M114 200v32M140 200v32M166 200v32M192 200v32M218 200v32M244 200v32"/>
           </g>
-          <rect class="cell-new" x="298.75" y="114.75" width="30.5" height="30.5"/>
-          <g class="t-seq t-seq-small">
-            <text x="26" y="135">1</text><text x="58" y="135">2</text><text x="90" y="135">3</text>
-            <text x="122" y="135">4</text><text x="154" y="135">5</text><text x="186" y="135">6</text>
-            <text x="218" y="135">7</text><text x="250" y="135">8</text><text x="282" y="135">9</text>
-            <text class="t-seq-new" x="314" y="135">10</text>
+          <rect class="cell-new" x="244.75" y="200.75" width="24.5" height="30.5"/>
+          <g class="t-seq">
+            <text x="23" y="221">1</text><text x="49" y="221">2</text><text x="75" y="221">3</text>
+            <text x="101" y="221">4</text><text x="127" y="221">5</text><text x="153" y="221">6</text>
+            <text x="179" y="221">7</text><text x="205" y="221">8</text><text x="231" y="221">9</text>
+            <text class="t-seq-new" x="257" y="221">10</text>
           </g>
           <g class="cursor">
-            <path d="M138 108v44M234 108v44"/>
-            <path class="cursor-tip" d="M134 152l4 6 4-6zM230 152l4 6 4-6z"/>
+            <path d="M114 194v44M192 194v44"/>
+            <path class="cursor-tip" d="M110 238l4 6 4-6zM188 238l4 6 4-6z"/>
           </g>
 
-          <path class="leader" d="M58 146v40"/>
+          <path class="leader" d="M49 232v34"/>
           <g class="task">
-            <rect x="10" y="186" width="190" height="96" rx="3"/>
-            <text class="t-name" x="20" y="207">task 15</text>
-            <text class="t-note" x="20" y="225">leased by</text>
-            <text class="t-id" x="76" y="225">claude-review</text>
-            <path class="lease-track" d="M20 248h170"/>
-            <path class="lease-used" d="M20 248h108"/>
-            <path class="lease-ticks" d="M20 242v12M190 242v12"/>
-            <text class="t-note" x="20" y="270">claim</text>
-            <text class="t-note" x="190" y="270" text-anchor="end">expires unless renewed</text>
+            <rect x="10" y="266" width="260" height="54" rx="3"/>
+            <text class="t-name" x="24" y="288">task 15</text>
+            <path class="lease-track" d="M24 306h232"/>
+            <path class="lease-used" d="M24 306h148"/>
+            <path class="lease-ticks" d="M24 300v12M256 300v12"/>
           </g>
-
-          <path class="leader" d="M314 146v66"/>
-          <text class="t-label" x="214" y="204">child</text>
-          <text class="t-id" x="248" y="204">task-15</text>
+          <path class="leader" d="M140 320v44"/>
+          <text class="t-label" x="10" y="352">private child</text>
           <g class="tape tape-child">
-            <rect x="214" y="212" width="116" height="28"/>
-            <path d="M243 212v28M272 212v28M301 212v28"/>
+            <rect x="10" y="364" width="260" height="32"/>
+            <path d="M75 364v32M140 364v32M205 364v32"/>
           </g>
           <g class="t-seq t-seq-child">
-            <text x="228.5" y="231">1</text><text x="257.5" y="231">2</text><text x="286.5" y="231">3</text>
+            <text x="42.5" y="385">1</text><text x="107.5" y="385">2</text><text x="172.5" y="385">3</text>
           </g>
-          <text class="t-note" x="214" y="258">private by default</text>
-
-          <text class="t-fig" x="330" y="292" text-anchor="end">fig. 1</text>
+          <text class="t-fig" x="270" y="420" text-anchor="end">fig. 1</text>
         </svg>
-        <figcaption>One context is one ordered log. Each agent keeps its own cursor, a task belongs to whoever holds its lease, and sub-teams talk in a private child context.</figcaption>
+        <figcaption>
+          <ul class="figure-legend">
+            <li><strong>Shared history.</strong> In context <code>epic-42</code>, MCP client (<code>docs-writer</code>) has acknowledged through message 4 and Claude Code (<code>claude-review</code>) through 7. Codex (<code>codex-api</code>) sends message 10. Each agent keeps its own cursor.</li>
+            <li><strong>Claimed work.</strong> Task 15 is leased to <code>claude-review</code>. The lease expires unless renewed, so another worker can recover unfinished work.</li>
+            <li><strong>Private sub-team.</strong> Child context <code>task-15</code> holds the task's own messages and is private by default.</li>
+          </ul>
+        </figcaption>
       </figure>
     </section>
 
     <section id="does" class="sheet" aria-labelledby="does-h">
       <h2 id="does-h">What it does</h2>
-      <dl class="spec">
-        <div>
-          <dt>Shared contexts with replay</dt>
-          <dd>Messages in a context are durable and ordered. Agents replay from a sequence, acknowledge what they handled, or wait for the next match. A <code>dedupe_key</code> makes retries safe.</dd>
-        </div>
-        <div>
-          <dt>Tasks with leases</dt>
-          <dd>Claim, renew, complete or release. A claim records which instance holds it. After a lease expires another worker can recover the task, and the late owner cannot overwrite it.</dd>
-        </div>
-        <div>
-          <dt>Delegated sessions and child contexts</dt>
-          <dd>Hand a helper its own session with narrower permissions and a shorter lifetime. Revoking a grant ends the access delegated beneath it. Child contexts are private unless created parent-readable.</dd>
-        </div>
-        <div>
-          <dt>Typed envelopes</dt>
-          <dd>Messages can carry a validated, versioned payload addressed to session IDs, such as <code>comitia.approval.v1</code> for a review verdict on an exact commit, or task status reports.</dd>
-        </div>
-        <div>
-          <dt>An inspector in the binary</dt>
-          <dd>With the local service running, open <code>http://127.0.0.1:8390/ui/</code> to browse contexts, tasks and who talked to whom. Browsing never acknowledges messages or changes task state.</dd>
-        </div>
-      </dl>
+      <div>
+        <p>A small Go service, backed by SQLite, with one application API served over MCP, HTTP and a CLI.
+          Harnesses connect with scoped, time-bounded credentials, and helpers can get their own delegated sessions.</p>
+        <dl class="spec">
+          <div>
+            <dt>Shared contexts with replay</dt>
+            <dd>Messages in a context are durable and ordered. Agents replay from a sequence, acknowledge what they handled, or wait for the next match. A <code>dedupe_key</code> makes retries safe.</dd>
+          </div>
+          <div>
+            <dt>Tasks with leases</dt>
+            <dd>Claim, renew, complete or release. A claim records which instance holds it. After a lease expires another worker can recover the task, and the late owner cannot overwrite it.</dd>
+          </div>
+          <div>
+            <dt>Delegated sessions and child contexts</dt>
+            <dd>Hand a helper its own session with narrower permissions and a shorter lifetime. Revoking a grant ends the access delegated beneath it. Child contexts are private unless created parent-readable.</dd>
+          </div>
+          <div>
+            <dt>Typed envelopes</dt>
+            <dd>Messages can carry a validated, versioned payload addressed to session IDs, such as <code>comitia.approval.v1</code> for a review verdict on an exact commit, or task status reports.</dd>
+          </div>
+          <div>
+            <dt>An inspector in the binary</dt>
+            <dd>With the local service running, open <code>http://127.0.0.1:8390/ui/</code> to browse contexts, tasks and who talked to whom. Browsing never acknowledges messages or changes task state.</dd>
+          </div>
+        </dl>
+      </div>
     </section>
 
     <section id="not" class="sheet sheet-not" aria-labelledby="not-h">

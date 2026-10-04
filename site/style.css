@@ -66,6 +66,7 @@ body {
   color: var(--ink);
   font: 400 var(--s0)/1.55 var(--sans);
   font-feature-settings: "kern", "tnum";
+  overflow-wrap: anywhere;
 }
 
 a { color: var(--accent); text-underline-offset: 0.18em; text-decoration-thickness: 1px; }
@@ -73,6 +74,7 @@ a:hover { text-decoration-thickness: 2px; }
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 2px; }
 
 code, pre { font-family: var(--mono); font-size: 0.88em; }
+pre > code { font-size: inherit; }
 :not(pre) > code { background: var(--code-bg); padding: 0.08em 0.3em; border-radius: 3px; overflow-wrap: anywhere; }
 
 .skip { position: absolute; left: var(--gutter); top: -4rem; background: var(--ink); color: var(--paper); padding: 0.5rem 0.75rem; }
@@ -104,11 +106,13 @@ main, .foot { width: min(1240px, 100% - 2 * var(--gutter)); margin: 0 auto; }
   padding: clamp(40px, 7vw, 88px) 0 clamp(48px, 7vw, 80px);
   align-items: start;
 }
-@media (min-width: 1000px) { .hero { grid-template-columns: 5fr 7fr; } }
+.hero > *, .sheet > *, .spec > *, .gloss > span { min-width: 0; }
+@media (min-width: 1000px) { .hero { grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); } }
 
 h1 {
   position: relative;
   display: inline-block;
+  max-width: 100%;
   margin: 0 0 0.14em -0.16em;
   padding: 0.1em 0.16em 0.12em;
   font-size: clamp(3.5rem, 9vw, 7rem);
@@ -148,39 +152,37 @@ h1::after { bottom: 0; right: 0; border-width: 0 1.5px 1.5px 0; }
   background: var(--panel);
   color: var(--ink);
   text-decoration: none;
-  font: 600 0.9375rem/1 var(--mono);
+  max-width: 100%;
+  font: 600 0.9375rem/1.3 var(--mono);
 }
-.button > span { display: flex; align-items: center; padding: 0.7rem 0.95rem; }
-.button .idx { border-right: 1px solid var(--rule-strong); color: var(--accent); padding-inline: 0.7rem; }
+.button > span { display: flex; align-items: center; min-width: 0; padding: 0.7rem 0.95rem; }
+.button .idx { flex-shrink: 0; border-right: 1px solid var(--rule-strong); color: var(--accent); padding-inline: 0.7rem; }
 .button svg { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 1.5; }
 .button:hover { background: var(--live-fill); border-color: var(--live); }
 .button:hover .idx { color: var(--live); }
 
-.hero-fig { margin: 0; min-width: 0; }
+.hero-fig { margin: 0; min-width: 0; container-type: inline-size; }
 .diagram { display: block; width: 100%; height: auto; background: var(--panel); border: 1px solid var(--rule); border-radius: 4px; }
-.hero-fig figcaption { margin-top: 0.75rem; font-size: var(--s-1); color: var(--muted); max-width: 46em; }
+.hero-fig figcaption { margin-top: 0.75rem; font-size: 0.9375rem; color: var(--muted); max-width: 46em; }
+.figure-legend { margin: 0; padding-left: 1.5em; }
+.figure-legend li + li { margin-top: 0.4em; }
 
-/* narrow screens get a redrawn figure rather than a shrunken one */
-.diagram-narrow { display: none; }
-@media (max-width: 560px) {
-  .diagram-wide { display: none; }
-  .diagram-narrow { display: block; }
+/* Stack the drawing when its own column is narrow; explanations stay in HTML. */
+.diagram-wide { display: none; max-width: 600px; margin-inline: auto; }
+.diagram-narrow { max-width: 320px; margin-inline: auto; }
+@container (min-width: 600px) {
+  .diagram-wide { display: block; }
+  .diagram-narrow { display: none; }
 }
 
 /* diagram parts */
 .diagram text { fill: var(--ink); font-family: var(--sans); }
-.diagram .t-name { font-size: 14px; font-weight: 600; }
-.diagram .t-id { font-family: var(--mono); font-size: 12px; fill: var(--accent); }
-.diagram .t-label { font-size: 12px; fill: var(--muted); }
-.diagram .t-note { font-size: 11px; fill: var(--muted); }
-.diagram .t-fig { font-size: 11px; fill: var(--muted); font-style: italic; }
-.diagram .t-seq text { font-family: var(--mono); font-size: 13px; text-anchor: middle; font-variant-numeric: tabular-nums; }
-.diagram-narrow .t-name { font-size: 12px; }
-.diagram-narrow .t-id { font-size: 10.5px; }
-.diagram-narrow .t-label { font-size: 11px; }
-.diagram-narrow .t-note { font-size: 10px; }
-.diagram .t-seq-small text { font-size: 12px; }
-.diagram .t-seq-child text { font-size: 12px; fill: var(--muted); }
+.diagram .t-name { font-size: 16px; font-weight: 600; }
+.diagram .t-label, .diagram .t-note { font-size: 16px; fill: var(--muted); }
+.diagram .t-fig { font-size: 16px; fill: var(--muted); font-style: italic; }
+.diagram .t-seq text { font-family: var(--mono); font-size: 16px; text-anchor: middle; font-variant-numeric: tabular-nums; }
+.diagram-narrow .t-name, .diagram-narrow .t-label, .diagram-narrow .t-note, .diagram-narrow .t-fig, .diagram-narrow .t-seq text { font-size: 14px; }
+.diagram .t-seq-child text { fill: var(--muted); }
 .diagram .t-seq .t-seq-new { fill: var(--live); font-weight: 600; }
 .crop path { fill: none; stroke: var(--rule-strong); stroke-width: 1; }
 .agent rect, .task rect { fill: var(--paper); stroke: var(--rule-strong); stroke-width: 1; }
@@ -214,12 +216,12 @@ h1::after { bottom: 0; right: 0; border-width: 0 1.5px 1.5px 0; }
   padding: 40px 0 56px;
   border-top: 1px solid var(--ink);
 }
-@media (min-width: 900px) { .sheet { grid-template-columns: 3fr 9fr; } }
+@media (min-width: 900px) { .sheet { grid-template-columns: minmax(0, 3fr) minmax(0, 9fr); } }
 
 h2 { margin: 0; font-size: var(--s2); line-height: 1.2; font-weight: 600; letter-spacing: -0.015em; }
 
 .spec { margin: 0; display: grid; gap: 0 40px; }
-@media (min-width: 680px) { .spec { grid-template-columns: 1fr 1fr; } }
+@media (min-width: 680px) { .spec { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } }
 .spec > div { padding: 16px 0 22px; border-top: 1px solid var(--rule); }
 .spec dt { font-weight: 600; margin-bottom: 0.3rem; }
 .spec dd { margin: 0; color: var(--muted); max-width: 38em; }
