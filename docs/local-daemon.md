@@ -10,7 +10,13 @@ Start the HTTP adapter against the same database in one terminal:
 ./bin/comitia serve --listen 127.0.0.1:8080
 ```
 
-Select it from another terminal with `--server-url` or `COMITIA_SERVER_URL`. The client still supplies a scoped credential:
+Select it from another terminal with `--server-url` or `COMITIA_SERVER_URL`. The client still supplies a scoped credential. REST requests are POSTs to `/v1/` with `Content-Type: application/json` and a bearer credential; each route strictly accepts only its own fields, including nested inputs. Requests and responses use snake_case: for example, `contexts/create` takes `{"create_context":{"workspace_id":"ID","name":"work"}}`, `messages/append` takes `{"context_id":"ID","message":{"dedupe_key":"key","body":"hello"}}`, and message records return `id`, `context_id`, `session_id`, `sequence`, and `created_at`. Permission fields retain the numeric bitmask used by the Go API; grant expiry is an RFC3339 `expires_at` timestamp.
+
+Session minting takes `ttl_seconds`; delegation takes `delegate: {principal_name, ttl_seconds, grants: [{context_id, permissions, expires_at}]}`. Task claim/renew take `lease_seconds` (default 300), or `open_ended: true`. Seconds may be fractional and must be positive and fit a Go duration. Omitted list limits default to 100; explicit limits must be 1–1000. An explicit zero lease or limit is invalid. Renew/complete/release require `lease_version`, including an explicit zero when applicable. Raw HTTP does not apply caller environment defaults.
+
+During the v1 transition, the server also reads legacy nested Go spellings (`WorkspaceID`, `DedupeKey`, `PrincipalName`, etc.) and `ttl`/nested `TTL` in nanoseconds. Mixing a legacy alias with its canonical field, even with the same value or null, is invalid; `ttl` excludes `ttl_seconds`/`lease_seconds`, and `open_ended: true` excludes duration fields. New Go clients emit canonical fields and read legacy response spellings, but require collection members. REST responses now use snake_case, so raw integrations must update `.ID`/`.Token` lookups to `.id`/`.token`. Go library, CLI and MCP record names remain unchanged. The inspector accepts both response generations. List responses always include their route's `contexts`, `participants`, `tasks`, `messages`, or `instances` array, including `[]` when empty; message page mode instead returns `page: {messages, next_after, has_more}`. MCP and CLI also return `[]` for empty collections.
+
+Select the daemon and credential when running the CLI:
 
 ```sh
 COMITIA_SERVER_URL=http://127.0.0.1:8080 \
@@ -24,9 +30,9 @@ The MCP adapter also uses embedded SQLite by default and binds one credential to
 COMITIA_CREDENTIAL="$agent_b_token" ./bin/comitia mcp
 ```
 
-MCP tools cover messages and tasks plus child context creation/listing, invitations,
+MCP tools cover messages and tasks plus context creation/listing/get/archive, resource reference creation, invitations,
 grant/session revocation, and helper session delegation. Contexts are the privacy
-boundary; delegated grants can only narrow permissions and expiry.
+boundary; delegated grants can only narrow permissions and expiry. `get_context` needs read, `add_reference(context_id, kind, uri)` needs write on an active context, and `archive_context` needs grant or administrator status. References store metadata without fetching the resource; there is no reference list/get/readback API.
 
 `delegate_session` writes credentials on the MCP server to exclusive mode-0600
 files and returns only `session_id`, `principal_id`, `expires_at`, `grant_ids`, and

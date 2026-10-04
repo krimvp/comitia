@@ -2,36 +2,31 @@ package httpapi
 
 import (
 	"context"
-
 	"github.com/krimvp/comitia"
 )
 
-func (h *handler) routeGrants(ctx context.Context, token, route string, q request, out *response) (found bool, err error) {
-	switch route {
-	case "grants/revoke":
-		err = h.api.RevokeGrant(ctx, token, q.GrantID)
-	case "grants/create":
-		if q.Grant == nil {
-			err = comitia.Invalidf("grant required")
-			break
-		}
-		var v comitia.Grant
-		v, err = h.api.GrantContext(ctx, token, *q.Grant)
-		out.Grant = &v
-	default:
-		return false, nil
+func (h *handler) grantRoutes() map[string]endpoint {
+	return map[string]endpoint{
+		"grants/create": typedEndpoint(func(ctx context.Context, token string, q grantRequest) (grantResult, error) {
+			if q.Grant == nil {
+				return grantResult{}, comitia.Invalidf("grant required")
+			}
+			v, err := h.api.GrantContext(ctx, token, comitia.GrantInput(*q.Grant))
+			return grantResult{ptr(grantDTO(v))}, err
+		}),
+		"grants/revoke": typedEndpoint(func(ctx context.Context, token string, q revokeGrantRequest) (emptyResult, error) {
+			return emptyResult{}, h.api.RevokeGrant(ctx, token, q.GrantID)
+		}),
 	}
-	return true, err
 }
-
-func (c *Client) RevokeGrant(x context.Context, t, id string) error {
-	return c.call(x, t, "grants/revoke", request{GrantID: id}, &response{})
-}
-func (c *Client) GrantContext(x context.Context, t string, i comitia.GrantInput) (comitia.Grant, error) {
-	var o response
-	e := c.call(x, t, "grants/create", request{Grant: &i}, &o)
-	if o.Grant == nil {
-		return comitia.Grant{}, missing(e)
+func (c *Client) GrantContext(ctx context.Context, token string, input comitia.GrantInput) (comitia.Grant, error) {
+	var out grantResult
+	err := c.call(ctx, token, "grants/create", grantRequest{ptr(grantInput(input))}, &out)
+	if err = requiredResult(err, out.Grant); err != nil {
+		return comitia.Grant{}, err
 	}
-	return *o.Grant, e
+	return comitia.Grant(*out.Grant), nil
+}
+func (c *Client) RevokeGrant(ctx context.Context, token, id string) error {
+	return c.call(ctx, token, "grants/revoke", revokeGrantRequest{id}, &emptyResult{})
 }

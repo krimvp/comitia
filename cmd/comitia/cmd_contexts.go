@@ -9,6 +9,20 @@ import (
 
 func runContexts(ctx context.Context, cfg config, api comitia.API, out *json.Encoder, cmd string, args []string) error {
 	switch cmd {
+	case "context-get":
+		fs := newFlags(cmd)
+		cid := fs.String("context-id", "", "context ID (needs read permission)")
+		if err := fs.Parse(args); err != nil {
+			return err
+		}
+		if *cid == "" {
+			return comitia.Invalidf("context-get requires --context-id")
+		}
+		v, err := api.GetContext(ctx, needCredential(cfg), *cid)
+		if err != nil {
+			return err
+		}
+		return out.Encode(v)
 	case "context-archive":
 		fs := newFlags(cmd)
 		cid := fs.String("context-id", "", "context ID to archive (needs grant or administrator status)")

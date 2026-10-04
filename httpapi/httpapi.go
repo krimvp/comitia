@@ -10,6 +10,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"reflect"
 	"strings"
 	"time"
 
@@ -26,6 +27,7 @@ var ErrBootstrapOffline = errors.New("bootstrap is available only to embedded cl
 type handler struct {
 	api        comitia.API
 	diagnostic comitia.DiagnosticHook
+	routes     map[string]endpoint
 }
 
 // NewHandler returns an HTTP handler. Bootstrap is deliberately not routed.
@@ -37,79 +39,34 @@ func NewHandler(api comitia.API) http.Handler {
 func NewHandlerWithDiagnostics(api comitia.API, hook comitia.DiagnosticHook) http.Handler {
 	mux := http.NewServeMux()
 	mux.Handle("/ui/", inspectorHandler())
-	mux.Handle("/", &handler{api: api, diagnostic: hook})
+	h := &handler{api: api, diagnostic: hook}
+	h.routes = h.endpoints()
+	mux.Handle("/", h)
 	return mux
-}
-
-type request struct {
-	MaxBytes      int                         `json:"max_bytes,omitempty"`
-	Page          bool                        `json:"page,omitempty"`
-	AgentInstance string                      `json:"agent_instance,omitempty"`
-	AfterID       string                      `json:"after_id,omitempty"`
-	Name          string                      `json:"name,omitempty"`
-	PrincipalID   string                      `json:"principal_id,omitempty"`
-	SessionID     string                      `json:"session_id,omitempty"`
-	GrantID       string                      `json:"grant_id,omitempty"`
-	ContextID     string                      `json:"context_id,omitempty"`
-	TaskID        string                      `json:"task_id,omitempty"`
-	ClaimToken    string                      `json:"claim_token,omitempty"`
-	After         int64                       `json:"after,omitempty"`
-	Limit         int                         `json:"limit,omitempty"`
-	Status        comitia.TaskStatus          `json:"status,omitempty"`
-	LeaseVersion  int64                       `json:"lease_version,omitempty"`
-	TTL           time.Duration               `json:"ttl,omitempty"`
-	CreateContext *comitia.CreateContextInput `json:"create_context,omitempty"`
-	Reference     *comitia.AddReferenceInput  `json:"reference,omitempty"`
-	Grant         *comitia.GrantInput         `json:"grant,omitempty"`
-	Delegate      *comitia.DelegateInput      `json:"delegate,omitempty"`
-	Message       *comitia.MessageInput       `json:"message,omitempty"`
-	Task          *comitia.TaskInput          `json:"task,omitempty"`
-
-	ChildContext   *comitia.CreateChildContextInput `json:"child_context,omitempty"`
-	ClaimInstance  *comitia.AgentInstance           `json:"claim_instance,omitempty"`
-	ForInstance    string                           `json:"for_instance,omitempty"`
-	FromInstance   string                           `json:"from_instance,omitempty"`
-	Schema         string                           `json:"schema,omitempty"`
-	TimeoutSeconds *float64                         `json:"timeout_seconds,omitempty"`
-	Instance       *comitia.AgentInstance           `json:"instance,omitempty"`
-	Resume         json.RawMessage                  `json:"resume,omitempty"`
-}
-
-type response struct {
-	Page         *comitia.MessagePage  `json:"page,omitempty"`
-	ServerInfo   *comitia.ServerInfo   `json:"server_info,omitempty"`
-	Contexts     []comitia.WorkContext `json:"contexts,omitempty"`
-	Participants []comitia.Participant `json:"participants,omitempty"`
-	Principal    *comitia.Principal    `json:"principal,omitempty"`
-	Credential   *comitia.Credential   `json:"credential,omitempty"`
-	Workspace    *comitia.Workspace    `json:"workspace,omitempty"`
-	Context      *comitia.WorkContext  `json:"context,omitempty"`
-	Reference    *comitia.Reference    `json:"reference,omitempty"`
-	Grant        *comitia.Grant        `json:"grant,omitempty"`
-	Grants       []comitia.Grant       `json:"grants,omitempty"`
-	Message      *comitia.Message      `json:"message,omitempty"`
-	Messages     []comitia.Message     `json:"messages,omitempty"`
-	Cursor       *int64                `json:"cursor,omitempty"`
-	Task         *comitia.Task         `json:"task,omitempty"`
-	Tasks        []comitia.Task        `json:"tasks,omitempty"`
-	Claim        *comitia.TaskClaim    `json:"claim,omitempty"`
-
-	Instances []comitia.InstancePresence `json:"instances,omitempty"`
-
-	StorageStatus *comitia.StorageStatus `json:"storage_status,omitempty"`
 }
 
 type errorResponse = comitia.ErrorInfo
 
-// routeGroups dispatches /v1/ routes by domain; a group reports found=false for routes it does not serve.
-var routeGroups = []func(*handler, context.Context, string, string, request, *response) (bool, error){
-	(*handler).routeServerInfo,
-	(*handler).routeSessions,
-	(*handler).routeContexts,
-	(*handler).routeGrants,
-	(*handler).routeMessages,
-	(*handler).routeTasks,
-	(*handler).routePresence,
+type endpoint func(context.Context, string, io.Reader) (any, error)
+
+func typedEndpoint[Q, R any](call func(context.Context, string, Q) (R, error)) endpoint {
+	return func(ctx context.Context, token string, body io.Reader) (any, error) {
+		var q Q
+		if err := decodeRequest(body, &q); err != nil {
+			return nil, err
+		}
+		return call(ctx, token, q)
+	}
+}
+
+func (h *handler) endpoints() map[string]endpoint {
+	routes := make(map[string]endpoint)
+	for _, group := range []map[string]endpoint{h.sessionRoutes(), h.contextRoutes(), h.grantRoutes(), h.messageRoutes(), h.taskRoutes(), h.presenceRoutes(), h.infoRoutes()} {
+		for path, call := range group {
+			routes[path] = call
+		}
+	}
+	return routes
 }
 
 func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -132,36 +89,18 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		writeError(w, fmt.Errorf("%w: Content-Type must be application/json", comitia.ErrInvalid), 0)
 		return
 	}
-	r.Body = http.MaxBytesReader(w, r.Body, maxRequestBody)
-	var q request
-	d := json.NewDecoder(r.Body)
-	d.DisallowUnknownFields()
-	if err := d.Decode(&q); err != nil {
-		writeError(w, comitia.InvalidJSON(err, "request"), 0)
-		return
-	}
-	if err := ensureEOF(d); err != nil {
-		writeError(w, fmt.Errorf("%w: multiple JSON values", comitia.ErrInvalid), 0)
-		return
-	}
-	ctx := r.Context()
-	var out response
-	var err error
 	if !strings.HasPrefix(r.URL.Path, "/v1/") {
 		writeError(w, comitia.ErrNotFound, http.StatusNotFound)
 		return
 	}
 	route := strings.TrimPrefix(r.URL.Path, "/v1/")
-	found := false
-	for _, group := range routeGroups {
-		if found, err = group(h, ctx, token, route, q, &out); found {
-			break
-		}
-	}
+	call, found := h.routes[route]
 	if !found {
 		writeError(w, comitia.ErrNotFound, http.StatusNotFound)
 		return
 	}
+	r.Body = http.MaxBytesReader(w, r.Body, maxRequestBody)
+	out, err := call(r.Context(), token, r.Body)
 	if err != nil {
 		operation := comitia.SafeOperation(route)
 		info := comitia.SafeError(operation, err, requestID)
@@ -258,7 +197,7 @@ func NewClientWithInstanceDefaults(baseURL string, hc *http.Client, defaults com
 	hc.CheckRedirect = func(_ *http.Request, _ []*http.Request) error { return http.ErrUseLastResponse }
 	return &Client{base: u, http: hc, InstanceDefaults: defaults}, nil
 }
-func (c *Client) call(ctx context.Context, token, path string, in request, out *response) error {
+func (c *Client) call(ctx context.Context, token, path string, in, out any) error {
 	b, err := json.Marshal(in)
 	if err != nil {
 		return err
@@ -294,19 +233,21 @@ func (c *Client) call(ctx context.Context, token, path string, in request, out *
 		}
 		return &comitia.OperationalError{Info: e, Cause: decodeError(e.Code, e.Message)}
 	}
-	if err = d.Decode(out); err != nil {
+	var raw json.RawMessage
+	if err = d.Decode(&raw); err != nil {
 		return fmt.Errorf("decode response: %w", err)
 	}
 	if err = ensureEOF(d); err != nil {
 		return fmt.Errorf("decode response: trailing data: %w", err)
 	}
-	return nil
-}
-func missing(err error) error {
+	raw, err = normalizeFields(raw, reflect.TypeOf(out).Elem(), true, false)
 	if err != nil {
-		return err
+		return fmt.Errorf("decode response: %w", err)
 	}
-	return errors.New("malformed remote response: missing result")
+	if err = json.Unmarshal(raw, out); err != nil {
+		return fmt.Errorf("decode response: %w", err)
+	}
+	return validateCollections(out)
 }
 func decodeError(code, msg string) error {
 	var base error

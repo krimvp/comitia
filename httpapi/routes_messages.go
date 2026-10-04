@@ -2,115 +2,99 @@ package httpapi
 
 import (
 	"context"
-	"time"
-
+	"encoding/json"
 	"github.com/krimvp/comitia"
+	"time"
 )
 
-func (h *handler) routeMessages(ctx context.Context, token, route string, q request, out *response) (found bool, err error) {
-	switch route {
-	case "participants/list":
-		out.Participants, err = h.api.ListParticipants(ctx, token, q.ContextID, q.Limit)
-	case "messages/append":
-		if q.Message == nil {
-			err = comitia.Invalidf("message required")
-			break
-		}
-		var v comitia.Message
-		v, err = h.api.AppendMessage(ctx, token, q.ContextID, *q.Message)
-		out.Message = &v
-	case "messages/replay":
-		if q.Page {
-			var page comitia.MessagePage
-			page, err = comitia.ReplayMessagePage(ctx, h.api, token, q.ContextID, q.After, q.Limit, q.messageFilters())
-			out.Page = &page
-		} else {
-			out.Messages, err = h.api.ReplayMessages(ctx, token, q.ContextID, q.After, q.Limit, q.messageFilters())
-		}
-	case "messages/wait":
-		timeout := 30 * time.Second
-		if q.TimeoutSeconds != nil {
-			timeout, err = comitia.MessageWaitTimeout(*q.TimeoutSeconds)
-		}
-		if err == nil {
-			if q.Page {
-				var page comitia.MessagePage
-				page, err = comitia.WaitMessagePage(ctx, h.api, token, q.ContextID, q.After, timeout, q.messageFilters())
-				out.Page = &page
-			} else {
-				out.Messages, err = h.api.WaitMessages(ctx, token, q.ContextID, q.After, timeout, q.messageFilters())
+func (h *handler) messageRoutes() map[string]endpoint {
+	return map[string]endpoint{
+		"participants/list": typedEndpoint(func(ctx context.Context, token string, q participantsRequest) (participantsResult, error) {
+			limit, err := listLimit(q.Limit)
+			if err != nil {
+				return participantsResult{}, err
 			}
-		}
-	case "messages/ack":
-		err = h.api.AckMessages(ctx, token, q.ContextID, q.After, q.AgentInstance)
-	case "messages/cursor":
-		var v int64
-		v, err = h.api.MessageCursor(ctx, token, q.ContextID, q.AgentInstance)
-		out.Cursor = &v
-	default:
-		return false, nil
+			v, err := h.api.ListParticipants(ctx, token, q.ContextID, limit)
+			return participantsResult{mapSlice(v, func(p comitia.Participant) participantDTO { return participantDTO(p) })}, err
+		}),
+		"messages/append": typedEndpoint(func(ctx context.Context, token string, q appendRequest) (messageResult, error) {
+			if q.Message == nil {
+				return messageResult{}, comitia.Invalidf("message required")
+			}
+			v, err := h.api.AppendMessage(ctx, token, q.ContextID, comitia.MessageInput(*q.Message))
+			return messageResult{ptr(messageDTO(v))}, err
+		}),
+		"messages/replay": typedEndpoint(func(ctx context.Context, token string, q replayRequest) (readMessagesResult, error) {
+			limit, err := listLimit(q.Limit)
+			if err != nil {
+				return readMessagesResult{}, err
+			}
+			if q.Page {
+				v, err := comitia.ReplayMessagePage(ctx, h.api, token, q.ContextID, q.After, limit, q.messageFilters())
+				if err != nil {
+					return readMessagesResult{}, err
+				}
+				return wirePageResult(v, q.MaxBytes)
+			}
+			v, err := h.api.ReplayMessages(ctx, token, q.ContextID, q.After, limit, q.messageFilters())
+			if err != nil {
+				return readMessagesResult{}, err
+			}
+			return wireReadResult(v, q.MaxBytes)
+		}),
+		"messages/wait": typedEndpoint(func(ctx context.Context, token string, q waitRequest) (readMessagesResult, error) {
+			timeout := 30 * time.Second
+			if q.TimeoutSeconds != nil {
+				var err error
+				timeout, err = comitia.MessageWaitTimeout(*q.TimeoutSeconds)
+				if err != nil {
+					return readMessagesResult{}, err
+				}
+			}
+			filters := q.replay().messageFilters()
+			if q.Page {
+				v, err := comitia.WaitMessagePage(ctx, h.api, token, q.ContextID, q.After, timeout, filters)
+				if err != nil {
+					return readMessagesResult{}, err
+				}
+				return wirePageResult(v, q.MaxBytes)
+			}
+			v, err := h.api.WaitMessages(ctx, token, q.ContextID, q.After, timeout, filters)
+			if err != nil {
+				return readMessagesResult{}, err
+			}
+			return wireReadResult(v, q.MaxBytes)
+		}),
+		"messages/ack": typedEndpoint(func(ctx context.Context, token string, q ackRequest) (emptyResult, error) {
+			return emptyResult{}, h.api.AckMessages(ctx, token, q.ContextID, q.After, q.AgentInstance)
+		}),
+		"messages/cursor": typedEndpoint(func(ctx context.Context, token string, q cursorRequest) (cursorResult, error) {
+			v, err := h.api.MessageCursor(ctx, token, q.ContextID, q.AgentInstance)
+			return cursorResult{&v}, err
+		}),
 	}
-	return true, err
 }
 
-func (c *Client) AppendMessage(x context.Context, t, id string, i comitia.MessageInput) (comitia.Message, error) {
-	i.AgentInstance = c.InstanceDefaults.Message(i.AgentInstance)
-	var o response
-	e := c.call(x, t, "messages/append", request{ContextID: id, Message: &i}, &o)
-	if o.Message == nil {
-		return comitia.Message{}, missing(e)
-	}
-	return *o.Message, e
-}
-func (c *Client) ReplayMessages(x context.Context, t, id string, a int64, l int, filters ...comitia.MessageFilters) ([]comitia.Message, error) {
-	q, err := c.messageReadRequest(id, a, filters)
-	if err != nil {
-		return nil, err
-	}
-	q.Limit = l
-	var o response
-	e := c.call(x, t, "messages/replay", q, &o)
-	return o.Messages, e
-}
-func (c *Client) AckMessages(x context.Context, t, id string, s int64, instances ...string) error {
-	instance, err := c.InstanceDefaults.ID(instances...)
-	if err != nil {
-		return err
-	}
-	return c.call(x, t, "messages/ack", request{ContextID: id, After: s, AgentInstance: instance}, &response{})
-}
-func (c *Client) MessageCursor(x context.Context, t, id string, instances ...string) (int64, error) {
-	instance, err := c.InstanceDefaults.ID(instances...)
-	if err != nil {
-		return 0, err
-	}
-	var o response
-	e := c.call(x, t, "messages/cursor", request{ContextID: id, AgentInstance: instance}, &o)
-	if o.Cursor == nil {
-		return 0, missing(e)
-	}
-	return *o.Cursor, e
-}
-func (c *Client) ListParticipants(ctx context.Context, token, cid string, limit int) ([]comitia.Participant, error) {
-	var out response
-	err := c.call(ctx, token, "participants/list", request{ContextID: cid, Limit: limit}, &out)
-	return out.Participants, err
-}
-
-func (q request) messageFilters() comitia.MessageFilters {
+func (q replayRequest) messageFilters() comitia.MessageFilters {
 	f := comitia.MessageFilters{MaxBytes: q.MaxBytes, ForInstance: q.ForInstance, FromInstance: q.FromInstance, TaskID: q.TaskID, Schema: q.Schema}
 	if q.AgentInstance != "" {
 		f.AgentInstance = &q.AgentInstance
 	}
 	return f
 }
+func (q replayRequest) wait(seconds float64) waitRequest {
+	return waitRequest{ContextID: q.ContextID, After: q.After, MaxBytes: q.MaxBytes, Page: q.Page, AgentInstance: q.AgentInstance, ForInstance: q.ForInstance, FromInstance: q.FromInstance, TaskID: q.TaskID, Schema: q.Schema, TimeoutSeconds: &seconds}
+}
+func (q waitRequest) replay() replayRequest {
+	return replayRequest{ContextID: q.ContextID, After: q.After, MaxBytes: q.MaxBytes, Page: q.Page, AgentInstance: q.AgentInstance, ForInstance: q.ForInstance, FromInstance: q.FromInstance, TaskID: q.TaskID, Schema: q.Schema}
+}
 
 // A nil AgentInstance uses the client's default presence instance.
-func (c *Client) messageReadRequest(cid string, after int64, filters []comitia.MessageFilters) (request, error) {
+func (c *Client) messageReadRequest(cid string, after int64, filters []comitia.MessageFilters) (replayRequest, error) {
 	if len(filters) > 1 {
-		return request{}, comitia.Invalidf("at most one filter set allowed")
+		return replayRequest{}, comitia.Invalidf("at most one filter set allowed")
 	}
-	q := request{ContextID: cid, After: after}
+	q := replayRequest{ContextID: cid, After: after}
 	var instances []string
 	if len(filters) == 1 {
 		f := filters[0]
@@ -124,57 +108,138 @@ func (c *Client) messageReadRequest(cid string, after int64, filters []comitia.M
 	q.AgentInstance, err = c.InstanceDefaults.ID(instances...)
 	return q, err
 }
-func (c *Client) WaitMessages(ctx context.Context, token, cid string, after int64, timeout time.Duration, filters ...comitia.MessageFilters) ([]comitia.Message, error) {
+func (c *Client) AppendMessage(ctx context.Context, token, id string, input comitia.MessageInput) (comitia.Message, error) {
+	input.AgentInstance = c.InstanceDefaults.Message(input.AgentInstance)
+	var out messageResult
+	err := c.call(ctx, token, "messages/append", appendRequest{id, ptr(messageInput(input))}, &out)
+	if err = requiredResult(err, out.Message); err != nil {
+		return comitia.Message{}, err
+	}
+	return comitia.Message(*out.Message), nil
+}
+func (c *Client) ReplayMessages(ctx context.Context, token, id string, after int64, limit int, filters ...comitia.MessageFilters) ([]comitia.Message, error) {
+	q, err := c.messageReadRequest(id, after, filters)
+	if err != nil {
+		return nil, err
+	}
+	q.Limit = ptr(limit)
+	var out readMessagesResult
+	err = c.call(ctx, token, "messages/replay", q, &out)
+	if err = requiredResult(err, out.Messages); err != nil {
+		return nil, err
+	}
+	return mapSlice(*out.Messages, func(m messageDTO) comitia.Message { return comitia.Message(m) }), nil
+}
+func (c *Client) WaitMessages(ctx context.Context, token, id string, after int64, timeout time.Duration, filters ...comitia.MessageFilters) ([]comitia.Message, error) {
 	if timeout < 0 {
 		return nil, comitia.Invalidf("timeout must be nonnegative")
 	}
 	if timeout > comitia.MaxMessageWait {
 		timeout = comitia.MaxMessageWait
 	}
-	q, err := c.messageReadRequest(cid, after, filters)
+	q, err := c.messageReadRequest(id, after, filters)
 	if err != nil {
 		return nil, err
 	}
-	seconds := timeout.Seconds()
-	q.TimeoutSeconds = &seconds
-	var out response
-	err = c.call(ctx, token, "messages/wait", q, &out)
-	if err == nil && out.Messages == nil {
-		out.Messages = []comitia.Message{}
+	var out readMessagesResult
+	err = c.call(ctx, token, "messages/wait", q.wait(timeout.Seconds()), &out)
+	if err = requiredResult(err, out.Messages); err != nil {
+		return nil, err
 	}
-	return out.Messages, err
+	return mapSlice(*out.Messages, func(m messageDTO) comitia.Message { return comitia.Message(m) }), nil
 }
-
-func (c *Client) ReplayMessagesPage(ctx context.Context, token, cid string, after int64, limit int, filters ...comitia.MessageFilters) (comitia.MessagePage, error) {
-	q, err := c.messageReadRequest(cid, after, filters)
+func (c *Client) ReplayMessagesPage(ctx context.Context, token, id string, after int64, limit int, filters ...comitia.MessageFilters) (comitia.MessagePage, error) {
+	q, err := c.messageReadRequest(id, after, filters)
 	if err != nil {
 		return comitia.MessagePage{}, err
 	}
-	q.Limit, q.Page = limit, true
-	var out response
+	q.Limit, q.Page = ptr(limit), true
+	var out readMessagesResult
 	err = c.call(ctx, token, "messages/replay", q, &out)
-	if out.Page == nil {
-		return comitia.MessagePage{}, missing(err)
+	if err = requiredResult(err, out.Page); err != nil {
+		return comitia.MessagePage{}, err
 	}
-	return *out.Page, err
+	return out.Page.core(), nil
 }
-func (c *Client) WaitMessagesPage(ctx context.Context, token, cid string, after int64, timeout time.Duration, filters ...comitia.MessageFilters) (comitia.MessagePage, error) {
+func (c *Client) WaitMessagesPage(ctx context.Context, token, id string, after int64, timeout time.Duration, filters ...comitia.MessageFilters) (comitia.MessagePage, error) {
 	if timeout < 0 {
 		return comitia.MessagePage{}, comitia.Invalidf("timeout must be nonnegative")
 	}
 	if timeout > comitia.MaxMessageWait {
 		timeout = comitia.MaxMessageWait
 	}
-	q, err := c.messageReadRequest(cid, after, filters)
+	q, err := c.messageReadRequest(id, after, filters)
 	if err != nil {
 		return comitia.MessagePage{}, err
 	}
-	seconds := timeout.Seconds()
-	q.TimeoutSeconds, q.Page = &seconds, true
-	var out response
-	err = c.call(ctx, token, "messages/wait", q, &out)
-	if out.Page == nil {
-		return comitia.MessagePage{}, missing(err)
+	q.Page = true
+	var out readMessagesResult
+	err = c.call(ctx, token, "messages/wait", q.wait(timeout.Seconds()), &out)
+	if err = requiredResult(err, out.Page); err != nil {
+		return comitia.MessagePage{}, err
 	}
-	return *out.Page, err
+	return out.Page.core(), nil
+}
+func (c *Client) AckMessages(ctx context.Context, token, id string, sequence int64, instances ...string) error {
+	instance, err := c.InstanceDefaults.ID(instances...)
+	if err != nil {
+		return err
+	}
+	return c.call(ctx, token, "messages/ack", ackRequest{id, sequence, instance}, &emptyResult{})
+}
+func (c *Client) MessageCursor(ctx context.Context, token, id string, instances ...string) (int64, error) {
+	instance, err := c.InstanceDefaults.ID(instances...)
+	if err != nil {
+		return 0, err
+	}
+	var out cursorResult
+	err = c.call(ctx, token, "messages/cursor", cursorRequest{id, instance}, &out)
+	if err = requiredResult(err, out.Cursor); err != nil {
+		return 0, err
+	}
+	return *out.Cursor, nil
+}
+func (c *Client) ListParticipants(ctx context.Context, token, id string, limit int) ([]comitia.Participant, error) {
+	var out participantsResult
+	err := c.call(ctx, token, "participants/list", participantsRequest{id, ptr(limit)}, &out)
+	return mapSlice(out.Participants, func(p participantDTO) comitia.Participant { return comitia.Participant(p) }), err
+}
+
+func boundWireMessages(messages []messageDTO, budget int) ([]messageDTO, error) {
+	if budget == 0 {
+		budget = comitia.DefaultMessageBytes
+	}
+	used := 2
+	for i, message := range messages {
+		raw, err := json.Marshal(message)
+		if err != nil {
+			return nil, err
+		}
+		size := len(raw)
+		if i > 0 {
+			size++
+			if used+size > budget {
+				return messages[:i], nil
+			}
+		}
+		used += size
+	}
+	return messages, nil
+}
+func wireReadResult(messages []comitia.Message, budget int) (readMessagesResult, error) {
+	values, err := boundWireMessages(mapSlice(messages, func(m comitia.Message) messageDTO { return messageDTO(m) }), budget)
+	return readMessagesResult{Messages: &values}, err
+}
+func wirePageResult(page comitia.MessagePage, budget int) (readMessagesResult, error) {
+	value := wirePage(page)
+	messages, err := boundWireMessages(value.Messages, budget)
+	if err != nil {
+		return readMessagesResult{}, err
+	}
+	if len(messages) < len(value.Messages) {
+		value.NextAfter = messages[len(messages)-1].Sequence
+		value.HasMore = true
+	}
+	value.Messages = messages
+	return readMessagesResult{Page: &value}, nil
 }

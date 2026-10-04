@@ -9,6 +9,9 @@ import (
 
 func contextTools() []map[string]any {
 	return []map[string]any{
+		tool("get_context", "Get readable context metadata, including archive status. References have no readback API.", schema(map[string]any{"context_id": str("Context ID")}, "context_id")),
+		tool("add_reference", "Add a resource reference to an active context with write permission. Stores kind and URI; does not fetch the resource. References have no readback API.", schema(map[string]any{"context_id": str("Context ID"), "kind": str("Reference kind"), "uri": str("Resource URI")}, "context_id", "kind", "uri")),
+		tool("archive_context", "Archive a context with grant permission or administrator status. Archived contents remain readable; writes are rejected.", schema(map[string]any{"context_id": str("Context ID")}, "context_id")),
 		tool("create_context", "Create a child context with create permission on its parent. Contexts are the privacy boundary; children are private unless parent_readable grants inherited read. Top-level creation is admin/CLI only.", schema(map[string]any{"parent_context_id": str("Parent context ID"), "name": str("Child context name"), "task_id": str("Optional task in the parent"), "parent_readable": map[string]any{"type": "boolean", "description": "Allow parent readers to read the child (default false)"}}, "parent_context_id", "name")),
 		tool("list_contexts", "List readable contexts with parent/task metadata, ordered by ID. Contexts are the privacy boundary; use the last returned ID as after_id, and an empty page marks the end.", schema(map[string]any{"after_id": str("Exclusive context ID cursor"), "limit": integer("Maximum contexts, 1-1000 (default 100)")})),
 		tool("list_child_contexts", "List child metadata with read on the parent. Contexts are the privacy boundary: listing children does not grant read on their messages. Use the last returned ID as after_id.", schema(map[string]any{"parent_context_id": str("Parent context ID"), "after_id": str("Exclusive child ID cursor"), "limit": integer("Maximum children, 1-1000 (default 100)")}, "parent_context_id")),
@@ -17,6 +20,36 @@ func contextTools() []map[string]any {
 
 func (s *Server) callContexts(ctx context.Context, name string, raw json.RawMessage) (any, error) {
 	switch name {
+	case "get_context", "archive_context":
+		var a struct {
+			ContextID string `json:"context_id"`
+		}
+		if err := decode(raw, &a); err != nil {
+			return nil, err
+		}
+		if err := required("context_id", a.ContextID); err != nil {
+			return nil, err
+		}
+		if name == "get_context" {
+			return s.API.GetContext(ctx, s.Credential, a.ContextID)
+		}
+		if err := s.API.ArchiveContext(ctx, s.Credential, a.ContextID); err != nil {
+			return nil, err
+		}
+		return map[string]bool{"archived": true}, nil
+	case "add_reference":
+		var a struct {
+			ContextID string `json:"context_id"`
+			Kind      string `json:"kind"`
+			URI       string `json:"uri"`
+		}
+		if err := decode(raw, &a); err != nil {
+			return nil, err
+		}
+		if err := required("context_id", a.ContextID, "kind", a.Kind, "uri", a.URI); err != nil {
+			return nil, err
+		}
+		return s.API.AddReference(ctx, s.Credential, comitia.AddReferenceInput{ContextID: a.ContextID, Kind: a.Kind, URI: a.URI})
 	case "create_context":
 		var a struct {
 			ParentContextID string `json:"parent_context_id"`

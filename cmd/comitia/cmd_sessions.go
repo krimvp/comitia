@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"strings"
 	"time"
 
 	"github.com/krimvp/comitia"
@@ -32,14 +33,40 @@ func runSessions(ctx context.Context, cfg config, api comitia.API, out *json.Enc
 		cid := fs.String("context-id", "", "context ID")
 		perms := fs.String("permissions", "read,write,claim", "comma-separated permissions")
 		grantTTL := fs.Duration("grant-ttl", time.Hour, "grant lifetime")
+		var grantSpecs repeatedGrants
+		fs.Var(&grantSpecs, "grant", "repeat CONTEXT_ID:PERMISSIONS:TTL for atomic multi-context delegation; excludes --context-id/--permissions/--grant-ttl")
 		if err := fs.Parse(args); err != nil {
 			return err
 		}
-		pbits, e := parsePermissions(*perms)
-		if e != nil {
-			return e
+		var grants []comitia.DelegatedGrant
+		now := time.Now()
+		if len(grantSpecs) > 0 {
+			if flagProvided(fs, "context-id") || flagProvided(fs, "permissions") || flagProvided(fs, "grant-ttl") {
+				return comitia.Invalidf("--grant excludes --context-id, --permissions and --grant-ttl")
+			}
+			for _, spec := range grantSpecs {
+				parts := strings.Split(spec, ":")
+				if len(parts) != 3 || parts[0] == "" {
+					return comitia.Invalidf("grant must be CONTEXT_ID:PERMISSIONS:TTL")
+				}
+				bits, err := parsePermissions(parts[1])
+				if err != nil {
+					return err
+				}
+				lifetime, err := time.ParseDuration(parts[2])
+				if err != nil || lifetime <= 0 || lifetime > *ttl {
+					return comitia.Invalidf("grant TTL must be positive and no longer than session TTL")
+				}
+				grants = append(grants, comitia.DelegatedGrant{ContextID: parts[0], Permissions: bits, ExpiresAt: now.Add(lifetime)})
+			}
+		} else {
+			bits, err := parsePermissions(*perms)
+			if err != nil {
+				return err
+			}
+			grants = []comitia.DelegatedGrant{{ContextID: *cid, Permissions: bits, ExpiresAt: now.Add(*grantTTL)}}
 		}
-		p, c, g, e := api.DelegateSession(ctx, needCredential(cfg), comitia.DelegateInput{PrincipalName: *name, TTL: *ttl, Grants: []comitia.DelegatedGrant{{ContextID: *cid, Permissions: pbits, ExpiresAt: time.Now().Add(*grantTTL)}}})
+		p, c, g, e := api.DelegateSession(ctx, needCredential(cfg), comitia.DelegateInput{PrincipalName: *name, TTL: *ttl, Grants: grants})
 		if e != nil {
 			return e
 		}
@@ -58,3 +85,9 @@ func runSessions(ctx context.Context, cfg config, api comitia.API, out *json.Enc
 		return errUnknownCommand
 	}
 }
+
+// repeatedGrants leaves attenuation and all-or-nothing persistence to the service.
+type repeatedGrants []string
+
+func (g *repeatedGrants) String() string         { return strings.Join(*g, ";") }
+func (g *repeatedGrants) Set(value string) error { *g = append(*g, value); return nil }

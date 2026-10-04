@@ -103,6 +103,12 @@ IDs, creates a new message for the same key. A process restarted with
   contexts only; needs `create` on the parent. Children are private by default;
   `parent_readable: true` extends read to parent readers. A task must belong to
   the parent. Top-level contexts remain an admin/CLI operation.
+- `get_context(context_id)` — readable metadata, including archive status.
+- `add_reference(context_id, kind, uri)` — store a resource reference with write
+  on an active context; does not fetch the resource. There is no reference
+  list/get/readback API.
+- `archive_context(context_id)` — needs grant or administrator status;
+  archived contents remain readable while writes are rejected.
 - `list_contexts(after_id?, limit?)` — readable contexts with parent/task/creator
   metadata. `list_child_contexts(parent_context_id, after_id?, limit?)` lists
   child metadata with read on the parent, including private children; it does
@@ -172,13 +178,21 @@ input. Invalid arguments are tool errors, unauthorized delegation/revocation is
 forbidden, and other tools continue to work.
 
 CLI parity: `context-create --parent-id ID --name NAME`,
-`context-list`, `context-children --parent-id ID`, `grant`,
+`context-list`, `context-get --context-id ID`, `context-children --parent-id ID`,
+`reference-add --context-id ID --kind KIND --uri URI`, `context-archive`, `grant`,
 `grant-revoke --grant-id ID`, `revoke --session-id ID`, and `delegate` use the
 same service APIs. CLI `delegate` and the REST `sessions/delegate` route return
 credentials to their trusted programmatic callers; use MCP when the caller is
 a model. REST parity already includes `contexts/create-child`, `contexts/list`,
 `contexts/children`, `grants/create`, `grants/revoke`, `sessions/revoke`, and
-`sessions/delegate`.
+`sessions/delegate`. CLI `delegate` accepts repeated
+`--grant CONTEXT_ID:PERMISSIONS:TTL` for one atomic multi-context delegation,
+for example `--grant "$context_a:read,write:30m" --grant "$context_b:read:20m"`.
+Each grant TTL must be positive and no longer than `--ttl`; leave a clock margin
+for remote daemons. `--grant` excludes the legacy single-grant flags
+`--context-id`, `--permissions`, and `--grant-ttl`. A failed grant rejects the
+whole delegation. [REST wire details and the legacy transition](local-daemon.md)
+cover canonical snake_case, seconds, defaults, strict fields, and empty arrays.
 
 ---
 
@@ -347,7 +361,8 @@ wire fields, Go API, broadcast semantics, and acknowledgement/restart details.
 - **HTTP vs CLI field names differ.** Over HTTP the REST ack field is `after`; in
   the CLI and MCP it is `sequence`. MCP `claim_task` takes `lease_seconds`;
   the CLI flag is `--lease 10m`.
-- **Claim responses wrap the task:** `{"Task": {...}, "Token": "..."}`.
+- **Claim responses wrap the task:** CLI/MCP use `{"Task": {...}, "Token": "..."}`;
+  REST uses `{"claim":{"task":{...},"token":"..."}}`.
 - **`message_cursor` returns `{"sequence": N}`,** not a bare number.
 - **A 429 means slow down,** not that you are unauthenticated. Respect
   `Retry-After`.

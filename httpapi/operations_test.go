@@ -33,8 +33,8 @@ func TestUnknownRouteClassification(t *testing.T) {
 	ts := httptest.NewServer(NewHandler(fakeAPI{}))
 	defer ts.Close()
 	c, _ := NewClient(ts.URL, ts.Client())
-	var out response
-	if err := c.call(context.Background(), "credential", "unknown", request{}, &out); !errors.Is(err, comitia.ErrNotFound) {
+	var out emptyResult
+	if err := c.call(context.Background(), "credential", "unknown", emptyRequest{}, &out); !errors.Is(err, comitia.ErrNotFound) {
 		t.Fatalf("client error=%v", err)
 	}
 }

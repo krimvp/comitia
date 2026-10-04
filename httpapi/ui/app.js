@@ -1,4 +1,5 @@
 import {on, renderChildren} from './dom.mjs';
+import {normalizeResponse} from './wire.mjs';
 import {relativeSeen} from './presence.mjs';
 import {ConversationState, PAGE_SIZE, WINDOW_LIMIT, shortID, messageType, typeLabel, filterMessages, interactionGraph, BROADCAST, parseActor, senderActor, recipientActors, instanceClaims, taskStatus, stateLabel} from './model.mjs';
 import {renderInteractionMap} from './graph.mjs';
@@ -76,7 +77,7 @@ async function request(path, body, signal = controller.signal) {
     const error = new Error(response.status === 401 ? 'Session expired or invalid. Connect with a valid credential.' : response.status === 403 ? 'Read access is no longer available. Connect with an authorized credential.' : `Request failed (${response.status}). Retry to continue.`);
     error.status = response.status; throw error;
   }
-  try { return await response.json(); } catch { throw new Error('Invalid server response. Retry to continue.'); }
+  try { return normalizeResponse(await response.json()); } catch { throw new Error('Invalid server response. Retry to continue.'); }
   } catch (error) {
     if (timedOut) throw new Error('Request timed out. Retry to continue.');
     throw error;
