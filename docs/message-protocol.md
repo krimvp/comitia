@@ -174,16 +174,23 @@ wait call and does not change replay results or acknowledgement cursors.
 Polling remains enabled to detect other processes writing the SQLite file.
 Custom stores without scan tracking retain replay from the original `after`.
 
-**Stdio MCP limitation:** requests on one stdio connection are handled serially.
-A pending `wait_messages` blocks other calls on that connection, including ping
-and send, until it returns. Stdio ignores `notifications/cancelled`; that
-notification cannot interrupt a wait. Service context cancellation and HTTP
-request cancellation are supported, but stdio request-level cancellation and
-concurrent calls require a follow-up. The MCP default remains 30 seconds for
-consistency with HTTP/CLI. For interactive stdio use, request a short timeout
-(for example 1 second), send before waiting, or use a separate connection/HTTP
-for concurrent calls. Both replay and wait reject fields belonging only to the
-other tool (`timeout_seconds` on replay and `limit` on wait).
+**Stdio MCP concurrency:** up to eight tool calls run concurrently on one
+connection. A pending `wait_messages` leaves ping, tool listing and other tool
+calls responsive. Further tool calls receive JSON-RPC error `-32000` while all
+eight slots are occupied; retry after a call completes. Responses can arrive in
+any order and must be matched by request ID. Stdout contains one complete JSON
+message per line.
+
+Send `notifications/cancelled` with `params.requestId` to cancel a pending tool
+call. The request context is interrupted and no response is sent for that call;
+unknown, completed or malformed cancellation notifications are ignored. A
+response already sent can race with cancellation. Clients cannot cancel
+`initialize`. On input EOF the server allows one second for calls to finish,
+then cancels remaining calls and waits up to one more second. Server context
+cancellation interrupts calls immediately, with up to one second to stop. MCP's
+default wait remains 30 seconds, consistent with HTTP/CLI. Both replay and wait
+reject fields belonging only to the other tool (`timeout_seconds` on replay and
+`limit` on wait).
 
 ### Watching from the CLI
 

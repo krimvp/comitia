@@ -1,7 +1,6 @@
 package mcp
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"strings"
@@ -63,14 +62,16 @@ func TestMCPInstanceDefaultsOnBothTransports(t *testing.T) {
 		t.Run(transport, func(t *testing.T) {
 			api := &instanceAPI{}
 			if transport == "stdio" {
-				input := `{"jsonrpc":"2.0","id":0,"method":"initialize","params":{"protocolVersion":"2025-06-18"}}` + "\n" + strings.Join(requests, "\n")
-				var out bytes.Buffer
-				if err := (&Server{API: api, Credential: "token", InstanceDefaults: defaults}).Serve(context.Background(), strings.NewReader(input), &out); err != nil {
-					t.Fatal(err)
+				client := startStdio(t, &Server{API: api, Credential: "token", InstanceDefaults: defaults})
+				client.initialize(t)
+				for _, req := range requests {
+					client.send(t, req)
+					res := client.read(t)
+					if res.Error != nil || strings.Contains(string(res.Result), `"isError":true`) {
+						t.Fatalf("tool failure: %+v", res)
+					}
 				}
-				if strings.Contains(out.String(), `"isError":true`) {
-					t.Fatalf("tool failure: %s", out.String())
-				}
+				client.finish(t)
 			} else {
 				h := NewHTTPHandler(api, HTTPConfig{InstanceDefaults: defaults})
 				for _, req := range requests {
