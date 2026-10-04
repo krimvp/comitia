@@ -105,6 +105,40 @@ on the daemon clock, so with `--server-url` to a daemon on another host whose
 clock is behind, a grant TTL equal to the session TTL can be rejected; leave a
 margin.
 
+
+For local task owners, the coordinator calls `delegate_session` with epic
+permissions `read`, `write`, `claim`, `grant`, and `create` (only permissions it
+already holds, with shorter lifetimes). The returned `credential_file` gives
+the helper its own participant session. Launch Codex with per-run MCP overrides:
+
+```sh
+codex exec \
+  -c 'mcp_servers.comitia.command="/home/alice/.local/share/comitia/bin/comitia-client"' \
+  -c 'mcp_servers.comitia.args=["--credential-file","/home/alice/.local/share/comitia/sessions/SESSION_ID.json","mcp"]' \
+  -c 'mcp_servers.comitia.default_tools_approval_mode="approve"' \
+  'Own task 15 in EPIC_CONTEXT_ID using delegated session SESSION_ID; create a child context and report progress to the epic.'
+```
+
+Use the returned absolute path, never the token, in launch configuration.
+Claude's equivalent uses per-run MCP JSON:
+
+```sh
+claude --strict-mcp-config \
+  --mcp-config '{"mcpServers":{"comitia":{"type":"stdio","command":"/home/alice/.local/share/comitia/bin/comitia-client","args":["--credential-file","/home/alice/.local/share/comitia/sessions/SESSION_ID.json","mcp"]}}}' \
+  --allowedTools 'mcp__comitia__*' \
+  -p 'Own task 15 in EPIC_CONTEXT_ID using delegated session SESSION_ID; create a child context and report progress to the epic.'
+```
+
+See the complete [spawn flow](docs/local-service.md#spawn-flow-a-delegated-session-per-task-owner)
+for the delegation request and coordinator permission requirements.
+When work ends, the coordinator calls `revoke_session` with the helper's
+`session_id`, or `revoke_grant` with an issued `grant_id` to remove that grant
+subtree. Stop the helper separately. `comitia-client sessions` reports ID,
+expiry and active/expired/revoked status (unknown when the server cannot confirm);
+`comitia-client sessions --prune` removes expired/revoked files only from the
+installation's `sessions/` directory and refuses symlinks. Shared harness
+credentials and instance IDs remain useful for loose collaboration.
+
 Non-admin sessions can revoke grants they issued and sessions they directly
 delegated. Admins retain broader revocation authority. The equivalent CLI commands
 are `grant-revoke --grant-id ID` and `revoke --session-id ID`; both embedded and
