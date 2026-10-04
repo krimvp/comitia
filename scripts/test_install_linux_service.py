@@ -243,6 +243,7 @@ class AddHarnessTest(Base):
         self.install()
         before = len(self.calls())
         for argv, message in ((['owner', '--instructions', 'a', '--mcp-config', 'b.json'], 'Invalid harness name'),
+                              (['sessions', '--instructions', 'a', '--mcp-config', 'b.json'], 'Invalid harness name'),
                               (['Bad/Name', '--instructions', 'a', '--mcp-config', 'b.json'], 'Invalid harness name'),
                               (['pi'], 'needs an instruction file'),
                               (['pi', '--instructions', 'a', '--mcp-config', 'b.json', '--approve-entry', '=1'], 'Incomplete')):
@@ -404,7 +405,7 @@ class RealBinaryTest(Base):
             raise unittest.SkipTest('go unavailable')
         cls.build = tempfile.TemporaryDirectory()
         cls.binary = Path(cls.build.name)/'comitia'
-        env = dict(os.environ)
+        env = {**os.environ, 'GOFLAGS': os.environ.get('GOFLAGS', '')+' -buildvcs=false'}
         result = subprocess.run(['go', 'build', '-o', str(cls.binary), './cmd/comitia'], cwd=SCRIPTS.parent, env=env,
                                 capture_output=True, text=True)
         if result.returncode:
@@ -583,6 +584,8 @@ class WrapperTest(Base):
     def test_rejections(self):
         for args, message in ((['owner', 'context-list'], 'Invalid identity'),
                               (['../owner', 'x'], 'Invalid identity'),
+                              (['--identity', 'sessions', 'mcp'], 'Invalid identity'),
+                              (['--identity=sessions', 'mcp'], 'Invalid identity'),
                               (['pi', 'x'], 'installed: claude, codex'),
                               ([], 'Usage'),
                               (['--identity'], 'Usage'),

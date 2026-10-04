@@ -70,24 +70,33 @@ def sessions(args, root):
         for name in sorted(os.listdir(fd)):
             if not name.endswith('.json'):
                 continue
-            info = os.stat(name, dir_fd=fd, follow_symlinks=False)
-            if not stat.S_ISREG(info.st_mode) or info.st_uid != os.getuid() or info.st_mode & 0o077:
-                raise SystemExit(f'Refusing non-private regular credential file: {directory/name}')
-            with os.fdopen(os.open(name, flags | os.O_NONBLOCK, dir_fd=fd)) as stream:
-                opened = os.fstat(stream.fileno())
-                if (opened.st_dev, opened.st_ino) != (info.st_dev, info.st_ino):
-                    raise SystemExit(f'Credential file changed: {directory/name}')
-                document = json.load(stream)
-            session = document['credential']['Session']
-            status = session_status(document, document.get('server_url') or config['server_url'])
-            row = dict(credential_file=str(directory/name), session_id=session['ID'],
-                       expires_at=session['ExpiresAt'], status=status)
-            if '--prune' in args and status in ('expired', 'revoked'):
-                current = os.stat(name, dir_fd=fd, follow_symlinks=False)
-                if (current.st_dev, current.st_ino) != (info.st_dev, info.st_ino):
-                    raise SystemExit(f'Credential file changed: {directory/name}')
-                os.unlink(name, dir_fd=fd)
-                row['pruned'] = True
+            row = dict(credential_file=str(directory/name), status='invalid')
+            try:
+                info = os.stat(name, dir_fd=fd, follow_symlinks=False)
+                if not stat.S_ISREG(info.st_mode) or info.st_uid != os.getuid() or info.st_mode & 0o077:
+                    raise ValueError('not a private regular credential file')
+                with os.fdopen(os.open(name, flags | os.O_NONBLOCK, dir_fd=fd)) as stream:
+                    opened = os.fstat(stream.fileno())
+                    if (opened.st_dev, opened.st_ino) != (info.st_dev, info.st_ino):
+                        raise ValueError('credential file changed')
+                    document = json.load(stream)
+                credential = document['credential']
+                session = credential['Session']
+                for value in (credential['Token'], session['ID'], session['ExpiresAt']):
+                    if not isinstance(value, str) or not value:
+                        raise ValueError('incomplete credential')
+                status = session_status(document, document.get('server_url') or config['server_url'])
+                row.update(session_id=session['ID'], expires_at=session['ExpiresAt'], status=status)
+                if '--prune' in args and status in ('expired', 'revoked'):
+                    current = os.stat(name, dir_fd=fd, follow_symlinks=False)
+                    if (current.st_dev, current.st_ino) != (info.st_dev, info.st_ino):
+                        raise ValueError('credential file changed')
+                    os.unlink(name, dir_fd=fd)
+                    row['pruned'] = True
+            except (OSError, ValueError, KeyError, TypeError, AttributeError):
+                # Never expose malformed credential contents in an error or lose
+                # the report of files already removed earlier in this run.
+                row['status'] = 'invalid'
             rows.append(row)
     finally:
         os.close(fd)
@@ -113,11 +122,11 @@ def select(args, root=ROOT):
         if args[0].startswith('-'): raise SystemExit(USAGE)
         name, rest = args[0], args[1:]
     # The owner credential administers the installation; agents never run as it.
-    if not NAME.match(name) or name == 'owner':
+    if not NAME.match(name) or name in ('owner', 'sessions'):
         raise SystemExit(f'Invalid identity {name!r}')
     path = root/'credentials'/f'{name}.json'
     if not path.exists():
-        known = sorted(p.stem for p in (root/'credentials').glob('*.json') if p.stem != 'owner')
+        known = sorted(p.stem for p in (root/'credentials').glob('*.json') if p.stem not in ('owner', 'sessions'))
         raise SystemExit(f'Unknown identity {name!r}; installed: {", ".join(known) or "none"}')
     return path, rest
 

@@ -117,9 +117,11 @@ comitia-client sessions          # JSON: credential_file, session_id, expires_at
 comitia-client sessions --prune  # remove expired/revoked files; report pruned: true
 ```
 
+`sessions` is reserved and cannot be used as a harness or identity name.
 Listing scans only `<installation>/sessions/*.json`, never shared
-`credentials/`. It refuses symlinks, non-regular files and credentials not
-private to their owner. Expiry is checked locally; a server authentication
+`credentials/`. It refuses to use symlinks, non-regular files and credentials not
+private to their owner. Unreadable, malformed or incomplete files are reported
+as `invalid` and kept; a bad entry does not hide the report of earlier removals. Expiry is checked locally; a server authentication
 probe detects revoked sessions (including revoked session ancestors). An
 unreachable server or an inconclusive response produces `unknown`, which is
 kept by `--prune`. `active` means the session authenticates, not that every grant

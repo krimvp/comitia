@@ -1,4 +1,6 @@
+import contextlib
 import datetime
+import io
 import json
 import os
 from pathlib import Path
@@ -64,8 +66,8 @@ class SessionsTest(unittest.TestCase):
         outside = self.root/'outside.json'
         path.rename(outside)
         path.symlink_to(outside)
-        with self.assertRaises(SystemExit):
-            client.sessions(['--prune'], self.root)
+        self.assertEqual(client.sessions(['--prune'], self.root)[0]['status'], 'invalid')
+        self.assertTrue(path.is_symlink())
         self.assertTrue(outside.exists())
         path.unlink()
         self.directory.rmdir()
@@ -76,8 +78,7 @@ class SessionsTest(unittest.TestCase):
     def test_refuses_public_file_and_invalid_options(self):
         path, _ = self.credential('public', -60)
         path.chmod(0o644)
-        with self.assertRaises(SystemExit):
-            client.sessions(['--prune'], self.root)
+        self.assertEqual(client.sessions(['--prune'], self.root)[0]['status'], 'invalid')
         self.assertTrue(path.exists())
         with self.assertRaises(SystemExit):
             client.sessions(['--prune', '../outside'], self.root)
@@ -85,3 +86,39 @@ class SessionsTest(unittest.TestCase):
     def test_missing_directory(self):
         self.directory.rmdir()
         self.assertEqual(client.sessions([], self.root), [])
+
+    def test_prune_reports_all_removals_and_keeps_invalid_files(self):
+        expired, _ = self.credential('a-expired', -60)
+        invalid = []
+        for name, content in (('b-empty', ''), ('c-partial', '{"credential":'),
+                              ('d-missing', '{}'), ('e-null', 'null'),
+                              ('f-wrong-type', '{"credential": []}'),
+                              ('g-invalid-expiry', '{"credential":{"Token":"secret","Session":{"ID":"x","ExpiresAt":"bad"}}}')):
+            path = self.directory/(name+'.json')
+            path.write_text(content)
+            path.chmod(0o600)
+            invalid.append(path)
+        output = io.StringIO()
+        with contextlib.redirect_stdout(output):
+            client.main(['sessions', '--prune'], self.root)
+        rows = json.loads(output.getvalue())
+        self.assertTrue(rows[0]['pruned'])
+        self.assertFalse(expired.exists())
+        self.assertEqual([r['status'] for r in rows[1:]], ['invalid']*len(invalid))
+        self.assertTrue(all(p.exists() for p in invalid))
+        self.assertNotIn('secret', output.getvalue())
+
+    def test_unreadable_file_does_not_hide_prune_report(self):
+        expired, _ = self.credential('a-expired', -60)
+        unreadable, _ = self.credential('b-unreadable')
+        original = os.open
+        def open_file(path, *args, **kwargs):
+            if path == unreadable.name:
+                raise PermissionError('unreadable')
+            return original(path, *args, **kwargs)
+        with mock.patch.object(client.os, 'open', side_effect=open_file):
+            rows = client.sessions(['--prune'], self.root)
+        self.assertTrue(rows[0]['pruned'])
+        self.assertEqual(rows[1]['status'], 'invalid')
+        self.assertFalse(expired.exists())
+        self.assertTrue(unreadable.exists())
