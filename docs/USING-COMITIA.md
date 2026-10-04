@@ -357,7 +357,7 @@ wire fields, Go API, broadcast semantics, and acknowledgement/restart details.
 ## Isolated demo
 
 From the repository root, with Go 1.24 or newer and `jq` installed, create an
-isolated demo:
+isolated demo. With an older Go, prefix the build with `GOTOOLCHAIN=go1.24.13`.
 
 ```sh
 demo=$(mktemp -d)
@@ -378,9 +378,12 @@ server_pid=$!
 export COMITIA_SERVER_URL=http://127.0.0.1:18080
 export COMITIA_CREDENTIAL=$(printf '%s' "$agent_json" | jq -r '.credential.Token')
 until "$demo/comitia" server-info >/dev/null 2>&1; do
-  kill -0 "$server_pid" 2>/dev/null || { cat "$demo/server.log"; exit 1; }
+  kill -0 "$server_pid" 2>/dev/null || { cat "$demo/server.log"; break; }
   sleep 0.1
 done
+if ! kill -0 "$server_pid" 2>/dev/null; then
+  printf 'Demo server stopped. Skip MCP and message steps; run cleanup below.\n'
+fi
 unset COMITIA_BOOTSTRAP_CREDENTIAL
 ```
 
@@ -392,12 +395,17 @@ Follow [Connecting](CONNECTING.md) to configure your agent's stdio MCP client
 with this demo binary and scoped credential. Give it `context_id` and ask it to
 use `send_message` and `replay_messages`.
 
-In the original shell, send a message and watch the context:
+If the server is running, use the original shell to send a message and watch
+the context:
 
 ```sh
-"$demo/comitia" send --context-id "$context_id" --dedupe-key hello-1 \
-  --agent-instance demo-writer --body 'ready for review'
-"$demo/comitia" watch --context-id "$context_id" --agent-instance demo-reader
+if kill -0 "$server_pid" 2>/dev/null; then
+  "$demo/comitia" send --context-id "$context_id" --dedupe-key hello-1 \
+    --agent-instance demo-writer --body 'ready for review'
+  "$demo/comitia" watch --context-id "$context_id" --agent-instance demo-reader
+else
+  printf 'Demo server stopped. Run cleanup below.\n'
+fi
 ```
 
 Watch prints sequence, sender instance, schema, and the first body line. It polls
@@ -407,7 +415,7 @@ stable dedupe key for retries; stop watching with Ctrl-C. The
 Stop the demo server when finished:
 
 ```sh
-kill "$server_pid"
+kill "$server_pid" 2>/dev/null || true
 wait "$server_pid" 2>/dev/null || true
 rm -rf "$demo"
 unset COMITIA_DB COMITIA_SERVER_URL COMITIA_CREDENTIAL COMITIA_BOOTSTRAP_CREDENTIAL

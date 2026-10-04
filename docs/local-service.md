@@ -6,7 +6,7 @@ existing database or credential, and can be rerun to update.
 
 ## Linux
 
-Install from the repository root with Python 3 and Go available:
+Install from the repository root with Python 3 and Go 1.24 or newer available:
 
 ```sh
 python3 scripts/install_linux_service.py
@@ -187,7 +187,7 @@ authorized automated merge gate in `autoMode.environment` if auto mode is used.
 
 ## macOS
 
-Install from the repository root with Python 3 and Go available:
+Install from the repository root with Python 3 and Go 1.24 or newer available:
 
 ```sh
 python3 scripts/install_macos_service.py

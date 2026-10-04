@@ -22,9 +22,10 @@ python3 scripts/install_linux_service.py   # Linux
 python3 scripts/install_macos_service.py   # macOS
 ```
 
-Restart your agent sessions, then ask an agent to call `list_participants` on the
-context ID in `local-context.json`: on Linux it lives in
-`~/.local/share/comitia/`; on macOS in `~/Library/Application Support/Comitia/`.
+On Linux the installer connects every detected agent harness: restart your agent
+sessions, then ask an agent to call `list_participants` on the context ID in
+`~/.local/share/comitia/local-context.json`. On macOS, open the viewer at
+http://127.0.0.1:4174 and connect agents with [local sessions](docs/local-sessions.md).
 See [local service setup](docs/local-service.md) for connecting harnesses, files,
 updates, and service management.
 
