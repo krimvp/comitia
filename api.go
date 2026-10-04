@@ -38,6 +38,7 @@ type API interface {
 	GrantAPI
 	MessageAPI
 	TaskAPI
+	PresenceAPI
 }
 
 type Clock func() time.Time
@@ -63,6 +64,7 @@ type ReadStore interface {
 	GrantReadStore
 	MessageReadStore
 	TaskReadStore
+	PresenceReadStore
 }
 type WriteStore interface {
 	ReadStore
@@ -71,4 +73,5 @@ type WriteStore interface {
 	GrantWriteStore
 	MessageWriteStore
 	TaskWriteStore
+	PresenceWriteStore
 }

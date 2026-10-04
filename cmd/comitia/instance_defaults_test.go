@@ -137,7 +137,7 @@ func TestMCPCommandUsesInstanceEnvironment(t *testing.T) {
 
 func TestInvalidInstanceEnvironmentFailsBeforeOpeningBackend(t *testing.T) {
 	for _, tc := range []struct{ id, label string }{{"bad id", ""}, {"", "orphan"}, {"ok", "bad\nlabel"}} {
-		for _, cmd := range []string{"send", "cursor", "ack", "watch", "mcp", "mcp-http", "task-claim"} {
+		for _, cmd := range []string{"send", "replay", "wait", "cursor", "ack", "watch", "instance-resume", "mcp", "mcp-http", "task-claim"} {
 			t.Setenv("COMITIA_AGENT_INSTANCE", tc.id)
 			t.Setenv("COMITIA_AGENT_INSTANCE_LABEL", tc.label)
 			db := filepath.Join(t.TempDir(), "must-not-exist.db")
@@ -214,6 +214,62 @@ func TestWatchInstanceDefault(t *testing.T) {
 			watch("--agent-instance", "")
 			if got := command(t, append(cursor, "--agent-instance", "")...); got["sequence"] != float64(1) {
 				t.Fatalf("explicit legacy watch cursor: %v", got)
+			}
+		})
+	}
+}
+
+func TestPresenceCommandsUseInstanceDefaults(t *testing.T) {
+	for _, remote := range []bool{false, true} {
+		t.Run(strconv.FormatBool(remote), func(t *testing.T) {
+			base, _ := instanceCommandSetup(t, remote)
+			w := command(t, append(base, "workspace-create", "--name", "presence")...)
+			resume := filepath.Join(t.TempDir(), "resume.json")
+			if err := os.WriteFile(resume, []byte(`{"pid":1}`), 0600); err != nil {
+				t.Fatal(err)
+			}
+			t.Setenv("COMITIA_AGENT_INSTANCE", "worker")
+			t.Setenv("COMITIA_AGENT_INSTANCE_LABEL", "Worker")
+			for _, args := range [][]string{
+				{"replay"},
+				{"wait", "--timeout-seconds", "0"},
+				{"watch", "--timeout-seconds", "0.1", "--no-ack"},
+				{"instance-resume", "--resume-file", resume},
+			} {
+				for _, explicitEmpty := range []bool{false, true} {
+					c := command(t, append(base, "context-create", "--workspace-id", w["ID"].(string), "--name", args[0])...)
+					cid := c["ID"].(string)
+					call := append(append(append([]string{}, base...), args[0], "--context-id", cid), args[1:]...)
+					if explicitEmpty {
+						call = append(call, "--agent-instance", "")
+					}
+					old := os.Stdout
+					devNull, err := os.OpenFile(os.DevNull, os.O_WRONLY, 0)
+					if err != nil {
+						t.Fatal(err)
+					}
+					os.Stdout = devNull
+					ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+					err = run(ctx, call)
+					cancel()
+					os.Stdout = old
+					_ = devNull.Close()
+					rows := commandAny(t, append(base, "instances", "--context-id", cid)...).([]any)
+					if explicitEmpty {
+						// Resume always names an instance; reads with an empty ID record none.
+						if args[0] == "instance-resume" {
+							if !errors.Is(err, comitia.ErrInvalid) {
+								t.Fatalf("resume without instance: %v", err)
+							}
+						} else if err != nil || len(rows) != 0 {
+							t.Fatalf("%s explicit empty instance: %v %v", args[0], rows, err)
+						}
+						continue
+					}
+					if err != nil || len(rows) != 1 || rows[0].(map[string]any)["id"] != "worker" {
+						t.Fatalf("%s default presence: %v %v", args[0], rows, err)
+					}
+				}
 			}
 		})
 	}

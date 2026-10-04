@@ -349,3 +349,8 @@ login after a restart and recover automatically if they exit. Data and private
 credentials live in `~/Library/Application Support/Comitia`, independently of
 this checkout. See [local service setup](docs/local-service.md) for connecting,
 updates, credential lifetimes, and service management.
+
+Use `instances --context-id ID` to inspect self-reported process activity and resume
+metadata. Set it with `instance-resume --context-id ID --agent-instance INSTANCE
+--resume-file resume.json`; MCP exposes `list_instances` and `set_instance_resume`.
+See [instance presence](docs/presence.md) for API signatures and heartbeat semantics.

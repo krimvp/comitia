@@ -58,6 +58,7 @@ test('inspector shows task status and links only a readable child context',async
     if(path.endsWith('/contexts/get'))return ok({context:contexts.find(c=>c.ID===body.context_id)});
     if(path.endsWith('/contexts/children'))return ok({contexts:contexts.filter(c=>c.ParentContextID===body.context_id)});
     if(path.endsWith('/participants/list'))return ok({participants:[{SessionID:'coord',Name:'Coordinator'}]});
+    if(path.endsWith('/instances/list'))return ok({instances:[]});
     if(path.endsWith('/tasks/list'))return ok({tasks:body.context_id==='epic'?[{ID:'t1',ContextID:'epic',Title:'Child contexts',Status:'leased'}]:[]});
     if(path.endsWith('/messages/replay'))return ok({messages:body.after?[]:messages[body.context_id]});
     throw new Error(`Unexpected endpoint ${path}`);

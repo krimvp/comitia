@@ -70,7 +70,7 @@ func (s *SQLiteStore) migrate(ctx context.Context) error {
 }
 
 var (
-	schemas    = []string{sessionSchema, contextSchema, grantSchema, messageSchema, taskSchema, contextTreeSchema, contextLifecycleSchema}
+	schemas    = []string{sessionSchema, contextSchema, grantSchema, messageSchema, taskSchema, presenceSchema, contextTreeSchema, contextLifecycleSchema}
 	createStmt = regexp.MustCompile(`(?is)^CREATE\s+(?:UNIQUE\s+)?(TABLE|INDEX|TRIGGER|VIEW)\s+IF\s+NOT\s+EXISTS\s+(\w+)`)
 	insertStmt = regexp.MustCompile(`(?is)^INSERT\s+(?:OR\s+IGNORE\s+)?INTO\s+(\w+)\s+(SELECT\s.*)$`)
 )

@@ -13,7 +13,7 @@ import (
 
 func TestInspectorAssetsAndReadOnlyShell(t *testing.T) {
 	h := NewHandler(fakeAPI{})
-	for _, path := range []string{"/ui/", "/ui/app.js", "/ui/model.mjs", "/ui/graph.mjs", "/ui/sequence.mjs", "/ui/tree.mjs", "/ui/style.css"} {
+	for _, path := range []string{"/ui/", "/ui/app.js", "/ui/model.mjs", "/ui/graph.mjs", "/ui/sequence.mjs", "/ui/tree.mjs", "/ui/presence.mjs", "/ui/style.css"} {
 		w := httptest.NewRecorder()
 		h.ServeHTTP(w, httptest.NewRequest(http.MethodGet, path, nil))
 		if w.Code != http.StatusOK || w.Body.Len() == 0 {

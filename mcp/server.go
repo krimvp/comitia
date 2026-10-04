@@ -364,6 +364,7 @@ var toolGroups = []struct {
 	{contextTools, (*Server).callContexts},
 	{grantTools, (*Server).callGrants},
 	{sessionTools, (*Server).callSessions},
+	{presenceTools, (*Server).callPresence},
 }
 
 func tools() []map[string]any {

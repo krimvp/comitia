@@ -51,7 +51,7 @@ func (c *Client) AppendMessage(x context.Context, t, id string, i comitia.Messag
 	return *o.Message, e
 }
 func (c *Client) ReplayMessages(x context.Context, t, id string, a int64, l int, filters ...comitia.MessageFilters) ([]comitia.Message, error) {
-	q, err := messageReadRequest(id, a, filters)
+	q, err := c.messageReadRequest(id, a, filters)
 	if err != nil {
 		return nil, err
 	}
@@ -86,18 +86,30 @@ func (c *Client) ListParticipants(ctx context.Context, token, cid string, limit 
 }
 
 func (q request) messageFilters() comitia.MessageFilters {
-	return comitia.MessageFilters{ForInstance: q.ForInstance, FromInstance: q.FromInstance, TaskID: q.TaskID, Schema: q.Schema}
+	f := comitia.MessageFilters{ForInstance: q.ForInstance, FromInstance: q.FromInstance, TaskID: q.TaskID, Schema: q.Schema}
+	if q.AgentInstance != "" {
+		f.AgentInstance = &q.AgentInstance
+	}
+	return f
 }
-func messageReadRequest(cid string, after int64, filters []comitia.MessageFilters) (request, error) {
+
+// A nil AgentInstance uses the client's default presence instance.
+func (c *Client) messageReadRequest(cid string, after int64, filters []comitia.MessageFilters) (request, error) {
 	if len(filters) > 1 {
 		return request{}, comitia.Invalidf("at most one filter set allowed")
 	}
 	q := request{ContextID: cid, After: after}
+	var instances []string
 	if len(filters) == 1 {
 		f := filters[0]
 		q.ForInstance, q.FromInstance, q.TaskID, q.Schema = f.ForInstance, f.FromInstance, f.TaskID, f.Schema
+		if f.AgentInstance != nil {
+			instances = []string{*f.AgentInstance}
+		}
 	}
-	return q, nil
+	var err error
+	q.AgentInstance, err = c.InstanceDefaults.ID(instances...)
+	return q, err
 }
 func (c *Client) WaitMessages(ctx context.Context, token, cid string, after int64, timeout time.Duration, filters ...comitia.MessageFilters) ([]comitia.Message, error) {
 	if timeout < 0 {
@@ -106,7 +118,7 @@ func (c *Client) WaitMessages(ctx context.Context, token, cid string, after int6
 	if timeout > comitia.MaxMessageWait {
 		timeout = comitia.MaxMessageWait
 	}
-	q, err := messageReadRequest(cid, after, filters)
+	q, err := c.messageReadRequest(cid, after, filters)
 	if err != nil {
 		return nil, err
 	}

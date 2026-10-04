@@ -58,6 +58,8 @@ type request struct {
 	FromInstance   string                           `json:"from_instance,omitempty"`
 	Schema         string                           `json:"schema,omitempty"`
 	TimeoutSeconds *float64                         `json:"timeout_seconds,omitempty"`
+	Instance       *comitia.AgentInstance           `json:"instance,omitempty"`
+	Resume         json.RawMessage                  `json:"resume,omitempty"`
 }
 
 type response struct {
@@ -77,6 +79,8 @@ type response struct {
 	Task         *comitia.Task         `json:"task,omitempty"`
 	Tasks        []comitia.Task        `json:"tasks,omitempty"`
 	Claim        *comitia.TaskClaim    `json:"claim,omitempty"`
+
+	Instances []comitia.InstancePresence `json:"instances,omitempty"`
 }
 
 type errorResponse struct {
@@ -92,6 +96,7 @@ var routeGroups = []func(*handler, context.Context, string, string, request, *re
 	(*handler).routeGrants,
 	(*handler).routeMessages,
 	(*handler).routeTasks,
+	(*handler).routePresence,
 }
 
 func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
