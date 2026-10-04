@@ -174,7 +174,10 @@ Filters and thread links cover loaded history, not an implicit global search.
 Replay loads up to 100 messages per refresh and keeps at most 5,000 per window;
 continue to the next window for longer conversations. Up to 200 matches render
 at once; use Earlier/Later matches or filters to browse other loaded messages. Task and active participant
-lists are bounded to 1,000; older or expired senders retain their session IDs even
+lists load 1,000 entries per page. Use Load more tasks or Load more participants
+to reach later entries (participants appear in the agent filter). Polling refreshes
+all loaded discovery pages; switching contexts resets their cursors. Older or
+expired senders retain their session IDs even
 when their display names cannot be resolved. Referenced tasks beyond the list
 can be fetched from message details.
 

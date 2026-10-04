@@ -25,6 +25,56 @@ let contexts = [], contextsAfter = '', contextsBusy = false;
 // and task titles seen in readable task lists.
 let children = new Map(), truncated = new Set(), taskTitles = new Map();
 const CHILD_PAGE = 1000, CHILD_LIMIT = 5000;
+let taskPages = 1, participantPages = 1, taskAfter = '', participantAfter = '', tasksMore = false, participantsMore = false;
+function resetDiscovery() {
+  taskPages = participantPages = 1; taskAfter = participantAfter = ''; tasksMore = participantsMore = false;
+  renderDiscoveryControls();
+}
+function renderDiscoveryControls() {
+  $('more-tasks').hidden = !tasksMore; $('more-participants').hidden = !participantsMore;
+  $('more-tasks').disabled = $('more-participants').disabled = busy;
+  $('participants-note').textContent = participantsMore ? `${participants.length} participants loaded. More available in the agent filter.` : '';
+}
+async function discoveryPage(kind, after = '') {
+  const result = await request(`${kind}/list`, {context_id:state.contextID, limit:1000, page:true, after_id:after});
+  const page = result[kind === 'tasks' ? 'task_page' : 'participant_page'] || { [kind]:result[kind] || [], has_more:false, next_after:after };
+  if (!Array.isArray(page[kind]) || (page.has_more && (!page.next_after || page.next_after === after))) throw new Error('Invalid discovery page.');
+  return page;
+}
+async function loadDiscovery(kind, pages, generation) {
+  let after = '', rows = [], page;
+  for (let i = 0; i < pages; i++) {
+    page = await discoveryPage(kind, after);
+    if (generation !== state.generation) return null;
+    rows.push(...page[kind]); after = page.next_after;
+    if (!page.has_more) break;
+  }
+  return {...page, [kind]:rows};
+}
+async function moreDiscovery(kind) {
+  if (busy || !state.contextID || !(kind === 'tasks' ? tasksMore : participantsMore)) return;
+  const generation = state.generation;
+  busy = true; clearTimeout(timer); renderDiscoveryControls();
+  try {
+    const page = await discoveryPage(kind, kind === 'tasks' ? taskAfter : participantAfter);
+    if (generation !== state.generation) return;
+    if (kind === 'tasks') {
+      tasks = [...new Map([...tasks, ...page.tasks].map(t => [t.ID,t])).values()];
+      taskPages++; taskAfter = page.next_after; tasksMore = page.has_more;
+      for (const task of tasks) taskTitles.set(task.ID,task.Title);
+    } else {
+      participants = [...new Map([...participants, ...page.participants].map(p => [p.SessionID,p])).values()];
+      participantPages++; participantAfter = page.next_after; participantsMore = page.has_more;
+    }
+    refreshFilters(); renderTasks(); renderMessages(); renderDetails(); renderBoard();
+  } catch (error) { fail(error,generation); }
+  finally {
+    if (generation === state.generation) {
+      busy = false; renderDiscoveryControls();
+      if (!paused && token) timer = setTimeout(() => sync(generation),3000);
+    }
+  }
+}
 let participants = [], tasks = [], instances = [], selected = '', thread = '', paused = false, busy = false, windowStart = 0, displayStart = null, route = null, connectionPage = 0;
 let instancesUnavailable = false;
 let detailReturn = null, detailScroll = 0;
@@ -94,7 +144,7 @@ function disconnect(message = '', forget = true) {
   if (forget) rememberCredential('');
   connection++; controller.abort(); controller = new AbortController(); clearTimeout(timer);
   token = ''; state.reset(); displayStart = null; contexts = []; contextsAfter = ''; contextsBusy = false; children = new Map(); truncated = new Set(); taskTitles = new Map();
-  participants = []; tasks = []; instances = []; instancesUnavailable = false; selected = ''; thread = ''; route = null; connectionPage = 0; busy = false;
+  participants = []; tasks = []; resetDiscovery(); instances = []; instancesUnavailable = false; selected = ''; thread = ''; route = null; connectionPage = 0; busy = false;
   $('credential').value = ''; $('connect-error').textContent = message;
   $('connect-panel').hidden = false; $('workspace').hidden = true; $('disconnect').hidden = true;
   for (const id of ['messages', 'contexts', 'tasks', 'task-board', 'instances', 'details', 'interaction-map', 'connections', 'sequence-canvas', 'sequence-routes']) $(id).replaceChildren();
@@ -199,7 +249,7 @@ function clearContext() {
   closeDetails(false); $('selection-status').textContent = '';
   sequenceOptions = {}; sequenceFilterKey = '';
   controller.abort(); controller = new AbortController(); clearTimeout(timer); state.reset();
-  participants = []; tasks = []; instances = []; instancesUnavailable = false; selected = ''; thread = ''; route = null; connectionPage = 0; busy = false;
+  participants = []; tasks = []; resetDiscovery(); instances = []; instancesUnavailable = false; selected = ''; thread = ''; route = null; connectionPage = 0; busy = false;
   $('context-title').textContent = 'Choose a context'; $('context-meta').textContent = '';
   $('workspace-label').textContent = 'WORK CONTEXT'; $('sync-status').textContent = 'No context selected';
   $('load-more').hidden = true; $('next-window').hidden = true;
@@ -212,7 +262,7 @@ async function openContext(id, after = 0) {
   sequenceOptions = {}; sequenceFilterKey = '';
   controller.abort(); controller = new AbortController(); clearTimeout(timer);
   const generation = state.reset(id, after); windowStart = after; displayStart = null;
-  participants = []; tasks = []; instances = []; instancesUnavailable = false; selected = ''; thread = ''; route = null; connectionPage = 0; busy = false; paused = false;
+  participants = []; tasks = []; resetDiscovery(); instances = []; instancesUnavailable = false; selected = ''; thread = ''; route = null; connectionPage = 0; busy = false; paused = false;
   $('pause').textContent = 'Pause'; $('timeline-error').textContent = '';
   $('search').value = ''; for (const id of ['agent-filter','type-filter','task-filter']) $(id).value = '';
   $('context-title').textContent = readable().find(c => c.ID === id)?.Name || 'Loading context…';
@@ -229,19 +279,21 @@ async function openContext(id, after = 0) {
 }
 async function sync(generation = state.generation) {
   if (!token || !state.contextID || busy || generation !== state.generation) return;
-  busy = true; $('load-more').disabled = true; clearTimeout(timer);
+  busy = true; $('load-more').disabled = true; renderDiscoveryControls(); clearTimeout(timer);
   const cid = state.contextID;
   try {
     const room = WINDOW_LIMIT - state.messages.length;
     const [messageResult, participantResult, taskResult, instanceResult] = await Promise.all([
       room > 0 ? request('messages/replay', {context_id:cid, after:state.after, limit:Math.min(PAGE_SIZE,room)}) : Promise.resolve({messages:[]}),
-      request('participants/list', {context_id:cid, limit:1000}),
-      request('tasks/list', {context_id:cid, limit:1000}),
+      loadDiscovery('participants',participantPages,generation),
+      loadDiscovery('tasks',taskPages,generation),
       loadInstances(cid)
     ]);
     if (generation !== state.generation) return;
     const incoming = messageResult.messages || [];
     state.append(generation, incoming);
+    participantAfter = participantResult.next_after; participantsMore = participantResult.has_more;
+    taskAfter = taskResult.next_after; tasksMore = taskResult.has_more;
     participants = participantResult.participants || []; tasks = taskResult.tasks || []; instances = instanceResult.instances; instancesUnavailable = instanceResult.unavailable;
     if (!Array.isArray(participants) || !Array.isArray(tasks)) throw new Error('Invalid metadata response.');
     for (const task of tasks) taskTitles.set(task.ID, task.Title);
@@ -255,7 +307,7 @@ async function sync(generation = state.generation) {
   } catch(error) { fail(error, generation); }
   finally {
     if (generation === state.generation) {
-      busy = false; $('load-more').disabled = false;
+      busy = false; $('load-more').disabled = false; renderDiscoveryControls();
       if (!paused && token) timer = setTimeout(() => sync(generation), 3000);
     }
   }
@@ -319,8 +371,9 @@ function selectRoute(from,to) {
 }
 
 function renderTasks() {
+  renderDiscoveryControls();
   $('task-count').textContent = tasks.length;
-  $('tasks-note').textContent = !tasks.length ? 'No tasks in this context.' : tasks.length === 1000 ? 'First 1,000 tasks. Other referenced tasks can be opened from messages.' : '';
+  $('tasks-note').textContent = !tasks.length ? 'No tasks in this context.' : tasksMore ? `${tasks.length} tasks loaded. More available.` : '';
   renderChildren($('tasks'), ...tasks.map(task => {
     const item = button('', () => { $('task-filter').value = task.ID; displayStart = null; renderTasks(); renderMessages(); }, `task-item${$('task-filter').value === task.ID ? ' active' : ''}`);
     item.dataset.key = task.ID;
@@ -493,6 +546,8 @@ $('connect-form').addEventListener('submit', event => {
 });
 $('disconnect').addEventListener('click',()=>disconnect());
 $('refresh-contexts').addEventListener('click',()=>loadContexts(true));
+$('more-tasks').addEventListener('click',()=>moreDiscovery('tasks'));
+$('more-participants').addEventListener('click',()=>moreDiscovery('participants'));
 $('more-contexts').addEventListener('click',()=>loadContexts());
 $('pause').addEventListener('click',()=>{paused=!paused;$('pause').textContent=paused?'Resume':'Pause';$('sync-status').textContent=paused?'Paused':'Updating';if(paused)clearTimeout(timer);else sync();});
 $('load-more').addEventListener('click',()=>sync());

@@ -45,6 +45,8 @@ func runTasks(ctx context.Context, cfg config, api comitia.API, out *json.Encode
 		return out.Encode(v)
 	case "task-list":
 		fs := newFlags(cmd)
+		page := fs.Bool("page", false, "return items, next_after and has_more")
+		after := fs.String("after-id", "", "exclusive cursor from next_after (implies --page)")
 		cid := fs.String("context-id", "", "context ID")
 		status := fs.String("status", "", "task status (pending, leased, completed)")
 		limit := fs.Int("limit", 100, "maximum tasks (1-1000)")
@@ -63,6 +65,13 @@ func runTasks(ctx context.Context, cfg config, api comitia.API, out *json.Encode
 		st, e := parseTaskStatus(*status)
 		if e != nil {
 			return e
+		}
+		if *page || *after != "" {
+			v, e := api.ListTasksPage(ctx, needCredential(cfg), *cid, st, *after, *limit)
+			if e != nil {
+				return e
+			}
+			return out.Encode(v)
 		}
 		v, e := api.ListTasks(ctx, needCredential(cfg), *cid, st, *limit)
 		if e != nil {

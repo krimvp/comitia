@@ -234,7 +234,10 @@ func (x *sqlStore) AckCursor(sid, cid, instance string) (int64, error) {
 }
 
 func (x *sqlStore) Participants(cid string, now time.Time, limit int) ([]Participant, error) {
-	rows, err := x.q.Query("SELECT DISTINCT session_id FROM grants WHERE context_id=? ORDER BY session_id", cid)
+	return x.ParticipantsAfter(cid, now, "", limit)
+}
+func (x *sqlStore) ParticipantsAfter(cid string, now time.Time, afterID string, limit int) ([]Participant, error) {
+	rows, err := x.q.Query("SELECT DISTINCT session_id FROM grants WHERE context_id=? AND session_id>? ORDER BY session_id", cid, afterID)
 	if err != nil {
 		return nil, err
 	}

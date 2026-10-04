@@ -25,7 +25,16 @@ Unnegotiated `/v1/` responses retain legacy record names; see the
 [wire compatibility policy](local-daemon.md). The list includes only currently active sessions with an
 effective read grant in that context. Grant expiry/revocation can subsequently
 remove access; discovery is not a reservation. Results are bounded, ordered by
-session ID, and are not a complete directory beyond the requested limit.
+session ID. Use `participants --page` or MCP `page:true` for
+`{participants,next_after,has_more}`, then pass `next_after` as `--after-id`
+or `after_id` until `has_more` is false. The cursor is the last returned session
+ID and is exclusive; a nonempty cursor implies page output. Library callers
+use `ListParticipantsPage`; HTTP accepts `page` and `after_id` on the same route
+and returns `participant_page`. Legacy calls still return arrays. Each page
+rechecks current session and effective-grant eligibility, so expired or revoked
+candidates cannot truncate a page while later readable sessions remain.
+Custom stores implement `ParticipantsAfter(contextID,now,sessionID,limit)`
+with the same effective-grant/session filtering and an exclusive ID bound.
 
 Address `recipient_session_ids`, never display names. Two agents called
 `reviewer` in the same task have distinct session IDs. A session may work on

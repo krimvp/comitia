@@ -174,3 +174,67 @@ test('inspector renders messages when presence is unavailable and recovers indep
     await elements.get('disconnect').fire('click');
   } finally {Object.assign(globalThis,saved);}
 });
+
+test('inspector pages task and participant tails and retains them on refresh',async()=>{
+  const html=await readFile(new URL('../ui/index.html',import.meta.url),'utf8');
+  const elements=new Map([...html.matchAll(/id="([^"]+)"/g)].map(m=>[m[1],new Element()]));
+  const saved={document:globalThis.document,window:globalThis.window,location:globalThis.location,Option:globalThis.Option,fetch:globalThis.fetch,setTimeout:globalThis.setTimeout,clearTimeout:globalThis.clearTimeout,sessionStorage:globalThis.sessionStorage};
+  const calls=[],timers=new Map();let timer=0,delayTail=false,resolveTail;
+  Object.assign(globalThis,{
+    document:{getElementById:id=>elements.get(id),createElement:tag=>new Element(tag),createElementNS:(_ns,tag)=>new Element(tag)},
+    window:new Element(),location:{href:'http://localhost:8080/ui/'},
+    Option:class extends Element {constructor(label,value){super('option');this.textContent=label;this.value=value;}},
+    sessionStorage:{getItem:()=>null,setItem(){},removeItem(){}},
+    setTimeout:(fn,delay)=>{timers.set(++timer,{fn,delay});return timer;},clearTimeout:id=>timers.delete(id)
+  });
+  const contexts=[{ID:'a',Name:'A',WorkspaceID:'w'},{ID:'b',Name:'B',WorkspaceID:'w'}];
+  globalThis.fetch=async(url,options)=>{
+    const path=new URL(url).pathname,body=JSON.parse(options.body);calls.push({path,body});
+    const ok=data=>({ok:true,status:200,json:async()=>data});
+    if(path.endsWith('/contexts/list'))return ok({contexts});
+    if(path.endsWith('/contexts/get'))return ok({context:contexts.find(c=>c.ID===body.context_id)});
+    if(path.endsWith('/contexts/children'))return ok({contexts:[]});
+    if(path.endsWith('/messages/replay'))return ok({messages:[]});
+    if(path.endsWith('/instances/list'))return ok({instances:[]});
+    if(path.endsWith('/tasks/list')){
+      assert.equal(body.page,true);
+      if(body.context_id==='b')return ok({task_page:{tasks:[],next_after:'',has_more:false}});
+      if(body.after_id){
+        const result=ok({task_page:{tasks:[{ID:'tail-task',Title:'Tail task',ContextID:'a',Status:'pending'}],next_after:'tail-end',has_more:false}});
+        if(delayTail)return new Promise(resolve=>{resolveTail=()=>resolve(result);});
+        return result;
+      }
+      return ok({task_page:{tasks:Array.from({length:1000},(_,i)=>({ID:`t${i}`,Title:`Task ${i}`,ContextID:'a',Status:'pending'})),next_after:'task-cursor',has_more:true}});
+    }
+    if(path.endsWith('/participants/list')){
+      assert.equal(body.page,true);
+      if(body.context_id==='b')return ok({participant_page:{participants:[],next_after:'',has_more:false}});
+      return body.after_id?ok({participant_page:{participants:[{SessionID:'tail-session',Name:'Tail participant'}],next_after:'tail-session',has_more:false}}):ok({participant_page:{participants:Array.from({length:1000},(_,i)=>({SessionID:`s${i}`,Name:`Participant ${i}`})),next_after:'s999',has_more:true}});
+    }
+    throw new Error(path);
+  };
+  try {
+    await import(`../ui/app.js?discovery-test=${Date.now()}`);
+    elements.get('credential').value='observer';await elements.get('connect-form').fire('submit');
+    assert.ok(elements.get('more-tasks'),'task continuation control missing');
+    assert.ok(elements.get('more-participants'),'participant continuation control missing');
+    assert.equal(elements.get('more-tasks').hidden,false);assert.equal(elements.get('more-participants').hidden,false);
+    await elements.get('more-tasks').fire('click');await elements.get('more-participants').fire('click');
+    assert.equal(Number(elements.get('task-count').textContent),1001);
+    assert.match(text(elements.get('tasks')),/Tail task/);
+    assert.ok(elements.get('agent-filter').children.some(c=>c.value==='tail-session'));
+    assert.equal(elements.get('more-tasks').hidden,true);assert.equal(elements.get('more-participants').hidden,true);
+    assert.ok(calls.some(c=>c.path.endsWith('/tasks/list')&&c.body.after_id==='task-cursor'));
+    assert.ok(calls.some(c=>c.path.endsWith('/participants/list')&&c.body.after_id==='s999'));
+    await elements.get('load-more').fire('click');
+    assert.equal(Number(elements.get('task-count').textContent),1001);
+    assert.ok(elements.get('agent-filter').children.some(c=>c.value==='tail-session'));
+    // A context reset discards both cursors and rejects an old continuation.
+    await elements.get('contexts').children[0].fire('click');await settle();
+    delayTail=true;const pending=elements.get('more-tasks').fire('click');await settle();
+    await elements.get('contexts').children[1].fire('click');await settle();
+    resolveTail();await pending;await settle();
+    assert.equal(elements.get('context-title').textContent,'B');assert.equal(Number(elements.get('task-count').textContent),0);
+    assert.equal(elements.get('more-tasks').hidden,true);assert.equal(elements.get('more-participants').hidden,true);
+  } finally {Object.assign(globalThis,saved);}
+});
