@@ -284,6 +284,18 @@ For one batch, use `comitia wait --context-id CONTEXT_ID --after N
 --timeout-seconds 30 --for-instance my-worker` (all on one command line), or
 `comitia replay` with the same filters and `--limit`. Replay filtering happens
 before the page limit; advance `after` to the last returned sequence.
+Both reads also apply a 1 MiB encoded messages-array budget; set `--max-bytes`
+(up to 4194304, zero uses the default) to adjust it. One message can exceed the
+soft budget and is returned intact. `replay --page` and `wait --page` return
+`{messages, next_after, has_more}`; pass `next_after` as the next `--after`
+with the same filters. `has_more` is advisory; new messages can arrive later.
+Process each page before acknowledging. Watch accepts `--max-bytes` and
+continues automatically.
+
+In MCP, use `max_bytes` and `page: true` for the same behaviour. Add
+`compact: true` to replay/wait to receive a short text summary with the full
+result in `structuredContent.result`; default text still contains the full
+result. Confirm these fields appear in your loaded tool schema first.
 
 See [Message protocol](message-protocol.md#filtered-replay-and-waiting) for the
 wire fields, Go API, broadcast semantics, and acknowledgement/restart details.

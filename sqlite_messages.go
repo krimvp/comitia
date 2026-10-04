@@ -116,12 +116,26 @@ func (x *sqlStore) Messages(cid, callerSessionID string, after int64, limit int,
 	}
 	defer rows.Close()
 	var out []Message
+	budget := messageByteBudget(f.MaxBytes)
+	used := 2 // Array brackets.
 	for rows.Next() {
 		m, e := scanMessage(rows)
 		if e != nil {
 			return nil, e
 		}
+		raw, e := json.Marshal(m)
+		if e != nil {
+			return nil, e
+		}
+		n := len(raw)
+		if len(out) > 0 {
+			n++ // Comma.
+			if used+n > budget {
+				break
+			}
+		}
 		out = append(out, m)
+		used += n
 	}
 	return out, rows.Err()
 }

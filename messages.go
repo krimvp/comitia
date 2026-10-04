@@ -44,6 +44,8 @@ type MessageEnvelope struct {
 // MessageFilters narrow replay within the same context read permission.
 // Nonempty fields are combined with AND; routing metadata is self-reported.
 type MessageFilters struct {
+	// MaxBytes bounds the encoded messages array; zero uses DefaultMessageBytes.
+	MaxBytes     int    `json:"max_bytes,omitempty"`
 	ForInstance  string `json:"for_instance,omitempty"`
 	FromInstance string `json:"from_instance,omitempty"`
 	TaskID       string `json:"task_id,omitempty"`

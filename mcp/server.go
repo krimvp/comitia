@@ -341,9 +341,20 @@ func (s *Server) handle(ctx context.Context, req request) response {
 			r.Result = map[string]any{"content": []any{map[string]any{"type": "text", "text": info.String()}}, "structuredContent": map[string]any{"error": info}, "isError": true}
 			return r
 		}
+		var summary string
+		if compact, ok := v.(compactResult); ok {
+			v, summary = compact.value, compact.text
+		}
 		wrapped := map[string]any{"result": v}
-		b, _ := json.Marshal(wrapped)
-		r.Result = map[string]any{"content": []any{map[string]any{"type": "text", "text": string(b)}}, "structuredContent": wrapped, "isError": false}
+		b, err := json.Marshal(wrapped)
+		if err != nil {
+			r.Error = &rpcError{-32603, "internal error"}
+			return r
+		}
+		if summary == "" {
+			summary = string(b)
+		}
+		r.Result = map[string]any{"content": []any{map[string]any{"type": "text", "text": summary}}, "structuredContent": wrapped, "isError": false}
 	default:
 		r.Error = &rpcError{-32601, "method not found"}
 	}

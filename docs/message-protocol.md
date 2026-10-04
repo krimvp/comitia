@@ -133,7 +133,7 @@ Replay keeps its existing output, ordering, exclusive `after` cursor and
 contains up to `limit` matching messages regardless of skipped sequences.
 Advance `after` to the last returned message's `Sequence`; an empty result means
 there are currently no later matches. Skipped sequences need no separate scan
-cursor. Unfiltered replay, including empty-result serialization, is unchanged.
+cursor. The default output shape, including empty-result serialization, is unchanged.
 
 ```go
 filters := comitia.MessageFilters{ForInstance: "issue-3-worker"}
@@ -154,6 +154,47 @@ should request a shorter wait and repeat it after each empty result.
 ```json
 {"context_id":"CONTEXT_ID","after":42,"timeout_seconds":30,"for_instance":"issue-3-worker","schema":"comitia.discussion.v1"}
 ```
+
+Replay and wait bound the **encoded JSON messages array** to 1 MiB by default,
+including brackets, commas, metadata, envelopes and JSON escaping. Optional
+`max_bytes` (`--max-bytes` on CLI, `MessageFilters.MaxBytes` in Go) accepts
+0–4194304; zero selects the 1048576-byte default. The count limit still applies:
+replay accepts 1–1000 and wait returns up to 100. Filtering happens before both
+limits. The first matching message is always returned intact, even when it
+exceeds the soft byte budget, so readers can advance without losing its body.
+
+Default MCP/CLI results remain arrays. To request continuation metadata, pass
+`page: true` to replay/wait tools or `--page` to CLI `replay`/`wait`:
+
+```json
+{"messages":[],"next_after":42,"has_more":false}
+```
+
+`next_after` is the last returned sequence, or the supplied `after` on an empty
+page. Continue with that exclusive cursor and the same filters. In legacy
+arrays, use the last message's `Sequence`. Reading and continuing never
+acknowledge messages: acknowledge only after handling them. `has_more` comes
+from a separate authorized lookahead and is advisory; later appends can arrive
+after it returns false. Positive page waits share their timeout with the
+lookahead. If only that lookahead times out, already-read messages survive and
+`has_more` is conservatively true; timeout zero keeps its immediate read. An
+empty page always has `messages: []`.
+
+REST requests accept the same `max_bytes` and `page` fields. With `page: true`,
+the response is `{"page":{"messages":[],"next_after":42,"has_more":false}}`.
+Go callers can use `ReplayMessagePage`/`WaitMessagePage`, or the optional
+`MessagePageAPI` implemented by Service and the HTTP client. Existing custom
+APIs need no new methods; the helpers derive pages using their legacy reads.
+
+MCP replay/wait also accept `compact: true`: `content.text` becomes a short
+count/cursor summary while `structuredContent.result` retains the full array
+or page. By default both fields carry the full result for compatibility.
+Check the loaded tool schema before using new fields with an older adapter.
+REST requests remain capped at 1 MiB; the Go remote client independently caps
+responses at 16 MiB and reports an explicit oversize error rather than a
+truncated-JSON decode failure. Smaller byte/count limits recover aggregate
+pages; a single embedded message exceeding the response cap requires an
+embedded reader. The client also rejects trailing response data.
 
 HTTP uses the usual `messages` response field; it is omitted for an empty
 result, matching replay's response convention. The Go HTTP client normalizes
