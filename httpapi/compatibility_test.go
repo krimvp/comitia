@@ -181,6 +181,28 @@ func TestV1UpgradeOrderCompatibility(t *testing.T) {
 						t.Fatalf("participant continuation: %+v %v", more, err)
 					}
 				}
+				// Schema discovery and strict recipients need a new Handler. Against an
+				// old one, a new Client fails clearly and never widens a strict read.
+				if newClient {
+					discovery := client.(comitia.MessageSchemaAPI)
+					schemas, err := discovery.ListMessageSchemas(ctx, owner.Token)
+					_, getErr := discovery.GetMessageSchema(ctx, owner.Token, "comitia.discussion.v1")
+					strict, strictErr := client.ReplayMessages(ctx, owner.Token, parent.ID, 0, 100, comitia.MessageFilters{ForInstance: "reviewer", StrictRecipients: true})
+					if newServer {
+						if err != nil || len(schemas) == 0 || getErr != nil || strictErr != nil {
+							t.Fatalf("schemas/strict: %d %v %v %v", len(schemas), err, getErr, strictErr)
+						}
+					} else {
+						for _, err := range []error{err, getErr, strictErr} {
+							if !errors.Is(err, comitia.ErrInvalid) || !strings.Contains(err.Error(), "unsupported by this server") {
+								t.Fatalf("old handler capability error: %v", err)
+							}
+						}
+						if strict != nil {
+							t.Fatalf("strict read widened: %v", strict)
+						}
+					}
+				}
 				_, helper, grants, err := client.DelegateSession(ctx, owner.Token, comitia.DelegateInput{PrincipalName: "helper", TTL: 2 * time.Hour, Grants: []comitia.DelegatedGrant{{ContextID: parent.ID, Permissions: comitia.PermissionRead, ExpiresAt: now.Add(time.Hour)}, {ContextID: child.ID, Permissions: comitia.PermissionRead, ExpiresAt: now.Add(30 * time.Minute)}}})
 				if err != nil || len(grants) != 2 || helper.Token == "" || helper.Session.ParentID != owner.Session.ID || !helper.Session.ExpiresAt.Equal(now.Add(2*time.Hour)) {
 					t.Fatalf("delegate metadata lost: %+v %v", helper.Session, err)

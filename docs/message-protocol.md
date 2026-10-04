@@ -147,6 +147,10 @@ If instance recipients are present, the exact instance match takes precedence;
 a consumer targeting one session can set `strict_recipients: true` (CLI
 `--strict-recipients`) to apply both lists. A strict replay is still a convenience
 selector over the context log; another authorized reader can replay without it.
+The HTTP Client sends `strict_recipients` only when it is set, so ordinary reads
+still work against older servers. A strict read against a server that rejects
+the member returns `ErrInvalid` ("strict_recipients unsupported by this
+server"); the Client never retries without it, because that would widen results.
 
 Replay keeps its existing output, ordering, exclusive `after` cursor and
 1–1000 `limit`. Filtering happens **in SQL before ORDER BY/LIMIT**, so a page
@@ -365,6 +369,10 @@ and `GetMessageSchema`. Both require a valid session, independent of context
 grants; descriptors contain contracts and illustrative IDs, never context data.
 Unknown IDs return `ErrNotFound`; adapters whose API lacks the optional
 capability return an explicit unsupported error. List order is lexicographic.
+Descriptor fields use the same snake_case names in legacy and canonical HTTP
+responses. Against a server without these routes, the HTTP Client returns
+`ErrInvalid` ("message schema discovery unsupported by this server") instead of
+`ErrNotFound`, so a missing route is never mistaken for an unknown schema.
 
 Each descriptor includes `id`, a draft 2020-12 `payload_schema` for built-ins,
 `body_required`, `task_required`, `task_or_artifact_refs`, semantic
