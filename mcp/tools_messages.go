@@ -23,7 +23,7 @@ func messageTools() []map[string]any {
 func messageReadProperties(wait bool) map[string]any {
 	p := map[string]any{"context_id": str("Context ID"), "after": integer("Exclusive sequence cursor"), "for_instance": str("Recipient instance, caller session with no instance recipients, or broadcast"), "from_instance": str("Self-reported sender instance"), "task_id": str("Envelope task ID"), "schema": str("Exact envelope schema ID"), "agent_instance": str("Optional self-reported instance ID for presence; defaults to COMITIA_AGENT_INSTANCE")}
 	p["max_bytes"] = integer("Encoded messages-array byte budget (default 1048576, max 4194304); first message always returned intact")
-	p["page"] = map[string]any{"type": "boolean", "description": "Return messages, next_after and has_more instead of the legacy array"}
+	p["page"] = map[string]any{"type": "boolean", "description": "Return messages, next_after, scanned_through and has_more instead of the legacy array"}
 	p["compact"] = map[string]any{"type": "boolean", "description": "Short text summary; full result remains in structuredContent"}
 	if wait {
 		p["timeout_seconds"] = map[string]any{"type": "number", "description": "Timeout seconds (default 30, capped at 60; zero reads immediately)"}

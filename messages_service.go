@@ -63,40 +63,10 @@ func (s *Service) AppendMessage(ctx context.Context, raw, cid string, in Message
 	return m, e
 }
 func (s *Service) ReplayMessages(ctx context.Context, raw, cid string, after int64, limit int, filters ...MessageFilters) ([]Message, error) {
-	f, err := messageFilters(filters)
-	if err != nil {
-		return nil, err
-	}
-	instance := f.agentInstance()
-	var sid string
-	var heartbeat bool
-	var out []Message
-	if after < 0 {
-		return nil, Invalidf("after must be nonnegative")
-	}
-	if limit < 1 || limit > 1000 {
-		return nil, Invalidf("limit must be between 1 and 1000")
-	}
-	e := s.store.View(ctx, func(r ReadStore) error {
-		a, _, e := s.require(r, raw, cid, PermissionRead)
-		if e != nil {
-			return e
-		}
-		sid = a.session.ID
-		out, e = r.Messages(cid, a.session.ID, after, limit, f)
-		if e == nil {
-			heartbeat = s.instanceHeartbeatDue(r, sid, cid, instance)
-		}
-		return e
-	})
-	if e == nil && heartbeat {
-		s.touchInstance(ctx, sid, cid, &AgentInstance{ID: instance})
-	}
-	if e == nil {
-		out, e = boundMessages(out, f.MaxBytes)
-	}
-	return out, e
+	messages, _, err := s.scanMessages(ctx, raw, cid, after, limit, filters)
+	return messages, err
 }
+
 func (s *Service) AckMessages(ctx context.Context, raw, cid string, seq int64, instances ...string) error {
 	instance, err := cursorInstance(instances)
 	if err != nil {
