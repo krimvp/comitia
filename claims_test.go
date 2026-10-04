@@ -167,3 +167,46 @@ func TestReleaseTask(t *testing.T) {
 		t.Fatalf("release completed: %v", err)
 	}
 }
+
+func TestDeadHolderLeaseCanBeReclaimed(t *testing.T) {
+	f := setup(t, ":memory:")
+	defer f.store.Close()
+	ctx := context.Background()
+	worker := claimWorker(t, f, f.context.ID)
+	peer := claimWorker(t, f, f.context.ID)
+	task, err := f.svc.CreateTask(ctx, f.admin.Token, f.context.ID, TaskInput{Title: "orphan"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	held, err := f.svc.ClaimTask(ctx, worker.Token, task.ID, OpenLease, AgentInstance{ID: "worker-1"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err = f.svc.ClaimTask(ctx, peer.Token, task.ID, time.Minute); !errors.Is(err, ErrConflict) {
+		t.Fatalf("live holder: %v", err)
+	}
+	if err = f.svc.RevokeSession(ctx, f.admin.Token, worker.Session.ID); err != nil {
+		t.Fatal(err)
+	}
+	took, err := f.svc.ClaimTask(ctx, peer.Token, task.ID, time.Minute)
+	if err != nil || took.Task.LeaseOwnerSessionID != peer.Session.ID || took.Task.LeaseVersion != held.Task.LeaseVersion+1 || took.Task.LeaseOwnerInstance != nil {
+		t.Fatalf("revoked holder: %+v %v", took.Task, err)
+	}
+
+	// A holder that lost its claim grant is equally unable to finish.
+	other, err := f.svc.CreateTask(ctx, f.admin.Token, f.context.ID, TaskInput{Title: "ungranted"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, reader, _, err := f.svc.DelegateSession(ctx, f.admin.Token, DelegateInput{PrincipalName: "short", TTL: time.Hour, Grants: []DelegatedGrant{{ContextID: f.context.ID, Permissions: PermissionRead | PermissionClaim, ExpiresAt: f.now.Add(10 * time.Minute)}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err = f.svc.ClaimTask(ctx, reader.Token, other.ID, OpenLease); err != nil {
+		t.Fatal(err)
+	}
+	*f.now = f.now.Add(20 * time.Minute)
+	if took, err = f.svc.ClaimTask(ctx, peer.Token, other.ID, time.Minute); err != nil || took.Task.LeaseOwnerSessionID != peer.Session.ID {
+		t.Fatalf("holder without grant: %+v %v", took.Task, err)
+	}
+}

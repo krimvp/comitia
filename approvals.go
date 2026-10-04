@@ -50,30 +50,62 @@ func validApproval(raw json.RawMessage) error {
 	return nil
 }
 
-// exactArtifactRef accepts "scheme:value" without whitespace. The git and pr
-// schemes must pin a commit (git:<sha>, pr:owner/repo#41@<sha>) so an approval
-// never silently carries over to later pushes.
+// exactArtifactRef accepts "scheme:value" with a lowercase scheme and no
+// whitespace. The git and pr schemes must pin a full commit (git:<sha>,
+// pr:owner/repo#41@<sha>) so an approval never silently carries over to later
+// pushes or matches an abbreviated prefix.
 func exactArtifactRef(ref string) bool {
 	scheme, value, ok := strings.Cut(ref, ":")
-	if !ok || scheme == "" || value == "" || len(ref) > 512 || strings.IndexFunc(ref, func(c rune) bool { return unicode.IsSpace(c) || unicode.IsControl(c) }) >= 0 {
+	if !ok || !lowerScheme(scheme) || value == "" || len(ref) > 512 || strings.IndexFunc(ref, func(c rune) bool { return unicode.IsSpace(c) || unicode.IsControl(c) }) >= 0 {
 		return false
 	}
 	switch scheme {
 	case "git":
-		return commitSHA(value)
+		return fullCommitSHA(value)
 	case "pr":
-		at := strings.LastIndexByte(value, '@')
-		return at > 0 && commitSHA(value[at+1:])
+		return pullRequestRef(value)
 	}
 	return true
 }
 
-func commitSHA(s string) bool {
-	if len(s) < 7 || len(s) > 64 {
+func lowerScheme(s string) bool {
+	if s == "" || s[0] < 'a' || s[0] > 'z' {
 		return false
 	}
 	for _, c := range s {
-		if !(c >= '0' && c <= '9' || c >= 'a' && c <= 'f' || c >= 'A' && c <= 'F') {
+		if !(c >= 'a' && c <= 'z' || c >= '0' && c <= '9' || c == '+' || c == '-' || c == '.') {
+			return false
+		}
+	}
+	return true
+}
+
+// pullRequestRef parses exactly <owner>/<repo>#<positive int>@<sha>.
+func pullRequestRef(v string) bool {
+	if strings.Count(v, "#") != 1 || strings.Count(v, "@") != 1 {
+		return false
+	}
+	repo, rest, _ := strings.Cut(v, "#")
+	number, sha, ok := strings.Cut(rest, "@")
+	owner, name, slash := strings.Cut(repo, "/")
+	if !ok || !slash || owner == "" || name == "" || strings.Contains(name, "/") || number == "" || number[0] == '0' {
+		return false
+	}
+	for _, c := range number {
+		if c < '0' || c > '9' {
+			return false
+		}
+	}
+	return fullCommitSHA(sha)
+}
+
+// Full SHA-1 or SHA-256 object names only; abbreviations are not exact.
+func fullCommitSHA(s string) bool {
+	if len(s) != 40 && len(s) != 64 {
+		return false
+	}
+	for _, c := range s {
+		if !(c >= '0' && c <= '9' || c >= 'a' && c <= 'f') {
 			return false
 		}
 	}

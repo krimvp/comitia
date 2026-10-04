@@ -184,7 +184,11 @@ direct client would need an OAuth 2.1 authorization server (option C in
 - **CLI `task-claim` uses `--lease 10m`** (a Go duration), not seconds. Add
   `--agent-instance ID` to record which process holds the claim, and
   `--open-ended` for a lease that lasts until `task-release`/`task-complete`
-  (capped at the session's expiry).
+  (capped at the session's expiry). Any claim-capable client can use
+  `--open-ended`/`open_ended`, so it can hold a lease up to its session's
+  expiry; a context admin frees a silent worker's task with
+  `task-release --task-id T --lease-version N` (no token). Revoking the
+  worker's session, or its claim grant, also frees the task for the next claim.
 - **Claim response wraps the task:** `{"Task": {...}, "Token": "..."}`.
 - **HTTP ack field is `after`**; the CLI/MCP name is `sequence`. `message_cursor`
   returns `{"sequence": N}`, not a bare number.

@@ -220,10 +220,21 @@ func (s *Service) normalizeEnvelope(in *MessageEnvelope, body string) (*MessageE
 		if out.TaskID == "" {
 			return nil, fmt.Errorf("%w: task_id required", ErrInvalid)
 		}
-	case "comitia.verification-result.v1":
-		// Exact artifact refs identify the work as well as a task does.
-		if out.TaskID == "" && payload["artifact_refs"] == nil {
+	case "comitia.work-submitted.v1", "comitia.verification-result.v1":
+		// Without a task, exact artifact refs must identify the work instead.
+		if out.TaskID != "" {
+			break
+		}
+		var p struct {
+			ArtifactRefs []string `json:"artifact_refs"`
+		}
+		if json.Unmarshal(out.Payload, &p) != nil || len(p.ArtifactRefs) == 0 {
 			return nil, fmt.Errorf("%w: task_id or artifact_refs required", ErrInvalid)
+		}
+		for _, ref := range p.ArtifactRefs {
+			if !exactArtifactRef(ref) {
+				return nil, fmt.Errorf("%w: artifact_refs must be exact without task_id", ErrInvalid)
+			}
 		}
 	}
 	if out.Schema == TaskStatusSchema && out.TaskID == "" {

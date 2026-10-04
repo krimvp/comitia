@@ -3,6 +3,7 @@ package comitia
 import (
 	"context"
 	"crypto/subtle"
+	"errors"
 	"math"
 	"time"
 )
@@ -133,7 +134,13 @@ func (s *Service) ClaimTask(ctx context.Context, raw, taskID string, lease time.
 			return ErrConflict
 		}
 		if t.LeaseExpiresAt != nil && t.LeaseExpiresAt.After(now) {
-			return ErrConflict
+			live, e := s.holderCanClaim(w, t, now)
+			if e != nil {
+				return e
+			}
+			if live {
+				return ErrConflict
+			}
 		}
 		t.Status = TaskLeased
 		t.LeaseOwnerSessionID = a.session.ID
@@ -192,6 +199,31 @@ func (s *Service) changeLease(ctx context.Context, raw, taskID, claimToken strin
 		return w.PutTask(t)
 	})
 	return c, e
+}
+
+// A lease whose holder session was revoked, expired or lost claim on the
+// context can never be renewed or completed, so it counts as expired.
+func (s *Service) holderCanClaim(r ReadStore, t Task, now time.Time) (bool, error) {
+	holder, e := r.Session(t.LeaseOwnerSessionID)
+	if errors.Is(e, ErrNotFound) {
+		return false, nil
+	}
+	if e != nil {
+		return false, e
+	}
+	if holder.RevokedAt != nil || !holder.ExpiresAt.After(now) {
+		return false, nil
+	}
+	grants, e := r.Grants(holder.ID, t.ContextID, now)
+	if e != nil {
+		return false, e
+	}
+	for _, g := range grants {
+		if g.Permissions&PermissionClaim != 0 {
+			return true, nil
+		}
+	}
+	return false, nil
 }
 
 // Leases never outlive the session that holds them, which also bounds OpenLease.

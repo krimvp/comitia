@@ -153,7 +153,11 @@ not artifacts fetched or verified by Comitia.
 
 Work-submitted and verification-result messages identify their work by
 `task_id` or by `artifact_refs`; a verification result with neither is
-rejected. A given `task_id` must still name a task in the same context.
+rejected. A given `task_id` must still name a task in the same context. Without
+a `task_id`, every artifact ref must be exact by the same rule as approvals
+(below): `main` or `git:abcdef1` is refused, `git:<full sha>` or an opaque
+lowercase `scheme:value` such as `build:1842` is accepted. With a `task_id`,
+refs stay free-form nonempty strings.
 
 These are structured claims, **not proof of correctness**. A verification-result
 message does not accept work, and a work-submitted message does not complete a
@@ -168,7 +172,7 @@ task. Task state changes only through its existing authorized API operations.
   "schema": "comitia.approval.v1",
   "recipient_instances": ["merge-agent"],
   "payload": {
-    "artifact_refs": ["pr:krimvp/comitia#41@4f2c9e1d0b7a"],
+    "artifact_refs": ["pr:krimvp/comitia#41@4f2c9e1d0b7a5c3e8f6a1b2d4c6e8f0a1b3c5d7e"],
     "verdict": "approved",
     "checks": ["go test -race ./...", "code review"],
     "blocking_count": 0,
@@ -177,11 +181,15 @@ task. Task state changes only through its existing authorized API operations.
 }
 ```
 
-Every artifact ref is `scheme:value` without whitespace. `git:` refs must be a
-7–64 digit hexadecimal commit (`git:4f2c9e1d0b7a`) and `pr:` refs must end in
-`@<commit>` (`pr:owner/repo#41@4f2c9e1d0b7a`), so an approval never silently
-carries over to a later push. Other schemes (for example `sha256:`) are accepted
-as opaque exact identifiers. `verdict` is `approved` or `changes-requested`;
+Every artifact ref is `scheme:value` without whitespace, and the scheme is
+lowercase (letters, digits, `+`, `-`, `.`, starting with a letter), so `GIT:` or
+`Pr:` is refused rather than treated as opaque. `git:` refs must be a full
+commit: 40 (SHA-1) or 64 (SHA-256) lowercase hex digits. `pr:` refs must be
+exactly `pr:<owner>/<repo>#<positive number>@<full commit>`, with one `#`, one
+`@` and non-empty owner and repo. Abbreviated SHAs and branch names are refused,
+so an approval never silently carries over to a later push or matches a prefix.
+Other lowercase schemes (for example `sha256:`) are accepted as opaque exact
+identifiers. `verdict` is `approved` or `changes-requested`;
 `blocking_count` is a required integer that must be `0` for `approved` and at
 least `1` for `changes-requested`. `summary` is optional. No task is required.
 
@@ -192,8 +200,8 @@ A merge agent can gate on the envelope instead of parsing prose:
    trust, and (with a shared credential) whose self-reported `agent_instance`
    is the reviewer instance you assigned.
 2. Require `verdict: "approved"` with `blocking_count: 0` and an artifact ref
-   that names the exact head commit you are about to merge, e.g.
-   `pr:owner/repo#41@<head sha>`.
+   that is byte-for-byte the full head commit you are about to merge, e.g.
+   `pr:owner/repo#41@<full head sha>`.
 3. Treat any later `changes-requested` from the same reviewer for that commit as
    overriding, and any new push as needing a new approval.
 
@@ -350,7 +358,13 @@ instances, it is self-reported routing metadata: the lease belongs to
 
 `OpenLease` (MCP and `renew_task` `open_ended: true`, CLI `--open-ended`) asks
 for a lease that lasts until the task is completed or released. Every lease is
-capped at the holder session's expiry, so an open lease is still bounded.
+capped at the holder session's expiry, so an open lease is still bounded. This is
+not reserved for orchestrators: any client with `claim` on the context can hold a
+lease up to its own session's expiry, bypassing the 86400-second
+`lease_seconds` limit of MCP. A context admin can release such a lease. A lease
+whose holder session is revoked or expired, or whose holder no longer has
+`claim` on the context, counts as expired, so another session can claim the task
+at once.
 `ReleaseTask` (MCP `release_task`, HTTP `tasks/release`, CLI `task-release`)
 returns a leased task to pending and bumps `lease_version`, so the old token goes
 stale. The holder releases with its claim token; a session with `admin` on the
