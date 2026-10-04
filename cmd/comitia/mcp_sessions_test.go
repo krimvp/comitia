@@ -1,8 +1,11 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
+	"net"
+	"net/http"
 	"os"
 	"path/filepath"
 	"testing"
@@ -105,6 +108,55 @@ func TestMCPSessionsDirectoryFlagsAndEnvironment(t *testing.T) {
 			}
 			if err := json.Unmarshal(data, &document); err != nil || document.ServerURL != "http://127.0.0.1:8390" {
 				t.Fatal("embedded credential URL flag not applied")
+			}
+		})
+	}
+}
+
+func TestMCPHTTPDelegationOptIn(t *testing.T) {
+	for _, tc := range []struct {
+		name, env string
+		args      []string
+		listed    bool
+	}{
+		{"default", "", nil, false},
+		{"flag", "", []string{"--allow-delegation"}, true},
+		{"environment", "1", nil, true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Setenv("COMITIA_CREDENTIAL", "")
+			t.Setenv("COMITIA_MCP_HTTP_ALLOW_DELEGATION", tc.env)
+			l, err := net.Listen("tcp", "127.0.0.1:0")
+			if err != nil {
+				t.Fatal(err)
+			}
+			addr := l.Addr().String()
+			l.Close()
+			ctx, cancel := context.WithCancel(context.Background())
+			done := make(chan error, 1)
+			go func() {
+				done <- runServe(ctx, config{serverURL: "http://127.0.0.1:8390"}, nil, nil, "mcp-http", append([]string{"--listen", addr}, tc.args...))
+			}()
+			defer func() { cancel(); <-done }()
+			var body []byte
+			for deadline := time.Now().Add(5 * time.Second); ; {
+				req, _ := http.NewRequest(http.MethodPost, "http://"+addr+"/mcp", bytes.NewReader([]byte(`{"jsonrpc":"2.0","id":1,"method":"tools/list"}`)))
+				req.Header.Set("Authorization", "Bearer any")
+				res, err := http.DefaultClient.Do(req)
+				if err == nil {
+					var buf bytes.Buffer
+					_, _ = buf.ReadFrom(res.Body)
+					res.Body.Close()
+					body = buf.Bytes()
+					break
+				}
+				if time.Now().After(deadline) {
+					t.Fatal(err)
+				}
+				time.Sleep(20 * time.Millisecond)
+			}
+			if got := bytes.Contains(body, []byte(`"delegate_session"`)); got != tc.listed || !bytes.Contains(body, []byte(`"revoke_session"`)) {
+				t.Fatalf("delegate_session listed=%v: %s", got, body)
 			}
 		})
 	}

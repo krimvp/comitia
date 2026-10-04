@@ -59,12 +59,29 @@ Secrets must not be stored in resource references, messages intended for broad r
 MCP `delegate_session` never returns a token. The server process stores the CLI
 delegation document plus `server_url` in a new `<session_id>.json` file opened
 with `O_EXCL` and mode 0600; its configured directory is created with mode 0700.
-Existing directories must have mode 0700 and must not be symlinks. Session IDs
+Existing directories must have mode 0700, be owned by the effective user and
+must not be symlinks; the directory is opened once and the opened handle is
+checked against the path, so a symlink swapped in after the check is refused.
+Session IDs
 are validated before deriving filenames. Failed writes remove partial files
 and attempt session revocation using a short cleanup context independent of
 request cancellation. If the daemon is unavailable, cleanup may fail; the
-session still has its bounded expiry. Errors are sanitized and tokens are not
-logged. Files persist after revocation/expiry; operators manage their retention.
+session still has its bounded expiry, and the tool error and the process log
+name the session ID (not a secret) so an operator can revoke it. Errors are
+otherwise sanitized and tokens are not logged. Files persist after
+revocation/expiry; operators manage their retention (`sessions --prune` is
+planned in #9).
+
+`mcp-http` hides `delegate_session` from `tools/list` and refuses calls to it
+unless started with `--allow-delegation` (or `COMITIA_MCP_HTTP_ALLOW_DELEGATION`):
+a remote caller cannot read a server-local credential file, so delegation over
+HTTP only makes sense when a launcher on the server host consumes the files.
+Stdio `mcp` always offers it.
+
+Grant expiries are computed on the MCP host clock, the session expiry on the
+daemon clock. With a remote daemon whose clock is behind the MCP host, a grant
+TTL equal to the session TTL can exceed the session and is rejected with
+`ErrInvalid`.
 
 The result exposes only the session ID, principal ID, expiry, grant IDs and
 absolute credential path. The path is a handoff to a trusted launcher on the

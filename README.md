@@ -77,7 +77,12 @@ files and returns only `session_id`, `principal_id`, `expires_at`, `grant_ids`, 
 `credential_file`. Tokens never enter MCP results or request logs. Both `mcp` and
 `mcp-http` accept `--sessions-dir` (or `COMITIA_SESSIONS_DIR`); the default is
 `~/.local/share/comitia/sessions/`, created with mode 0700. Existing directories
-must already have mode 0700 and must not be symlinks.
+must already have mode 0700, be owned by the current user and must not be symlinks.
+
+Stdio `mcp` offers `delegate_session` for local launchers. `mcp-http` hides and
+refuses it unless started with `--allow-delegation` (or
+`COMITIA_MCP_HTTP_ALLOW_DELEGATION=1`), because the credential file lands on the
+server host, where a remote caller cannot read it.
 
 Run stdio MCP against the daemon to include the correct `server_url` in files:
 
@@ -93,6 +98,12 @@ launcher using `comitia-client --credential-file PATH COMMAND`; do not read its
 contents into a model transcript. The file uses the CLI `delegate` JSON shape
 (`principal`, `credential`, `grants`) plus `server_url`. A path returned over
 remote MCP belongs to the server machine. Delegation does not launch agents.
+Credential files are not removed when their session is revoked or expires;
+delete stale files manually (`comitia sessions --prune` is planned in #9).
+Grant TTLs are converted to expiries on the MCP host clock and the session TTL
+on the daemon clock, so with `--server-url` to a daemon on another host whose
+clock is behind, a grant TTL equal to the session TTL can be rejected; leave a
+margin.
 
 Non-admin sessions can revoke grants they issued and sessions they directly
 delegated. Admins retain broader revocation authority. The equivalent CLI commands

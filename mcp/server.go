@@ -228,6 +228,9 @@ func required(values ...string) error {
 	return nil
 }
 func publicError(err error) error {
+	if orphan := (orphanedSessionError{}); errors.As(err, &orphan) {
+		return orphan
+	}
 	for _, e := range []error{comitia.ErrNotFound, comitia.ErrUnauthenticated, comitia.ErrForbidden, comitia.ErrConflict, comitia.ErrInvalid, comitia.ErrStaleClaim, comitia.ErrBootstrapUsed} {
 		if errors.Is(err, e) {
 			return e

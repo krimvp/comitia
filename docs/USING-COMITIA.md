@@ -135,8 +135,22 @@ process writes a new mode-0600 file named `<session_id>.json` in a private
 mode-0700 directory. It uses exclusive creation and cannot overwrite an existing
 file. The directory defaults to `~/.local/share/comitia/sessions/`; configure
 `--sessions-dir` or `COMITIA_SESSIONS_DIR` on either MCP transport. An existing
-directory with another mode or a symlink is rejected. File failures return a
-sanitized internal error and trigger an attempt to revoke the new session.
+directory with another mode or owner, or a symlink, is rejected. File failures
+return a sanitized internal error and trigger an attempt to revoke the new
+session; if that revoke also fails, the error and the MCP process log name the
+still-active session ID so you can `revoke_session` it.
+
+Stdio `comitia mcp` always offers `delegate_session`. `comitia mcp-http` hides
+and refuses it unless started with `--allow-delegation` (or
+`COMITIA_MCP_HTTP_ALLOW_DELEGATION=1`); otherwise calls fail with
+"delegate_session is disabled on this server; start mcp-http with
+--allow-delegation".
+
+Credential files stay on disk after the session is revoked or expires; remove
+stale files yourself (a `sessions --prune` command is planned in #9). When the
+MCP process talks to a daemon on another host, keep grant TTLs a little shorter
+than the session TTL: grant expiries use the MCP host clock and the session
+expiry the daemon clock, so clock skew can reject equal TTLs.
 
 The file contains `principal`, `credential`, `grants`, and `server_url` and is
 usable by the local launcher:

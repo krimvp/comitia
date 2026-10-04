@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"log"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -74,21 +75,26 @@ func (s *Server) callSessions(ctx context.Context, name string, raw json.RawMess
 		if err != nil || endpoint.Host == "" || (endpoint.Scheme != "http" && endpoint.Scheme != "https") || endpoint.User != nil {
 			return nil, comitia.ErrInvalid
 		}
-		dir, err := privateSessionsDir(s.SessionsDir)
+		root, err := privateSessionsDir(s.SessionsDir)
 		if err != nil {
 			return nil, err
 		}
+		defer root.Close()
 		p, c, grants, err := s.API.DelegateSession(ctx, s.Credential, in)
 		if err != nil {
 			return nil, err
 		}
-		path, err := writeSessionCredential(dir, s.ServerURL, p, c, grants)
+		path, err := writeSessionCredential(root, s.ServerURL, p, c, grants)
 		if err != nil {
 			// The new session must not survive a failed credential handoff.
 			cleanup, cancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
 			defer cancel()
-			revokeErr := s.API.RevokeSession(cleanup, s.Credential, c.Session.ID)
-			return nil, errors.Join(err, revokeErr)
+			if revokeErr := s.API.RevokeSession(cleanup, s.Credential, c.Session.ID); revokeErr != nil {
+				// The session ID is not a secret; surface it so someone can revoke it.
+				log.Printf("mcp: delegate_session: credential handoff failed and session %s is still active: %v", c.Session.ID, errors.Join(err, revokeErr))
+				return nil, orphanedSessionError{c.Session.ID}
+			}
+			return nil, err
 		}
 		result := delegatedSessionResult{SessionID: c.Session.ID, PrincipalID: p.ID, ExpiresAt: c.Session.ExpiresAt, GrantIDs: []string{}, CredentialFile: path}
 		for _, g := range grants {
@@ -114,48 +120,60 @@ func (s *Server) callSessions(ctx context.Context, name string, raw json.RawMess
 	}
 }
 
-func privateSessionsDir(dir string) (string, error) {
+// orphanedSessionError names a delegated session that is still active after a
+// failed credential handoff. It is shown to the model as is.
+type orphanedSessionError struct{ sessionID string }
+
+func (e orphanedSessionError) Error() string {
+	return "credential handoff failed and cleanup failed; session " + e.sessionID + " is still active, revoke it with revoke_session"
+}
+
+var errSessionsDir = errors.New("mcp: sessions directory must be a private (0700) directory owned by the current user")
+
+// privateSessionsDir opens the sessions directory once. The opened handle is
+// checked against the path, so a symlink swapped in after the Lstat is refused.
+func privateSessionsDir(dir string) (*os.Root, error) {
 	if dir == "" {
 		home, err := os.UserHomeDir()
 		if err != nil {
-			return "", err
+			return nil, err
 		}
 		dir = filepath.Join(home, ".local", "share", "comitia", "sessions")
 	}
 	dir, err := filepath.Abs(dir)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	if err := os.MkdirAll(dir, 0700); err != nil {
-		return "", err
+		return nil, err
 	}
-	info, err := os.Lstat(dir)
+	link, err := os.Lstat(dir)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
-	if !info.IsDir() || info.Mode().Perm() != 0700 {
-		return "", errors.New("mcp: sessions directory must be private (0700)")
+	if link.Mode()&os.ModeSymlink != 0 {
+		return nil, errSessionsDir
 	}
-	return dir, nil
+	root, err := os.OpenRoot(dir)
+	if err != nil {
+		return nil, err
+	}
+	info, err := root.Stat(".")
+	if err == nil && (!os.SameFile(link, info) || !info.IsDir() || info.Mode().Perm() != 0700 || !ownedByCurrentUser(info)) {
+		err = errSessionsDir
+	}
+	if err != nil {
+		root.Close()
+		return nil, err
+	}
+	return root, nil
 }
 
-func writeSessionCredential(dir, serverURL string, p comitia.Principal, c comitia.Credential, grants []comitia.Grant) (string, error) {
+func writeSessionCredential(root *os.Root, serverURL string, p comitia.Principal, c comitia.Credential, grants []comitia.Grant) (string, error) {
 	if _, err := hex.DecodeString(c.Session.ID); err != nil || len(c.Session.ID) != 32 {
 		return "", errors.New("mcp: invalid session ID")
 	}
-	path := filepath.Join(dir, c.Session.ID+".json")
-	root, err := os.OpenRoot(dir)
-	if err != nil {
-		return "", err
-	}
-	defer root.Close()
-	info, err := root.Stat(".")
-	if err != nil {
-		return "", err
-	}
-	if info.Mode().Perm() != 0700 {
-		return "", errors.New("mcp: sessions directory must be private (0700)")
-	}
+	path := filepath.Join(root.Name(), c.Session.ID+".json")
 	file, err := root.OpenFile(c.Session.ID+".json", os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0600)
 	if err != nil {
 		return "", err

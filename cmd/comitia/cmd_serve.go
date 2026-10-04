@@ -47,6 +47,7 @@ func runServe(ctx context.Context, cfg config, api comitia.API, out *json.Encode
 		}
 		fs := newFlags(cmd)
 		dir := fs.String("sessions-dir", env("COMITIA_SESSIONS_DIR", ""), "private delegated credential directory (default ~/.local/share/comitia/sessions)")
+		allowDelegation := fs.Bool("allow-delegation", env("COMITIA_MCP_HTTP_ALLOW_DELEGATION", "") != "", "offer delegate_session (credential files are written on this host)")
 		listen := fs.String("listen", env("COMITIA_MCP_HTTP_LISTEN", "127.0.0.1:8391"), "listen address")
 		origins := fs.String("allowed-origins", env("COMITIA_MCP_HTTP_ALLOWED_ORIGINS", ""), "comma-separated Origin allowlist (empty rejects any request carrying an Origin)")
 		maxBody := fs.Int64("max-body-bytes", 1<<20, "maximum request body size")
@@ -65,6 +66,7 @@ func runServe(ctx context.Context, cfg config, api comitia.API, out *json.Encode
 		handler := mcp.NewHTTPHandler(api, mcp.HTTPConfig{
 			SessionsDir:       *dir,
 			ServerURL:         cfg.serverURL,
+			AllowDelegation:   *allowDelegation,
 			AllowedOrigins:    allow,
 			InstanceDefaults:  cfg.instances,
 			MaxBody:           *maxBody,

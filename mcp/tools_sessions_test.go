@@ -182,10 +182,12 @@ func TestDelegateNoTokenInProtocolAndExclusiveFailureCleanup(t *testing.T) {
 func TestSessionsDirectoryDefaultsAndPrivacy(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("HOME", home)
-	dir, err := privateSessionsDir("")
-	if err != nil || dir != filepath.Join(home, ".local", "share", "comitia", "sessions") {
-		t.Fatalf("default: %s %v", dir, err)
+	root, err := privateSessionsDir("")
+	if err != nil {
+		t.Fatal(err)
 	}
+	root.Close()
+	dir := filepath.Join(home, ".local", "share", "comitia", "sessions")
 	info, err := os.Stat(dir)
 	if err != nil || info.Mode().Perm() != 0700 {
 		t.Fatal("default directory mode")
@@ -220,7 +222,7 @@ func TestHTTPDelegationWritesPrivateCredential(t *testing.T) {
 	previousWriter := log.Writer()
 	log.SetOutput(&logs)
 	defer log.SetOutput(previousWriter)
-	handler := LoggingHandler(NewHTTPHandler(s.API, HTTPConfig{SessionsDir: s.SessionsDir, ServerURL: s.ServerURL}))
+	handler := LoggingHandler(NewHTTPHandler(s.API, HTTPConfig{SessionsDir: s.SessionsDir, ServerURL: s.ServerURL, AllowDelegation: true}))
 	raw, _ := json.Marshal(map[string]any{"jsonrpc": "2.0", "id": 1, "method": "tools/call", "params": map[string]any{"name": "delegate_session", "arguments": delegateArgs(parent.ID)}})
 	req := httptest.NewRequest(http.MethodPost, "/mcp", bytes.NewReader(raw))
 	req.Header.Set("Authorization", "Bearer "+s.Credential)
@@ -275,12 +277,14 @@ func TestDelegateRequiresUsableDaemonURL(t *testing.T) {
 }
 
 func TestCredentialFilenameRejectsTraversalAndSymlinks(t *testing.T) {
-	dir, err := privateSessionsDir(filepath.Join(t.TempDir(), "sessions"))
+	dir := filepath.Join(t.TempDir(), "sessions")
+	root, err := privateSessionsDir(dir)
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer root.Close()
 	for _, id := range []string{"../outside", "", strings.Repeat("g", 32), strings.Repeat("a", 30)} {
-		if _, err := writeSessionCredential(dir, "http://localhost", comitia.Principal{}, comitia.Credential{Session: comitia.Session{ID: id}}, nil); err == nil {
+		if _, err := writeSessionCredential(root, "http://localhost", comitia.Principal{}, comitia.Credential{Session: comitia.Session{ID: id}}, nil); err == nil {
 			t.Fatal("accepted invalid filename")
 		}
 	}
@@ -292,11 +296,107 @@ func TestCredentialFilenameRejectsTraversalAndSymlinks(t *testing.T) {
 	if err := os.Symlink(outside, filepath.Join(dir, id+".json")); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := writeSessionCredential(dir, "http://localhost", comitia.Principal{}, comitia.Credential{Token: "private", Session: comitia.Session{ID: id}}, nil); err == nil {
+	if _, err := writeSessionCredential(root, "http://localhost", comitia.Principal{}, comitia.Credential{Token: "private", Session: comitia.Session{ID: id}}, nil); err == nil {
 		t.Fatal("followed credential symlink")
 	}
 	content, err := os.ReadFile(outside)
 	if err != nil || string(content) != "original" {
 		t.Fatal("symlink target changed")
+	}
+}
+
+type failingRevokeAPI struct{ delegationAPI }
+
+func (f *failingRevokeAPI) RevokeSession(context.Context, string, string) error {
+	return errors.New("daemon unavailable")
+}
+
+func TestFailedHandoffAndCleanupReportsSessionID(t *testing.T) {
+	api := &failingRevokeAPI{}
+	dir := filepath.Join(t.TempDir(), "sessions")
+	s := &Server{API: api, Credential: "fixed-secret", SessionsDir: dir, ServerURL: "http://127.0.0.1:8390"}
+	id := strings.Repeat("a", 32)
+	// An existing file with the session ID makes the exclusive write fail.
+	if err := os.MkdirAll(dir, 0700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, id+".json"), []byte("{}"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	var logs bytes.Buffer
+	previousWriter := log.Writer()
+	log.SetOutput(&logs)
+	defer log.SetOutput(previousWriter)
+	raw, _ := json.Marshal(map[string]any{"name": "delegate_session", "arguments": delegateArgs("context")})
+	r := s.handle(context.Background(), request{JSONRPC: "2.0", ID: json.RawMessage("1"), Method: "tools/call", Params: raw})
+	output, _ := json.Marshal(r)
+	if !bytes.Contains(output, []byte(id)) || !bytes.Contains(output, []byte("revoke_session")) || !bytes.Contains(output, []byte(`"isError":true`)) {
+		t.Fatalf("session ID not reported: %s", output)
+	}
+	if !bytes.Contains(logs.Bytes(), []byte(id)) {
+		t.Fatal("session ID not logged")
+	}
+	for _, secret := range []string{"never-show-this-token", "fixed-secret"} {
+		if bytes.Contains(output, []byte(secret)) || bytes.Contains(logs.Bytes(), []byte(secret)) {
+			t.Fatal("secret leaked")
+		}
+	}
+}
+
+func TestSessionsDirectoryRefusesNonDirectory(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "file")
+	if err := os.WriteFile(path, nil, 0700); err != nil {
+		t.Fatal(err)
+	}
+	if root, err := privateSessionsDir(path); err == nil {
+		root.Close()
+		t.Fatal("accepted a file as sessions directory")
+	}
+}
+
+func TestHTTPDelegationDisabledByDefault(t *testing.T) {
+	api := &delegationAPI{}
+	dir := filepath.Join(t.TempDir(), "sessions")
+	handler := NewHTTPHandler(api, HTTPConfig{SessionsDir: dir, ServerURL: "http://127.0.0.1:8390"})
+	raw, _ := json.Marshal(map[string]any{"jsonrpc": "2.0", "id": 1, "method": "tools/call", "params": map[string]any{"name": "delegate_session", "arguments": delegateArgs("context")}})
+	rec := post(t, handler, string(raw), map[string]string{"Authorization": "Bearer good"})
+	if rec.Code != http.StatusOK || !toolError(t, rec.Body.String()) || !strings.Contains(rec.Body.String(), "--allow-delegation") {
+		t.Fatalf("delegation not refused: %d %s", rec.Code, rec.Body.String())
+	}
+	if api.calls != 0 {
+		t.Fatal("refused delegation reached the API")
+	}
+	if _, err := os.Stat(dir); !os.IsNotExist(err) {
+		t.Fatal("refused delegation created the sessions directory")
+	}
+	listed := func(h http.Handler) map[string]bool {
+		rec := post(t, h, `{"jsonrpc":"2.0","id":2,"method":"tools/list"}`, map[string]string{"Authorization": "Bearer good"})
+		var reply struct {
+			Result struct {
+				Tools []struct {
+					Name string `json:"name"`
+				} `json:"tools"`
+			} `json:"result"`
+		}
+		if err := json.Unmarshal(rec.Body.Bytes(), &reply); err != nil {
+			t.Fatal(err)
+		}
+		names := map[string]bool{}
+		for _, tool := range reply.Result.Tools {
+			names[tool.Name] = true
+		}
+		return names
+	}
+	if names := listed(handler); names["delegate_session"] || !names["revoke_session"] || len(names) != len(tools())-1 {
+		t.Fatalf("disabled tools/list: %v", names)
+	}
+	if names := listed(NewHTTPHandler(api, HTTPConfig{AllowDelegation: true})); !names["delegate_session"] {
+		t.Fatal("allowed delegation not listed")
+	}
+	// The stdio server is a local launcher and keeps delegation.
+	stdio := &Server{API: api, Credential: "good"}
+	r := stdio.handle(context.Background(), request{JSONRPC: "2.0", ID: json.RawMessage("3"), Method: "tools/list"})
+	if b, _ := json.Marshal(r); !bytes.Contains(b, []byte(`"delegate_session"`)) {
+		t.Fatal("stdio server hid delegate_session")
 	}
 }
