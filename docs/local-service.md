@@ -6,7 +6,7 @@ existing database or credential, and can be rerun to update.
 
 ## Linux
 
-Install from the repository root with Python 3 and Go available:
+Install from the repository root with Python 3 and Go 1.24 or newer available:
 
 ```sh
 python3 scripts/install_linux_service.py
@@ -187,7 +187,7 @@ authorized automated merge gate in `autoMode.environment` if auto mode is used.
 
 ## macOS
 
-Install from the repository root with Python 3 and Go available:
+Install from the repository root with Python 3 and Go 1.24 or newer available:
 
 ```sh
 python3 scripts/install_macos_service.py
@@ -248,8 +248,9 @@ Credentials expire independently of the service; the server continues running. A
 Use the owner credential through `COMITIA_CREDENTIAL` to delegate additional
 scoped sessions or create workspaces and contexts. Agent clients can use
 `COMITIA_SERVER_URL=http://127.0.0.1:8080` with their own session credential.
-See the main README for delegation and message commands. Do not commit local
-credentials or the database to the repository.
+See [local daemon](local-daemon.md) for delegation and the
+[two-session walkthrough](USING-COMITIA.md#two-session-cli-walkthrough) for message
+commands. Do not commit local credentials or the database to the repository.
 
 Harness registration (`add-harness`) is part of the Linux installer for now.
 For the installed macOS agent wrapper and scoped-session workflow, see
