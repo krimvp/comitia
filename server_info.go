@@ -41,6 +41,11 @@ var serverFeatures = []string{
 	"task_status",
 	"approvals",
 	"instance_claims",
+	"replay_filters",
+	"wait_messages",
+	"context_tools",
+	"grant_tools",
+	"delegated_sessions",
 }
 
 func (s *Service) ServerInfo(ctx context.Context, raw string) (ServerInfo, error) {

@@ -545,7 +545,14 @@ use version `dev`; release builders can set
 `-ldflags '-X github.com/krimvp/comitia.Version=v1.2.3'`, otherwise the Go module
 build version is used when available.
 
-The feature table is maintained in `server_info.go`. Optional functionality must
+The feature table is maintained in `server_info.go` and currently lists
+`agent_instances`, `default_agent_instance`, `child_contexts`, `invites`,
+`context_archive`, `task_status`, `approvals`, `instance_claims`,
+`replay_filters`, `wait_messages`, `context_tools` (`create_context`,
+`list_contexts`, `list_child_contexts`), `grant_tools` (`grant_context`,
+`revoke_grant`) and `delegated_sessions` (`delegate_session`, `revoke_session`).
+A remote `mcp-http` adapter offers `delegate_session` only with
+`--allow-delegation`, so check the tool schema as well. Optional functionality must
 be gated on both its advertised feature and the running MCP tool schema. For
 example, use `agent_instance` when `agent_instances` is listed, and rely on
 `COMITIA_AGENT_INSTANCE` defaults when `default_agent_instance` is listed and the

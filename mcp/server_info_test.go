@@ -63,6 +63,40 @@ func TestValidationDetailOverMCP(t *testing.T) {
 	}
 }
 
+func TestToolValidationDetails(t *testing.T) {
+	tests := []struct{ tool, raw, detail string }{
+		{"wait_messages", `{"context_id":"c","timeout":5}`, `unknown field "timeout"`},
+		{"wait_messages", `{}`, "context_id required"},
+		{"wait_messages", `{"context_id":"c","timeout_seconds":-1}`, "timeout_seconds must be a finite nonnegative number"},
+		{"replay_messages", `{"context_id":"c","to_instance":"x"}`, `unknown field "to_instance"`},
+		{"create_context", `{"parent_context_id":"p","name":"n","private":true}`, `unknown field "private"`},
+		{"create_context", `{"parent_context_id":"p"}`, "name required"},
+		{"list_contexts", `{"parent_context_id":"p"}`, `unknown field "parent_context_id"`},
+		{"list_child_contexts", `{}`, "parent_context_id required"},
+		{"list_child_contexts", `{"parent_context_id":"p","limit":0}`, "limit must be between 1 and 1000"},
+		{"grant_context", `{"session_id":"s","context_id":"c","permissions":["read"],"ttl_seconds":60,"expires_at":"x"}`, `unknown field "expires_at"`},
+		{"grant_context", `{"context_id":"c"}`, "session_id required"},
+		{"grant_context", `{"session_id":"s","context_id":"c","permissions":["admin"],"ttl_seconds":60}`, "permissions must contain only"},
+		{"grant_context", `{"session_id":"s","context_id":"c","permissions":["read","read"],"ttl_seconds":60}`, "permissions must not repeat"},
+		{"grant_context", `{"session_id":"s","context_id":"c","permissions":["read"]}`, "ttl_seconds must be a positive number of seconds"},
+		{"revoke_grant", `{}`, "grant_id required"},
+		{"delegate_session", `{"name":"h","ttl_seconds":60,"grants":[]}`, "grants must not be empty"},
+		{"delegate_session", `{"name":"h","ttl_seconds":60,"grants":[{"context_id":"c","permissions":[],"ttl_seconds":60}]}`, "grants[].permissions must not be empty"},
+		{"delegate_session", `{"name":"h","ttl_seconds":60,"grants":[{"context_id":"c","permissions":["read"],"ttl_seconds":61}]}`, "grants[].ttl_seconds must not exceed ttl_seconds"},
+		{"delegate_session", `{"name":"h","ttl_seconds":60,"grants":[{"context_id":"c","permissions":["read"],"ttl_seconds":60,"token":"x"}]}`, `unknown field "token"`},
+		{"revoke_session", `{}`, "session_id required"},
+	}
+	for _, tc := range tests {
+		t.Run(tc.tool+" "+tc.raw, func(t *testing.T) {
+			s := &Server{API: &fakeAPI{}, Credential: "fixed-secret"}
+			_, err := s.call(context.Background(), tc.tool, json.RawMessage(tc.raw))
+			if !errors.Is(err, comitia.ErrInvalid) || !strings.Contains(publicError(err).Error(), tc.detail) {
+				t.Fatalf("error=%v", err)
+			}
+		})
+	}
+}
+
 func TestServerInfoMCP(t *testing.T) {
 	st, err := comitia.OpenSQLite(":memory:")
 	if err != nil {

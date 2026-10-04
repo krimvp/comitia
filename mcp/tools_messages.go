@@ -92,7 +92,7 @@ func (s *Server) callMessages(ctx context.Context, name string, raw json.RawMess
 		if err := decode(raw, &a); err != nil {
 			return nil, err
 		}
-		if err := required(a.ContextID); err != nil {
+		if err := required("context_id", a.ContextID); err != nil {
 			return nil, err
 		}
 		timeout := 30 * time.Second

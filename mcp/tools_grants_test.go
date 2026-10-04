@@ -51,7 +51,7 @@ func TestManagementToolsStrictArguments(t *testing.T) {
 			}
 		})
 	}
-	bits, err := parseToolPermissions([]string{"read", "write", "claim", "grant", "create"})
+	bits, err := parseToolPermissions("permissions", []string{"read", "write", "claim", "grant", "create"})
 	want := comitia.PermissionRead | comitia.PermissionWrite | comitia.PermissionClaim | comitia.PermissionGrant | comitia.PermissionCreate
 	if err != nil || bits != want {
 		t.Fatalf("bits=%v err=%v", bits, err)

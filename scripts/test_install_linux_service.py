@@ -675,7 +675,7 @@ class StaleMCPClients(unittest.TestCase):
         block = local.render_instructions('codex', {'display': 'Codex'},
                                          {'context_id': 'test-context', 'server_url': 'http://localhost'}, self.root)
         for text in ('server_info', 'agent_instances', 'default_agent_instance', 'instance_claims',
-                     'tool schema', 'client version', 'session scope'):
+                     'wait_messages', 'replay_filters', 'delegated_sessions', 'tool schema', 'client version', 'session scope'):
             self.assertIn(text, block)
 
 if __name__ == '__main__':

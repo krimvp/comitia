@@ -12,7 +12,7 @@ func permissionSchema() map[string]any {
 	return map[string]any{"type": "array", "minItems": 1, "uniqueItems": true, "items": map[string]any{"type": "string", "enum": []string{"read", "write", "claim", "grant", "create"}}}
 }
 
-func parseToolPermissions(names []string) (comitia.Permission, error) {
+func parseToolPermissions(field string, names []string) (comitia.Permission, error) {
 	var bits comitia.Permission
 	for _, name := range names {
 		var bit comitia.Permission
@@ -28,15 +28,15 @@ func parseToolPermissions(names []string) (comitia.Permission, error) {
 		case "create":
 			bit = comitia.PermissionCreate
 		default:
-			return 0, comitia.ErrInvalid
+			return 0, comitia.Invalidf("%s must contain only read, write, claim, grant or create", field)
 		}
 		if bits&bit != 0 {
-			return 0, comitia.ErrInvalid
+			return 0, comitia.Invalidf("%s must not repeat a permission", field)
 		}
 		bits |= bit
 	}
 	if bits == 0 {
-		return 0, comitia.ErrInvalid
+		return 0, comitia.Invalidf("%s must not be empty", field)
 	}
 	return bits, nil
 }
@@ -48,9 +48,9 @@ func grantTools() []map[string]any {
 	}
 }
 
-func lifetimeSeconds(n int64) (time.Duration, error) {
+func lifetimeSeconds(field string, n int64) (time.Duration, error) {
 	if n <= 0 || n > int64((1<<63-1)/time.Second) {
-		return 0, comitia.ErrInvalid
+		return 0, comitia.Invalidf("%s must be a positive number of seconds", field)
 	}
 	return time.Duration(n) * time.Second, nil
 }
@@ -67,14 +67,14 @@ func (s *Server) callGrants(ctx context.Context, name string, raw json.RawMessag
 		if err := decode(raw, &a); err != nil {
 			return nil, err
 		}
-		if err := required(a.SessionID, a.ContextID); err != nil {
+		if err := required("session_id", a.SessionID, "context_id", a.ContextID); err != nil {
 			return nil, err
 		}
-		bits, err := parseToolPermissions(a.Permissions)
+		bits, err := parseToolPermissions("permissions", a.Permissions)
 		if err != nil {
 			return nil, err
 		}
-		ttl, err := lifetimeSeconds(a.TTLSeconds)
+		ttl, err := lifetimeSeconds("ttl_seconds", a.TTLSeconds)
 		if err != nil {
 			return nil, err
 		}
@@ -86,7 +86,7 @@ func (s *Server) callGrants(ctx context.Context, name string, raw json.RawMessag
 		if err := decode(raw, &a); err != nil {
 			return nil, err
 		}
-		if err := required(a.GrantID); err != nil {
+		if err := required("grant_id", a.GrantID); err != nil {
 			return nil, err
 		}
 		if err := s.API.RevokeGrant(ctx, s.Credential, a.GrantID); err != nil {

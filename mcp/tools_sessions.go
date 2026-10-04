@@ -44,36 +44,39 @@ func (s *Server) callSessions(ctx context.Context, name string, raw json.RawMess
 		if err := decode(raw, &a); err != nil {
 			return nil, err
 		}
-		if err := required(a.Name); err != nil {
+		if err := required("name", a.Name); err != nil {
 			return nil, err
 		}
-		ttl, err := lifetimeSeconds(a.TTLSeconds)
+		ttl, err := lifetimeSeconds("ttl_seconds", a.TTLSeconds)
 		if err != nil {
 			return nil, err
 		}
 		if len(a.Grants) == 0 {
-			return nil, comitia.ErrInvalid
+			return nil, comitia.Invalidf("grants must not be empty")
 		}
 		in := comitia.DelegateInput{PrincipalName: a.Name, TTL: ttl}
 		now := time.Now().UTC()
 		for _, g := range a.Grants {
-			if err := required(g.ContextID); err != nil {
+			if err := required("grants[].context_id", g.ContextID); err != nil {
 				return nil, err
 			}
-			bits, err := parseToolPermissions(g.Permissions)
+			bits, err := parseToolPermissions("grants[].permissions", g.Permissions)
 			if err != nil {
 				return nil, err
 			}
-			grantTTL, err := lifetimeSeconds(g.TTLSeconds)
-			if err != nil || grantTTL > ttl {
-				return nil, comitia.ErrInvalid
+			grantTTL, err := lifetimeSeconds("grants[].ttl_seconds", g.TTLSeconds)
+			if err != nil {
+				return nil, err
+			}
+			if grantTTL > ttl {
+				return nil, comitia.Invalidf("grants[].ttl_seconds must not exceed ttl_seconds")
 			}
 			in.Grants = append(in.Grants, comitia.DelegatedGrant{ContextID: g.ContextID, Permissions: bits, ExpiresAt: now.Add(grantTTL)})
 		}
 		// A credential file must point at the daemon backing this MCP server.
 		endpoint, err := url.Parse(s.ServerURL)
 		if err != nil || endpoint.Host == "" || (endpoint.Scheme != "http" && endpoint.Scheme != "https") || endpoint.User != nil {
-			return nil, comitia.ErrInvalid
+			return nil, comitia.Invalidf("MCP server URL must be an http(s) URL without user info")
 		}
 		root, err := privateSessionsDir(s.SessionsDir)
 		if err != nil {
@@ -108,7 +111,7 @@ func (s *Server) callSessions(ctx context.Context, name string, raw json.RawMess
 		if err := decode(raw, &a); err != nil {
 			return nil, err
 		}
-		if err := required(a.SessionID); err != nil {
+		if err := required("session_id", a.SessionID); err != nil {
 			return nil, err
 		}
 		if err := s.API.RevokeSession(ctx, s.Credential, a.SessionID); err != nil {
