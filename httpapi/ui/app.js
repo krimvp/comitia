@@ -58,6 +58,12 @@ async function request(path, body, signal = controller.signal) {
     throw error;
   } finally { clearTimeout(deadline); signal.removeEventListener('abort', cancel); }
 }
+function instanceLabel(message) {
+  const instance = message.agent_instance;
+  if (!instance) return '';
+  return ` · ${instance.label ? `${instance.label} (${instance.id})` : instance.id} (self-reported)`;
+}
+
 function disconnect(message = '') {
   connection++; controller.abort(); controller = new AbortController(); clearTimeout(timer);
   token = ''; state.reset(); displayStart = null; contexts = []; contextsAfter = ''; contextsBusy = false;
@@ -270,14 +276,15 @@ function renderMessages() {
     let depth = 0, ancestor = message, seen = new Set();
     while (thread && ancestor.envelope?.reply_to && byID.has(ancestor.envelope.reply_to) && depth < 3 && !seen.has(ancestor.ID)) {seen.add(ancestor.ID);depth++;ancestor=byID.get(ancestor.envelope.reply_to);}
     card.dataset.depth = depth;
-    const main = button('', () => selectMessage(message.ID), 'message-select'); main.setAttribute('aria-label', `Inspect message ${message.Sequence} from ${agentLabel(message.SessionID)}`);
+    const main = button('', () => selectMessage(message.ID), 'message-select'); main.setAttribute('aria-label', `Inspect message ${message.Sequence} from ${agentLabel(message.SessionID)}${instanceLabel(message)}`);
     const top = node('div', undefined, 'message-top');
     top.append(node('span', participantName(message.SessionID).slice(0,2).toUpperCase(), 'avatar'));
-    const sender = node('span', participantName(message.SessionID), 'sender'); sender.append(node('span', ` · ${shortID(message.SessionID)}`, 'session-short'));
+    const sender = node('span', participantName(message.SessionID) + instanceLabel(message), 'sender'); sender.append(node('span', ` · ${shortID(message.SessionID)}`, 'session-short'));
     top.append(sender, node('span', typeLabel(type), `badge ${type.replace(/^comitia\./,'').replace(/\.v\d+$/,'')}`), node('span', date(message.CreatedAt), 'message-time'));
     main.append(top, node('p', message.Body || envelope.payload?.summary || envelope.payload?.instructions || 'Structured message', 'message-body'));
     main.append(node('p', envelope.recipient_session_ids?.length ? `To ${envelope.recipient_session_ids.map(agentLabel).join(', ')}` : 'To everyone in this context', 'message-routing'));
     card.append(main);
+    if (envelope.recipient_instances?.length) main.append(node('p', `Recipient instances (self-reported): ${envelope.recipient_instances.join(', ')}`, 'message-routing'));
     const actions = node('div', undefined, 'message-actions');
     if (envelope.reply_to) actions.append(byID.has(envelope.reply_to) ? button(`Reply to #${byID.get(envelope.reply_to).Sequence}`, () => jumpMessage(envelope.reply_to)) : node('span', `Reply to ${shortID(envelope.reply_to)} · outside loaded window`));
     actions.append(button('View thread', () => { thread = message.ID; selected = message.ID; displayStart = 0; renderMessages(); renderDetails(); }));
@@ -300,6 +307,11 @@ function renderDetails() {
   const dl = node('dl');
   for (const [key,value] of [['Message ID',message.ID],['Sender',`${participantName(message.SessionID)}\n${message.SessionID}`],['Created',date(message.CreatedAt)],['Recipients',envelope.recipient_session_ids?.map(id=>`${participantName(id)} · ${id}`).join('\n') || 'Everyone in this context'],['Context',message.ContextID]]) dl.append(node('dt',key),node('dd',value));
   target.append(dl);
+  if (message.agent_instance) {
+    dl.append(node('dt','Agent instance (self-reported)'),node('dd',`${message.agent_instance.id}${message.agent_instance.label ? ` · ${message.agent_instance.label}` : ''}`));
+    target.append(node('p','The instance is a caller claim. The authenticated sender is the session above.', 'hint'));
+  }
+  if (envelope.recipient_instances?.length) dl.append(node('dt','Recipient instances (self-reported)'),node('dd',envelope.recipient_instances.join(', ')));
   target.append(node('p','Addressed recipients are shown above. Read status is unknown; browsing this inspector does not acknowledge messages.', 'hint'));
   if (envelope.task_id) {
     const task = tasks.find(t=>t.ID === envelope.task_id);
@@ -385,7 +397,7 @@ function renderFlow(filtered) {
   $('sequence-routes').replaceChildren(...flow.routes.map(item=>{
     const control=button('',()=>selectMessage(item.message.ID),'sequence-route');
     control.setAttribute('aria-pressed',String(selected===item.message.ID));
-    control.append(node('span',`#${item.message.Sequence} · ${timeLabel(item.time)}`,'sequence-route-time'),node('span',`${routeName(item.source)} → ${routeName(item.target)}`),node('span',item.message.Body || 'Structured message','sequence-route-preview'));
+    control.append(node('span',`#${item.message.Sequence} · ${timeLabel(item.time)}`,'sequence-route-time'),node('span',`${routeName(item.source)}${instanceLabel(item.message)} → ${routeName(item.target)}${item.message.envelope?.recipient_instances?.length ? ` · instances: ${item.message.envelope.recipient_instances.join(", ")} (self-reported)` : ""}`),node('span',item.message.Body || 'Structured message','sequence-route-preview'));
     return control;
   }));
   $('sequence-arrow-count').textContent=flow.routeCount?`Routes ${flow.arrowPage*ARROW_LIMIT+1}–${flow.arrowPage*ARROW_LIMIT+flow.routes.length} of ${flow.routeCount}`:'No routes on these lanes';

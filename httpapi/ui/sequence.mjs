@@ -98,12 +98,14 @@ export function renderSequence(container, layout, {selected = '', messages = [],
   // companion route list always exposes every route, including exact ties.
   const routes=[...layout.routes].sort((a,b)=>Number(a.message.ID===selected)-Number(b.message.ID===selected));
   for (const route of routes) {
+    const instance = route.message.agent_instance;
+    const claim = instance ? ` · ${instance.label || instance.id} (self-reported instance: ${instance.id})` : '';
     const x=routeX.get(route),y1=positions.get(route.source)??outsideY,y2=positions.get(route.target)??outsideY;
     const {targetX,radius,d}=occurrenceLink(x,y1,y2);
     const isSelected=route.message.ID===selected;
     const routeID=`sequence-route-${encodeURIComponent(route.message.ID)}-${encodeURIComponent(route.target)}`;
-    const group=svg('g',{id:routeID,'class':`sequence-message${isSelected?' selected':related.has(route.message.ID)?' related':''}`,role:'button',tabindex:0,'aria-pressed':String(isSelected),'aria-label':`Message ${route.message.Sequence}, ${route.source} to ${route.target===BROADCAST?'Everyone':route.target}, sent ${timeLabel(route.time)}`});
-    group.append(svg('title',{},`#${route.message.Sequence} · ${route.source} → ${route.target}\n${route.message.Body || 'Structured message'}\nSent ${new Date(route.time).toISOString()} · Read status unknown`),svg('path',{d,'class':'sequence-hit'}),svg('path',{d,'class':'sequence-arrow','marker-end':'url(#sequence-arrow)'}));
+    const group=svg('g',{id:routeID,'class':`sequence-message${isSelected?' selected':related.has(route.message.ID)?' related':''}`,role:'button',tabindex:0,'aria-pressed':String(isSelected),'aria-label':`Message ${route.message.Sequence}, ${route.source}${claim} to ${route.target===BROADCAST?'Everyone':route.target}, sent ${timeLabel(route.time)}`});
+    group.append(svg('title',{},`#${route.message.Sequence} · ${route.source}${claim} → ${route.target}\n${route.message.Body || 'Structured message'}\nSent ${new Date(route.time).toISOString()} · Read status unknown`),svg('path',{d,'class':'sequence-hit'}),svg('path',{d,'class':'sequence-arrow','marker-end':'url(#sequence-arrow)'}));
     for(const [id,cx,cy,role] of [[route.source,x,y1,'Sender'],[route.target,targetX,y2,'Recipient']]) {
       const name=layout.lanes.find(lane=>lane.id===id)?.name || 'Session';
       const circle=svg('circle',{cx,cy,r:radius,fill:agentColor(id),'class':'sequence-occurrence'});

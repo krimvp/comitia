@@ -183,11 +183,11 @@ func tool(name, description string, input map[string]any) map[string]any {
 
 func tools() []map[string]any {
 	return []map[string]any{
-		tool("send_message", "Append a message; optional validated envelope addresses session IDs, not names. Context readers can see all messages.", schema(map[string]any{"context_id": str("Context ID"), "dedupe_key": str("Stable caller-chosen key"), "body": str("Message explanation; required for untyped/discussion messages"), "envelope": envelopeSchema()}, "context_id", "dedupe_key")),
+		tool("send_message", "Append a message; optional validated envelope addresses session IDs, not names. Context readers can see all messages.", schema(map[string]any{"context_id": str("Context ID"), "dedupe_key": str("Stable caller-chosen key"), "body": str("Message explanation; required for untyped/discussion messages"), "envelope": envelopeSchema(), "agent_instance": schema(map[string]any{"id": str("Self-reported instance ID: 1-64 ASCII letters, digits, dot, underscore or hyphen; never identity proof"), "label": str("Optional self-reported display label (at most 128 bytes)")}, "id")}, "context_id", "dedupe_key")),
 		tool("list_participants", "Discover active readable sessions in a context. Names may repeat; address by SessionID.", schema(map[string]any{"context_id": str("Context ID"), "limit": integer("Maximum participants (default 100)")}, "context_id")),
 		tool("replay_messages", "Read context messages after a sequence", schema(map[string]any{"context_id": str("Context ID"), "after": integer("Exclusive sequence cursor"), "limit": integer("Maximum messages")}, "context_id")),
-		tool("ack_messages", "Record consumption through a sequence", schema(map[string]any{"context_id": str("Context ID"), "sequence": integer("Inclusive sequence")}, "context_id", "sequence")),
-		tool("message_cursor", "Read this session's persisted acknowledgement cursor", schema(map[string]any{"context_id": str("Context ID")}, "context_id")),
+		tool("ack_messages", "Record consumption through a sequence", schema(map[string]any{"context_id": str("Context ID"), "sequence": integer("Inclusive sequence"), "agent_instance": str("Optional instance ID; isolates this cursor within the authenticated session")}, "context_id", "sequence")),
+		tool("message_cursor", "Read this session's persisted acknowledgement cursor, optionally scoped to a self-reported instance", schema(map[string]any{"context_id": str("Context ID"), "agent_instance": str("Optional instance ID used by ack_messages")}, "context_id")),
 		tool("create_task", "Create a task in a context", schema(map[string]any{"context_id": str("Context ID"), "title": str("Task title"), "body": str("Task details")}, "context_id", "title")),
 		tool("claim_task", "Claim a pending task", schema(map[string]any{"task_id": str("Task ID"), "lease_seconds": integer("Lease duration in seconds")}, "task_id")),
 		tool("renew_task", "Renew a task claim", schema(map[string]any{"task_id": str("Task ID"), "claim_token": str("Opaque claim token"), "lease_version": integer("Current lease version"), "lease_seconds": integer("Lease duration in seconds")}, "task_id", "claim_token", "lease_version")),
@@ -242,10 +242,11 @@ func (s *Server) call(ctx context.Context, name string, raw json.RawMessage) (an
 	switch name {
 	case "send_message":
 		var a struct {
-			ContextID string                   `json:"context_id"`
-			DedupeKey string                   `json:"dedupe_key"`
-			Body      string                   `json:"body"`
-			Envelope  *comitia.MessageEnvelope `json:"envelope"`
+			ContextID     string                   `json:"context_id"`
+			DedupeKey     string                   `json:"dedupe_key"`
+			Body          string                   `json:"body"`
+			Envelope      *comitia.MessageEnvelope `json:"envelope"`
+			AgentInstance *comitia.AgentInstance   `json:"agent_instance"`
 		}
 		if err := decode(raw, &a); err != nil {
 			return nil, err
@@ -253,7 +254,7 @@ func (s *Server) call(ctx context.Context, name string, raw json.RawMessage) (an
 		if err := required(a.ContextID, a.DedupeKey); err != nil {
 			return nil, err
 		}
-		return s.API.AppendMessage(ctx, s.Credential, a.ContextID, comitia.MessageInput{DedupeKey: a.DedupeKey, Body: a.Body, Envelope: a.Envelope})
+		return s.API.AppendMessage(ctx, s.Credential, a.ContextID, comitia.MessageInput{DedupeKey: a.DedupeKey, Body: a.Body, Envelope: a.Envelope, AgentInstance: a.AgentInstance})
 	case "list_participants":
 		var a struct {
 			ContextID string `json:"context_id"`
@@ -291,8 +292,9 @@ func (s *Server) call(ctx context.Context, name string, raw json.RawMessage) (an
 		return s.API.ReplayMessages(ctx, s.Credential, a.ContextID, a.After, a.Limit)
 	case "ack_messages":
 		var a struct {
-			ContextID string `json:"context_id"`
-			Sequence  int64  `json:"sequence"`
+			ContextID     string `json:"context_id"`
+			Sequence      int64  `json:"sequence"`
+			AgentInstance string `json:"agent_instance"`
 		}
 		if err := decode(raw, &a); err != nil {
 			return nil, err
@@ -300,13 +302,14 @@ func (s *Server) call(ctx context.Context, name string, raw json.RawMessage) (an
 		if err := required(a.ContextID); err != nil {
 			return nil, err
 		}
-		if err := s.API.AckMessages(ctx, s.Credential, a.ContextID, a.Sequence); err != nil {
+		if err := s.API.AckMessages(ctx, s.Credential, a.ContextID, a.Sequence, a.AgentInstance); err != nil {
 			return nil, err
 		}
 		return map[string]any{"ok": true}, nil
 	case "message_cursor":
 		var a struct {
-			ContextID string `json:"context_id"`
+			AgentInstance string `json:"agent_instance"`
+			ContextID     string `json:"context_id"`
 		}
 		if err := decode(raw, &a); err != nil {
 			return nil, err
@@ -314,7 +317,7 @@ func (s *Server) call(ctx context.Context, name string, raw json.RawMessage) (an
 		if err := required(a.ContextID); err != nil {
 			return nil, err
 		}
-		v, err := s.API.MessageCursor(ctx, s.Credential, a.ContextID)
+		v, err := s.API.MessageCursor(ctx, s.Credential, a.ContextID, a.AgentInstance)
 		if err != nil {
 			return nil, err
 		}

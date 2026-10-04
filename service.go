@@ -365,6 +365,10 @@ func (s *Service) AppendMessage(ctx context.Context, raw, cid string, in Message
 	if in.DedupeKey == "" || (in.Envelope == nil && in.Body == "") {
 		return m, ErrInvalid
 	}
+	instance, err := normalizeAgentInstance(in.AgentInstance)
+	if err != nil {
+		return m, err
+	}
 	envelope, err := s.normalizeEnvelope(in.Envelope, in.Body)
 	if err != nil {
 		return m, err
@@ -376,7 +380,7 @@ func (s *Service) AppendMessage(ctx context.Context, raw, cid string, in Message
 		}
 		old, e := w.MessageByDedupe(cid, a.session.ID, in.DedupeKey)
 		if e == nil {
-			if old.Body != in.Body || !sameEnvelope(old.Envelope, envelope) {
+			if old.Body != in.Body || !sameEnvelope(old.Envelope, envelope) || !sameAgentInstance(old.AgentInstance, instance) {
 				return ErrConflict
 			}
 			m = old
@@ -388,7 +392,7 @@ func (s *Service) AppendMessage(ctx context.Context, raw, cid string, in Message
 		if e := s.validateEnvelopeReferences(w, cid, envelope); e != nil {
 			return e
 		}
-		m = Message{ID: id(), ContextID: cid, SessionID: a.session.ID, DedupeKey: in.DedupeKey, Body: in.Body, CreatedAt: s.now().UTC(), Envelope: envelope}
+		m = Message{ID: id(), ContextID: cid, SessionID: a.session.ID, DedupeKey: in.DedupeKey, Body: in.Body, CreatedAt: s.now().UTC(), Envelope: envelope, AgentInstance: instance, AgentInstanceSelfReported: instance != nil}
 		m, e = w.PutMessage(m)
 		return e
 	})
@@ -409,7 +413,11 @@ func (s *Service) ReplayMessages(ctx context.Context, raw, cid string, after int
 	})
 	return out, e
 }
-func (s *Service) AckMessages(ctx context.Context, raw, cid string, seq int64) error {
+func (s *Service) AckMessages(ctx context.Context, raw, cid string, seq int64, instances ...string) error {
+	instance, err := cursorInstance(instances)
+	if err != nil {
+		return err
+	}
 	if seq < 0 {
 		return ErrInvalid
 	}
@@ -418,18 +426,22 @@ func (s *Service) AckMessages(ctx context.Context, raw, cid string, seq int64) e
 		if e != nil {
 			return e
 		}
-		return w.Ack(a.session.ID, cid, seq, s.now().UTC())
+		return w.Ack(a.session.ID, cid, seq, s.now().UTC(), instance)
 	})
 }
 
-func (s *Service) MessageCursor(ctx context.Context, raw, cid string) (int64, error) {
+func (s *Service) MessageCursor(ctx context.Context, raw, cid string, instances ...string) (int64, error) {
+	instance, err := cursorInstance(instances)
+	if err != nil {
+		return 0, err
+	}
 	var cursor int64
 	e := s.store.View(ctx, func(r ReadStore) error {
 		a, _, e := s.require(r, raw, cid, PermissionRead)
 		if e != nil {
 			return e
 		}
-		cursor, e = r.AckCursor(a.session.ID, cid)
+		cursor, e = r.AckCursor(a.session.ID, cid, instance)
 		return e
 	})
 	return cursor, e

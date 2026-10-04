@@ -26,7 +26,7 @@ test('inspector controller uses only read endpoints, rejects stale contexts and 
   const saved={document:globalThis.document,window:globalThis.window,location:globalThis.location,Option:globalThis.Option,fetch:globalThis.fetch,setTimeout:globalThis.setTimeout,clearTimeout:globalThis.clearTimeout};
   Object.assign(globalThis,{document:doc,window:new Element(),location:{href:'http://localhost:8080/ui/'},Option:class extends Element {constructor(label,value){super('option');this.textContent=label;this.value=value;}},setTimeout:(fn,delay)=>{timers.set(++nextTimer,{fn,delay});return nextTimer;},clearTimeout:id=>timers.delete(id)});
   const contexts=[{ID:'a',Name:'Context A',WorkspaceID:'workspace'},{ID:'b',Name:'Context B',WorkspaceID:'workspace'}];
-  const msg=(cid,body,seq=1)=>({ID:`${cid}-${seq}`,ContextID:cid,SessionID:'agent',Sequence:seq,Body:body,CreatedAt:'2026-09-10T10:00:00Z'});
+  const msg=(cid,body,seq=1)=>({ID:`${cid}-${seq}`,ContextID:cid,SessionID:'agent',Sequence:seq,Body:body,CreatedAt:'2026-09-10T10:00:00Z',agent_instance:{id:seq===1?'worker':'reviewer',label:seq===1?'<b>Issue worker</b>':'Issue reviewer'},agent_instance_self_reported:true});
   let delayed,expired=false;
   globalThis.fetch=async(url,options)=>{
     const path=new URL(url).pathname,body=JSON.parse(options.body);calls.push({path,body,options});
@@ -39,8 +39,8 @@ test('inspector controller uses only read endpoints, rejects stale contexts and 
     if(path.endsWith('/participants/list'))return ok({participants:[{SessionID:'agent',Name:'<script>not executable</script>'}]});
     if(path.endsWith('/tasks/list'))return ok({tasks:[]});
     if(path.endsWith('/messages/replay')) {
-      if(body.context_id==='a'&&body.after===1) return new Promise(resolve=>{delayed=()=>resolve(ok({messages:[msg('a','stale A result',2)]}));});
-      return ok({messages:body.after?[]:[msg(body.context_id,body.context_id==='a'?'<img src=x onerror=bad()>':'Current B message')]});
+      if(body.context_id==='a'&&body.after===2) return new Promise(resolve=>{delayed=()=>resolve(ok({messages:[msg('a','stale A result',3)]}));});
+      return ok({messages:body.after?[]:[msg(body.context_id,body.context_id==='a'?'<img src=x onerror=bad()>':'Current B message'),msg(body.context_id,'Reviewer reply',2)]});
     }
     throw new Error(`Unexpected endpoint ${path}`);
   };
@@ -51,6 +51,10 @@ test('inspector controller uses only read endpoints, rejects stale contexts and 
     assert.equal(elements.get('credential').value,'');
     assert.equal(elements.get('connect-panel').hidden,true);
     assert.match(text(elements.get('messages')),/<img src=x onerror=bad\(\)>/);
+    assert.match(text(elements.get('messages')),/<b>Issue worker<\/b> \(worker\) \(self-reported\)/);
+    assert.match(text(elements.get('messages')),/Issue reviewer \(reviewer\) \(self-reported\)/);
+    assert.match(text(elements.get('sequence-routes')),/Issue worker/);
+    assert.match(text(elements.get('sequence-routes')),/Issue reviewer/);
     assert.equal(elements.get('context-title').textContent,'Context A');
     assert.equal(elements.get('sequence-panel').hidden,false);
     assert.equal(elements.get('interaction-panel').hidden,true);
@@ -58,10 +62,18 @@ test('inspector controller uses only read endpoints, rejects stale contexts and 
     assert.match(text(elements.get('sequence-routes')),/Everyone/);
     await elements.get('sequence-routes').children[0].fire('click');
     assert.match(text(elements.get('details')),/Read status is unknown/);
+    assert.match(text(elements.get('details')),/Agent instance \(self-reported\)/);
+    assert.match(text(elements.get('details')),/authenticated sender is the session/);
     assert.match(text(elements.get('details')),/<img src=x onerror=bad\(\)>/);
     await elements.get('show-timeline').fire('click');
     assert.equal(elements.get('messages').hidden,false);
     assert.equal(elements.get('sequence-panel').hidden,true);
+    elements.get('search').value='reviewer';
+    await elements.get('search').fire('input');
+    assert.match(text(elements.get('messages')),/Reviewer reply/);
+    assert.doesNotMatch(text(elements.get('messages')),/<img src=x onerror=bad\(\)>/);
+    elements.get('search').value='';
+    await elements.get('search').fire('input');
     await elements.get('show-sequence').fire('click');
     const pending=elements.get('load-more').fire('click');await settle();assert.ok(delayed);
     const switchContext=elements.get('contexts').children[1].fire('click');await switchContext;

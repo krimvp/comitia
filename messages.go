@@ -8,6 +8,8 @@ import (
 	"io"
 	"sort"
 	"strings"
+	"unicode"
+	"unicode/utf8"
 )
 
 func strictPayload(raw json.RawMessage, target any) error {
@@ -127,7 +129,7 @@ func (s *Service) normalizeEnvelope(in *MessageEnvelope, body string) (*MessageE
 		return nil, nil
 	}
 	raw, err := json.Marshal(in)
-	if err != nil || len(raw) > 65536 || len(in.RecipientSessionIDs) > 64 {
+	if err != nil || len(raw) > 65536 || len(in.RecipientSessionIDs) > 64 || len(in.RecipientInstances) > 64 {
 		return nil, ErrInvalid
 	}
 	var out MessageEnvelope
@@ -166,6 +168,12 @@ func (s *Service) normalizeEnvelope(in *MessageEnvelope, body string) (*MessageE
 	sort.Strings(out.RecipientSessionIDs)
 	for i, id := range out.RecipientSessionIDs {
 		if id == "" || (i > 0 && id == out.RecipientSessionIDs[i-1]) {
+			return nil, ErrInvalid
+		}
+	}
+	sort.Strings(out.RecipientInstances)
+	for i, instance := range out.RecipientInstances {
+		if !validInstanceID(instance) || (i > 0 && instance == out.RecipientInstances[i-1]) {
 			return nil, ErrInvalid
 		}
 	}
@@ -236,4 +244,54 @@ func (s *Service) ListParticipants(ctx context.Context, token, cid string, limit
 		return nil, err
 	}
 	return out, nil
+}
+
+// Instance IDs are short, printable routing keys. They confer no permissions.
+func validInstanceID(id string) bool {
+	if len(id) == 0 || len(id) > 64 {
+		return false
+	}
+	for _, c := range id {
+		if !(c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c >= '0' && c <= '9' || c == '-' || c == '_' || c == '.') {
+			return false
+		}
+	}
+	return true
+}
+
+func normalizeAgentInstance(in *AgentInstance) (*AgentInstance, error) {
+	if in == nil {
+		return nil, nil
+	}
+	if !validInstanceID(in.ID) || len(in.Label) > 128 || !utf8.ValidString(in.Label) {
+		return nil, ErrInvalid
+	}
+	for _, c := range in.Label {
+		if unicode.IsControl(c) {
+			return nil, ErrInvalid
+		}
+	}
+	out := *in
+	return &out, nil
+}
+
+// Omitting the instance (or supplying an empty ID) selects the legacy cursor.
+func cursorInstance(instances []string) (string, error) {
+	if len(instances) > 1 {
+		return "", ErrInvalid
+	}
+	if len(instances) == 0 || instances[0] == "" {
+		return "", nil
+	}
+	if !validInstanceID(instances[0]) {
+		return "", ErrInvalid
+	}
+	return instances[0], nil
+}
+
+func sameAgentInstance(a, b *AgentInstance) bool {
+	if a == nil || b == nil {
+		return a == b
+	}
+	return *a == *b
 }

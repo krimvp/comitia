@@ -31,6 +31,7 @@ func NewHandler(api comitia.API) http.Handler {
 }
 
 type request struct {
+	AgentInstance string                      `json:"agent_instance,omitempty"`
 	AfterID       string                      `json:"after_id,omitempty"`
 	Name          string                      `json:"name,omitempty"`
 	PrincipalID   string                      `json:"principal_id,omitempty"`
@@ -183,10 +184,10 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	case "messages/replay":
 		out.Messages, err = h.api.ReplayMessages(ctx, token, q.ContextID, q.After, q.Limit)
 	case "messages/ack":
-		err = h.api.AckMessages(ctx, token, q.ContextID, q.After)
+		err = h.api.AckMessages(ctx, token, q.ContextID, q.After, q.AgentInstance)
 	case "messages/cursor":
 		var v int64
-		v, err = h.api.MessageCursor(ctx, token, q.ContextID)
+		v, err = h.api.MessageCursor(ctx, token, q.ContextID, q.AgentInstance)
 		out.Cursor = &v
 	case "tasks/create":
 		if q.Task == nil {
@@ -448,12 +449,26 @@ func (c *Client) ReplayMessages(x context.Context, t, id string, a int64, l int)
 	e := c.call(x, t, "messages/replay", request{ContextID: id, After: a, Limit: l}, &o)
 	return o.Messages, e
 }
-func (c *Client) AckMessages(x context.Context, t, id string, s int64) error {
-	return c.call(x, t, "messages/ack", request{ContextID: id, After: s}, &response{})
+func (c *Client) AckMessages(x context.Context, t, id string, s int64, instances ...string) error {
+	if len(instances) > 1 {
+		return comitia.ErrInvalid
+	}
+	instance := ""
+	if len(instances) == 1 {
+		instance = instances[0]
+	}
+	return c.call(x, t, "messages/ack", request{ContextID: id, After: s, AgentInstance: instance}, &response{})
 }
-func (c *Client) MessageCursor(x context.Context, t, id string) (int64, error) {
+func (c *Client) MessageCursor(x context.Context, t, id string, instances ...string) (int64, error) {
+	if len(instances) > 1 {
+		return 0, comitia.ErrInvalid
+	}
+	instance := ""
+	if len(instances) == 1 {
+		instance = instances[0]
+	}
 	var o response
-	e := c.call(x, t, "messages/cursor", request{ContextID: id}, &o)
+	e := c.call(x, t, "messages/cursor", request{ContextID: id, AgentInstance: instance}, &o)
 	if o.Cursor == nil {
 		return 0, missing(e)
 	}

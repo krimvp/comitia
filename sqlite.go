@@ -86,6 +86,8 @@ CREATE TABLE IF NOT EXISTS grants (id TEXT PRIMARY KEY, session_id TEXT NOT NULL
 CREATE INDEX IF NOT EXISTS grants_lookup ON grants(session_id,context_id);
 CREATE TABLE IF NOT EXISTS messages (id TEXT PRIMARY KEY, context_id TEXT NOT NULL REFERENCES contexts(id), session_id TEXT NOT NULL REFERENCES sessions(id), seq INTEGER NOT NULL, dedupe_key TEXT NOT NULL, body TEXT NOT NULL, created_at TEXT NOT NULL, UNIQUE(context_id,session_id,dedupe_key), UNIQUE(context_id,seq));
 CREATE TABLE IF NOT EXISTS message_envelopes (message_id TEXT PRIMARY KEY REFERENCES messages(id), envelope TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS message_instances (message_id TEXT PRIMARY KEY REFERENCES messages(id), instance_id TEXT NOT NULL, label TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS instance_acks (session_id TEXT NOT NULL REFERENCES sessions(id), context_id TEXT NOT NULL REFERENCES contexts(id), instance_id TEXT NOT NULL, seq INTEGER NOT NULL, updated_at TEXT NOT NULL, PRIMARY KEY(session_id,context_id,instance_id));
 CREATE TABLE IF NOT EXISTS acks (session_id TEXT NOT NULL REFERENCES sessions(id), context_id TEXT NOT NULL REFERENCES contexts(id), seq INTEGER NOT NULL, updated_at TEXT NOT NULL, PRIMARY KEY(session_id,context_id));
 CREATE TABLE IF NOT EXISTS tasks (id TEXT PRIMARY KEY, context_id TEXT NOT NULL REFERENCES contexts(id), title TEXT NOT NULL, body TEXT NOT NULL, status TEXT NOT NULL, lease_owner_session_id TEXT, lease_version INTEGER NOT NULL, lease_expires_at TEXT, lease_token_hash TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL);
 CREATE INDEX IF NOT EXISTS tasks_lookup ON tasks(context_id,status,created_at);
@@ -273,17 +275,21 @@ func (x *sqlStore) MessageByDedupe(cid, sid, key string) (Message, error) {
 	return scanMessage(x.q.QueryRow(messageSelect+" WHERE m.context_id=? AND m.session_id=? AND m.dedupe_key=?", cid, sid, key))
 }
 
-const messageSelect = "SELECT m.id,m.context_id,m.session_id,m.seq,m.dedupe_key,m.body,m.created_at,COALESCE(e.envelope,'') FROM messages m LEFT JOIN message_envelopes e ON e.message_id=m.id"
+const messageSelect = "SELECT m.id,m.context_id,m.session_id,m.seq,m.dedupe_key,m.body,m.created_at,COALESCE(e.envelope,''),COALESCE(i.instance_id,''),COALESCE(i.label,'') FROM messages m LEFT JOIN message_envelopes e ON e.message_id=m.id LEFT JOIN message_instances i ON i.message_id=m.id"
 
 func (x *sqlStore) Message(id string) (Message, error) {
 	return scanMessage(x.q.QueryRow(messageSelect+" WHERE m.id=?", id))
 }
 func scanMessage(row interface{ Scan(...any) error }) (Message, error) {
 	var m Message
-	var c, envelope string
-	e := row.Scan(&m.ID, &m.ContextID, &m.SessionID, &m.Sequence, &m.DedupeKey, &m.Body, &c, &envelope)
+	var c, envelope, instance, label string
+	e := row.Scan(&m.ID, &m.ContextID, &m.SessionID, &m.Sequence, &m.DedupeKey, &m.Body, &c, &envelope, &instance, &label)
 	if e == nil && envelope != "" {
 		e = json.Unmarshal([]byte(envelope), &m.Envelope)
+	}
+	if instance != "" {
+		m.AgentInstance = &AgentInstance{ID: instance, Label: label}
+		m.AgentInstanceSelfReported = true
 	}
 	m.CreatedAt = parse(c)
 	return m, dbErr(e)
@@ -300,6 +306,9 @@ func (x *sqlStore) PutMessage(m Message) (Message, error) {
 		if e == nil {
 			_, e = x.q.Exec("INSERT INTO message_envelopes VALUES(?,?)", m.ID, string(raw))
 		}
+	}
+	if e == nil && m.AgentInstance != nil {
+		_, e = x.q.Exec("INSERT INTO message_instances VALUES(?,?,?)", m.ID, m.AgentInstance.ID, m.AgentInstance.Label)
 	}
 	return m, e
 }
@@ -319,7 +328,7 @@ func (x *sqlStore) Messages(cid string, after int64, limit int) ([]Message, erro
 	}
 	return out, rows.Err()
 }
-func (x *sqlStore) Ack(sid, cid string, seq int64, at time.Time) error {
+func (x *sqlStore) Ack(sid, cid string, seq int64, at time.Time, instance string) error {
 	var max int64
 	if e := x.q.QueryRow("SELECT COALESCE(MAX(seq),0) FROM messages WHERE context_id=?", cid).Scan(&max); e != nil {
 		return e
@@ -327,12 +336,21 @@ func (x *sqlStore) Ack(sid, cid string, seq int64, at time.Time) error {
 	if seq > max {
 		return ErrInvalid
 	}
+	if instance != "" {
+		_, e := x.q.Exec(`INSERT INTO instance_acks VALUES(?,?,?,?,?) ON CONFLICT(session_id,context_id,instance_id) DO UPDATE SET seq=MAX(seq,excluded.seq),updated_at=excluded.updated_at`, sid, cid, instance, seq, ts(at))
+		return e
+	}
 	_, e := x.q.Exec(`INSERT INTO acks VALUES(?,?,?,?) ON CONFLICT(session_id,context_id) DO UPDATE SET seq=MAX(seq,excluded.seq),updated_at=excluded.updated_at`, sid, cid, seq, ts(at))
 	return e
 }
-func (x *sqlStore) AckCursor(sid, cid string) (int64, error) {
+func (x *sqlStore) AckCursor(sid, cid, instance string) (int64, error) {
 	var seq int64
-	e := x.q.QueryRow("SELECT seq FROM acks WHERE session_id=? AND context_id=?", sid, cid).Scan(&seq)
+	var e error
+	if instance == "" {
+		e = x.q.QueryRow("SELECT seq FROM acks WHERE session_id=? AND context_id=?", sid, cid).Scan(&seq)
+	} else {
+		e = x.q.QueryRow("SELECT seq FROM instance_acks WHERE session_id=? AND context_id=? AND instance_id=?", sid, cid, instance).Scan(&seq)
+	}
 	if errors.Is(e, sql.ErrNoRows) {
 		return 0, nil
 	}

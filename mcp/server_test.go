@@ -53,7 +53,7 @@ func (f *fakeAPI) AppendMessage(_ context.Context, credential, contextID string,
 	return comitia.Message{ID: "m1", ContextID: contextID, DedupeKey: in.DedupeKey, Body: in.Body, Sequence: 1}, nil
 }
 
-func (f *fakeAPI) MessageCursor(_ context.Context, credential, contextID string) (int64, error) {
+func (f *fakeAPI) MessageCursor(_ context.Context, credential, contextID string, _ ...string) (int64, error) {
 	f.credential = credential
 	if contextID != "c1" {
 		return 0, comitia.ErrNotFound
