@@ -41,12 +41,73 @@ consumers can select messages containing their session ID, or broadcasts with no
 recipient IDs. Separate contexts are the access boundary. This version does not
 provide a private inbox or enforce task-specific membership within a context.
 
+## Self-reported agent instances
+
+Processes sharing a credential can attach an optional claim to each message:
+
+```json
+{"agent_instance": {"id": "issue-3-worker", "label": "Implementation worker"}}
+```
+
+The ID is a caller-chosen routing key: 1–64 ASCII letters, digits, dots,
+underscores or hyphens. The optional label is at most 128 UTF-8 bytes and cannot
+contain control characters. An omitted or null message claim preserves legacy
+messages; an object with an empty ID is invalid. The server persists the claim
+and returns `agent_instance_self_reported: true` with it on send and replay.
+The inspector displays the ID and label beside the participant name, explicitly
+marked **self-reported**, and includes them in message search.
+
+The authenticated sender remains `Message.SessionID`. An instance is **not
+identity proof**, never grants access, and never replaces session/grant checks
+or task lease ownership. Anyone sharing the credential can reuse another
+process's instance ID or move its cursor. Choose distinct IDs for cooperating
+processes; mint distinct sessions when stronger isolation is required.
+`list_participants` continues to list credentialed sessions, not instances.
+
+An envelope may include `recipient_instances: ["issue-3-reviewer"]` alongside
+`recipient_session_ids`. Up to 64 distinct instance IDs are allowed with the
+same ID syntax as sender claims; order is normalized. These IDs need not have
+sent a message or registered first. They are consumer-side routing metadata,
+not private delivery. Consumers should match both their authenticated session
+(if session recipients are present) and their claimed instance (if instance
+recipients are present). With neither list present, the message is a broadcast.
+An instance-only recipient list applies to matching claims across readable
+sessions, so use both lists when targeting one particular session.
+
+### Independent acknowledgement cursors
+
+MCP `message_cursor` and `ack_messages` accept optional `agent_instance` as an
+**ID string**, such as `"issue-3-worker"`. HTTP POST `/v1/messages/cursor` and
+`/v1/messages/ack` accept the same top-level string; HTTP acknowledgement still
+uses `after` as its inclusive sequence. CLI `cursor` and `ack` accept
+`--agent-instance ID`. The Go API adds a single optional trailing ID argument:
+
+```go
+svc.AckMessages(ctx, credential, contextID, sequence, "issue-3-worker")
+svc.MessageCursor(ctx, credential, contextID, "issue-3-worker")
+```
+
+Cursors are persisted independently per **(session, context, instance ID)**.
+Acknowledging one instance never advances another instance or the legacy
+session cursor. A new instance starts at zero; it does not inherit the legacy
+cursor. Omitting the ID (or supplying an empty string) uses the existing
+session/context cursor, including acknowledgements from before the upgrade.
+Labels do not affect cursors. Acknowledgements remain monotonic and cannot
+exceed the context's current maximum sequence. Cursor operations require the
+same authenticated read access as before, even for unseen instance IDs.
+
+Replay still reads the shared context log using an explicit `after` sequence;
+it does not automatically filter recipients or choose an instance cursor. Read
+your instance cursor, replay after it, filter relevant messages locally, then
+acknowledge the shared-log sequence you consumed using the same instance ID.
+
 ## Envelope contract
 
 ```json
 {
   "schema": "comitia.review-request.v1",
   "recipient_session_ids": ["EXACT_SESSION_ID"],
+  "recipient_instances": ["issue-3-reviewer"],
   "task_id": "TASK_ID",
   "reply_to": "EARLIER_MESSAGE_ID",
   "payload": {
@@ -60,9 +121,12 @@ provide a private inbox or enforce task-specific membership within a context.
 are optional at envelope level, with task references required by the schemas
 below. At most 64 distinct recipient sessions and 64 KiB of encoded envelope are
 accepted. Recipient order and insignificant payload whitespace/object-key order
-are normalized. Reusing a deduplication key with a changed body or envelope is a
-conflict. Identical retries return the original message; they do not redeliver or
-revalidate its recipients. The sender must still be authorized to write.
+are normalized. Reusing a deduplication key with a changed body, envelope or
+instance claim is a conflict. Deduplication remains scoped to
+(context, session, key), so processes sharing one session should include their
+instance ID in their keys. Identical
+retries return the original message; they do not redeliver or revalidate its
+recipients. The sender must still be authorized to write.
 
 New messages validate all task/reply references and recipients in the same
 transaction as insertion. Revoked/expired sessions, names used as IDs,
@@ -149,13 +213,16 @@ Save the envelope above to `review.json`, replacing example IDs with real IDs:
 
 ```sh
 comitia send --context-id CONTEXT_ID --dedupe-key review-1 \
-  --body 'Please inspect the recovery path.' --envelope-file review.json
+  --body 'Please inspect the recovery path.' --envelope-file review.json \
+  --agent-instance issue-3-worker --agent-instance-label 'Implementation worker'
 ```
 
-MCP `send_message` accepts `context_id`, `dedupe_key`, optional `body`, and
-`envelope`. HTTP `messages/append` accepts the envelope inside its `message`
-object. The Go API accepts `MessageInput.Envelope`. Replay returns the persisted
-`envelope` alongside the existing message metadata and body.
+MCP `send_message` accepts `context_id`, `dedupe_key`, and optional `body`,
+`envelope`, and `agent_instance` object. HTTP `messages/append` accepts the
+envelope inside its `message` object, with `agent_instance` alongside `Body`
+and `envelope`. The Go API accepts `MessageInput.Envelope` and
+`MessageInput.AgentInstance`. Replay returns the persisted envelope and instance
+claim alongside the existing message metadata and body.
 
 Plain-text messages remain supported. An envelope has no sender/context override;
 the existing authenticated request supplies those. The CLI, HTTP and MCP adapters
@@ -178,3 +245,13 @@ clients and servers for typed workflows; older binaries do not understand the
 envelope side table. Custom storage implementations must implement the added
 `ReadStore.Message` and `ReadStore.Participants` methods and persist envelopes in
 their existing message operations.
+
+Instance metadata uses a `message_instances` side table, atomically written with
+the message and envelope. Instance cursors use `instance_acks`; legacy `acks`
+rows remain unchanged. Both tables are created on open for existing SQLite
+databases. Old binaries can still read legacy rows but do not expose instance
+metadata or manage instance cursors. Custom stores must preserve the message's
+claim and trust marker and implement the instance ID argument on
+`ReadStore.AckCursor` and `WriteStore.Ack`; an empty ID selects the legacy cursor.
+Custom API implementations must update their cursor method signatures to accept
+one optional instance ID. Existing Go calls without an ID remain valid.

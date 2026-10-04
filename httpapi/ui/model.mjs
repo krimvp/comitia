@@ -73,7 +73,7 @@ export function filterMessages(messages, {query = '', agent = '', type = '', tas
       (!task || envelope.task_id === task) &&
       (!from || message.SessionID === from) &&
       (!to || (to === '@broadcast' ? !(envelope.recipient_session_ids?.length) : (envelope.recipient_session_ids || []).includes(to))) &&
-      (!text || [message.Body, message.ID, message.SessionID, JSON.stringify(envelope)].join(' ').toLocaleLowerCase().includes(text));
+      (!text || [message.Body, message.ID, message.SessionID, JSON.stringify(message.agent_instance), JSON.stringify(envelope)].join(' ').toLocaleLowerCase().includes(text));
   });
 }
 

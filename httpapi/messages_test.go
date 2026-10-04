@@ -46,13 +46,28 @@ func TestTypedHTTPMessagesAndParticipantDiscovery(t *testing.T) {
 	if err != nil || len(ps) != 1 || ps[0].SessionID != owner.Session.ID {
 		t.Fatalf("participants: %v %v", ps, err)
 	}
-	m, err := client.AppendMessage(ctx, owner.Token, c.ID, comitia.MessageInput{DedupeKey: "typed", Body: "hello", Envelope: &comitia.MessageEnvelope{Schema: "comitia.discussion.v1", RecipientSessionIDs: []string{ps[0].SessionID}, Payload: json.RawMessage(`{}`)}})
+	m, err := client.AppendMessage(ctx, owner.Token, c.ID, comitia.MessageInput{DedupeKey: "typed", Body: "hello", AgentInstance: &comitia.AgentInstance{ID: "worker", Label: "HTTP worker"}, Envelope: &comitia.MessageEnvelope{Schema: "comitia.discussion.v1", RecipientInstances: []string{"reviewer"}, RecipientSessionIDs: []string{ps[0].SessionID}, Payload: json.RawMessage(`{}`)}})
 	if err != nil {
 		t.Fatal(err)
 	}
 	msgs, err := client.ReplayMessages(ctx, owner.Token, c.ID, 0, 100)
 	if err != nil || len(msgs) != 1 || msgs[0].Envelope == nil || msgs[0].ID != m.ID {
 		t.Fatalf("replay: %v %v", msgs, err)
+	}
+	if msgs[0].AgentInstance == nil || msgs[0].AgentInstance.ID != "worker" || msgs[0].AgentInstance.Label != "HTTP worker" || !msgs[0].AgentInstanceSelfReported || len(msgs[0].Envelope.RecipientInstances) != 1 {
+		t.Fatalf("HTTP lost claim: %v", msgs[0])
+	}
+	if err = client.AckMessages(ctx, owner.Token, c.ID, m.Sequence, "worker"); err != nil {
+		t.Fatal(err)
+	}
+	for _, check := range []struct {
+		instance string
+		want     int64
+	}{{"worker", m.Sequence}, {"reviewer", 0}, {"", 0}} {
+		got, err := client.MessageCursor(ctx, owner.Token, c.ID, check.instance)
+		if err != nil || got != check.want {
+			t.Fatalf("HTTP cursor %q: %d %v", check.instance, got, err)
+		}
 	}
 	if _, err = client.ListParticipants(ctx, "invalid", c.ID, 100); !errors.Is(err, comitia.ErrUnauthenticated) {
 		t.Fatalf("unauthenticated discovery: %v", err)

@@ -68,6 +68,8 @@ type Message struct {
 	Sequence                                  int64
 	CreatedAt                                 time.Time
 	Envelope                                  *MessageEnvelope `json:"envelope,omitempty"`
+	AgentInstance                             *AgentInstance   `json:"agent_instance,omitempty"`
+	AgentInstanceSelfReported                 bool             `json:"agent_instance_self_reported,omitempty"`
 }
 type TaskStatus string
 
@@ -112,13 +114,22 @@ type DelegateInput struct {
 	TTL           time.Duration
 	Grants        []DelegatedGrant
 }
+
+// AgentInstance is caller-claimed coordination metadata, never an authenticated identity.
+type AgentInstance struct {
+	ID    string `json:"id"`
+	Label string `json:"label,omitempty"`
+}
+
 type MessageInput struct {
 	DedupeKey, Body string
 	Envelope        *MessageEnvelope `json:"envelope,omitempty"`
+	AgentInstance   *AgentInstance   `json:"agent_instance,omitempty"`
 }
 type MessageEnvelope struct {
 	Schema              string          `json:"schema"`
 	RecipientSessionIDs []string        `json:"recipient_session_ids,omitempty"`
+	RecipientInstances  []string        `json:"recipient_instances,omitempty"`
 	TaskID              string          `json:"task_id,omitempty"`
 	ReplyTo             string          `json:"reply_to,omitempty"`
 	Payload             json.RawMessage `json:"payload"`
@@ -147,8 +158,8 @@ type API interface {
 	GrantContext(context.Context, string, GrantInput) (Grant, error)
 	AppendMessage(context.Context, string, string, MessageInput) (Message, error)
 	ReplayMessages(context.Context, string, string, int64, int) ([]Message, error)
-	AckMessages(context.Context, string, string, int64) error
-	MessageCursor(context.Context, string, string) (int64, error)
+	AckMessages(context.Context, string, string, int64, ...string) error
+	MessageCursor(context.Context, string, string, ...string) (int64, error)
 	CreateTask(context.Context, string, string, TaskInput) (Task, error)
 	GetTask(context.Context, string, string) (Task, error)
 	ListTasks(context.Context, string, string, TaskStatus, int) ([]Task, error)
@@ -183,7 +194,7 @@ type ReadStore interface {
 	Grants(string, string, time.Time) ([]Grant, error)
 	Context(string) (WorkContext, error)
 	MessageByDedupe(string, string, string) (Message, error)
-	AckCursor(string, string) (int64, error)
+	AckCursor(string, string, string) (int64, error)
 	Messages(string, int64, int) ([]Message, error)
 	Task(string) (Task, error)
 	Tasks(string, TaskStatus, int) ([]Task, error)
@@ -200,6 +211,6 @@ type WriteStore interface {
 	RevokeGrantTree(string, time.Time) error
 	RevokeSessionTree(string, time.Time) error
 	PutMessage(Message) (Message, error)
-	Ack(string, string, int64, time.Time) error
+	Ack(string, string, int64, time.Time, string) error
 	PutTask(Task) error
 }

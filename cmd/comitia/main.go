@@ -166,6 +166,8 @@ func run(ctx context.Context, args []string) error {
 		cid := fs.String("context-id", "", "context ID")
 		key := fs.String("dedupe-key", "", "stable deduplication key")
 		body := fs.String("body", "", "message body")
+		instanceID := fs.String("agent-instance", "", "self-reported instance ID")
+		instanceLabel := fs.String("agent-instance-label", "", "optional self-reported instance label")
 		envelopeFile := fs.String("envelope-file", "", "validated message envelope JSON file")
 		if err := fs.Parse(args); err != nil {
 			return err
@@ -174,7 +176,11 @@ func run(ctx context.Context, args []string) error {
 		if e != nil {
 			return e
 		}
-		v, e := api.AppendMessage(ctx, needCredential(cfg), *cid, comitia.MessageInput{DedupeKey: *key, Body: *body, Envelope: envelope})
+		var instance *comitia.AgentInstance
+		if *instanceID != "" || *instanceLabel != "" {
+			instance = &comitia.AgentInstance{ID: *instanceID, Label: *instanceLabel}
+		}
+		v, e := api.AppendMessage(ctx, needCredential(cfg), *cid, comitia.MessageInput{DedupeKey: *key, Body: *body, Envelope: envelope, AgentInstance: instance})
 		if e != nil {
 			return e
 		}
@@ -208,20 +214,22 @@ func run(ctx context.Context, args []string) error {
 		fs := newFlags(cmd)
 		cid := fs.String("context-id", "", "context ID")
 		seq := fs.Int64("sequence", 0, "inclusive sequence")
+		instance := fs.String("agent-instance", "", "self-reported instance ID for this cursor")
 		if err := fs.Parse(args); err != nil {
 			return err
 		}
-		if e := api.AckMessages(ctx, needCredential(cfg), *cid, *seq); e != nil {
+		if e := api.AckMessages(ctx, needCredential(cfg), *cid, *seq, *instance); e != nil {
 			return e
 		}
 		return out.Encode(map[string]bool{"ok": true})
 	case "cursor":
 		fs := newFlags(cmd)
 		cid := fs.String("context-id", "", "context ID")
+		instance := fs.String("agent-instance", "", "self-reported instance ID for this cursor")
 		if err := fs.Parse(args); err != nil {
 			return err
 		}
-		v, e := api.MessageCursor(ctx, needCredential(cfg), *cid)
+		v, e := api.MessageCursor(ctx, needCredential(cfg), *cid, *instance)
 		if e != nil {
 			return e
 		}
