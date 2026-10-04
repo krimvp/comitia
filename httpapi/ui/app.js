@@ -1,4 +1,4 @@
-import {ConversationState, PAGE_SIZE, WINDOW_LIMIT, shortID, messageType, typeLabel, filterMessages, interactionGraph, BROADCAST, parseActor, senderActor, recipientActors, instanceClaims} from './model.mjs';
+import {ConversationState, PAGE_SIZE, WINDOW_LIMIT, shortID, messageType, typeLabel, filterMessages, interactionGraph, BROADCAST, parseActor, senderActor, recipientActors, instanceClaims, taskStatus, stateLabel} from './model.mjs';
 import {renderInteractionMap} from './graph.mjs';
 import {sequenceLayout, renderSequence, LANE_LIMIT, ARROW_LIMIT, timeLabel} from './sequence.mjs';
 
@@ -298,6 +298,8 @@ function renderMessages() {
     top.append(node('span', participantName(message.SessionID).slice(0,2).toUpperCase(), 'avatar'));
     const sender = node('span', participantName(message.SessionID) + instanceLabel(message), 'sender'); sender.append(node('span', ` · ${shortID(message.SessionID)}`, 'session-short'));
     top.append(sender, node('span', typeLabel(type), `badge ${type.replace(/^comitia\./,'').replace(/\.v\d+$/,'')}`), node('span', date(message.CreatedAt), 'message-time'));
+    const status = taskStatus(message, tasks, contexts);
+    if (status) top.append(node('span', stateLabel(status.state), `badge task-state ${status.state}`));
     main.append(top, node('p', message.Body || envelope.payload?.summary || envelope.payload?.instructions || 'Structured message', 'message-body'));
     main.append(node('p', envelope.recipient_session_ids?.length ? `To ${envelope.recipient_session_ids.map(agentLabel).join(', ')}` : 'To everyone in this context', 'message-routing'));
     card.append(main);
@@ -306,6 +308,7 @@ function renderMessages() {
     if (envelope.reply_to) actions.append(byID.has(envelope.reply_to) ? button(`Reply to #${byID.get(envelope.reply_to).Sequence}`, () => jumpMessage(envelope.reply_to)) : node('span', `Reply to ${shortID(envelope.reply_to)} · outside loaded window`));
     actions.append(button('View thread', () => { thread = message.ID; selected = message.ID; displayStart = 0; renderMessages(); renderDetails(); }));
     if (envelope.task_id) actions.append(button(tasks.find(t => t.ID === envelope.task_id)?.Title || `Task ${shortID(envelope.task_id)}`, () => {$('task-filter').value = envelope.task_id;displayStart=null;renderTasks();renderMessages();}));
+    if (status?.childContext) actions.append(button(`Child context ${status.childContext.Name}`, () => openContext(status.childContext.ID)));
     actions.append(node('span', `#${message.Sequence}`, 'sequence')); card.append(actions);
     return card;
   }));
@@ -315,6 +318,12 @@ function renderTaskDetail(target, task) {
   if (task.Body) target.append(node('p',task.Body));
   if (task.LeaseOwnerSessionID) target.append(node('p',`Owner: ${agentLabel(task.LeaseOwnerSessionID)}`, 'hint'));
   if (task.LeaseExpiresAt) target.append(node('p',`Lease ends: ${date(task.LeaseExpiresAt)}`, 'hint'));
+}
+function renderTaskStatus(target, status) {
+  target.append(node('h3','Task status'), node('span', stateLabel(status.state), `badge task-state ${status.state}`), node('p', `${status.taskTitle || `Task ${shortID(status.taskID)}`} · reported by the sender`));
+  if (status.childContext) target.append(button(`Open child context ${status.childContext.Name}`, () => openContext(status.childContext.ID)));
+  else if (status.childContextID) target.append(node('p', `Child context ${status.childContextID} is not among your readable contexts.`, 'hint'));
+  if (status.blockers.length) target.append(node('h3','Blockers'), ...status.blockers.map(b => node('p', b)));
 }
 function renderDetails() {
   const target = $('details'), message = state.messages.find(m => m.ID === selected);
@@ -339,13 +348,15 @@ function renderDetails() {
       catch(error){fail(error,generation);}
     }));
   }
+  const status = taskStatus(message, tasks, contexts);
+  if (status) renderTaskStatus(target, status);
   const replies = state.messages.filter(m => m.envelope?.reply_to === message.ID);
   target.append(node('h3',`Replies · ${replies.length} loaded`));
   if (envelope.reply_to) target.append(state.messages.some(m=>m.ID === envelope.reply_to) ? button('Open parent message',()=>jumpMessage(envelope.reply_to)) : node('p',`Parent ${envelope.reply_to} is outside the loaded window.`, 'hint'));
   replies.forEach(reply=>target.append(button(`#${reply.Sequence} · ${agentLabel(reply.SessionID)}`,()=>jumpMessage(reply.ID))));
   if (envelope.schema) {
     target.append(node('h3','Structured payload'),node('pre',JSON.stringify(envelope,null,2)),node('p','Reported claims and evidence references are supplied by agents. They do not certify a result or change task status.', 'hint'));
-    const refs = [envelope.payload?.artifact_refs, envelope.payload?.evidence_refs].flatMap(value => Array.isArray(value) ? value : []);
+    const refs = [envelope.payload?.artifact_refs, envelope.payload?.evidence_refs, status?.links].flatMap(value => Array.isArray(value) ? value : []);
     if (refs.length) target.append(node('h3','References'));
     for (const ref of refs) {
       if (typeof ref !== 'string') continue;

@@ -143,6 +143,7 @@ cross-context references, unknown schemas and invalid payloads are rejected.
 | `comitia.verification-result.v1` | Yes | `status`, nonempty `checks`; see below |
 | `comitia.evaluation-result.v1` | Yes | `evaluation_id`, `outcome`, `grader`, nonempty `criteria`; optional `cost`; see below |
 | `comitia.execution-event.v1` | Yes | `run_id`, positive `event_sequence`, `kind`, and kind-specific measurements; see [Execution telemetry](execution-telemetry.md) |
+| `comitia.task-status.v1` | Yes | `state`, `summary`; optional `child_context_id`, `blockers`, `links`; see [Task status](#task-status) |
 
 Verification status is `passed`, `failed`, or `not_run`. Passed/failed results
 require nonempty `evidence_refs`; not-run results require a nonblank `reason`.
@@ -206,6 +207,39 @@ run used time, tokens, tools, and money, while an evaluation result records a
 grader's evidence-backed outcome. Both require a task reference, and neither
 changes task state. See [Execution telemetry](execution-telemetry.md) for the
 event kinds, validation rules, deduplication guidance, and an ingestion example.
+
+## Task status
+
+A coordinator working in a private child context reports progress to the parent
+(for example an epic) context itself; Comitia never relays messages between
+contexts. `comitia.task-status.v1` gives those reports a shared form. It is sent
+in the parent context, and `task_id` names the parent's task:
+
+```json
+{
+  "schema": "comitia.task-status.v1",
+  "task_id": "PARENT_TASK_ID",
+  "payload": {
+    "state": "blocked",
+    "summary": "Store and API done; waiting on the schema decision.",
+    "child_context_id": "CHILD_CONTEXT_ID",
+    "blockers": ["Decide whether approvals need a task"],
+    "links": ["https://github.com/krimvp/comitia/pull/22"]
+  }
+}
+```
+
+`state` is `planned`, `in_progress`, `blocked`, `review`, or `done`. `summary`
+is nonblank and at most 4096 bytes. `blockers` and `links` are optional lists of
+at most 64 nonblank strings of at most 1024 bytes each; links are opaque and not
+fetched. `child_context_id`, when set, must be a direct child of the context the
+message is sent in, so readers know where the detail lives; a grandchild, a
+sibling or an unknown ID is rejected as invalid. The sender does not need read
+access to the child, and readers still need their own grant to open it. Like the
+other schemas, a status is a claim and does not change the task's state.
+
+The inspector shows status messages with their state and task title, and links
+the child context when it is among the viewer's readable contexts.
 
 ## Sending
 

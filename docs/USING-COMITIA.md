@@ -108,9 +108,12 @@ required ones are rejected:
 | `comitia.verification-result.v1` | `checks[]`, `status` (`passed`/`failed`; `evidence_refs[]` required for passed) |
 | `comitia.finding.v1` | `summary` (`severity` expected) |
 | `comitia.blocker.v1` | see source |
+| `comitia.task-status.v1` | `state` (`planned`/`in_progress`/`blocked`/`review`/`done`), `summary`; optional `child_context_id` (a direct child of this context), `blockers[]`, `links[]` |
 
 `assignment`, `review-request`, `blocker`, `work-submitted`, and
 `verification-result` all **require `task_id`**.
+`task-status` requires it too: a coordinator posts it in the parent context to report on
+work done in a private child context (see [message protocol](message-protocol.md#task-status)).
 
 ---
 

@@ -143,3 +143,26 @@ export function interactionGraph(messages, participants = []) {
   const nodes = [...sessions.values()].filter(n => n.instance || n.sent || n.received || !split.has(n.id));
   return {nodes,edges:[...links.values()],messageCount:messages.length,claims};
 }
+
+export const TASK_STATUS = 'comitia.task-status.v1';
+export const TASK_STATES = ['planned', 'in_progress', 'blocked', 'review', 'done'];
+export const stateLabel = state => TASK_STATES.includes(state) ? state.replace('_', ' ') : 'unknown state';
+
+// A task-status view never trusts the payload shape; the child context links only
+// when it is among the viewer's readable contexts, since readability is otherwise unknown.
+export function taskStatus(message, tasks = [], contexts = []) {
+  const envelope = message.envelope;
+  if (envelope?.schema !== TASK_STATUS) return null;
+  const payload = envelope.payload || {}, strings = value => Array.isArray(value) ? value.filter(v => typeof v === 'string') : [];
+  const childContextID = typeof payload.child_context_id === 'string' ? payload.child_context_id : '';
+  return {
+    state: TASK_STATES.includes(payload.state) ? payload.state : 'unknown',
+    summary: typeof payload.summary === 'string' ? payload.summary : '',
+    taskID: envelope.task_id || '',
+    taskTitle: tasks.find(t => t.ID === envelope.task_id)?.Title || '',
+    childContextID,
+    childContext: childContextID ? contexts.find(c => c.ID === childContextID && c.ParentContextID === message.ContextID) || null : null,
+    blockers: strings(payload.blockers),
+    links: strings(payload.links),
+  };
+}

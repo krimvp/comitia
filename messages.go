@@ -172,6 +172,7 @@ func builtinMessageSchemas() map[string]PayloadValidator {
 		},
 		EvaluationResultSchema: validEvaluationResult,
 		ExecutionEventSchema:   validExecutionEvent,
+		TaskStatusSchema:       validTaskStatus,
 	}
 }
 
@@ -218,6 +219,9 @@ func (s *Service) normalizeEnvelope(in *MessageEnvelope, body string) (*MessageE
 			return nil, fmt.Errorf("%w: task_id required", ErrInvalid)
 		}
 	}
+	if out.Schema == TaskStatusSchema && out.TaskID == "" {
+		return nil, fmt.Errorf("%w: task_id required", ErrInvalid)
+	}
 	sort.Strings(out.RecipientSessionIDs)
 	for i, id := range out.RecipientSessionIDs {
 		if id == "" || (i > 0 && id == out.RecipientSessionIDs[i-1]) {
@@ -254,6 +258,9 @@ func (s *Service) validateEnvelopeReferences(r ReadStore, cid string, env *Messa
 		if err != nil || message.ContextID != cid {
 			return ErrForbidden
 		}
+	}
+	if err := validateTaskStatusReferences(r, cid, env); err != nil {
+		return err
 	}
 	now := s.now().UTC()
 	for _, sid := range env.RecipientSessionIDs {
