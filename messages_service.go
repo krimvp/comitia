@@ -34,6 +34,9 @@ func (s *Service) AppendMessage(ctx context.Context, raw, cid string, in Message
 		if !errors.Is(e, ErrNotFound) {
 			return e
 		}
+		if e := s.requireTaskStatusRead(w, raw, cid, envelope); e != nil {
+			return e
+		}
 		if e := s.validateEnvelopeReferences(w, cid, envelope); e != nil {
 			return e
 		}
