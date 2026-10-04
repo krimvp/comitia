@@ -46,7 +46,7 @@ func TestGrantCommandEmbeddedAndRemote(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			_, target, _, err := svc.DelegateSession(ctx, owner.Token, comitia.DelegateInput{PrincipalName: "target", TTL: 4 * time.Hour, Grants: []comitia.DelegatedGrant{{ContextID: other.ID, Permissions: comitia.PermissionRead, ExpiresAt: time.Now().Add(3 * time.Hour)}}})
+			_, target, targetGrants, err := svc.DelegateSession(ctx, owner.Token, comitia.DelegateInput{PrincipalName: "target", TTL: 4 * time.Hour, Grants: []comitia.DelegatedGrant{{ContextID: other.ID, Permissions: comitia.PermissionRead, ExpiresAt: time.Now().Add(3 * time.Hour)}}})
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -57,6 +57,33 @@ func TestGrantCommandEmbeddedAndRemote(t *testing.T) {
 				global = []string{"--server-url", server.URL, "--credential", issuer.Token}
 			}
 			args := []string{"grant", "--session-id", target.Session.ID, "--context-id", c.ID, "--permissions", "read", "--ttl", "30m"}
+			outsideWS, err := svc.CreateWorkspace(ctx, owner.Token, "outside")
+			if err != nil {
+				t.Fatal(err)
+			}
+			outside, err := svc.CreateContext(ctx, owner.Token, comitia.CreateContextInput{WorkspaceID: outsideWS.ID, Name: "outside"})
+			if err != nil {
+				t.Fatal(err)
+			}
+			_, outsider, _, err := svc.DelegateSession(ctx, owner.Token, comitia.DelegateInput{PrincipalName: "outsider", TTL: 4 * time.Hour, Grants: []comitia.DelegatedGrant{{ContextID: outside.ID, Permissions: comitia.PermissionRead, ExpiresAt: time.Now().Add(3 * time.Hour)}}})
+			if err != nil {
+				t.Fatal(err)
+			}
+			crossWorkspace := append([]string(nil), args...)
+			crossWorkspace[2] = outsider.Session.ID
+			if err = commandErr(t, append(global, crossWorkspace...)...); !errors.Is(err, comitia.ErrForbidden) {
+				t.Fatalf("cross-workspace invite: %v", err)
+			}
+			// The owner's grants cannot replace the target's own membership grant.
+			if err = svc.RevokeGrant(ctx, owner.Token, targetGrants[0].ID); err != nil {
+				t.Fatal(err)
+			}
+			if err = commandErr(t, append(global, args...)...); !errors.Is(err, comitia.ErrForbidden) {
+				t.Fatalf("invite without own membership: %v", err)
+			}
+			if _, err = svc.GrantContext(ctx, owner.Token, comitia.GrantInput{SessionID: target.Session.ID, ContextID: other.ID, Permissions: comitia.PermissionRead, ExpiresAt: time.Now().Add(3 * time.Hour)}); err != nil {
+				t.Fatal(err)
+			}
 			before := time.Now()
 			got := command(t, append(global, args...)...)
 			exp, err := time.Parse(time.RFC3339Nano, got["ExpiresAt"].(string))

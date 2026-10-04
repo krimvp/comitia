@@ -94,45 +94,33 @@ func (s *Service) GrantContext(ctx context.Context, raw string, in GrantInput) (
 	return g, e
 }
 
-// Workspace eligibility is session-scoped: a live grant held by the target or
-// its session ancestry suffices. Discovery candidates still need grant checks.
+// Workspace eligibility uses only the target's own effective grants. Ancestor
+// sessions may hold authority in workspaces their children do not belong to.
 func sessionInWorkspace(r ReadStore, target Session, workspaceID string, now time.Time) (bool, error) {
-	seen := map[string]bool{}
+	if target.RevokedAt != nil || !target.ExpiresAt.After(now) {
+		return false, nil
+	}
+	cursor := ""
 	for {
-		if seen[target.ID] || target.RevokedAt != nil || !target.ExpiresAt.After(now) {
-			return false, nil
+		candidates, e := r.ContextCandidates(target.ID, cursor, 100)
+		if e != nil {
+			return false, e
 		}
-		seen[target.ID] = true
-		cursor := ""
-		for {
-			candidates, e := r.ContextCandidates(target.ID, cursor, 100)
+		for _, c := range candidates {
+			cursor = c.ID
+			if c.WorkspaceID != workspaceID {
+				continue
+			}
+			grants, e := r.Grants(target.ID, c.ID, now)
 			if e != nil {
 				return false, e
 			}
-			for _, c := range candidates {
-				cursor = c.ID
-				if c.WorkspaceID != workspaceID {
-					continue
-				}
-				grants, e := r.Grants(target.ID, c.ID, now)
-				if e != nil {
-					return false, e
-				}
-				if len(grants) > 0 {
-					return true, nil
-				}
-			}
-			if len(candidates) < 100 {
-				break
+			if len(grants) > 0 {
+				return true, nil
 			}
 		}
-		if target.ParentID == "" {
+		if len(candidates) < 100 {
 			return false, nil
-		}
-		var e error
-		target, e = r.Session(target.ParentID)
-		if e != nil {
-			return false, e
 		}
 	}
 }

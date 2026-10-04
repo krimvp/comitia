@@ -192,8 +192,8 @@ func TestGrantInviteRestrictions(t *testing.T) {
 	}
 }
 
-func TestGrantInviteSessionAncestryAndChildPath(t *testing.T) {
-	for _, mode := range []string{"ancestor", "revoked ancestor", "expired ancestor", "direct child", "admin"} {
+func TestGrantInviteOwnMembershipAndChildPath(t *testing.T) {
+	for _, mode := range []string{"ancestor only", "direct child", "admin"} {
 		t.Run(mode, func(t *testing.T) {
 			f := setup(t, ":memory:")
 			defer f.store.Close()
@@ -201,13 +201,9 @@ func TestGrantInviteSessionAncestryAndChildPath(t *testing.T) {
 			issuer := inviteSession(t, f, "issuer", 8*time.Hour)
 			source := inviteGrant(t, f, issuer, f.context.ID, PermissionRead|PermissionGrant, 4*time.Hour)
 			target := inviteSession(t, f, "target", 8*time.Hour)
-			parentTTL := 8 * time.Hour
-			if mode == "expired ancestor" {
-				parentTTL = time.Hour
-			}
-			parent := inviteSession(t, f, "ancestor", parentTTL)
+			parent := inviteSession(t, f, "ancestor", 8*time.Hour)
 			other := inviteContext(t, f, f.context.WorkspaceID)
-			inviteGrant(t, f, parent, other.ID, PermissionRead, min(4*time.Hour, parentTTL))
+			inviteGrant(t, f, parent, other.ID, PermissionRead, 4*time.Hour)
 			target.Session.ParentID = parent.Session.ID
 			if mode == "direct child" {
 				target.Session.ParentID = issuer.Session.ID
@@ -215,26 +211,18 @@ func TestGrantInviteSessionAncestryAndChildPath(t *testing.T) {
 			if mode == "admin" {
 				target.Session.ParentID = ""
 			}
-			// A child without its own grants exercises workspace eligibility via ancestry.
+			// An unrelated child without its own grants must not inherit membership.
 			target.Session.ID = id()
 			err := f.store.Update(ctx, func(w WriteStore) error { return w.PutSession(target.Session, tokenHash(token())) })
 			if err != nil {
 				t.Fatal(err)
-			}
-			if mode == "revoked ancestor" {
-				if err = f.svc.RevokeSession(ctx, f.admin.Token, parent.Session.ID); err != nil {
-					t.Fatal(err)
-				}
-			}
-			if mode == "expired ancestor" {
-				*f.now = f.now.Add(time.Hour)
 			}
 			raw := issuer.Token
 			if mode == "admin" {
 				raw = f.admin.Token
 			}
 			g, err := f.svc.GrantContext(ctx, raw, GrantInput{SessionID: target.Session.ID, ContextID: f.context.ID, Permissions: PermissionRead, ExpiresAt: f.now.Add(time.Hour)})
-			if mode == "revoked ancestor" || mode == "expired ancestor" {
+			if mode == "ancestor only" {
 				if !errors.Is(err, ErrForbidden) {
 					t.Fatalf("got %v", err)
 				}
