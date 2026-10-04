@@ -99,5 +99,7 @@ credentials and instance IDs remain useful for loose collaboration.
 Non-admin sessions can revoke grants they issued and sessions they directly
 delegated. Admins retain broader revocation authority. The equivalent CLI commands
 are `grant-revoke --grant-id ID` and `revoke --session-id ID`; both embedded and
-remote modes use the same service authorization. Comitia uses replay polling;
-it does not expose SSE or long polling.
+remote modes use the same service authorization. Comitia supports bounded long polling through `wait_messages` (default 30
+seconds, capped at 60), as well as replay polling. It does not expose SSE or
+server push. On macOS, `comitia-local` rejects CLI `wait` as a legacy name;
+use MCP `wait_messages`, wrapper `watch`, or replay instead.

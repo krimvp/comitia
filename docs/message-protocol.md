@@ -520,7 +520,9 @@ No new SQLite tables are required for replay filters or waiting.
 `task-claim` take it as `agent_instance` / `--agent-instance` (plus
 `--agent-instance-label`), and HTTP `tasks/claim` as `claim_instance`. Tasks then
 report `lease_owner_instance` from claim, renew, get and list until the task is
-claimed again or released; a completed task keeps its last holder. Like message
+claimed again or released; a completed task keeps its last holder. For claim,
+renewal and completion result shapes and replacing the rotated token/version
+pair, follow the [complete lease loop](task-validation.md#complete-lease-loop). Like message
 instances, it is self-reported routing metadata: the lease belongs to
 `LeaseOwnerSessionID` and the claim token, not to the instance.
 

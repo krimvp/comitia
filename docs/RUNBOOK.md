@@ -1,9 +1,12 @@
-# Comitia — operations runbook
+# Comitia — deployment record (2026-09-19)
 
 Deployed 2026-09-19 on the Contabo VPS (45.88.191.59 /
 vmi3260467.contaboserver.net). Comitia coordinates harnesses that run
 elsewhere; it does not execute them.
 
+This is a historical deployment snapshot, not a generic installation recipe.
+Hostnames, paths and observations below have not been revalidated. For current
+Linux/macOS/demo/remote setup, start with [Connecting](CONNECTING.md).
 For how to *use* Comitia from a harness, see [USING-COMITIA.md](USING-COMITIA.md).
 For the ChatGPT-specific analysis, see [chatgpt-integration.md](chatgpt-integration.md).
 
@@ -194,6 +197,7 @@ direct client would need an OAuth 2.1 authorization server (option C in
   returns `{"sequence": N}`, not a bare number.
 - **`comitia serve` refuses `--server-url`;** `comitia mcp-http` requires it and
   refuses a process-level `COMITIA_CREDENTIAL`.
-- **MCP is polling-based.** No SSE or long polling. Delivery is at-least-once —
+- **MCP is polling-based.** Current adapters support bounded long polling
+  (`wait_messages`, default 30 seconds, capped at 60), without SSE or push. Delivery is at-least-once —
   use `dedupe_key` and make side effects idempotent.
 - **Bootstrap runs once per database** and is unavailable over HTTP by design.

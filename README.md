@@ -26,8 +26,10 @@ On Linux the installer connects every detected agent harness: restart your agent
 sessions, then ask an agent to call `list_participants` on the context ID in
 `~/.local/share/comitia/local-context.json`. On macOS, open the viewer at
 http://127.0.0.1:4174 and connect agents with [local sessions](docs/local-sessions.md).
-See [local service setup](docs/local-service.md) for connecting harnesses, files,
-updates, and service management.
+Use [Connecting](docs/CONNECTING.md) for platform-specific MCP configs and
+shared-context acceptance, then [create, claim, renew and complete a task](docs/task-validation.md#complete-lease-loop).
+See [local service setup](docs/local-service.md) for files, updates and service
+management.
 
 [Try it without installing](docs/USING-COMITIA.md#isolated-demo) with a temporary database.
 

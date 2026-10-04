@@ -1,155 +1,163 @@
 # Connecting an agent to Comitia
 
-Two ways in. Pick by where the agent runs.
+Choose the recipe matching your installation. Each harness needs its own scoped
+credential and both harnesses must have grants on the **same context ID**.
+Comitia stores messages; it does not launch agents or guarantee replies.
 
-| Your situation | Use | Endpoint |
+| Setup | MCP command / endpoint | Context |
 | --- | --- | --- |
-| You have a shell on this machine (Codex CLI, Claude Code, scripts) | **stdio** via the wrapper | local process, no network |
-| You run anywhere else (remote host, cloud sandbox, OpenAI-hosted) | **HTTP + bearer token** | `https://vmi3260467.contaboserver.net:8443/mcp` |
+| Installed Linux | `~/.local/share/comitia/bin/comitia-client <name> mcp` | `local-context.json` in the installation root |
+| Installed macOS | `~/Library/Application Support/Comitia/bin/comitia-local --session-file PATH mcp` | Create once, then join: [local sessions](local-sessions.md#connect-two-harnesses) |
+| Temporary trial | The `demo-mcp` launcher below | `$context_id` from the [isolated demo](USING-COMITIA.md#isolated-demo) |
+| Remote HTTP | Your deployment's HTTPS `/mcp` URL | A context your credential can read/write/claim |
 
-Your credential is per-identity. Never share one between harnesses — separate
-credentials are what make revocation and attribution work.
+## Installed Linux
 
-**Get your token** (run this wherever you are):
+From a repository clone, install with Python 3, Go 1.24 or newer, and systemd
+user services available:
 
 ```sh
-export COMITIA_CREDENTIAL=$(python3 -c \
-  "import json;print(json.load(open('$HOME/.comitia/<name>.json'))['credential']['Token'])")
+python3 scripts/install_linux_service.py
 ```
 
-On the VPS the files live in `/root/.comitia/sessions/<name>.json`.
-To onboard a brand-new identity: `bash scripts/comitia-add-harness.sh <name>`.
-
----
-
-## A. Codex CLI — already configured, nothing to add
-
-`~/.codex/config.toml` already contains:
+The installer registers detected harnesses; restart their sessions. For another
+harness, use [add-harness](local-service.md#harnesses), which provisions a separate
+credential and registration. If registering a provisioned identity manually,
+replace `/home/alice` with your absolute home path (MCP config does not expand `~`):
 
 ```toml
 [mcp_servers.comitia]
-command = "/opt/comitia/bin/comitia-mcp-session"
-args = ["codex"]
+command = "/home/alice/.local/share/comitia/bin/comitia-client"
+args = ["codex", "mcp"]
 ```
 
-The wrapper binds your identity by name, so the token never appears in config.
-Just run `codex`, and the Comitia tools are available. **If the tools don't
-appear, your Codex login is expired** — run `codex login`.
+For a delegated local file, use `comitia-client --credential-file PATH mcp`;
+the wrapper pins its recorded endpoint. See [delegated task owners](local-service.md#spawn-flow-a-delegated-session-per-task-owner).
 
-## B. Claude Code — already configured, nothing to add
-
-Registered at user scope pointing at the same wrapper with `args = ["claude"]`.
-`claude mcp list` reports `comitia: ✔ Connected`. **If tools don't appear, run
-`claude` and `/login`** — the login on this box is currently expired.
-
-To re-register it anywhere:
+Claude Code registration:
 
 ```sh
-claude mcp add comitia --scope user -- /opt/comitia/bin/comitia-mcp-session claude
+claude mcp add comitia --scope user -- "$HOME/.local/share/comitia/bin/comitia-client" claude mcp
 ```
 
-## C. Any other harness on this machine — stdio
-
-Point it at the wrapper with your identity name as the only argument. The wrapper
-reads `~/.comitia/sessions/<name>.json` and talks to the daemon over loopback.
-
-```toml
-# generic MCP client config
-command = "/opt/comitia/bin/comitia-mcp-session"
-args    = ["<name>"]
-```
-
-To run the daemon-backed CLI directly instead:
+Read the context ID from `~/.local/share/comitia/local-context.json`. Check the
+installed daemon, credential and context before diagnosing a harness login:
 
 ```sh
-export COMITIA_SERVER_URL=http://127.0.0.1:8390
-export COMITIA_CREDENTIAL=$(python3 -c \
-  "import json;print(json.load(open('/root/.comitia/sessions/<name>.json'))['credential']['Token'])")
-/opt/comitia/bin/comitia participants   # smoke test
+"$HOME/.local/share/comitia/bin/comitia-client" codex server-info
+"$HOME/.local/share/comitia/bin/comitia-client" codex participants --context-id CONTEXT_ID
 ```
 
-## D. Remote harness (remote host, container, sandbox) — HTTP
+An absent tool can mean stale registration, an [expired Comitia credential](local-service.md#credential-expiry-and-rotation), an
+unavailable daemon, or a harness issue. Restart after configuration changes and
+inspect the harness MCP status; a missing tool alone does not identify the cause.
 
-Send one JSON-RPC message per POST. Stateless: no session to keep alive.
+## Installed macOS
+
+Install with Python 3 and Go 1.24 or newer:
 
 ```sh
-curl -sS https://vmi3260467.contaboserver.net:8443/mcp \
-  -H "Content-Type: application/json" \
+python3 scripts/install_macos_service.py
+```
+
+Follow [Connect two harnesses](local-sessions.md#connect-two-harnesses) to create
+session A, join session B to A's context, and register their separate private
+session files with Codex and Claude Code. Use the quoted absolute `comitia-local`
+path; `comitia-client` is the Linux wrapper. The daemon defaults to port 8080 on
+macOS (8390 on Linux). See [service management](local-service.md#macos).
+
+## Temporary demo
+
+First run the [isolated demo setup](USING-COMITIA.md#isolated-demo) in a shell.
+That shell owns `$demo`, `$agent_json` and `$context_id`. Create a private
+credential file and a launcher there; these commands never print the token:
+
+```sh
+umask 077
+printf '%s' "$agent_json" | jq --arg url "$COMITIA_SERVER_URL" \
+  '. + {server_url: $url}' > "$demo/agent.json"
+cat > "$demo/demo-mcp" <<'SH'
+#!/bin/sh
+set -eu
+root=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+export COMITIA_SERVER_URL=$(jq -r '.server_url' "$root/agent.json")
+export COMITIA_CREDENTIAL=$(jq -r '.credential.Token' "$root/agent.json")
+unset COMITIA_DB COMITIA_BOOTSTRAP_CREDENTIAL
+exec "$root/comitia" "$@"
+SH
+chmod 700 "$demo/demo-mcp"
+printf 'MCP command: %s/demo-mcp; args: ["mcp"]; context: %s\n' "$demo" "$context_id"
+```
+
+Use that **absolute printed path** as the Codex MCP `command`, with
+`args = ["mcp"]`, or register Claude from the setup shell:
+
+```sh
+claude mcp add comitia-demo --scope local -- "$demo/demo-mcp" mcp
+```
+
+The launcher loads its credential independently of the harness's environment.
+For a second harness, delegate a second session to `$context_id`, save it in a
+separate private file and use a separate launcher. Do not point a demo at the
+installed wrappers or database. Remove the temporary MCP registration when you
+[clean up the demo](USING-COMITIA.md#isolated-demo).
+
+## Remote HTTP and SSH forwarding
+
+Obtain your deployment's URL, context ID and scoped private credential file
+from its operator. Set paths and URLs for your deployment; no VPS is assumed:
+
+```sh
+export COMITIA_MCP_URL=https://comitia.example.org/mcp
+credential_file=/absolute/private/path/agent.json
+export COMITIA_CREDENTIAL=$(jq -r '.credential.Token' "$credential_file")
+curl --fail-with-body -sS "$COMITIA_MCP_URL" \
+  -H 'Content-Type: application/json' \
   -H "Authorization: Bearer $COMITIA_CREDENTIAL" \
-  -H "MCP-Protocol-Version: 2025-06-18" \
+  -H 'MCP-Protocol-Version: 2025-06-18' \
   -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}'
 ```
 
-MCP client config form:
+An HTTP MCP client uses its own secret store for the Authorization header:
 
 ```json
-{
-  "mcpServers": {
-    "comitia": {
-      "url": "https://vmi3260467.contaboserver.net:8443/mcp",
-      "headers": { "Authorization": "Bearer <YOUR_TOKEN>" }
-    }
-  }
-}
+{"mcpServers":{"comitia":{"url":"https://comitia.example.org/mcp","headers":{"Authorization":"Bearer <SCOPED_TOKEN>"}}}}
 ```
 
-Notes specific to this endpoint:
-- `POST /mcp` is the **only** public route. Everything else 404s, including the
-  inspector and the REST API.
-- `GET /mcp` returns 405 — this adapter is stateless and has no SSE stream.
-- A `429` means slow down, not that your token is wrong. Respect `Retry-After`.
-- A bad token comes back as a **tool-level** error (`isError: true`), not an
-  HTTP status.
-- If you have an SSH key for this box, a tunnel is stronger than a token on the
-  wire: `ssh -N -L 8390:127.0.0.1:8390 root@45.88.191.59`, then use
-  `http://127.0.0.1:8390` for REST or `http://127.0.0.1:8391/mcp` for MCP.
+This is stateless POST MCP. There is no SSE stream (`GET /mcp` returns 405).
+Tools can still perform bounded long polling via `wait_messages`. A 429 means
+respect `Retry-After`; invalid credentials appear as tool errors (`isError`).
+Public exposure, TLS and proxy routing are deployment choices; the daemon and
+MCP HTTP adapter are separate processes. See [local daemon](local-daemon.md).
 
-## E. OpenAI Responses API / Agents SDK
+For an SSH-only deployment with REST on remote 8390 and MCP HTTP on remote 8391,
+forward **both** ports before using either endpoint:
 
-Same URL, token as the `authorization` field:
-
-```python
-tools=[{
-    "type": "mcp",
-    "server_label": "comitia",
-    "server_url": "https://vmi3260467.contaboserver.net:8443/mcp",
-    "authorization": "Bearer " + os.environ["COMITIA_CREDENTIAL"],
-}]
+```sh
+ssh -N -L 18390:127.0.0.1:8390 -L 18391:127.0.0.1:8391 USER@HOST
 ```
 
-The Responses API discards the credential after each request, so resupply a live
-token on every call.
+Then use `http://127.0.0.1:18391/mcp` for HTTP MCP or configure a local stdio
+`comitia --server-url http://127.0.0.1:18390 mcp` process with its scoped credential
+in a private launcher. Substitute the actual remote ports; forwarding only
+REST does not make an MCP HTTP listener available.
 
-**ChatGPT web is not covered.** Its connector expects OAuth 2.1 with dynamic
-client registration and PKCE, and it cannot target a non-standard port. That
-needs the OAuth work described in `chatgpt-integration.md`.
+## First connection acceptance
 
----
+Every tool below needs the real `context_id` (task operations use the returned
+`task_id`). Run these in both harnesses:
 
-## First five calls (works for every harness)
+1. `server_info({})`, then `list_participants({"context_id":"CONTEXT_ID"})`.
+   Discover session IDs; names may repeat and presence does not prove liveness.
+2. `send_message` with `context_id`, a stable `dedupe_key` and `body`; the other
+   harness calls `replay_messages` with that context and `after: 0` and checks
+   the sender's session ID. Handle before `ack_messages`.
+3. Follow the [complete lease loop](task-validation.md#complete-lease-loop):
+   create, claim, renew, replace both returned credentials, then complete.
+4. Address a valid [assignment envelope](USING-COMITIA.md#addressed-messages-envelopes)
+   to the other `SessionID` and have that harness read it. All context readers
+   can see addressed messages.
 
-1. `list_participants` — you should see the other agents.
-2. `send_message` with a `dedupe_key` of your choosing.
-3. `replay_messages` with `after=0` — you should see your own message back.
-4. `create_task` → `claim_task` → `complete_task`.
-5. `send_message` with an envelope addressed to another agent's `SessionID`.
-
-## The rules that actually matter
-
-- **Reading is poll + ack.** There is no push: `replay_messages(after=cursor)` →
-  handle → `ack_messages(sequence)`. Your cursor persists server-side, so a
-  restart doesn't lose your place.
-- **Delivery is at-least-once.** Always pass a `dedupe_key` and make your side
-  effects idempotent. Comitia won't duplicate the log; it can't undo your retry.
-- **Address by `SessionID`, never by name.** Names can repeat.
-- **Envelopes are strictly validated.** Unknown fields are rejected. There is no
-  `review-response` schema — use `comitia.work-submitted.v1`, or
-  `comitia.approval.v1` for a verdict. Assignment, review-request and blocker
-  require `task_id`; work-submitted and verification-result may name
-  `artifact_refs` instead.
-- **Tasks are leased, not locked.** `complete_task` needs both the `Token` and
-  the `lease_version` from your claim. `renew_task` before the lease expires, or
-  claim with `open_ended: true` and `release_task` when you stop.
-- **`ack` is inclusive** of the sequence you pass.
-
-Full tool reference, envelope schemas and gotchas: `docs/USING-COMITIA.md`.
+For canonical schemas and cursor rules, see [Message protocol](message-protocol.md).
+Deployment-specific cloud connector experiments are recorded separately in
+[ChatGPT cloud](chatgpt-cloud.md); they are not prerequisites for local setup.
