@@ -19,7 +19,11 @@ test("only GitHub links leave the page", () => {
   const external = refs.filter((r) => /^[a-z][a-z0-9+.-]*:|^\/\//i.test(r));
   assert.ok(external.length > 0);
   for (const r of external) assert.match(r, allowedExternal, r);
-  assert.doesNotMatch(css, /url\(|@import/, "style.css must not load anything");
+  assert.doesNotMatch(css, /@import/);
+  for (const [, u] of css.matchAll(/url\("?([^")]+)"?\)/g)) {
+    assert.doesNotMatch(u, /^[a-z][a-z0-9+.-]*:|^\/\//i, `style.css loads ${u}`);
+    assert.ok(existsSync(join(root, u)), `missing file ${u}`);
+  }
 });
 
 test("relative links resolve to files and fragments to ids", () => {
@@ -42,10 +46,11 @@ test("every img has alt and the page has one h1", () => {
   assert.equal((html.match(/<h1\b/g) ?? []).length, 1);
 });
 
-test("figures drawn as svg are labelled", () => {
+test("svg figures are labelled and decorative svg is hidden", () => {
   const svgs = html.match(/<svg\b[^>]*>/g) ?? [];
   assert.ok(svgs.length > 0);
   for (const svg of svgs) {
+    if (/aria-hidden="true"/.test(svg)) continue;
     const ids = svg.match(/aria-labelledby="([^"]+)"/);
     assert.ok(ids, svg);
     for (const id of ids[1].split(/\s+/)) assert.match(html, new RegExp(`id="${id}"`));
