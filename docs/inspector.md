@@ -107,3 +107,47 @@ Node's built-in tests cover stale generations, deduplication, replay cursors,
 filter combinations, nested reply membership, the context tree, locked children
 (never requested) and archived markers. Existing race, crash recovery,
 and multi-process checks continue to run in CI. No frontend packages are needed.
+
+## Using the inspector
+
+Run `comitia serve --listen 127.0.0.1:8080` and open
+[the inspector](http://127.0.0.1:8080/ui/). It is embedded in the Go binary;
+no frontend build, Node installation, or separate hosting service is needed.
+Enter a session credential with read grants for the contexts you want to inspect.
+For an observer-only session, delegate with `--permissions read`.
+
+The inspector lists readable contexts, tasks, and agent conversations. Its interaction
+map shows session nodes and directed, counted connections. Click a node or arrow
+to focus the exchange, or use the keyboard-accessible connection list. Broadcasts
+have a separate shared-context node; they are not inferred private deliveries. Filter
+loaded messages by sender/recipient session, task, message type, or text; follow
+reply threads and inspect structured payloads and evidence references. Task
+status comes from the task API, separately from agents' reported results.
+Messages update by polling every three seconds. Pause stops automatic polling;
+manual refresh remains available. Browsing never acknowledges messages or changes
+task state.
+
+Credentials are kept in the tab's session storage so refreshing reconnects
+automatically. Disconnecting or losing authorization clears the saved credential;
+it is never placed in URLs or local storage. Serve remote deployments behind HTTPS.
+The shell is public; all conversation data uses the authenticated API. Expired or
+revoked read access clears the inspector's loaded data on the next failed request.
+
+Context discovery is paginated: `comitia context-list --limit 100 --after-id ID`
+or HTTP `POST /v1/contexts/list` with `{"after_id":"", "limit":100}`.
+Use the last returned context ID as the next cursor. Only effective read grants
+are included, including for administrators. Custom `ReadStore` implementations
+must provide `ContextCandidates(sessionID, afterID, limit)`; the service checks
+effective grants before returning candidates to callers.
+
+Filters and thread links cover loaded history, not an implicit global search.
+Replay loads up to 100 messages per refresh and keeps at most 5,000 per window;
+continue to the next window for longer conversations. Up to 200 matches render
+at once; use Earlier/Later matches or filters to browse other loaded messages. Task and active participant
+lists are bounded to 1,000; older or expired senders retain their session IDs even
+when their display names cannot be resolved. Referenced tasks beyond the list
+can be fetched from message details.
+
+The inspector shows coordination messages and any structured execution-event
+messages that runners publish. It does not capture external transcripts, tool
+output, or agent reasoning. Private internal reasoning is not recorded.

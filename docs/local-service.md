@@ -357,3 +357,29 @@ The scan is best effort: exited or inaccessible processes are skipped, and only
 PIDs are printed, never command arguments or credentials. Other platforms skip
 this scan. The installer does not terminate agents; restart their sessions after
 reviewing the report.
+
+## Installer overview
+
+On Linux, install Comitia as a systemd user service and connect the local
+Codex and Claude Code harnesses (any other harness is one `add-harness` call):
+
+```sh
+python3 scripts/install_linux_service.py
+```
+
+The API runs on localhost:8390; data, credentials and the `comitia-client`
+wrapper live in `~/.local/share/comitia`.
+
+On macOS, install persistent local services for Comitia and the 3D viewer:
+
+```sh
+python3 scripts/install_macos_service.py
+```
+
+The API runs on localhost:8080 and the viewer on localhost:4174. The installed
+viewer automatically signs in and lists the local owner’s readable contexts,
+keeping its credential server-side. Both start at
+login after a restart and recover automatically if they exit. Data and private
+credentials live in `~/Library/Application Support/Comitia`, independently of
+this checkout. The sections above cover connecting, updates, credential
+lifetimes, and service management.
