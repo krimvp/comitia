@@ -124,3 +124,62 @@ test('inspector controller uses only read endpoints, rejects stale contexts and 
     assert.equal(elements.get('connect-panel').hidden,false);
   } finally {Object.assign(globalThis,saved);}
 });
+
+test('inspector renders messages when presence is unavailable and recovers independently',async()=>{
+  const html=await readFile(new URL('../ui/index.html',import.meta.url),'utf8');
+  const elements=new Map([...html.matchAll(/id="([^"]+)"/g)].map(m=>[m[1],new Element()]));
+  const saved={document:globalThis.document,window:globalThis.window,location:globalThis.location,Option:globalThis.Option,fetch:globalThis.fetch,setTimeout:globalThis.setTimeout,clearTimeout:globalThis.clearTimeout,sessionStorage:globalThis.sessionStorage};
+  Object.assign(globalThis,{document:{getElementById:id=>elements.get(id),createElement:tag=>new Element(tag),createElementNS:(_ns,tag)=>new Element(tag)},window:new Element(),location:{href:'http://localhost:8080/ui/'},Option:class extends Element {constructor(label,value){super('option');this.textContent=label;this.value=value;}},setTimeout:()=>0,clearTimeout:()=>{},sessionStorage:{getItem:()=>null,setItem:()=>{},removeItem:()=>{}}});
+  let presence='reject', sequence=0;
+  const context={ID:'readable',Name:'Readable context',WorkspaceID:'w'};
+  globalThis.fetch=async(url,options)=>{
+    const path=new URL(url).pathname;
+    const ok=data=>({ok:true,status:200,json:async()=>data});
+    if(path.endsWith('/contexts/list'))return ok({contexts:[context]});
+    if(path.endsWith('/contexts/get'))return ok({context});
+    if(path.endsWith('/participants/list'))return ok({participants:[{SessionID:'agent',Name:'Worker'}]});
+    if(path.endsWith('/tasks/list'))return ok({tasks:[]});
+    if(path.endsWith('/instances/list')) {
+      if(presence==='reject')throw new Error('Presence network failure');
+      if(presence==='malformed')return ok({instances:{unexpected:true}});
+      if(presence==='malformed-row')return ok({instances:[null]});
+      if(presence!=='ready')return {ok:false,status:Number(presence)};
+      return ok({instances:[{id:'worker',session_id:'agent',last_seen:new Date().toISOString()}]});
+    }
+    if(path.endsWith('/messages/replay')) {
+      sequence++;
+      return ok({messages:[{ID:`message-${sequence}`,ContextID:context.ID,SessionID:'agent',Sequence:sequence,Body:`Loaded message ${sequence}`,CreatedAt:new Date().toISOString()}]});
+    }
+    throw new Error(`Unexpected endpoint ${path}`);
+  };
+  const assertAvailable=()=>{
+    assert.equal(elements.get('workspace').hidden,false);
+    assert.match(text(elements.get('messages')),new RegExp(`Loaded message ${sequence}`));
+    assert.equal(elements.get('timeline-error').textContent,'');
+  };
+  try {
+    await import(`../ui/app.js?presence-failure-test=${Date.now()}`);
+    elements.get('credential').value='observer';
+    await elements.get('connect-form').fire('submit');
+    await elements.get('show-timeline').fire('click');
+    assertAvailable();
+    assert.match(text(elements.get('instances-note')),/Instances unavailable/);
+    for(presence of ['404','503','403','malformed','malformed-row']) {
+      await elements.get('load-more').fire('click');
+      assertAvailable();
+      assert.match(text(elements.get('instances-note')),/Instances unavailable/);
+      assert.equal(elements.get('instances').children.length,0);
+    }
+    presence='ready';
+    await elements.get('load-more').fire('click');
+    assertAvailable();
+    assert.match(text(elements.get('instances')),/worker/);
+    assert.match(text(elements.get('instances-note')),/Self-reported/);
+    presence='reject';
+    await elements.get('load-more').fire('click');
+    assertAvailable();
+    assert.equal(elements.get('instances').children.length,0);
+    assert.match(text(elements.get('instances-note')),/Instances unavailable/);
+    await elements.get('disconnect').fire('click');
+  } finally {Object.assign(globalThis,saved);}
+});

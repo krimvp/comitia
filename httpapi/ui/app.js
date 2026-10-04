@@ -24,6 +24,7 @@ let contexts = [], contextsAfter = '', contextsBusy = false;
 let children = new Map(), truncated = new Set(), taskTitles = new Map();
 const CHILD_PAGE = 1000, CHILD_LIMIT = 5000;
 let participants = [], tasks = [], instances = [], selected = '', thread = '', paused = false, busy = false, windowStart = 0, displayStart = null, route = null, connectionPage = 0;
+let instancesUnavailable = false;
 let view = 'sequence', sequenceOptions = {}, sequenceFilterKey = '', sequenceCurrent;
 
 function node(tag, text, className) {
@@ -88,7 +89,7 @@ function disconnect(message = '', forget = true) {
   if (forget) rememberCredential('');
   connection++; controller.abort(); controller = new AbortController(); clearTimeout(timer);
   token = ''; state.reset(); displayStart = null; contexts = []; contextsAfter = ''; contextsBusy = false; children = new Map(); truncated = new Set(); taskTitles = new Map();
-  participants = []; tasks = []; instances = []; selected = ''; thread = ''; route = null; connectionPage = 0; busy = false;
+  participants = []; tasks = []; instances = []; instancesUnavailable = false; selected = ''; thread = ''; route = null; connectionPage = 0; busy = false;
   $('credential').value = ''; $('connect-error').textContent = message;
   $('connect-panel').hidden = false; $('workspace').hidden = true; $('disconnect').hidden = true;
   for (const id of ['messages', 'contexts', 'tasks', 'task-board', 'instances', 'details', 'interaction-map', 'connections', 'sequence-canvas', 'sequence-routes']) $(id).replaceChildren();
@@ -192,7 +193,7 @@ async function loadContexts(refresh = false) {
 function clearContext() {
   sequenceOptions = {}; sequenceFilterKey = '';
   controller.abort(); controller = new AbortController(); clearTimeout(timer); state.reset();
-  participants = []; tasks = []; instances = []; selected = ''; thread = ''; route = null; connectionPage = 0; busy = false;
+  participants = []; tasks = []; instances = []; instancesUnavailable = false; selected = ''; thread = ''; route = null; connectionPage = 0; busy = false;
   $('context-title').textContent = 'Choose a context'; $('context-meta').textContent = '';
   $('workspace-label').textContent = 'WORK CONTEXT'; $('sync-status').textContent = 'No context selected';
   $('load-more').hidden = true; $('next-window').hidden = true;
@@ -204,7 +205,7 @@ async function openContext(id, after = 0) {
   sequenceOptions = {}; sequenceFilterKey = '';
   controller.abort(); controller = new AbortController(); clearTimeout(timer);
   const generation = state.reset(id, after); windowStart = after; displayStart = null;
-  participants = []; tasks = []; instances = []; selected = ''; thread = ''; route = null; connectionPage = 0; busy = false; paused = false;
+  participants = []; tasks = []; instances = []; instancesUnavailable = false; selected = ''; thread = ''; route = null; connectionPage = 0; busy = false; paused = false;
   $('pause').textContent = 'Pause'; $('timeline-error').textContent = '';
   $('search').value = ''; for (const id of ['agent-filter','type-filter','task-filter']) $(id).value = '';
   $('context-title').textContent = readable().find(c => c.ID === id)?.Name || 'Loading context…';
@@ -229,13 +230,13 @@ async function sync(generation = state.generation) {
       room > 0 ? request('messages/replay', {context_id:cid, after:state.after, limit:Math.min(PAGE_SIZE,room)}) : Promise.resolve({messages:[]}),
       request('participants/list', {context_id:cid, limit:1000}),
       request('tasks/list', {context_id:cid, limit:1000}),
-      request('instances/list', {context_id:cid})
+      loadInstances(cid)
     ]);
     if (generation !== state.generation) return;
     const incoming = messageResult.messages || [];
     state.append(generation, incoming);
-    participants = participantResult.participants || []; tasks = taskResult.tasks || []; instances = instanceResult.instances || [];
-    if (!Array.isArray(participants) || !Array.isArray(tasks) || !Array.isArray(instances)) throw new Error('Invalid metadata response.');
+    participants = participantResult.participants || []; tasks = taskResult.tasks || []; instances = instanceResult.instances; instancesUnavailable = instanceResult.unavailable;
+    if (!Array.isArray(participants) || !Array.isArray(tasks)) throw new Error('Invalid metadata response.');
     for (const task of tasks) taskTitles.set(task.ID, task.Title);
     $('timeline-error').textContent = '';
     $('sync-status').textContent = paused ? 'Paused' : `Updated ${new Date().toLocaleTimeString()}`;
@@ -252,6 +253,16 @@ async function sync(generation = state.generation) {
     }
   }
 }
+async function loadInstances(cid) {
+  try {
+    const result = await request('instances/list', {context_id:cid});
+    const rows = result.instances || [];
+    if (!Array.isArray(rows) || rows.some(row => !row || typeof row.id !== 'string' || typeof row.session_id !== 'string')) throw new Error('Invalid instances response.');
+    return {instances:rows, unavailable:false};
+  } catch {
+    return {instances:[], unavailable:true};
+  }
+}
 function renderInstances() {
   $('instance-count').textContent = instances.length;
   $('instances').replaceChildren(...instances.map(instance => {
@@ -266,7 +277,7 @@ function renderInstances() {
     }
     return item;
   }));
-  $('instances-note').textContent = instances.length ? 'Self-reported activity; last seen does not prove a process is running.' : 'No instance activity recorded.';
+  $('instances-note').textContent = instancesUnavailable ? 'Instances unavailable. Retrying with the next refresh.' : instances.length ? 'Self-reported activity; last seen does not prove a process is running.' : 'No instance activity recorded.';
 }
 function renderMap() {
   const current = filters();

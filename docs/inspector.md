@@ -37,6 +37,10 @@ lists self-reported instances from `instances/list`, with relative last-seen tim
 and expandable resume metadata. Hover over a last-seen time for its timestamp.
 Presence is historical activity, not proof that a process is still running.
 Switching contexts or losing read access clears the displayed instance data.
+If the presence endpoint is unavailable or returns malformed metadata, messages
+continue to render; the sidebar clears old instance rows and shows “Instances
+unavailable” until a later refresh succeeds. Message access failures still clear
+the conversation.
 
 ## Context tree
 
