@@ -34,16 +34,19 @@ func boundedList(values []string) bool {
 
 func validTaskStatus(raw json.RawMessage) error {
 	var p TaskStatusPayload
-	if strictPayload(raw, &p) != nil || strings.TrimSpace(p.Summary) == "" || len(p.Summary) > 4096 || len(p.ChildContextID) > 128 {
-		return ErrInvalid
+	if err := strictPayload(raw, &p); err != nil {
+		return err
+	}
+	if strings.TrimSpace(p.Summary) == "" || len(p.Summary) > 4096 || len(p.ChildContextID) > 128 {
+		return Invalidf("summary required, at most 4096 bytes; child_context_id at most 128 bytes")
 	}
 	switch p.State {
 	case "planned", "in_progress", "blocked", "review", "done":
 	default:
-		return ErrInvalid
+		return Invalidf("state must be planned, in_progress, blocked, review or done")
 	}
 	if !boundedList(p.Blockers) || !boundedList(p.Links) {
-		return ErrInvalid
+		return Invalidf("blockers and links must contain at most 64 nonempty entries of at most 1024 bytes")
 	}
 	return nil
 }
@@ -54,7 +57,7 @@ func taskStatusChild(env *MessageEnvelope) (string, error) {
 	}
 	var p TaskStatusPayload
 	if json.Unmarshal(env.Payload, &p) != nil {
-		return "", ErrInvalid
+		return "", Invalidf("payload must be a task-status object")
 	}
 	return p.ChildContextID, nil
 }

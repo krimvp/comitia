@@ -13,7 +13,7 @@ func (h *handler) routeMessages(ctx context.Context, token, route string, q requ
 		out.Participants, err = h.api.ListParticipants(ctx, token, q.ContextID, q.Limit)
 	case "messages/append":
 		if q.Message == nil {
-			err = comitia.ErrInvalid
+			err = comitia.Invalidf("message required")
 			break
 		}
 		var v comitia.Message

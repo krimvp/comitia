@@ -12,7 +12,7 @@ func (h *handler) routeGrants(ctx context.Context, token, route string, q reques
 		err = h.api.RevokeGrant(ctx, token, q.GrantID)
 	case "grants/create":
 		if q.Grant == nil {
-			err = comitia.ErrInvalid
+			err = comitia.Invalidf("grant required")
 			break
 		}
 		var v comitia.Grant

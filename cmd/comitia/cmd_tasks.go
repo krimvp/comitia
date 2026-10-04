@@ -3,8 +3,6 @@ package main
 import (
 	"context"
 	"encoding/json"
-	"errors"
-	"fmt"
 	"time"
 
 	"github.com/krimvp/comitia"
@@ -32,7 +30,7 @@ func runTasks(ctx context.Context, cfg config, api comitia.API, out *json.Encode
 			return err
 		}
 		if *tid == "" {
-			return errors.New("task-id is required")
+			return comitia.Invalidf("task-id is required")
 		}
 		v, e := api.GetTask(ctx, needCredential(cfg), *tid)
 		if e != nil {
@@ -48,10 +46,10 @@ func runTasks(ctx context.Context, cfg config, api comitia.API, out *json.Encode
 			return err
 		}
 		if *cid == "" {
-			return errors.New("context-id is required")
+			return comitia.Invalidf("context-id is required")
 		}
 		if *limit < 1 || *limit > 1000 {
-			return comitia.ErrInvalid
+			return comitia.Invalidf("limit must be between 1 and 1000")
 		}
 		st, e := parseTaskStatus(*status)
 		if e != nil {
@@ -130,7 +128,7 @@ func runTasks(ctx context.Context, cfg config, api comitia.API, out *json.Encode
 			return err
 		}
 		if *tid == "" {
-			return errors.New("task-id is required")
+			return comitia.Invalidf("task-id is required")
 		}
 		v, e := api.ReleaseTask(ctx, needCredential(cfg), *tid, *token, *ver)
 		if e != nil {
@@ -153,7 +151,7 @@ func parseTaskStatus(s string) (comitia.TaskStatus, error) {
 	case string(comitia.TaskCompleted):
 		return comitia.TaskCompleted, nil
 	default:
-		return "", fmt.Errorf("invalid task status %q", s)
+		return "", comitia.Invalidf("status must be pending, leased or completed")
 	}
 }
 

@@ -11,7 +11,7 @@ func (h *handler) routeTasks(ctx context.Context, token, route string, q request
 	switch route {
 	case "tasks/create":
 		if q.Task == nil {
-			err = comitia.ErrInvalid
+			err = comitia.Invalidf("task required")
 			break
 		}
 		var v comitia.Task
@@ -79,7 +79,7 @@ func (c *Client) ClaimTask(x context.Context, t, id string, d time.Duration, ins
 	case 1:
 		q.ClaimInstance = &instance[0]
 	default:
-		return comitia.TaskClaim{}, comitia.ErrInvalid
+		return comitia.TaskClaim{}, comitia.Invalidf("claim_instance accepts at most one instance")
 	}
 	e := c.call(x, t, "tasks/claim", q, &o)
 	if o.Claim == nil {

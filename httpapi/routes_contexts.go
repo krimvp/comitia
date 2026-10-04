@@ -16,7 +16,7 @@ func (h *handler) routeContexts(ctx context.Context, token, route string, q requ
 		out.Workspace = &v
 	case "contexts/create":
 		if q.CreateContext == nil {
-			err = comitia.ErrInvalid
+			err = comitia.Invalidf("create_context required")
 			break
 		}
 		var v comitia.WorkContext
@@ -24,7 +24,7 @@ func (h *handler) routeContexts(ctx context.Context, token, route string, q requ
 		out.Context = &v
 	case "contexts/create-child":
 		if q.ChildContext == nil {
-			err = comitia.ErrInvalid
+			err = comitia.Invalidf("child_context required")
 			break
 		}
 		var v comitia.WorkContext
@@ -38,7 +38,7 @@ func (h *handler) routeContexts(ctx context.Context, token, route string, q requ
 		out.Context = &v
 	case "references/add":
 		if q.Reference == nil {
-			err = comitia.ErrInvalid
+			err = comitia.Invalidf("reference required")
 			break
 		}
 		var v comitia.Reference

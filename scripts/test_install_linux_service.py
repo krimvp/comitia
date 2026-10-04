@@ -519,10 +519,10 @@ class BlockTest(unittest.TestCase):
                                               {'context_id': 'c1', 'server_url': 'http://localhost:8390'}, Path(root))
         self.assertTrue(block.startswith('<!-- comitia-local:start v4 -->\n'))
         self.assertIsNotNone(local.BLOCK.fullmatch(block))
-        self.assertIn('When the launcher sets `COMITIA_AGENT_INSTANCE`', block)
+        self.assertIn('When `server_info` lists `default_agent_instance` and the launcher sets `COMITIA_AGENT_INSTANCE`', block)
         self.assertIn('`COMITIA_AGENT_INSTANCE_LABEL`', block)
         self.assertIn('per-call `agent_instance` plumbing and dedupe-key prefixing are unnecessary', block)
-        self.assertIn('Otherwise, pass your instance as the `agent_instance` object', block)
+        self.assertIn('When `server_info` lists `agent_instances` and your tool schema accepts it, pass your instance', block)
         self.assertIn('Include the instance ID in each `dedupe_key` for compatibility with older servers', block)
         self.assertIn('Several Codex sessions share the `codex` credential', block)
         self.assertIn('`recipient_instances` alongside `recipient_session_ids`', block)
@@ -594,6 +594,89 @@ class WrapperTest(Base):
                 result = self.client(*args)
                 self.assertNotEqual(result.returncode, 0)
                 self.assertIn(message, result.stderr)
+
+
+@unittest.skipUnless(sys.platform.startswith('linux'), 'Linux /proc only')
+class StaleMCPClients(unittest.TestCase):
+    def setUp(self):
+        self.temp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.temp.cleanup)
+        self.root = Path(self.temp.name)
+        self.proc = self.root/'proc'
+        self.proc.mkdir()
+        self.binary = self.root/'comitia'
+        self.binary.write_bytes(b'current')
+        self.old = self.root/'comitia (deleted)'
+        self.old.write_bytes(b'old')
+        # Preserve mtime: replacement must still be detected by inode.
+        current = self.binary.stat()
+        os.utime(self.old, ns=(current.st_atime_ns, current.st_mtime_ns))
+
+    def process(self, pid, executable, args):
+        process = self.proc/str(pid)
+        process.mkdir()
+        (process/'exe').symlink_to(executable)
+        (process/'cmdline').write_bytes(b'\0'.join(arg.encode() for arg in args)+b'\0')
+
+    def test_report_only_old_mcp_processes_without_credentials(self):
+        self.process(10, self.old, [str(self.binary), '--server-url', 'http://localhost',
+                                  '--credential', 'super-secret-token', 'mcp'])
+        self.process(11, self.binary, [str(self.binary), 'mcp'])
+        self.process(12, self.old, [str(self.binary), 'serve'])
+        self.process(13, self.old, [str(self.binary), '--credential', 'mcp', 'serve'])
+        self.process(14, self.old, [str(self.binary), '--db=local.db', 'mcp'])
+        unrelated = self.root/'other'
+        unrelated.write_bytes(b'old')
+        self.process(15, unrelated, [str(self.binary), 'mcp'])
+        self.assertEqual(local.stale_mcp_clients(self.binary, self.proc), [10, 14])
+        output = io.StringIO()
+        with contextlib.redirect_stdout(output):
+            self.assertEqual(local.report_stale_mcp_clients(self.binary, self.proc), [10, 14])
+        self.assertIn('PIDs: 10, 14', output.getvalue())
+        self.assertIn('Restart', output.getvalue())
+        self.assertNotIn('super-secret-token', output.getvalue())
+        self.assertNotIn('http://localhost', output.getvalue())
+
+    def test_missing_inaccessible_and_exited_processes_are_best_effort(self):
+        self.assertEqual(local.stale_mcp_clients(self.binary, self.root/'absent'), [])
+        self.assertEqual(local.stale_mcp_clients(self.root/'absent', self.proc), [])
+        self.process(20, self.root/'gone', [str(self.binary), 'mcp'])
+        self.process(21, self.old, [str(self.binary), 'mcp'])
+        with mock.patch.object(local.os, 'readlink', side_effect=PermissionError):
+            self.assertEqual(local.stale_mcp_clients(self.binary, self.proc), [])
+        (self.proc/'21/cmdline').unlink()
+        self.assertEqual(local.stale_mcp_clients(self.binary, self.proc), [])
+
+    def test_other_platforms_do_not_scan_proc(self):
+        with mock.patch.object(local.sys, 'platform', 'darwin'):
+            self.assertEqual(local.stale_mcp_clients(self.binary, self.proc), [])
+
+    def test_binary_upgrade_reports_stale_clients(self):
+        root = self.root/'install'
+        (root/'bin').mkdir(parents=True)
+        binary = root/'bin/comitia'
+        binary.write_bytes(b'old')
+        old = root/'bin/comitia (deleted)'
+        binary.rename(old)
+        binary.write_bytes(b'current')
+        self.process(30, old, [str(binary), 'mcp'])
+        source = self.root/'new-comitia'
+        source.write_bytes(b'upgrade')
+        report = local.report_stale_mcp_clients
+        output = io.StringIO()
+        with contextlib.redirect_stdout(output), mock.patch.object(local, 'report_stale_mcp_clients',
+                side_effect=lambda installed: report(installed, self.proc)) as called:
+            self.assertEqual(local.install_binary(root, source), binary)
+        called.assert_called_once_with(binary)
+        self.assertEqual(binary.read_bytes(), b'upgrade')
+        self.assertIn('PIDs: 30', output.getvalue())
+
+    def test_instruction_feature_guidance(self):
+        block = local.render_instructions('codex', {'display': 'Codex'},
+                                         {'context_id': 'test-context', 'server_url': 'http://localhost'}, self.root)
+        for text in ('server_info', 'agent_instances', 'default_agent_instance', 'instance_claims',
+                     'tool schema', 'client version', 'session scope'):
+            self.assertIn(text, block)
 
 if __name__ == '__main__':
     unittest.main()

@@ -61,6 +61,7 @@ type request struct {
 }
 
 type response struct {
+	ServerInfo   *comitia.ServerInfo   `json:"server_info,omitempty"`
 	Contexts     []comitia.WorkContext `json:"contexts,omitempty"`
 	Participants []comitia.Participant `json:"participants,omitempty"`
 	Principal    *comitia.Principal    `json:"principal,omitempty"`
@@ -85,6 +86,7 @@ type errorResponse struct {
 
 // routeGroups dispatches /v1/ routes by domain; a group reports found=false for routes it does not serve.
 var routeGroups = []func(*handler, context.Context, string, string, request, *response) (bool, error){
+	(*handler).routeServerInfo,
 	(*handler).routeSessions,
 	(*handler).routeContexts,
 	(*handler).routeGrants,
@@ -97,7 +99,7 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Cache-Control", "no-store")
 	if r.Method != http.MethodPost {
 		w.Header().Set("Allow", http.MethodPost)
-		writeError(w, comitia.ErrInvalid, http.StatusMethodNotAllowed)
+		writeError(w, comitia.Invalidf("method must be POST"), http.StatusMethodNotAllowed)
 		return
 	}
 	token, ok := bearer(r.Header.Get("Authorization"))
@@ -114,7 +116,7 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	d := json.NewDecoder(r.Body)
 	d.DisallowUnknownFields()
 	if err := d.Decode(&q); err != nil {
-		writeError(w, fmt.Errorf("%w: malformed JSON", comitia.ErrInvalid), 0)
+		writeError(w, comitia.InvalidJSON(err, "request"), 0)
 		return
 	}
 	if err := ensureEOF(d); err != nil {
@@ -224,7 +226,7 @@ func NewClient(baseURL string, hc *http.Client) (*Client, error) {
 func NewClientWithInstanceDefaults(baseURL string, hc *http.Client, defaults comitia.InstanceDefaults) (*Client, error) {
 	u, err := url.Parse(baseURL)
 	if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" || u.User != nil || u.RawQuery != "" || u.Fragment != "" {
-		return nil, fmt.Errorf("invalid server URL")
+		return nil, comitia.Invalidf("server_url must be an HTTP(S) URL without userinfo, query or fragment")
 	}
 	if hc == nil {
 		hc = &http.Client{Timeout: 70 * time.Second}
@@ -292,7 +294,11 @@ func decodeError(code, msg string) error {
 	default:
 		return fmt.Errorf("remote error: %s", msg)
 	}
-	return fmt.Errorf("%w: %s", base, msg)
+	detail := strings.TrimPrefix(msg, base.Error()+": ")
+	if detail == base.Error() {
+		return base
+	}
+	return fmt.Errorf("%w: %s", base, detail)
 }
 
 var _ comitia.API = (*Client)(nil)

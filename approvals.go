@@ -27,25 +27,28 @@ type ApprovalPayload struct {
 
 func validApproval(raw json.RawMessage) error {
 	var p ApprovalPayload
-	if strictPayload(raw, &p) != nil || len(p.ArtifactRefs) == 0 || !nonempty(p.Checks) || p.BlockingCount == nil || *p.BlockingCount < 0 {
-		return ErrInvalid
+	if err := strictPayload(raw, &p); err != nil {
+		return err
+	}
+	if len(p.ArtifactRefs) == 0 || !nonempty(p.Checks) || p.BlockingCount == nil || *p.BlockingCount < 0 {
+		return Invalidf("artifact_refs and checks required; blocking_count must be nonnegative")
 	}
 	for _, ref := range p.ArtifactRefs {
 		if !exactArtifactRef(ref) {
-			return ErrInvalid
+			return Invalidf("artifact_refs must identify exact artifacts")
 		}
 	}
 	switch p.Verdict {
 	case ApprovalApproved:
 		if *p.BlockingCount != 0 {
-			return ErrInvalid
+			return Invalidf("blocking_count must be zero for approved verdict")
 		}
 	case ApprovalChangesRequested:
 		if *p.BlockingCount == 0 {
-			return ErrInvalid
+			return Invalidf("blocking_count must be positive for changes_requested verdict")
 		}
 	default:
-		return ErrInvalid
+		return Invalidf("verdict must be approved or changes_requested")
 	}
 	return nil
 }

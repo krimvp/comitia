@@ -525,3 +525,32 @@ context may release without it but must pass the current `lease_version`
 (otherwise `stale task claim`). Releasing a pending or completed task is a
 conflict. The instance is stored in a `task_instances` side table created on
 open; custom stores must persist `Task.LeaseOwnerInstance` in `PutTask`.
+
+## Validation details and capability discovery
+
+Validation errors keep the `invalid input` sentinel and name the rejected field
+or rule, for example `invalid input: task_id required` or
+`invalid input: unknown field "agent_instance"`. HTTP retains status 400 and code
+`invalid`; the HTTP client preserves `errors.Is(err, comitia.ErrInvalid)`. MCP tool
+errors expose the same detail in text with `isError: true`, and CLI errors print it
+as JSON on stderr. Rejected values and credentials are never included. MCP unknown
+argument fields also identify the running client version and suggest a restart.
+
+Call the `server_info` MCP tool with `{}`, send authenticated `POST /v1/server_info`
+with `{}`, or run `comitia --server-url URL server-info` with a credential. Any
+valid session can discover capabilities, including a session without context
+grants. The result contains `version`, `protocol_version` (the MCP revision), and
+`features`; HTTP wraps it in `server_info` and MCP in `result`. Local source builds
+use version `dev`; release builders can set
+`-ldflags '-X github.com/krimvp/comitia.Version=v1.2.3'`, otherwise the Go module
+build version is used when available.
+
+The feature table is maintained in `server_info.go`. Optional functionality must
+be gated on both its advertised feature and the running MCP tool schema. For
+example, use `agent_instance` when `agent_instances` is listed, and rely on
+`COMITIA_AGENT_INSTANCE` defaults when `default_agent_instance` is listed and the
+client supports them. A new server can coexist with an old MCP client; discovery
+alone does not upgrade that client's tools. If a described optional field is
+rejected, retry without it, keep instance-prefixed dedupe keys in session scope,
+and restart the agent session to load the new client. If `server_info` itself is
+unavailable, use the basic session-scoped tools until the client is restarted.

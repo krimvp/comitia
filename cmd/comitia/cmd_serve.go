@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"net/http"
 	"os"
@@ -19,7 +18,7 @@ func runServe(ctx context.Context, cfg config, api comitia.API, out *json.Encode
 	switch cmd {
 	case "serve":
 		if cfg.serverURL != "" {
-			return errors.New("serve requires embedded SQLite")
+			return comitia.Invalidf("serve requires embedded SQLite")
 		}
 		listen, _, _, err := serveFlags(args)
 		if err != nil {
@@ -40,10 +39,10 @@ func runServe(ctx context.Context, cfg config, api comitia.API, out *json.Encode
 		// caller with an Authorization header rather than a fixed process
 		// credential, so it cannot use embedded SQLite.
 		if cfg.serverURL == "" {
-			return errors.New("mcp-http requires --server-url (or COMITIA_SERVER_URL)")
+			return comitia.Invalidf("mcp-http requires --server-url (or COMITIA_SERVER_URL)")
 		}
 		if cfg.credential != "" || os.Getenv("COMITIA_CREDENTIAL") != "" {
-			return errors.New("mcp-http takes credentials per request; unset COMITIA_CREDENTIAL")
+			return comitia.Invalidf("mcp-http takes credentials per request; unset COMITIA_CREDENTIAL")
 		}
 		fs := newFlags(cmd)
 		dir := fs.String("sessions-dir", env("COMITIA_SESSIONS_DIR", ""), "private delegated credential directory (default ~/.local/share/comitia/sessions)")

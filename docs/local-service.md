@@ -339,3 +339,21 @@ retries. Rerunning imports only new entries; changed historical entries cause an
 explicit error. Imported sessions last 30 days, so reruns after their expiry need
 credential renewal. This is an explicit snapshot import, not a continuous sync
 or a migration of running clients. The source database remains in place.
+
+### Clients still running after an upgrade
+
+Installing a new binary restarts the local service, but an agent's existing
+`comitia mcp` process keeps executing the previous binary. The managed instruction
+block is versioned (`comitia-local:start v3`) and may update before that client
+restarts. It instructs agents to check `server_info` and their tool schemas before
+using optional fields; an unknown-field error identifies the running client
+version. Retry without a rejected optional field and restart the agent session to
+load the upgraded client and its schemas.
+
+On Linux, the installer reports PIDs of stale `comitia mcp` processes after
+replacing the binary. It compares `/proc/<pid>/exe` device/inode and modification
+time with the installed executable, including deleted executables still in use.
+The scan is best effort: exited or inaccessible processes are skipped, and only
+PIDs are printed, never command arguments or credentials. Other platforms skip
+this scan. The installer does not terminate agents; restart their sessions after
+reviewing the report.

@@ -63,8 +63,11 @@ type ContextWriteStore interface {
 // The cursor is the last returned ID. An empty page marks the end. Administrative
 // status alone does not grant visibility into contexts.
 func (s *Service) ListContexts(ctx context.Context, raw, afterID string, limit int) ([]WorkContext, error) {
-	if limit < 1 || limit > 1000 || len(afterID) > 128 {
-		return nil, ErrInvalid
+	if limit < 1 || limit > 1000 {
+		return nil, Invalidf("limit must be between 1 and 1000")
+	}
+	if len(afterID) > 128 {
+		return nil, Invalidf("after_id must be at most 128 bytes")
 	}
 	out := []WorkContext{}
 	err := s.store.View(ctx, func(r ReadStore) error {
@@ -111,7 +114,7 @@ func (s *Service) ListContexts(ctx context.Context, raw, afterID string, limit i
 func (s *Service) CreateWorkspace(ctx context.Context, raw, name string) (Workspace, error) {
 	var x Workspace
 	if strings.TrimSpace(name) == "" {
-		return x, ErrInvalid
+		return x, Invalidf("name required")
 	}
 	e := s.store.Update(ctx, func(w WriteStore) error {
 		if _, e := s.admin(w, raw); e != nil {
@@ -125,7 +128,7 @@ func (s *Service) CreateWorkspace(ctx context.Context, raw, name string) (Worksp
 func (s *Service) CreateContext(ctx context.Context, raw string, in CreateContextInput) (WorkContext, error) {
 	var x WorkContext
 	if strings.TrimSpace(in.Name) == "" {
-		return x, ErrInvalid
+		return x, Invalidf("name required")
 	}
 	e := s.store.Update(ctx, func(w WriteStore) error {
 		a, e := s.admin(w, raw)
@@ -152,7 +155,7 @@ const childPermissions = PermissionRead | PermissionWrite | PermissionClaim | Pe
 func (s *Service) CreateChildContext(ctx context.Context, raw string, in CreateChildContextInput) (WorkContext, error) {
 	var x WorkContext
 	if strings.TrimSpace(in.Name) == "" || in.ParentContextID == "" {
-		return x, ErrInvalid
+		return x, Invalidf("name and parent_context_id required")
 	}
 	e := s.store.Update(ctx, func(w WriteStore) error {
 		a, gs, e := s.require(w, raw, in.ParentContextID, PermissionCreate)
@@ -213,8 +216,11 @@ func (s *Service) CreateChildContext(ctx context.Context, raw string, in CreateC
 // ListChildContexts returns metadata of the parent's children, ordered by ID, strictly after afterID. It needs read
 // on the parent only; reading a child's messages and tasks still needs read on the child itself.
 func (s *Service) ListChildContexts(ctx context.Context, raw, parentID, afterID string, limit int) ([]WorkContext, error) {
-	if limit < 1 || limit > 1000 || len(afterID) > 128 {
-		return nil, ErrInvalid
+	if limit < 1 || limit > 1000 {
+		return nil, Invalidf("limit must be between 1 and 1000")
+	}
+	if len(afterID) > 128 {
+		return nil, Invalidf("after_id must be at most 128 bytes")
 	}
 	var out []WorkContext
 	err := s.store.View(ctx, func(r ReadStore) error {
@@ -256,7 +262,7 @@ func (s *Service) GetContext(ctx context.Context, raw, cid string) (WorkContext,
 func (s *Service) AddReference(ctx context.Context, raw string, in AddReferenceInput) (Reference, error) {
 	var x Reference
 	if in.Kind == "" || in.URI == "" {
-		return x, ErrInvalid
+		return x, Invalidf("kind and uri required")
 	}
 	e := s.store.Update(ctx, func(w WriteStore) error {
 		if _, _, e := s.require(w, raw, in.ContextID, PermissionWrite); e != nil {

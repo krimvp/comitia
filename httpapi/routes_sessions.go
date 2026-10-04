@@ -19,7 +19,7 @@ func (h *handler) routeSessions(ctx context.Context, token, route string, q requ
 		out.Credential = &v
 	case "sessions/delegate":
 		if q.Delegate == nil {
-			err = comitia.ErrInvalid
+			err = comitia.Invalidf("delegate required")
 			break
 		}
 		var p comitia.Principal
