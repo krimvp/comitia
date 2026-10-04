@@ -138,6 +138,35 @@ are included, including for administrators. Custom `ReadStore` implementations
 must provide `ContextCandidates(sessionID, afterID, limit)`; the service checks
 effective grants before returning candidates to callers.
 
+## Child contexts
+
+A session holding the `create` permission on a context can open a private child
+context for its own sub-team, for example one task of a larger epic:
+
+```sh
+./bin/comitia context-create --parent-id "$epic_id" --task-id "$task_id" --name task-15
+./bin/comitia context-children --parent-id "$epic_id"
+```
+
+The creator gets `read,write,claim,grant,create` on the child. That grant hangs
+off the creator's grant on the parent and expires no later than it, so revoking
+the parent grant (or the creator's session) also revokes the creator's and its
+delegates' access to the child. Children are private by default: members with
+`read` on the parent see only metadata (ID, name, creator session, `TaskID`) via
+`context-children` or `POST /v1/contexts/children`, and need their own grant to
+read messages or tasks. Pass `--parent-readable` to let parent readers also read
+(never write) the child; such readers can ack and keep their own cursor, but
+cannot be addressed in `recipient_session_ids`, which needs a direct grant on
+the child. Children readable only through the parent appear in
+`context-children`, not in `context-list`. The creator's child permissions do
+not depend on its parent permissions: `read,create` on the parent is enough to
+get the full creator set on the child. Only administrators create top-level contexts with
+`--workspace-id`. `create` is part of `all`; delegate it explicitly with
+`--permissions read,write,create`. Grants stored as `all` before `create`
+existed do not include it. Nothing is relayed between contexts automatically.
+Custom `ReadStore` implementations must also provide
+`ChildContexts(parentID, afterID, limit)`.
+
 Filters and thread links cover loaded history, not an implicit global search.
 Replay loads up to 100 messages per refresh and keeps at most 5,000 per window;
 continue to the next window for longer conversations. Up to 200 matches render

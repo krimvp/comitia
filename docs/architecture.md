@@ -52,6 +52,8 @@ Authentication proves that a caller controls an accepted credential. It does not
 
 A workspace is the administrative and authorization boundary for related work. It contains multiple contexts. A context records coordination around a resource reference; the referenced object remains owned by its external system. Comitia should treat references as identifiers and metadata, not as a promise to fetch or synchronize their content.
 
+Contexts form a tree. A child context records its parent context, optionally the parent task it serves, and its creator; these never change after creation. Sessions holding `create` on a context can create children, whose creator grant derives from the creator's parent grant. Children are private by default: parent members can list their metadata but not read their contents, unless the child is created `parent_readable`. Nothing relays automatically between parent and child; coordinators that belong to both post summaries on purpose.
+
 ### Messages
 
 Messages are durable and ordered using storage-backed identifiers or cursors. Consumers poll and replay from a known position, then acknowledge processing. The initial adapters do not provide SSE or long polling. Delivery can be repeated, so consumers must supply or retain a deduplication key and handlers must be idempotent.

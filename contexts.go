@@ -3,6 +3,7 @@ package comitia
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 	"time"
 )
@@ -13,19 +14,29 @@ type Workspace struct {
 }
 type WorkContext struct {
 	ID, WorkspaceID, Name string
-	CreatedAt             time.Time
+	// Child contexts record their parent, the parent task they serve and their creator; set once at creation.
+	ParentContextID, TaskID, CreatorSessionID string
+	// ParentReadable lets sessions with read on the parent read this child too. Children are private otherwise.
+	ParentReadable bool
+	CreatedAt      time.Time
 }
 type Reference struct {
 	ID, ContextID, Kind, URI string
 	CreatedAt                time.Time
 }
 type CreateContextInput struct{ WorkspaceID, Name string }
+type CreateChildContextInput struct {
+	ParentContextID, Name, TaskID string
+	ParentReadable                bool
+}
 type AddReferenceInput struct{ ContextID, Kind, URI string }
 
 type ContextAPI interface {
 	ListContexts(context.Context, string, string, int) ([]WorkContext, error)
 	CreateWorkspace(context.Context, string, string) (Workspace, error)
 	CreateContext(context.Context, string, CreateContextInput) (WorkContext, error)
+	CreateChildContext(context.Context, string, CreateChildContextInput) (WorkContext, error)
+	ListChildContexts(context.Context, string, string, string, int) ([]WorkContext, error)
 	GetContext(context.Context, string, string) (WorkContext, error)
 	AddReference(context.Context, string, AddReferenceInput) (Reference, error)
 }
@@ -33,6 +44,7 @@ type ContextReadStore interface {
 	ContextCandidates(string, string, int) ([]WorkContext, error)
 	Workspace(string) (Workspace, error)
 	Context(string) (WorkContext, error)
+	ChildContexts(string, string, int) ([]WorkContext, error)
 }
 type ContextWriteStore interface {
 	PutWorkspace(Workspace) error
@@ -120,6 +132,75 @@ func (s *Service) CreateContext(ctx context.Context, raw string, in CreateContex
 		return w.PutGrant(Grant{ID: id(), SessionID: a.session.ID, ContextID: x.ID, IssuerSessionID: a.session.ID, Permissions: PermissionAll, ExpiresAt: a.session.ExpiresAt, CreatedAt: s.now().UTC()})
 	})
 	return x, e
+}
+
+// childPermissions is what the creator of a child context holds on it.
+const childPermissions = PermissionRead | PermissionWrite | PermissionClaim | PermissionGrant | PermissionCreate
+
+// CreateChildContext requires create on the parent. The creator's grant on the child hangs off its parent grant
+// and expires no later than it, so revoking the parent grant revokes the child grant and its delegates.
+func (s *Service) CreateChildContext(ctx context.Context, raw string, in CreateChildContextInput) (WorkContext, error) {
+	var x WorkContext
+	if strings.TrimSpace(in.Name) == "" || in.ParentContextID == "" {
+		return x, ErrInvalid
+	}
+	e := s.store.Update(ctx, func(w WriteStore) error {
+		a, gs, e := s.require(w, raw, in.ParentContextID, PermissionCreate)
+		if e != nil {
+			return e
+		}
+		parent, e := w.Context(in.ParentContextID)
+		if e != nil {
+			return e
+		}
+		if in.TaskID != "" {
+			t, e := w.Task(in.TaskID)
+			if errors.Is(e, ErrNotFound) || e == nil && t.ContextID != parent.ID {
+				return fmt.Errorf("%w: task is not in the parent context", ErrInvalid)
+			}
+			if e != nil {
+				return e
+			}
+		}
+		var source *Grant
+		for i := range gs {
+			if g := &gs[i]; g.Permissions&PermissionCreate != 0 && (source == nil || g.ExpiresAt.After(source.ExpiresAt)) {
+				source = g
+			}
+		}
+		expires := source.ExpiresAt
+		if a.session.ExpiresAt.Before(expires) {
+			expires = a.session.ExpiresAt
+		}
+		now := s.now().UTC()
+		x = WorkContext{ID: id(), WorkspaceID: parent.WorkspaceID, Name: in.Name, ParentContextID: parent.ID, TaskID: in.TaskID, CreatorSessionID: a.session.ID, ParentReadable: in.ParentReadable, CreatedAt: now}
+		if e = w.PutContext(x); e != nil {
+			return e
+		}
+		return w.PutGrant(Grant{ID: id(), SessionID: a.session.ID, ContextID: x.ID, ParentGrantID: source.ID, IssuerSessionID: a.session.ID, Permissions: childPermissions, ExpiresAt: expires, CreatedAt: now})
+	})
+	return x, e
+}
+
+// ListChildContexts returns metadata of the parent's children, ordered by ID, strictly after afterID. It needs read
+// on the parent only; reading a child's messages and tasks still needs read on the child itself.
+func (s *Service) ListChildContexts(ctx context.Context, raw, parentID, afterID string, limit int) ([]WorkContext, error) {
+	if limit < 1 || limit > 1000 || len(afterID) > 128 {
+		return nil, ErrInvalid
+	}
+	var out []WorkContext
+	err := s.store.View(ctx, func(r ReadStore) error {
+		if _, _, err := s.require(r, raw, parentID, PermissionRead); err != nil {
+			return err
+		}
+		var err error
+		out, err = r.ChildContexts(parentID, afterID, limit)
+		return err
+	})
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
 }
 func (s *Service) GetContext(ctx context.Context, raw, cid string) (WorkContext, error) {
 	var x WorkContext

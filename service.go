@@ -4,6 +4,7 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -88,8 +89,39 @@ func (s *Service) require(r ReadStore, raw, contextID string, permission Permiss
 			return a, gs, nil
 		}
 	}
+	if permission != PermissionRead {
+		return a, nil, ErrForbidden
+	}
+	// Read alone flows down from a parent into children created parent_readable; it returns no grants,
+	// so it can never serve as a source for delegation.
+	for depth := 0; depth < maxContextDepth; depth++ {
+		c, e := r.Context(contextID)
+		if errors.Is(e, ErrNotFound) {
+			return a, nil, ErrForbidden
+		}
+		if e != nil {
+			return a, nil, e
+		}
+		if c.ParentContextID == "" || !c.ParentReadable {
+			return a, nil, ErrForbidden
+		}
+		contextID = c.ParentContextID
+		gs, e := r.Grants(a.session.ID, contextID, s.now().UTC())
+		if e != nil {
+			return a, nil, e
+		}
+		for _, g := range gs {
+			if g.Permissions&PermissionRead != 0 {
+				return a, nil, nil
+			}
+		}
+	}
 	return a, nil, ErrForbidden
 }
+
+// maxContextDepth bounds the parent walk for inherited read.
+const maxContextDepth = 64
+
 func (s *Service) admin(r ReadStore, raw string) (authInfo, error) {
 	a, e := s.auth(r, raw)
 	if e != nil {

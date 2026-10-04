@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 
 	"github.com/krimvp/comitia"
 )
@@ -37,14 +38,45 @@ func runContexts(ctx context.Context, cfg config, api comitia.API, out *json.Enc
 		return out.Encode(v)
 	case "context-create":
 		fs := newFlags(cmd)
-		wid := fs.String("workspace-id", "", "workspace ID")
+		wid := fs.String("workspace-id", "", "workspace ID (top-level contexts, admins only)")
 		name := fs.String("name", "", "context name")
+		parent := fs.String("parent-id", "", "parent context ID; creates a child context (needs create on the parent)")
+		task := fs.String("task-id", "", "task in the parent context that the child serves")
+		readable := fs.Bool("parent-readable", false, "let sessions with read on the parent read the child")
 		if err := fs.Parse(args); err != nil {
 			return err
 		}
-		v, e := api.CreateContext(ctx, needCredential(cfg), comitia.CreateContextInput{WorkspaceID: *wid, Name: *name})
+		var v comitia.WorkContext
+		var e error
+		if *parent != "" {
+			if *wid != "" {
+				return errors.New("context-create: use either --workspace-id or --parent-id")
+			}
+			v, e = api.CreateChildContext(ctx, needCredential(cfg), comitia.CreateChildContextInput{ParentContextID: *parent, Name: *name, TaskID: *task, ParentReadable: *readable})
+		} else {
+			if *task != "" || *readable {
+				return errors.New("context-create: --task-id and --parent-readable need --parent-id")
+			}
+			v, e = api.CreateContext(ctx, needCredential(cfg), comitia.CreateContextInput{WorkspaceID: *wid, Name: *name})
+		}
 		if e != nil {
 			return e
+		}
+		return out.Encode(v)
+	case "context-children":
+		fs := newFlags(cmd)
+		parent := fs.String("parent-id", "", "parent context ID")
+		after := fs.String("after-id", "", "exclusive context ID cursor")
+		limit := fs.Int("limit", 100, "maximum contexts (1-1000)")
+		if err := fs.Parse(args); err != nil {
+			return err
+		}
+		v, e := api.ListChildContexts(ctx, needCredential(cfg), *parent, *after, *limit)
+		if e != nil {
+			return e
+		}
+		if v == nil {
+			v = []comitia.WorkContext{}
 		}
 		return out.Encode(v)
 	case "reference-add":

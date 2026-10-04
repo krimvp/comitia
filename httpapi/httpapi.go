@@ -51,6 +51,8 @@ type request struct {
 	Delegate      *comitia.DelegateInput      `json:"delegate,omitempty"`
 	Message       *comitia.MessageInput       `json:"message,omitempty"`
 	Task          *comitia.TaskInput          `json:"task,omitempty"`
+
+	ChildContext *comitia.CreateChildContextInput `json:"child_context,omitempty"`
 }
 
 type response struct {
