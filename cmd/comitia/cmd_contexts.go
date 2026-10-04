@@ -10,6 +10,19 @@ import (
 
 func runContexts(ctx context.Context, cfg config, api comitia.API, out *json.Encoder, cmd string, args []string) error {
 	switch cmd {
+	case "context-archive":
+		fs := newFlags(cmd)
+		cid := fs.String("context-id", "", "context ID to archive (needs grant or administrator status)")
+		if err := fs.Parse(args); err != nil {
+			return err
+		}
+		if *cid == "" {
+			return errors.New("context-archive requires --context-id")
+		}
+		if err := api.ArchiveContext(ctx, needCredential(cfg), *cid); err != nil {
+			return err
+		}
+		return out.Encode(map[string]bool{"archived": true})
 	case "workspace-create":
 		fs := newFlags(cmd)
 		name := fs.String("name", "", "workspace name")

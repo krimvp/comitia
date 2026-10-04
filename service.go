@@ -11,10 +11,12 @@ import (
 )
 
 type Service struct {
-	store               Store
-	now                 Clock
-	bootstrapCredential string
-	messageSchemas      map[string]PayloadValidator
+	store                    Store
+	now                      Clock
+	bootstrapCredential      string
+	messageSchemas           map[string]PayloadValidator
+	maxContextDepth          int
+	maxChildContextsPerGrant int
 }
 
 func New(cfg Config) (*Service, error) {
@@ -24,6 +26,15 @@ func New(cfg Config) (*Service, error) {
 	if cfg.Clock == nil {
 		cfg.Clock = time.Now
 	}
+	if cfg.MaxContextDepth < 0 || cfg.MaxChildContextsPerGrant < 0 {
+		return nil, fmt.Errorf("%w: context limits must be positive", ErrInvalid)
+	}
+	if cfg.MaxContextDepth == 0 {
+		cfg.MaxContextDepth = 3
+	}
+	if cfg.MaxChildContextsPerGrant == 0 {
+		cfg.MaxChildContextsPerGrant = 20
+	}
 	schemas := builtinMessageSchemas()
 	for name, validator := range cfg.MessageSchemas {
 		if name == "" || strings.HasPrefix(name, "comitia.") || validator == nil {
@@ -31,7 +42,7 @@ func New(cfg Config) (*Service, error) {
 		}
 		schemas[name] = validator
 	}
-	return &Service{store: cfg.Store, now: cfg.Clock, bootstrapCredential: cfg.BootstrapCredential, messageSchemas: schemas}, nil
+	return &Service{store: cfg.Store, now: cfg.Clock, bootstrapCredential: cfg.BootstrapCredential, messageSchemas: schemas, maxContextDepth: cfg.MaxContextDepth, maxChildContextsPerGrant: cfg.MaxChildContextsPerGrant}, nil
 }
 
 func id() string {
@@ -86,6 +97,11 @@ func (s *Service) require(r ReadStore, raw, contextID string, permission Permiss
 	}
 	for _, g := range gs {
 		if g.Permissions&permission == permission {
+			if permission&(PermissionWrite|PermissionClaim|PermissionCreate|PermissionAdmin) != 0 {
+				if e := s.contextActive(r, contextID); e != nil {
+					return a, nil, e
+				}
+			}
 			return a, gs, nil
 		}
 	}
@@ -94,7 +110,9 @@ func (s *Service) require(r ReadStore, raw, contextID string, permission Permiss
 	}
 	// Read alone flows down from a parent into children created parent_readable; it returns no grants,
 	// so it can never serve as a source for delegation.
-	for depth := 0; depth < maxContextDepth; depth++ {
+	seen := map[string]bool{}
+	for !seen[contextID] {
+		seen[contextID] = true
 		c, e := r.Context(contextID)
 		if errors.Is(e, ErrNotFound) {
 			return a, nil, ErrForbidden
@@ -118,9 +136,6 @@ func (s *Service) require(r ReadStore, raw, contextID string, permission Permiss
 	}
 	return a, nil, ErrForbidden
 }
-
-// maxContextDepth bounds the parent walk for inherited read.
-const maxContextDepth = 64
 
 func (s *Service) admin(r ReadStore, raw string) (authInfo, error) {
 	a, e := s.auth(r, raw)

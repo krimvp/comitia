@@ -70,6 +70,9 @@ func (s *Service) GrantContext(ctx context.Context, raw string, in GrantInput) (
 			return ErrInvalid
 		}
 		if a.principal.Admin {
+			if e = s.contextActive(w, in.ContextID); e != nil {
+				return e
+			}
 			g = Grant{ID: id(), SessionID: in.SessionID, ContextID: in.ContextID, IssuerSessionID: a.session.ID, Permissions: in.Permissions, ExpiresAt: in.ExpiresAt, CreatedAt: s.now().UTC()}
 			return w.PutGrant(g)
 		}
@@ -87,6 +90,9 @@ func (s *Service) GrantContext(ctx context.Context, raw string, in GrantInput) (
 		}
 		if source == nil {
 			return ErrForbidden
+		}
+		if e = s.contextActive(w, in.ContextID); e != nil {
+			return e
 		}
 		g = Grant{ID: id(), SessionID: in.SessionID, ContextID: in.ContextID, ParentGrantID: source.ID, IssuerSessionID: a.session.ID, Permissions: in.Permissions, ExpiresAt: in.ExpiresAt, CreatedAt: s.now().UTC()}
 		return w.PutGrant(g)

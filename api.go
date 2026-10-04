@@ -45,6 +45,9 @@ type Config struct {
 	Clock               Clock
 	BootstrapCredential string
 	MessageSchemas      map[string]PayloadValidator
+	// Top-level contexts have depth 0. Zero values use defaults (3 and 20).
+	MaxContextDepth          int
+	MaxChildContextsPerGrant int
 }
 
 // Store supplies atomic persistence. Implementations must serialize concurrent Update calls.

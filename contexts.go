@@ -19,6 +19,8 @@ type WorkContext struct {
 	// ParentReadable lets sessions with read on the parent read this child too. Children are private otherwise.
 	ParentReadable bool
 	CreatedAt      time.Time
+	Archived       bool
+	ArchivedAt     *time.Time
 }
 type Reference struct {
 	ID, ContextID, Kind, URI string
@@ -39,17 +41,22 @@ type ContextAPI interface {
 	ListChildContexts(context.Context, string, string, string, int) ([]WorkContext, error)
 	GetContext(context.Context, string, string) (WorkContext, error)
 	AddReference(context.Context, string, AddReferenceInput) (Reference, error)
+	ArchiveContext(context.Context, string, string) error
 }
 type ContextReadStore interface {
 	ContextCandidates(string, string, int) ([]WorkContext, error)
 	Workspace(string) (Workspace, error)
 	Context(string) (WorkContext, error)
 	ChildContexts(string, string, int) ([]WorkContext, error)
+	ContextArchivedAt(string, time.Time) (*time.Time, error)
+	ChildContextCount(string) (int, error)
 }
 type ContextWriteStore interface {
 	PutWorkspace(Workspace) error
 	PutContext(WorkContext) error
 	PutReference(Reference) error
+	PutContextCreator(string, string, string) error
+	PutContextArchive(string, time.Time) error
 }
 
 // ListContexts returns readable contexts ordered by ID, strictly after afterID.
@@ -80,6 +87,9 @@ func (s *Service) ListContexts(ctx context.Context, raw, afterID string, limit i
 					if errors.Is(err, ErrForbidden) {
 						continue
 					}
+					return err
+				}
+				if err := s.contextMetadata(r, &c); err != nil {
 					return err
 				}
 				out = append(out, c)
@@ -153,6 +163,9 @@ func (s *Service) CreateChildContext(ctx context.Context, raw string, in CreateC
 		if e != nil {
 			return e
 		}
+		if e := s.checkChildDepth(w, parent); e != nil {
+			return e
+		}
 		if in.TaskID != "" {
 			t, e := w.Task(in.TaskID)
 			if errors.Is(e, ErrNotFound) || e == nil && t.ContextID != parent.ID {
@@ -164,9 +177,20 @@ func (s *Service) CreateChildContext(ctx context.Context, raw string, in CreateC
 		}
 		var source *Grant
 		for i := range gs {
-			if g := &gs[i]; g.Permissions&PermissionCreate != 0 && (source == nil || g.ExpiresAt.After(source.ExpiresAt)) {
+			g := &gs[i]
+			if g.Permissions&PermissionCreate == 0 {
+				continue
+			}
+			count, e := w.ChildContextCount(g.ID)
+			if e != nil {
+				return e
+			}
+			if count < s.maxChildContextsPerGrant && (source == nil || g.ExpiresAt.After(source.ExpiresAt)) {
 				source = g
 			}
+		}
+		if source == nil {
+			return fmt.Errorf("%w: maximum child contexts per creating grant (%d) reached", ErrInvalid, s.maxChildContextsPerGrant)
 		}
 		expires := source.ExpiresAt
 		if a.session.ExpiresAt.Before(expires) {
@@ -177,7 +201,11 @@ func (s *Service) CreateChildContext(ctx context.Context, raw string, in CreateC
 		if e = w.PutContext(x); e != nil {
 			return e
 		}
-		return w.PutGrant(Grant{ID: id(), SessionID: a.session.ID, ContextID: x.ID, ParentGrantID: source.ID, IssuerSessionID: a.session.ID, Permissions: childPermissions, ExpiresAt: expires, CreatedAt: now})
+		g := Grant{ID: id(), SessionID: a.session.ID, ContextID: x.ID, ParentGrantID: source.ID, IssuerSessionID: a.session.ID, Permissions: childPermissions, ExpiresAt: expires, CreatedAt: now}
+		if e = w.PutGrant(g); e != nil {
+			return e
+		}
+		return w.PutContextCreator(x.ID, g.ID, source.ID)
 	})
 	return x, e
 }
@@ -195,7 +223,15 @@ func (s *Service) ListChildContexts(ctx context.Context, raw, parentID, afterID 
 		}
 		var err error
 		out, err = r.ChildContexts(parentID, afterID, limit)
-		return err
+		if err != nil {
+			return err
+		}
+		for i := range out {
+			if err := s.contextMetadata(r, &out[i]); err != nil {
+				return err
+			}
+		}
+		return nil
 	})
 	if err != nil {
 		return nil, err
@@ -210,7 +246,10 @@ func (s *Service) GetContext(ctx context.Context, raw, cid string) (WorkContext,
 		}
 		var e error
 		x, e = r.Context(cid)
-		return e
+		if e != nil {
+			return e
+		}
+		return s.contextMetadata(r, &x)
 	})
 	return x, e
 }
