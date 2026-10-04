@@ -7,11 +7,12 @@ import (
 	"time"
 
 	"github.com/krimvp/comitia"
+	"github.com/krimvp/comitia/sqlite"
 )
 
 func TestRemoteFilteredScanProgress(t *testing.T) {
 	ctx := context.Background()
-	st, err := comitia.OpenSQLite(":memory:")
+	st, err := sqlite.OpenSQLite(":memory:")
 	if err != nil {
 		t.Fatal(err)
 	}

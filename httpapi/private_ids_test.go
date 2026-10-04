@@ -11,10 +11,11 @@ import (
 	"time"
 
 	"github.com/krimvp/comitia"
+	"github.com/krimvp/comitia/sqlite"
 )
 
 func TestHTTPPrivateIDErrorsAreUniform(t *testing.T) {
-	store, err := comitia.OpenSQLite(":memory:")
+	store, err := sqlite.OpenSQLite(":memory:")
 	if err != nil {
 		t.Fatal(err)
 	}

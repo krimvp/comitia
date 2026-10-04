@@ -19,6 +19,7 @@ import (
 
 	"github.com/krimvp/comitia"
 	"github.com/krimvp/comitia/httpapi"
+	"github.com/krimvp/comitia/sqlite"
 )
 
 func TestWatchCommandServerRestart(t *testing.T) {
@@ -41,7 +42,7 @@ func TestWatchCommandServerRestart(t *testing.T) {
 		os.Exit(0)
 	}
 	path := filepath.Join(t.TempDir(), "watch.db")
-	store, err := comitia.OpenSQLite(path)
+	store, err := sqlite.OpenSQLite(path)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -172,7 +173,7 @@ func TestWatchCommandServerRestart(t *testing.T) {
 	if err := store.Close(); err != nil {
 		t.Fatal(err)
 	}
-	store, err = comitia.OpenSQLite(path)
+	store, err = sqlite.OpenSQLite(path)
 	if err != nil {
 		t.Fatal(err)
 	}

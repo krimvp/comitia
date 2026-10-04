@@ -11,10 +11,11 @@ import (
 	"time"
 
 	"github.com/krimvp/comitia"
+	"github.com/krimvp/comitia/sqlite"
 )
 
 func TestTypedHTTPMessagesAndParticipantDiscovery(t *testing.T) {
-	st, err := comitia.OpenSQLite(t.TempDir() + "/http.db")
+	st, err := sqlite.OpenSQLite(t.TempDir() + "/http.db")
 	if err != nil {
 		t.Fatal(err)
 	}

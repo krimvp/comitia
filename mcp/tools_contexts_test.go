@@ -11,11 +11,12 @@ import (
 
 	"github.com/krimvp/comitia"
 	"github.com/krimvp/comitia/httpapi"
+	"github.com/krimvp/comitia/sqlite"
 )
 
 func contextServer(t *testing.T, remote bool) (*Server, *comitia.Service, comitia.Credential, comitia.WorkContext) {
 	t.Helper()
-	store, err := comitia.OpenSQLite(":memory:")
+	store, err := sqlite.OpenSQLite(":memory:")
 	if err != nil {
 		t.Fatal(err)
 	}

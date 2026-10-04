@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/krimvp/comitia"
+	"github.com/krimvp/comitia/sqlite"
 )
 
 type fakeAPI struct{ comitia.API }
@@ -90,7 +91,7 @@ func TestBootstrapIsOfflineOnly(t *testing.T) {
 
 func TestSQLiteServiceRemoteScopedParity(t *testing.T) {
 	ctx := context.Background()
-	store, err := comitia.OpenSQLite(t.TempDir() + "/acceptance.db")
+	store, err := sqlite.OpenSQLite(t.TempDir() + "/acceptance.db")
 	if err != nil {
 		t.Fatal(err)
 	}

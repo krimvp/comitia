@@ -20,7 +20,7 @@ func legacyMessageCLI(t *testing.T) string {
 		return binary
 	}
 	dir := t.TempDir()
-	for _, pattern := range []string{"*.go", "go.mod", "go.sum", "cmd/comitia/*.go", "httpapi/*.go", "httpapi/ui/*", "mcp/*.go"} {
+	for _, pattern := range []string{"*.go", "go.mod", "go.sum", "cmd/comitia/*.go", "httpapi/*.go", "httpapi/ui/*", "mcp/*.go", "sqlite/*.go"} {
 		paths, err := filepath.Glob(pattern)
 		if err != nil {
 			t.Fatal(err)
