@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32">
+  <title>Comitia</title>
+  <style>
+    .c { stroke: #14324a; }
+    .a { fill: #1f5fbf; }
+    @media (prefers-color-scheme: dark) { .c { stroke: #d6e2ea; } .a { fill: #7fb2ff; } }
+  </style>
+  <g fill="none" stroke-width="2" class="c">
+    <rect x="3" y="12" width="26" height="8" rx="1"/>
+    <path d="M11.7 12v8M20.3 12v8"/>
+    <path d="M7 12V5M16 12V3M25 12V7" stroke-linecap="round"/>
+  </g>
+  <rect class="a" x="21.3" y="13" width="6.7" height="6"/>
+  <circle class="a" cx="16" cy="27" r="2"/>
+</svg>

@@ -1,0 +1,100 @@
+import { test } from "node:test";
+import assert from "node:assert/strict";
+import { existsSync, readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+
+const root = dirname(fileURLToPath(import.meta.url));
+const html = readFileSync(join(root, "index.html"), "utf8");
+const css = readFileSync(join(root, "style.css"), "utf8");
+const allowedExternal = /^https:\/\/github\.com\/krimvp\/comitia(\/|$|#)/;
+
+function attrs(name) {
+  return [...html.matchAll(new RegExp(`\\s${name}="([^"]*)"`, "g"))].map((m) => m[1]);
+}
+
+const refs = [...attrs("src"), ...attrs("href")];
+
+test("only GitHub links leave the page", () => {
+  const external = refs.filter((r) => /^[a-z][a-z0-9+.-]*:|^\/\//i.test(r));
+  assert.ok(external.length > 0);
+  for (const r of external) assert.match(r, allowedExternal, r);
+  assert.doesNotMatch(css, /@import/);
+  for (const [, u] of css.matchAll(/url\("?([^")]+)"?\)/g)) {
+    assert.doesNotMatch(u, /^[a-z][a-z0-9+.-]*:|^\/\//i, `style.css loads ${u}`);
+    assert.ok(existsSync(join(root, u)), `missing file ${u}`);
+  }
+});
+
+test("relative links resolve to files and fragments to ids", () => {
+  const ids = new Set(attrs("id"));
+  for (const r of refs.filter((r) => !/^[a-z][a-z0-9+.-]*:|^\/\//i.test(r))) {
+    assert.ok(!r.startsWith("/"), `root-relative link breaks under a sub-path: ${r}`);
+    const [path, fragment] = r.split("#");
+    if (path === "" || path === "./") {
+      if (fragment) assert.ok(ids.has(fragment), `missing id #${fragment}`);
+      continue;
+    }
+    assert.ok(existsSync(join(root, path)), `missing file ${path}`);
+  }
+});
+
+test("every img has alt and the page has one h1", () => {
+  const imgs = html.match(/<img\b[^>]*>/g) ?? [];
+  assert.ok(imgs.length > 0);
+  for (const img of imgs) assert.match(img, /\salt="[^"]*"/, img);
+  assert.equal((html.match(/<h1\b/g) ?? []).length, 1);
+});
+
+test("svg figures are labelled and decorative svg is hidden", () => {
+  const svgs = html.match(/<svg\b[^>]*>/g) ?? [];
+  assert.ok(svgs.length > 0);
+  for (const svg of svgs) {
+    if (/aria-hidden="true"/.test(svg)) continue;
+    const ids = svg.match(/aria-labelledby="([^"]+)"/);
+    assert.ok(ids, svg);
+    for (const id of ids[1].split(/\s+/)) assert.match(html, new RegExp(`id="${id}"`));
+  }
+});
+
+function tokens(block) {
+  return Object.fromEntries([...block.matchAll(/--([a-z-]+):\s*(#[0-9a-f]{6})/gi)].map((m) => [m[1], m[2]]));
+}
+
+function contrast(a, b) {
+  const lum = (hex) => {
+    const [r, g, b] = [1, 3, 5].map((i) => {
+      const c = parseInt(hex.slice(i, i + 2), 16) / 255;
+      return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+    });
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+  };
+  const [hi, lo] = [lum(a), lum(b)].sort((x, y) => y - x);
+  return (hi + 0.05) / (lo + 0.05);
+}
+
+test("text colour pairs meet WCAG AA in both themes", () => {
+  const light = tokens(css.slice(css.indexOf(":root {"), css.indexOf("@media (prefers-color-scheme: dark)")));
+  const darkStart = css.indexOf("@media (prefers-color-scheme: dark)");
+  const dark = { ...light, ...tokens(css.slice(darkStart, css.indexOf("}\n}", darkStart))) };
+  const pairs = [
+    ["ink", "paper"], ["ink", "panel"], ["ink", "code-bg"], ["ink", "live-fill"],
+    ["muted", "paper"], ["muted", "panel"], ["muted", "code-bg"],
+    ["accent", "paper"], ["accent", "panel"], ["accent", "live-fill"],
+    ["live", "live-fill"], ["live", "panel"],
+  ];
+  for (const [theme, t] of [["light", light], ["dark", dark]]) {
+    for (const [fg, bg] of pairs) {
+      assert.ok(t[fg] && t[bg], `${theme}: missing --${fg} or --${bg}`);
+      const ratio = contrast(t[fg], t[bg]);
+      assert.ok(ratio >= 4.5, `${theme} --${fg} on --${bg} is ${ratio.toFixed(2)}:1`);
+    }
+  }
+  assert.match(css, /\.t-fig \{[^}]*fill: var\(--muted\)/, "fig. 1 label uses a text colour");
+});
+
+test("the home link opens the page itself", () => {
+  const home = html.match(/<a class="brand" href="([^"]*)"/);
+  assert.ok(home);
+  assert.equal(home[1], "index.html");
+});
