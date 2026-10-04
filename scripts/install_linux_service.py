@@ -17,6 +17,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import comitia_install as local  # noqa: E402
 
 UNIT_NAME = 'comitia.service'
+PROC = Path('/proc')
 UNIT = """[Unit]
 Description=Comitia local agent coordination service
 After=network.target
@@ -58,6 +59,26 @@ def owns_unit(unit, root, port):
     current = next(line for line in service_unit(root, port).splitlines() if line.startswith('ExecStart='))
     legacy = f'ExecStart={root}/bin/comitia --db {root}/data/comitia.db serve --listen 127.0.0.1:{port}'
     return commands in ([current], [legacy])
+
+def running_service(root, port):
+    # daemon-reload can replace the loaded unit while its old process is still running.
+    result = subprocess.run(['systemctl', '--user', 'show', UNIT_NAME,
+                             '--property=ActiveState', '--property=MainPID'], capture_output=True, text=True)
+    if result.returncode:
+        return False
+    state = dict(line.split('=', 1) for line in result.stdout.splitlines() if '=' in line)
+    try:
+        pid = int(state.get('MainPID', '0'))
+        if state.get('ActiveState') != 'active' or pid <= 0:
+            return False
+        process = PROC/str(pid)
+        args = (process/'cmdline').read_bytes().rstrip(b'\0').split(b'\0')
+        executable = os.readlink(process/'exe').removesuffix(' (deleted)')
+        expected = [str(root/'bin/comitia'), '--db', str(root/'data/comitia.db'),
+                    'serve', '--listen', f'127.0.0.1:{port}']
+        return executable == str(root/'bin/comitia') and args == list(map(os.fsencode, expected))
+    except (OSError, ValueError):
+        return False
 
 def installation_text(root, local_context, names, linger):
     examples = names[:2] or ['NAME']
@@ -113,8 +134,7 @@ def install(root, home, port=None, names=None, binary=None, service=systemctl, l
     if check_port:
         owned = False
         if port == local.saved_port(root) and owns_unit(unit, root, port):
-            owned = subprocess.run(['systemctl', '--user', 'is-active', '--quiet', UNIT_NAME],
-                                   capture_output=True).returncode == 0
+            owned = running_service(root, port)
         local.preflight_port(port, owned)
     for directory in (root, root/'bin', root/'data', root/'credentials', root/'backups'):
         directory.mkdir(parents=True, exist_ok=True)

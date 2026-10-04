@@ -6,6 +6,7 @@ import json
 import os
 from pathlib import Path
 import plistlib
+import re
 import secrets
 import shutil
 import shlex
@@ -38,12 +39,24 @@ def owns_service(path, root, label, port):
     if not path.exists() or port is None:
         return False
     config = plistlib.loads(path.read_bytes())
-    args = config.get('ProgramArguments', [])
+    return owns_arguments(config.get('ProgramArguments', []), root, label, port)
+
+def owns_arguments(args, root, label, port):
     if label == 'com.comitia.server':
         return args == [str(root/'bin/comitia'), '--db', str(root/'data/comitia.db'),
                         'serve', '--listen', f'127.0.0.1:{port}']
     return (len(args) > 4 and args[:2] == ['/usr/bin/python3', str(root/'viewer/serve.py')]
             and args[2:4] == ['--port', str(port)])
+
+def running_service(root, label, port):
+    result = subprocess.run(['launchctl', 'print', f'gui/{os.getuid()}/{label}'], capture_output=True, text=True)
+    if result.returncode or not re.search(r'^\s*state = running\s*$', result.stdout, re.M):
+        return False
+    pid = re.search(r'^\s*pid = ([1-9][0-9]*)\s*$', result.stdout, re.M)
+    arguments = re.search(r'^\s*arguments = \{\n(.*?)^\s*\}', result.stdout, re.M | re.S)
+    # Read the loaded job, not the plist rewritten by an interrupted installation.
+    return bool(pid and arguments and owns_arguments(
+        [line.strip() for line in arguments[1].splitlines()], root, label, port))
 
 @local.locked_installation(0)
 def uninstall(root, home):
@@ -120,7 +133,7 @@ def main(argv):
         for port, label, key in zip((args.port, args.viewer_port), labels, ('server_url', 'viewer_url')):
             owned = False
             if port == local.saved_port(root, key) and owns_service(launch_dir/f'{label}.plist', root, label, port):
-                owned = subprocess.run(['launchctl', 'print', f'{domain}/{label}'], capture_output=True).returncode == 0
+                owned = running_service(root, label, port)
             local.preflight_port(port, owned)
         local_bin = Path.home()/'.local/bin'
         for name, target in managed_links(root).items():

@@ -5,6 +5,7 @@ the installers and their tests never depend on the caller's real home.
 """
 import datetime
 import contextlib
+import copy
 import fcntl
 import functools
 import json
@@ -608,10 +609,18 @@ def remember_harness(root, name, spec):
 def remove_toml_entry(text, table, entry):
     if tomllib is None:
         raise RuntimeError('Selective TOML uninstall requires Python 3.11 or newer.')
-    current = lookup(tomllib.loads(text), table)
+    document = tomllib.loads(text)
+    current = lookup(document, table)
     if not isinstance(current, dict) or any(current.get(k) != entry[k] for k in ('command', 'args')):
         return text
     remove = {k for k, v in entry.items() if current.get(k) == v}
+    expected = copy.deepcopy(document)
+    remaining = lookup(expected, table)
+    for key in remove:
+        del remaining[key]
+    parent, _, name = table.rpartition('.')
+    if not remaining:
+        (lookup(expected, parent) if parent else expected).pop(name)
     header = re.compile(r'^\s*\[\s*'+r'\s*\.\s*'.join(map(re.escape, table.split('.')))+r'\s*\]\s*(#.*)?$')
     lines = list(toml_lines(text))
     start = next((i for i, (line, outside) in enumerate(lines) if outside and header.match(line)), None)
@@ -619,17 +628,25 @@ def remove_toml_entry(text, table, entry):
         return text  # Inline/quoted tables were not written by the installer.
     end = next((i for i in range(start+1, len(lines)) if lines[i][1] and lines[i][0].lstrip().startswith('[')), len(lines))
     kept, dropping = [], False
+    assignment = re.compile(r'''^\s*([A-Za-z0-9_-]+|'[^']*'|"(?:[^"\\]|\\.)*")\s*=''')
     for line, outside in lines[start+1:end]:
         if outside:
-            key = TOML_KEY.match(line)
-            dropping = bool(key and key.group(1) in remove)
+            key = assignment.match(line)
+            # Let TOML decode quoted/escaped keys instead of comparing source spellings.
+            dropping = bool(key and next(iter(tomllib.loads(key[1]+' = 0'))) in remove)
         if not dropping:
             kept.append(line)
     prefix = [line for line, _ in lines[:start]]
     if current.keys()-remove:
         prefix.append(lines[start][0])
     result = ''.join(prefix+kept+[line for line, _ in lines[end:]])
-    tomllib.loads(result)
+    parsed = tomllib.loads(result)
+    if not remaining and parent and lookup(parsed, parent) is None:
+        # Removing the only child must not erase its unrelated parent table.
+        result = ''.join(prefix+[f'[{parent}]\n']+kept+[line for line, _ in lines[end:]])
+        parsed = tomllib.loads(result)
+    if parsed != expected:
+        raise ValueError(f'Refusing to remove [{table}]: result would change unrelated TOML or retain managed fields')
     return result
 
 @locked_installation(0)

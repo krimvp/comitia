@@ -26,7 +26,9 @@ systemd user unit `~/.config/systemd/user/comitia.service`, listening on
 http://127.0.0.1:8390 on the first install (`--port`). Rerunning without `--port`
 keeps the URL saved in `local-context.json`. Fresh or changed ports must be free
 before the installer changes binaries, credentials, harness settings or the unit.
-An unchanged port is exempt only for a matching active Comitia service.
+An unchanged port is exempt only when the saved URL, unit and running process's
+executable and arguments match this installation and port. A saved or rewritten
+unit alone cannot bypass the check after an interrupted port change.
 `--no-start` writes the unit without starting it and still checks fresh/changed
 ports. Generated command paths are escaped for systemd, including spaces and
 percent specifiers; `/usr/bin/env` execs the installed binary so quotes and
@@ -60,7 +62,9 @@ integration, run `python3 scripts/install_linux_service.py uninstall` from the
 checkout. It stops/disables the matching service, removes its generated unit,
 reloads systemd, removes matching MCP fields and instruction blocks, and removes
 installer-added approval-list values. Custom keys, other MCP servers, instructions
-outside the managed block, and replaced command entries are kept. Changed units
+outside the managed block, and replaced command entries are kept.
+TOML removal recognizes quoted keys and verifies the entire parsed result before
+writing; an edit that changes unrelated configuration is refused. Changed units
 are stopped when they still launch this installation but retained for manual
 review; unrelated units are left alone. The command is repeatable and uses the
 same installation lock as repair and credential rotation. Restart agent sessions
@@ -313,7 +317,9 @@ Omitted `--port` and `--viewer-port` keep the saved URLs in `service.json`
 (the server also falls back to `local-context.json` for older installs).
 Fresh/changed ports are checked before any installation files are rewritten,
 even when launchd has the old services loaded; unchanged ports are exempt only
-for matching loaded Comitia services. The server LaunchAgent overrides inherited
+when the saved URLs, plists and running launchd jobs' arguments match the ports.
+Rewritten plists from an interrupted update do not prove that the old jobs have
+switched ports. The server LaunchAgent overrides inherited
 `COMITIA_SERVER_URL`, `COMITIA_CREDENTIAL` and `COMITIA_BOOTSTRAP_CREDENTIAL`
 with empty values, while using its configured database and listen arguments.
 
@@ -354,15 +360,18 @@ The installer enables the services again when rerun. Plists live in
 `~/Library/LaunchAgents/com.comitia.viewer.plist`. Disabling services does not
 remove the data or credentials.
 For removal, run `python3 scripts/install_macos_service.py --uninstall`. It
-stops/disables the matching services, removes generated Comitia plists and only
-the `~/.local/bin/comitia`/`comitia-local` symlinks that still point to this
-installation. Unrelated commands and plists, plus customized Comitia plists,
+stops/disables the matching services, removes generated Comitia plists (including
+viewer plists from before the scoped launcher) and only the
+`~/.local/bin/comitia`/`comitia-local`/`comitia-viewer` symlinks that still point
+to this installation. Installation refuses to start when one of those commands
+already exists for something else. Unrelated commands and plists, plus customized Comitia plists,
 are retained and reported for review. It also removes any harness integration
 recorded in this root using the same selective rules as Linux. Manually connected
 macOS harnesses are outside the installer registry: remove only their Comitia
 MCP registration and managed instruction block, keeping other configuration.
 Restart agent sessions after removal. The command is repeatable and keeps
-`~/Library/Application Support/Comitia`, including data, credentials and backups.
+`~/Library/Application Support/Comitia`, including data, credentials (including
+`viewer-launch-key`) and backups.
 Apply the same separate data/credential deletion procedure described above to
 this root only after reviewing retained integration and keeping required backups.
 
