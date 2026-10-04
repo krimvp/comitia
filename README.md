@@ -177,9 +177,14 @@ child levels), and each creating grant can create at most **20** children.
 Archived children still count toward that grant's lifetime quota. Configure the
 server with `comitia serve --max-context-depth 3 --max-child-contexts-per-grant 20`,
 or set `Config.MaxContextDepth` and `Config.MaxChildContextsPerGrant` in embedded
-applications. Config zero values use the defaults; negative values and
+applications. These flags apply only to `serve`; embedded CLI commands and MCP
+use the defaults, even against the same database. Remote clients use their
+server's limits. Config zero values use the defaults; negative values and
 nonpositive serve flags are invalid. Limits are checked atomically at creation;
 reducing them does not remove existing contexts or prevent reading deeper trees.
+Creation uses the longest-lived live `create` grant with remaining quota. A holder
+of `grant,create` can delegate `create`, giving each new grant its own budget;
+the count bounds sprawl per grant, rather than per coordinator or delegation tree.
 
 A holder of `grant` on a context, or an administrator, can archive it:
 

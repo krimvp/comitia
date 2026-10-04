@@ -2,6 +2,7 @@ package comitia
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"path/filepath"
@@ -109,12 +110,12 @@ func TestContextCountLimitConcurrent(t *testing.T) {
 	}
 }
 
-func TestContextQuotaBelongsToGrantNotSession(t *testing.T) {
+func TestContextQuotaSkipsExhaustedGrant(t *testing.T) {
 	f := setup(t, ":memory:")
 	defer f.store.Close()
 	f.svc.maxChildContextsPerGrant = 1
 	ctx := context.Background()
-	_, coord, _, err := f.svc.DelegateSession(ctx, f.admin.Token, DelegateInput{PrincipalName: "coord", TTL: 2 * time.Hour, Grants: []DelegatedGrant{{ContextID: f.context.ID, Permissions: PermissionCreate | PermissionRead, ExpiresAt: f.now.Add(time.Hour)}}})
+	_, coord, _, err := f.svc.DelegateSession(ctx, f.admin.Token, DelegateInput{PrincipalName: "coord", TTL: 2 * time.Hour, Grants: []DelegatedGrant{{ContextID: f.context.ID, Permissions: PermissionCreate | PermissionRead, ExpiresAt: f.now.Add(2 * time.Hour)}}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -122,10 +123,20 @@ func TestContextQuotaBelongsToGrantNotSession(t *testing.T) {
 	if _, err := f.svc.CreateChildContext(ctx, coord.Token, CreateChildContextInput{ParentContextID: f.context.ID, Name: "over first quota"}); !errors.Is(err, ErrInvalid) {
 		t.Fatalf("first quota: %v", err)
 	}
-	if _, err := f.svc.GrantContext(ctx, f.admin.Token, GrantInput{SessionID: coord.Session.ID, ContextID: f.context.ID, Permissions: PermissionCreate | PermissionRead, ExpiresAt: f.now.Add(2 * time.Hour)}); err != nil {
+	shorter, err := f.svc.GrantContext(ctx, f.admin.Token, GrantInput{SessionID: coord.Session.ID, ContextID: f.context.ID, Permissions: PermissionCreate | PermissionRead, ExpiresAt: f.now.Add(time.Hour)})
+	if err != nil {
 		t.Fatal(err)
 	}
-	childContext(t, f, coord.Token, f.context.ID)
+	child := childContext(t, f, coord.Token, f.context.ID)
+	if err := f.store.View(ctx, func(r ReadStore) error {
+		grants, err := r.Grants(coord.Session.ID, child.ID, *f.now)
+		if err == nil && (len(grants) != 1 || grants[0].ParentGrantID != shorter.ID || !grants[0].ExpiresAt.Equal(shorter.ExpiresAt)) {
+			t.Fatalf("child must use shorter grant with capacity: %+v", grants)
+		}
+		return err
+	}); err != nil {
+		t.Fatal(err)
+	}
 	if _, err := f.svc.CreateChildContext(ctx, coord.Token, CreateChildContextInput{ParentContextID: f.context.ID, Name: "over second quota"}); !errors.Is(err, ErrInvalid) {
 		t.Fatalf("second quota: %v", err)
 	}
@@ -243,6 +254,20 @@ func assertArchivedWritesAndReads(t *testing.T, f fixture, raw string, c WorkCon
 		t.Fatal(err)
 	}
 	helper, _ := delegate(t, f, raw, "helper", c.ID, PermissionRead, time.Hour)
+	inviter, _ := delegate(t, f, raw, "inviter", c.ID, PermissionRead|PermissionGrant, time.Hour)
+	invitee, _ := delegate(t, f, f.admin.Token, "invitee", f.context.ID, PermissionRead, time.Hour)
+	if invitee.Session.ParentID == inviter.Session.ID {
+		t.Fatal("workspace invite target must not be the issuer's child")
+	}
+	if _, err := f.svc.GrantContext(ctx, inviter.Token, GrantInput{SessionID: invitee.Session.ID, ContextID: c.ID, Permissions: PermissionRead, ExpiresAt: f.now.Add(time.Hour)}); err != nil {
+		t.Fatal(err)
+	}
+	status := MessageInput{DedupeKey: "status", Envelope: &MessageEnvelope{Schema: TaskStatusSchema, TaskID: leasing.ID, Payload: json.RawMessage(`{"state":"in_progress","summary":"working"}`)}}
+	statusMessage, err := f.svc.AppendMessage(ctx, raw, c.ID, status)
+	if err != nil {
+		t.Fatal(err)
+	}
+	status.DedupeKey = "new-status"
 	archive()
 	for name, write := range map[string]func() error{
 		"message": func() error {
@@ -253,8 +278,9 @@ func assertArchivedWritesAndReads(t *testing.T, f fixture, raw string, c WorkCon
 			_, e := f.svc.AppendMessage(ctx, raw, c.ID, MessageInput{DedupeKey: "old", Body: "history"})
 			return e
 		},
-		"task create": func() error { _, e := f.svc.CreateTask(ctx, raw, c.ID, TaskInput{Title: "new"}); return e },
-		"task claim":  func() error { _, e := f.svc.ClaimTask(ctx, raw, pending.ID, time.Minute); return e },
+		"task status message": func() error { _, e := f.svc.AppendMessage(ctx, raw, c.ID, status); return e },
+		"task create":         func() error { _, e := f.svc.CreateTask(ctx, raw, c.ID, TaskInput{Title: "new"}); return e },
+		"task claim":          func() error { _, e := f.svc.ClaimTask(ctx, raw, pending.ID, time.Minute); return e },
 		"task renew": func() error {
 			_, e := f.svc.RenewClaim(ctx, raw, leasing.ID, claim.Token, claim.Task.LeaseVersion, time.Minute)
 			return e
@@ -269,6 +295,10 @@ func assertArchivedWritesAndReads(t *testing.T, f fixture, raw string, c WorkCon
 		},
 		"admin grant": func() error {
 			_, e := f.svc.GrantContext(ctx, f.admin.Token, GrantInput{SessionID: helper.Session.ID, ContextID: c.ID, Permissions: PermissionRead, ExpiresAt: f.now.Add(time.Minute)})
+			return e
+		},
+		"workspace invite": func() error {
+			_, e := f.svc.GrantContext(ctx, inviter.Token, GrantInput{SessionID: invitee.Session.ID, ContextID: c.ID, Permissions: PermissionRead, ExpiresAt: f.now.Add(time.Minute)})
 			return e
 		},
 		"delegation": func() error {
@@ -290,7 +320,7 @@ func assertArchivedWritesAndReads(t *testing.T, f fixture, raw string, c WorkCon
 			}
 		})
 	}
-	if ms, err := f.svc.ReplayMessages(ctx, raw, c.ID, 0, 10); err != nil || len(ms) != 1 || ms[0].ID != m.ID {
+	if ms, err := f.svc.ReplayMessages(ctx, raw, c.ID, 0, 10); err != nil || len(ms) != 2 || ms[0].ID != m.ID || ms[1].ID != statusMessage.ID {
 		t.Fatalf("replay: %+v %v", ms, err)
 	}
 	if task, err := f.svc.GetTask(ctx, raw, leasing.ID); err != nil || task.Status != TaskLeased || task.LeaseVersion != claim.Task.LeaseVersion {

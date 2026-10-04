@@ -177,15 +177,19 @@ func (s *Service) CreateChildContext(ctx context.Context, raw string, in CreateC
 		}
 		var source *Grant
 		for i := range gs {
-			if g := &gs[i]; g.Permissions&PermissionCreate != 0 && (source == nil || g.ExpiresAt.After(source.ExpiresAt)) {
+			g := &gs[i]
+			if g.Permissions&PermissionCreate == 0 {
+				continue
+			}
+			count, e := w.ChildContextCount(g.ID)
+			if e != nil {
+				return e
+			}
+			if count < s.maxChildContextsPerGrant && (source == nil || g.ExpiresAt.After(source.ExpiresAt)) {
 				source = g
 			}
 		}
-		count, e := w.ChildContextCount(source.ID)
-		if e != nil {
-			return e
-		}
-		if count >= s.maxChildContextsPerGrant {
+		if source == nil {
 			return fmt.Errorf("%w: maximum child contexts per creating grant (%d) reached", ErrInvalid, s.maxChildContextsPerGrant)
 		}
 		expires := source.ExpiresAt
