@@ -20,13 +20,21 @@ const maxBody = 1 << 20
 
 var ErrBootstrapOffline = errors.New("bootstrap is available only to embedded clients")
 
-type handler struct{ api comitia.API }
+type handler struct {
+	api        comitia.API
+	diagnostic comitia.DiagnosticHook
+}
 
 // NewHandler returns an HTTP handler. Bootstrap is deliberately not routed.
 func NewHandler(api comitia.API) http.Handler {
+	return NewHandlerWithDiagnostics(api, nil)
+}
+
+// NewHandlerWithDiagnostics supplies an internal failure hook; nil logs safe metadata.
+func NewHandlerWithDiagnostics(api comitia.API, hook comitia.DiagnosticHook) http.Handler {
 	mux := http.NewServeMux()
 	mux.Handle("/ui/", inspectorHandler())
-	mux.Handle("/", &handler{api: api})
+	mux.Handle("/", &handler{api: api, diagnostic: hook})
 	return mux
 }
 
@@ -81,12 +89,11 @@ type response struct {
 	Claim        *comitia.TaskClaim    `json:"claim,omitempty"`
 
 	Instances []comitia.InstancePresence `json:"instances,omitempty"`
+
+	StorageStatus *comitia.StorageStatus `json:"storage_status,omitempty"`
 }
 
-type errorResponse struct {
-	Code    string `json:"code"`
-	Message string `json:"message"`
-}
+type errorResponse = comitia.ErrorInfo
 
 // routeGroups dispatches /v1/ routes by domain; a group reports found=false for routes it does not serve.
 var routeGroups = []func(*handler, context.Context, string, string, request, *response) (bool, error){
@@ -100,6 +107,9 @@ var routeGroups = []func(*handler, context.Context, string, string, request, *re
 }
 
 func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	started := time.Now()
+	requestID := comitia.NewRequestID()
+	w.Header().Set("X-Request-ID", requestID)
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Cache-Control", "no-store")
 	if r.Method != http.MethodPost {
@@ -147,7 +157,11 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err != nil {
-		writeError(w, err, 0)
+		operation := comitia.SafeOperation(route)
+		info := comitia.SafeError(operation, err, requestID)
+		w.Header().Set("X-Request-ID", info.RequestID)
+		comitia.ReportFailure(h.diagnostic, operation, err, info.RequestID, time.Since(started))
+		writeOperationError(w, err, 0, operation, requestID)
 		return
 	}
 	w.WriteHeader(http.StatusOK)
@@ -174,40 +188,36 @@ func bearer(v string) (string, bool) {
 	return returnValue, returnValue != ""
 }
 func writeError(w http.ResponseWriter, err error, status int) {
-	code := "internal"
-	message := err.Error()
+	writeOperationError(w, err, status, "unknown", w.Header().Get("X-Request-ID"))
+}
+func writeOperationError(w http.ResponseWriter, err error, status int, operation, requestID string) {
+	info := comitia.SafeError(operation, err, requestID)
+	defaultStatus := http.StatusInternalServerError
+	switch info.Code {
+	case "unauthenticated":
+		defaultStatus = http.StatusUnauthorized
+	case "forbidden":
+		defaultStatus = http.StatusForbidden
+	case "not_found":
+		defaultStatus = http.StatusNotFound
+	case "conflict", "stale_claim", "bootstrap_used":
+		defaultStatus = http.StatusConflict
+	case "invalid":
+		defaultStatus = http.StatusBadRequest
+	case "deadline_exceeded", "cancelled":
+		defaultStatus = http.StatusServiceUnavailable
+	}
 	if status == 0 {
-		switch {
-		case errors.Is(err, comitia.ErrUnauthenticated):
-			status = http.StatusUnauthorized
-			code = "unauthenticated"
-		case errors.Is(err, comitia.ErrForbidden):
-			status = http.StatusForbidden
-			code = "forbidden"
-		case errors.Is(err, comitia.ErrNotFound):
-			status = http.StatusNotFound
-			code = "not_found"
-		case errors.Is(err, comitia.ErrConflict):
-			status = http.StatusConflict
-			code = "conflict"
-		case errors.Is(err, comitia.ErrStaleClaim):
-			status = http.StatusConflict
-			code = "stale_claim"
-		case errors.Is(err, comitia.ErrBootstrapUsed):
-			status = http.StatusConflict
-			code = "bootstrap_used"
-		case errors.Is(err, comitia.ErrInvalid):
-			status = http.StatusBadRequest
-			code = "invalid"
-		default:
-			status = http.StatusInternalServerError
-			message = "internal server error"
-		}
-	} else if status == http.StatusMethodNotAllowed {
-		code = "method_not_allowed"
+		status = defaultStatus
+	}
+	if status == http.StatusMethodNotAllowed {
+		info.Code = "method_not_allowed"
+	}
+	if info.Code == "internal" {
+		info.Message = "internal server error"
 	}
 	w.WriteHeader(status)
-	_ = json.NewEncoder(w).Encode(errorResponse{code, message})
+	_ = json.NewEncoder(w).Encode(info)
 }
 
 // Client is a remote implementation of comitia.API.
@@ -266,7 +276,7 @@ func (c *Client) call(ctx context.Context, token, path string, in request, out *
 		if json.NewDecoder(lr).Decode(&e) != nil {
 			return fmt.Errorf("http status %d", resp.StatusCode)
 		}
-		return decodeError(e.Code, e.Message)
+		return &comitia.OperationalError{Info: e, Cause: decodeError(e.Code, e.Message)}
 	}
 	if err = json.NewDecoder(lr).Decode(out); err != nil {
 		return fmt.Errorf("decode response: %w", err)
@@ -296,6 +306,10 @@ func decodeError(code, msg string) error {
 		base = comitia.ErrStaleClaim
 	case "bootstrap_used":
 		base = comitia.ErrBootstrapUsed
+	case "deadline_exceeded":
+		base = context.DeadlineExceeded
+	case "cancelled":
+		base = context.Canceled
 	default:
 		return fmt.Errorf("remote error: %s", msg)
 	}

@@ -352,7 +352,9 @@ Installing a new binary restarts the local service, but an agent's existing
 block is versioned (`comitia-local:start v3`) and may update before that client
 restarts. It instructs agents to check `server_info` and their tool schemas before
 using optional fields; an unknown-field error identifies the running client
-version. Retry without a rejected optional field and restart the agent session to
+version and source revision. Compare `server_info.build` from the daemon and the
+MCP initialize response from the client; revision/dirty stamps distinguish source
+builds even when both release versions are `dev`. Retry without a rejected optional field and restart the agent session to
 load the upgraded client and its schemas.
 
 On Linux, the installer reports PIDs of stale `comitia mcp` processes after
@@ -362,3 +364,20 @@ The scan is best effort: exited or inaccessible processes are skipped, and only
 PIDs are printed, never command arguments or credentials. Other platforms skip
 this scan. The installer does not terminate agents; restart their sessions after
 reviewing the report.
+
+### Diagnosing write failures
+
+A loaded inspector or successful `server_info` call establishes read/capability
+availability. To check writer admission, call `storage_status` through an
+administrator's MCP connection or authenticated `POST /v1/storage_status` with an
+empty JSON object. Its no-op write probe has a 250 ms context budget and returns
+`write_ready` plus process-local write failure counts and durations, including the
+last failed write's duration. The probe does not test free disk space and does
+not guarantee the next write will succeed; see the
+[operational protocol](message-protocol.md#operational-failures-and-write-readiness).
+
+Internal write failures produce secret-safe daemon diagnostics with operation,
+error class, generated request ID, duration and build revision. Match the public
+error's `request_id` (also `X-Request-ID` over HTTP) to the service log. Do not
+retry a write blindly after a timeout: check the resource state or reuse the same
+message dedupe key because the outcome can be uncertain.
