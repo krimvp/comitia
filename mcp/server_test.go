@@ -7,12 +7,14 @@ import (
 	"errors"
 	"io"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/krimvp/comitia"
 )
 
 type fakeAPI struct {
+	mu sync.Mutex
 	comitia.API
 	credential  string
 	appendCalls int
@@ -24,6 +26,8 @@ type fakeAPI struct {
 }
 
 func (f *fakeAPI) GetTask(_ context.Context, credential, id string) (comitia.Task, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
 	f.credential = credential
 	if f.err != nil {
 		return comitia.Task{}, f.err
@@ -35,6 +39,8 @@ func (f *fakeAPI) GetTask(_ context.Context, credential, id string) (comitia.Tas
 	return t, nil
 }
 func (f *fakeAPI) ListTasks(_ context.Context, credential, cid string, status comitia.TaskStatus, limit int) ([]comitia.Task, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
 	f.credential = credential
 	f.listStatus = status
 	f.listLimit = limit
@@ -45,6 +51,8 @@ func (f *fakeAPI) ListTasks(_ context.Context, credential, cid string, status co
 }
 
 func (f *fakeAPI) AppendMessage(_ context.Context, credential, contextID string, in comitia.MessageInput) (comitia.Message, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
 	f.credential = credential
 	f.appendCalls++
 	if f.err != nil {
@@ -54,6 +62,8 @@ func (f *fakeAPI) AppendMessage(_ context.Context, credential, contextID string,
 }
 
 func (f *fakeAPI) MessageCursor(_ context.Context, credential, contextID string, _ ...string) (int64, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
 	f.credential = credential
 	if contextID != "c1" {
 		return 0, comitia.ErrNotFound
