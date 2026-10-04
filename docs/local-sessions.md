@@ -49,3 +49,33 @@ new work.
 
 Session credentials expire independently of the service. Create a replacement
 session when one expires, and keep session files out of source control.
+
+## Processes sharing a session
+
+Set `COMITIA_AGENT_INSTANCE` to a distinct ID in each process that shares a
+session credential. Optionally set `COMITIA_AGENT_INSTANCE_LABEL` for display:
+
+```sh
+COMITIA_AGENT_INSTANCE=codex-task-15 \
+COMITIA_AGENT_INSTANCE_LABEL="Task 15 worker" \
+comitia-local --session-file PATH send --context-id CONTEXT_ID \
+  --dedupe-key started --body ready
+```
+
+The CLI and `comitia mcp` default send metadata and cursor/ack scope to this
+instance. Explicit instance arguments override it. IDs are 1–64 ASCII letters,
+digits, dots, underscores, or hyphens; labels are at most 128 UTF-8 bytes without
+control characters. An invalid value or a label without an ID is a startup
+error for instance-aware commands; serve, bootstrap, and administrative commands
+ignore these variables. Empty variables behave as unset. The launcher/wrapper must preserve these
+two variables when starting Comitia.
+
+Each instance has its own cursor and dedupe scope within the authenticated
+session, so different processes may reuse a natural key such as `started`.
+Retries from the same instance return the original message; changed content or
+label conflicts. Unset defaults preserve the shared legacy cursor and dedupe
+scope. Changing from a legacy send to an instance, or changing instance IDs,
+creates a new message for the same key; restarting with the environment set can
+duplicate a legacy retry. With a default set, send cannot opt out of an instance.
+Cursor/ack accept an explicit empty ID to select the legacy cursor.
+Instance metadata is self-reported and does not change permissions.

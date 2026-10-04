@@ -19,6 +19,8 @@ const PathPrefix = "/mcp"
 
 // HTTPConfig configures the Streamable HTTP transport.
 type HTTPConfig struct {
+	InstanceDefaults comitia.InstanceDefaults
+
 	// AllowedOrigins is an Origin allowlist for DNS-rebinding defence, as
 	// required by the MCP transport specification. Requests without an Origin
 	// header (non-browser clients such as ChatGPT or curl) are always allowed.
@@ -163,7 +165,7 @@ func (t *httpTransport) post(w http.ResponseWriter, r *http.Request) {
 	// connection is stateful. Over HTTP each request is independent, so the
 	// per-connection gate does not apply; the credential is the real
 	// authorization boundary and is checked on every call.
-	srv := &Server{API: t.api, Credential: cred}
+	srv := &Server{API: t.api, Credential: cred, InstanceDefaults: t.cfg.InstanceDefaults}
 	res := srv.handle(r.Context(), req)
 
 	w.Header().Set("Content-Type", "application/json")

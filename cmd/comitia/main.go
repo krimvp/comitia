@@ -14,7 +14,10 @@ import (
 	"github.com/krimvp/comitia/httpapi"
 )
 
-type config struct{ db, serverURL, credential, bootstrapCredential string }
+type config struct {
+	db, serverURL, credential, bootstrapCredential string
+	instances                                      comitia.InstanceDefaults
+}
 
 func env(key, fallback string) string {
 	if v := os.Getenv(key); v != "" {
@@ -65,6 +68,13 @@ func run(ctx context.Context, args []string) error {
 		return usage()
 	}
 	cmd, args := rest[0], rest[1:]
+	if usesInstanceDefaults(cmd) {
+		instances, err := comitia.InstanceDefaultsFromEnv()
+		if err != nil {
+			return err
+		}
+		cfg.instances = instances
+	}
 	if cmd == "bootstrap" && cfg.serverURL != "" {
 		return errors.New("bootstrap is available only with embedded SQLite")
 	}
@@ -84,7 +94,7 @@ func run(ctx context.Context, args []string) error {
 
 func open(cfg config) (comitia.API, func(), error) {
 	if cfg.serverURL != "" {
-		c, e := httpapi.NewClient(cfg.serverURL, http.DefaultClient)
+		c, e := httpapi.NewClientWithInstanceDefaults(cfg.serverURL, http.DefaultClient, cfg.instances)
 		return c, func() {}, e
 	}
 	store, e := comitia.OpenSQLite(cfg.db)
@@ -131,4 +141,13 @@ func parsePermissions(s string) (comitia.Permission, error) {
 		}
 	}
 	return p, nil
+}
+
+func usesInstanceDefaults(cmd string) bool {
+	switch cmd {
+	case "send", "cursor", "ack", "replay", "wait", "watch", "mcp", "mcp-http", "task-claim":
+		return true
+	default:
+		return false
+	}
 }

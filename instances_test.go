@@ -53,11 +53,9 @@ func TestAgentInstancesPersistenceAndCursorIsolation(t *testing.T) {
 	if err != nil || retry.ID != worker.ID {
 		t.Fatalf("normalized retry: %v %v", retry, err)
 	}
-	for _, changed := range []*AgentInstance{nil, {ID: "reviewer"}, {ID: "worker", Label: "changed"}} {
-		in.AgentInstance = changed
-		if _, err = svc.AppendMessage(ctx, token, cid, in); !errors.Is(err, ErrConflict) {
-			t.Fatalf("changed claim: %v", err)
-		}
+	in.AgentInstance = &AgentInstance{ID: "worker", Label: "changed"}
+	if _, err = svc.AppendMessage(ctx, token, cid, in); !errors.Is(err, ErrConflict) {
+		t.Fatalf("changed label: %v", err)
 	}
 	reviewer, err := svc.AppendMessage(ctx, token, cid, MessageInput{DedupeKey: "reviewer-1", Body: "reviewing", AgentInstance: &AgentInstance{ID: "reviewer"}})
 	if err != nil {

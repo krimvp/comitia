@@ -43,8 +43,9 @@ func SupportedProtocolVersion(rev string) bool {
 // Server binds one already-scoped credential to an MCP connection. Credentials
 // are process configuration and are never accepted as tool arguments.
 type Server struct {
-	API        comitia.API
-	Credential string
+	API              comitia.API
+	Credential       string
+	InstanceDefaults comitia.InstanceDefaults
 }
 
 type request struct {

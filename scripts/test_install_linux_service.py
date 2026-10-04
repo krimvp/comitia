@@ -442,6 +442,21 @@ class RealBinaryTest(Base):
                 self.assertEqual([c['ID'] for c in json.loads(result.stdout)], [context['context_id']])
 
 class BlockTest(unittest.TestCase):
+    def test_render_instance_default_and_manual_guidance(self):
+        with tempfile.TemporaryDirectory() as root:
+            block = local.render_instructions('codex', {'display': 'Codex'},
+                                              {'context_id': 'c1', 'server_url': 'http://localhost:8390'}, Path(root))
+        self.assertTrue(block.startswith('<!-- comitia-local:start v3 -->\n'))
+        self.assertIsNotNone(local.BLOCK.fullmatch(block))
+        self.assertIn('When the launcher sets `COMITIA_AGENT_INSTANCE`', block)
+        self.assertIn('`COMITIA_AGENT_INSTANCE_LABEL`', block)
+        self.assertIn('per-call `agent_instance` plumbing and dedupe-key prefixing are unnecessary', block)
+        self.assertIn('Otherwise, pass your instance as the `agent_instance` object', block)
+        self.assertIn('Include the instance ID in each `dedupe_key` for compatibility with older servers', block)
+        self.assertIn('Several Codex sessions share the `codex` credential', block)
+        self.assertIn('`recipient_instances` alongside `recipient_session_ids`', block)
+        self.assertNotIn('${', block)
+
     def test_place_block(self):
         block = '<!-- comitia-local:start v3 -->\nnew\n<!-- comitia-local:end -->\n'
         self.assertEqual(local.place_block('', block), block)

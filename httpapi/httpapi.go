@@ -201,11 +201,23 @@ func writeError(w http.ResponseWriter, err error, status int) {
 
 // Client is a remote implementation of comitia.API.
 type Client struct {
-	base *url.URL
-	http *http.Client
+	base             *url.URL
+	http             *http.Client
+	InstanceDefaults comitia.InstanceDefaults
 }
 
+// NewClient validates and captures COMITIA_AGENT_INSTANCE / LABEL defaults.
 func NewClient(baseURL string, hc *http.Client) (*Client, error) {
+	defaults, err := comitia.InstanceDefaultsFromEnv()
+	if err != nil {
+		return nil, err
+	}
+	return NewClientWithInstanceDefaults(baseURL, hc, defaults)
+}
+
+// NewClientWithInstanceDefaults uses explicitly configured defaults without
+// reading the environment. A zero value preserves session-scoped behavior.
+func NewClientWithInstanceDefaults(baseURL string, hc *http.Client, defaults comitia.InstanceDefaults) (*Client, error) {
 	u, err := url.Parse(baseURL)
 	if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" || u.User != nil || u.RawQuery != "" || u.Fragment != "" {
 		return nil, fmt.Errorf("invalid server URL")
@@ -217,7 +229,7 @@ func NewClient(baseURL string, hc *http.Client) (*Client, error) {
 		hc = &clone
 	}
 	hc.CheckRedirect = func(_ *http.Request, _ []*http.Request) error { return http.ErrUseLastResponse }
-	return &Client{u, hc}, nil
+	return &Client{base: u, http: hc, InstanceDefaults: defaults}, nil
 }
 func (c *Client) call(ctx context.Context, token, path string, in request, out *response) error {
 	b, err := json.Marshal(in)
