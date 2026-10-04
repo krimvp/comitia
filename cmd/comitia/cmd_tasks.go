@@ -67,7 +67,7 @@ func runTasks(ctx context.Context, cfg config, api comitia.API, out *json.Encode
 			return e
 		}
 		if *page || *after != "" {
-			v, e := api.ListTasksPage(ctx, needCredential(cfg), *cid, st, *after, *limit)
+			v, e := comitia.ListTaskPage(ctx, api, needCredential(cfg), *cid, st, *after, *limit)
 			if e != nil {
 				return e
 			}

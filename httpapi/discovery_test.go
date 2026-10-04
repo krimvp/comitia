@@ -4,14 +4,18 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/krimvp/comitia"
 )
+
+type legacyDiscoveryAPI struct{ comitia.API }
 
 func TestDiscoveryWireBeyondThousand(t *testing.T) {
 	ctx := context.Background()
@@ -58,6 +62,24 @@ func TestDiscoveryWireBeyondThousand(t *testing.T) {
 	}
 	ts := httptest.NewServer(NewHandler(svc))
 	defer ts.Close()
+	legacyServer := httptest.NewServer(NewHandler(legacyDiscoveryAPI{svc}))
+	defer legacyServer.Close()
+	legacyClient, err := NewClient(legacyServer.URL, legacyServer.Client())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if tasks, err := legacyClient.ListTasks(ctx, owner.Token, c.ID, "", 1000); err != nil || len(tasks) != 1000 {
+		t.Fatalf("legacy HTTP task list: %d %v", len(tasks), err)
+	}
+	if participants, err := legacyClient.ListParticipants(ctx, owner.Token, c.ID, 1000); err != nil || len(participants) != 1000 {
+		t.Fatalf("legacy HTTP participant list: %d %v", len(participants), err)
+	}
+	if _, err := legacyClient.ListTasksPage(ctx, owner.Token, c.ID, "", "", 1); !errors.Is(err, comitia.ErrInvalid) || !strings.Contains(err.Error(), "unsupported by this API") {
+		t.Fatalf("legacy HTTP task paging: %v", err)
+	}
+	if _, err := legacyClient.ListParticipantsPage(ctx, owner.Token, c.ID, "", 1); !errors.Is(err, comitia.ErrInvalid) || !strings.Contains(err.Error(), "unsupported by this API") {
+		t.Fatalf("legacy HTTP participant paging: %v", err)
+	}
 	for _, kind := range []string{"tasks", "participants"} {
 		t.Run(kind, func(t *testing.T) {
 			after := ""

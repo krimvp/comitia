@@ -29,12 +29,18 @@ session ID. Use `participants --page` or MCP `page:true` for
 `{participants,next_after,has_more}`, then pass `next_after` as `--after-id`
 or `after_id` until `has_more` is false. The cursor is the last returned session
 ID and is exclusive; a nonempty cursor implies page output. Library callers
-use `ListParticipantsPage`; HTTP accepts `page` and `after_id` on the same route
+use `ListParticipantPage(ctx,api,...)`, which detects optional
+`ParticipantPageAPI`; HTTP accepts `page` and `after_id` on the same route
 and returns `participant_page`. Legacy calls still return arrays. Each page
 rechecks current session and effective-grant eligibility, so expired or revoked
 candidates cannot truncate a page while later readable sessions remain.
-Custom stores implement `ParticipantsAfter(contextID,now,sessionID,limit)`
-with the same effective-grant/session filtering and an exclusive ID bound.
+Custom stores may implement optional `ParticipantPageStore` with
+`ParticipantsAfter(contextID,now,sessionID,limit)`, the same effective-grant/session
+filtering and an exclusive ID bound. Existing API/store implementations still
+compile and ordinary list calls are unchanged. Without paging capabilities,
+the helper and service page the existing list only when a 1,000-entry read
+returns fewer than 1,000 participants; reaching that ceiling returns an explicit
+unsupported error because the legacy list cannot establish whether a tail remains.
 
 Address `recipient_session_ids`, never display names. Two agents called
 `reviewer` in the same task have distinct session IDs. A session may work on

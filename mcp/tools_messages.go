@@ -71,7 +71,7 @@ func (s *Server) callMessages(ctx context.Context, name string, raw json.RawMess
 			return nil, comitia.Invalidf("limit must be between 1 and 1000")
 		}
 		if a.Page || a.AfterID != "" {
-			return s.API.ListParticipantsPage(ctx, s.Credential, a.ContextID, a.AfterID, limit)
+			return comitia.ListParticipantPage(ctx, s.API, s.Credential, a.ContextID, a.AfterID, limit)
 		}
 		return s.API.ListParticipants(ctx, s.Credential, a.ContextID, limit)
 	case "replay_messages":

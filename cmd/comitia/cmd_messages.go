@@ -50,7 +50,7 @@ func runMessages(ctx context.Context, cfg config, api comitia.API, out *json.Enc
 			return nil
 		}
 		if *page || *after != "" {
-			v, e := api.ListParticipantsPage(ctx, needCredential(cfg), *cid, *after, *limit)
+			v, e := comitia.ListParticipantPage(ctx, api, needCredential(cfg), *cid, *after, *limit)
 			if e != nil {
 				return e
 			}

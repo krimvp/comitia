@@ -4,16 +4,20 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"strconv"
 	"testing"
 
 	"github.com/krimvp/comitia"
 )
 
+type legacyDiscoveryAPI struct{ comitia.API }
+
 func TestDiscoveryPageTools(t *testing.T) {
-	for _, remote := range []bool{false, true} {
-		t.Run(strconv.FormatBool(remote), func(t *testing.T) {
-			s, svc, owner, c := contextServer(t, remote)
+	for _, mode := range []string{"local", "remote", "legacy"} {
+		t.Run(mode, func(t *testing.T) {
+			s, svc, owner, c := contextServer(t, mode == "remote")
+			if mode == "legacy" {
+				s.API = legacyDiscoveryAPI{s.API}
+			}
 			ctx := context.Background()
 			for i := 0; i < 3; i++ {
 				if _, err := svc.CreateTask(ctx, owner.Token, c.ID, comitia.TaskInput{Title: fmt.Sprint(i)}); err != nil {

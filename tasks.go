@@ -40,7 +40,6 @@ type TaskAPI interface {
 	CreateTask(context.Context, string, string, TaskInput) (Task, error)
 	GetTask(context.Context, string, string) (Task, error)
 	ListTasks(context.Context, string, string, TaskStatus, int) ([]Task, error)
-	ListTasksPage(context.Context, string, string, TaskStatus, string, int) (TaskPage, error)
 	ClaimTask(context.Context, string, string, time.Duration, ...AgentInstance) (TaskClaim, error)
 	RenewClaim(context.Context, string, string, string, int64, time.Duration) (TaskClaim, error)
 	CompleteTask(context.Context, string, string, string, int64) (Task, error)
@@ -49,7 +48,6 @@ type TaskAPI interface {
 type TaskReadStore interface {
 	Task(string) (Task, error)
 	Tasks(string, TaskStatus, int) ([]Task, error)
-	TasksAfter(string, TaskStatus, string, string, int) ([]Task, error)
 }
 type TaskWriteStore interface {
 	PutTask(Task) error
@@ -90,8 +88,22 @@ func (s *Service) GetTask(ctx context.Context, raw, id string) (Task, error) {
 	return t, nil
 }
 func (s *Service) ListTasks(ctx context.Context, raw, cid string, status TaskStatus, limit int) ([]Task, error) {
-	page, err := s.ListTasksPage(ctx, raw, cid, status, "", limit)
-	return page.Tasks, err
+	var out []Task
+	if limit < 1 || limit > 1000 {
+		return nil, Invalidf("limit must be between 1 and 1000")
+	}
+	if status != "" && status != TaskPending && status != TaskLeased && status != TaskCompleted {
+		return nil, Invalidf("status must be pending, leased or completed")
+	}
+	e := s.store.View(ctx, func(r ReadStore) error {
+		if _, _, e := s.require(r, raw, cid, PermissionRead); e != nil {
+			return e
+		}
+		var e error
+		out, e = r.Tasks(cid, status, limit)
+		return e
+	})
+	return out, e
 }
 
 // The optional instance records which process of a shared session holds the

@@ -63,7 +63,6 @@ type Participant struct {
 
 type MessageAPI interface {
 	ListParticipants(context.Context, string, string, int) ([]Participant, error)
-	ListParticipantsPage(context.Context, string, string, string, int) (ParticipantPage, error)
 	AppendMessage(context.Context, string, string, MessageInput) (Message, error)
 	ReplayMessages(context.Context, string, string, int64, int, ...MessageFilters) ([]Message, error)
 	AckMessages(context.Context, string, string, int64, ...string) error
@@ -73,7 +72,6 @@ type MessageAPI interface {
 type MessageReadStore interface {
 	Message(string) (Message, error)
 	Participants(string, time.Time, int) ([]Participant, error)
-	ParticipantsAfter(string, time.Time, string, int) ([]Participant, error)
 	MessageByDedupe(string, string, string, ...string) (Message, error)
 	AckCursor(string, string, string) (int64, error)
 	Messages(string, string, int64, int, ...MessageFilters) ([]Message, error)
@@ -345,8 +343,22 @@ func (s *Service) validateEnvelopeReferences(r ReadStore, cid string, env *Messa
 
 // Names are display labels, never routing keys. IDs identify concrete sessions.
 func (s *Service) ListParticipants(ctx context.Context, token, cid string, limit int) ([]Participant, error) {
-	page, err := s.ListParticipantsPage(ctx, token, cid, "", limit)
-	return page.Participants, err
+	if limit < 1 || limit > 1000 {
+		return nil, Invalidf("limit must be between 1 and 1000")
+	}
+	out := []Participant{}
+	err := s.store.View(ctx, func(r ReadStore) error {
+		if _, _, err := s.require(r, token, cid, PermissionRead); err != nil {
+			return err
+		}
+		var err error
+		out, err = r.Participants(cid, s.now().UTC(), limit)
+		return err
+	})
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
 }
 
 // Instance IDs are short, printable routing keys. They confer no permissions.

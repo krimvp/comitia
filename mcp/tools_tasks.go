@@ -148,7 +148,7 @@ func (s *Server) callTasks(ctx context.Context, name string, raw json.RawMessage
 			return nil, comitia.Invalidf("status must be pending, leased or completed")
 		}
 		if a.Page || a.AfterID != "" {
-			return s.API.ListTasksPage(ctx, s.Credential, a.ContextID, status, a.AfterID, limit)
+			return comitia.ListTaskPage(ctx, s.API, s.Credential, a.ContextID, status, a.AfterID, limit)
 		}
 		return s.API.ListTasks(ctx, s.Credential, a.ContextID, status, limit)
 	default:
