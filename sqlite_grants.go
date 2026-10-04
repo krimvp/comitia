@@ -8,6 +8,7 @@ import (
 const grantSchema = `
 CREATE TABLE IF NOT EXISTS grants (id TEXT PRIMARY KEY, session_id TEXT NOT NULL REFERENCES sessions(id), context_id TEXT NOT NULL REFERENCES contexts(id), parent_grant_id TEXT REFERENCES grants(id), issuer_session_id TEXT NOT NULL REFERENCES sessions(id), permissions INTEGER NOT NULL, expires_at TEXT NOT NULL, revoked_at TEXT, created_at TEXT NOT NULL);
 CREATE INDEX IF NOT EXISTS grants_lookup ON grants(session_id,context_id);
+CREATE INDEX IF NOT EXISTS grants_context_sessions ON grants(context_id,session_id);
 `
 
 func (x *sqlStore) PutGrant(g Grant) error {

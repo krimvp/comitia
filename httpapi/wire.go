@@ -113,6 +113,20 @@ type pageDTO struct {
 	HasMore        bool         `json:"has_more"`
 }
 
+// Discovery page fields keep their snake_case names in both representations;
+// only the records inside them use the negotiated spelling.
+type taskPageDTO struct {
+	Tasks     []taskDTO `json:"tasks"`
+	NextAfter string    `json:"next_after"`
+	HasMore   bool      `json:"has_more"`
+}
+
+type participantPageDTO struct {
+	Participants []participantDTO `json:"participants"`
+	NextAfter    string           `json:"next_after"`
+	HasMore      bool             `json:"has_more"`
+}
+
 type createContextInput struct {
 	WorkspaceID string `json:"workspace_id"`
 	Name        string `json:"name"`
@@ -234,7 +248,9 @@ type taskRequest struct {
 type listTasksRequest struct {
 	ContextID string             `json:"context_id"`
 	Status    comitia.TaskStatus `json:"status,omitempty"`
+	AfterID   string             `json:"after_id,omitempty"`
 	Limit     *int               `json:"limit,omitempty"`
+	Page      bool               `json:"page,omitempty"`
 }
 
 type claimRequest struct {
@@ -262,7 +278,9 @@ type finishTaskRequest struct {
 
 type participantsRequest struct {
 	ContextID string `json:"context_id"`
+	AfterID   string `json:"after_id,omitempty"`
 	Limit     *int   `json:"limit,omitempty"`
+	Page      bool   `json:"page,omitempty"`
 }
 
 type appendRequest struct {
@@ -369,6 +387,14 @@ type delegateResult struct {
 	Credential *credentialDTO `json:"credential"`
 	Grants     []grantDTO     `json:"grants"`
 }
+type listTasksResult struct {
+	Tasks    *[]taskDTO   `json:"tasks,omitempty"`
+	TaskPage *taskPageDTO `json:"task_page,omitempty"`
+}
+type listParticipantsResult struct {
+	Participants    *[]participantDTO   `json:"participants,omitempty"`
+	ParticipantPage *participantPageDTO `json:"participant_page,omitempty"`
+}
 type readMessagesResult struct {
 	Messages *[]messageDTO `json:"messages,omitempty"`
 	Page     *pageDTO      `json:"page,omitempty"`
@@ -391,6 +417,18 @@ func (c credentialDTO) core() comitia.Credential {
 func wireClaim(c comitia.TaskClaim) claimDTO { return claimDTO{taskDTO(c.Task), c.Token} }
 func (c claimDTO) core() comitia.TaskClaim {
 	return comitia.TaskClaim{Task: comitia.Task(c.Task), Token: c.Token}
+}
+func wireTaskPage(p comitia.TaskPage) taskPageDTO {
+	return taskPageDTO{mapSlice(p.Tasks, func(t comitia.Task) taskDTO { return taskDTO(t) }), p.NextAfter, p.HasMore}
+}
+func (p taskPageDTO) core() comitia.TaskPage {
+	return comitia.TaskPage{Tasks: mapSlice(p.Tasks, func(t taskDTO) comitia.Task { return comitia.Task(t) }), NextAfter: p.NextAfter, HasMore: p.HasMore}
+}
+func wireParticipantPage(p comitia.ParticipantPage) participantPageDTO {
+	return participantPageDTO{mapSlice(p.Participants, func(v comitia.Participant) participantDTO { return participantDTO(v) }), p.NextAfter, p.HasMore}
+}
+func (p participantPageDTO) core() comitia.ParticipantPage {
+	return comitia.ParticipantPage{Participants: mapSlice(p.Participants, func(v participantDTO) comitia.Participant { return comitia.Participant(v) }), NextAfter: p.NextAfter, HasMore: p.HasMore}
 }
 func wirePage(p comitia.MessagePage) pageDTO {
 	return pageDTO{mapSlice(p.Messages, func(m comitia.Message) messageDTO { return messageDTO(m) }), p.NextAfter, p.ScannedThrough, p.HasMore}

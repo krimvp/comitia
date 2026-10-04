@@ -39,6 +39,8 @@ func runMessages(ctx context.Context, cfg config, api comitia.API, out *json.Enc
 		return out.Encode(v)
 	case "participants":
 		fs := newFlags(cmd)
+		page := fs.Bool("page", false, "return items, next_after and has_more")
+		after := fs.String("after-id", "", "exclusive cursor from next_after (implies --page)")
 		cid := fs.String("context-id", "", "work context ID")
 		limit := fs.Int("limit", 100, "maximum participants (1-1000)")
 		if err := fs.Parse(args); err != nil {
@@ -46,6 +48,13 @@ func runMessages(ctx context.Context, cfg config, api comitia.API, out *json.Enc
 		}
 		if cfg.parseOnly {
 			return nil
+		}
+		if *page || *after != "" {
+			v, e := comitia.ListParticipantPage(ctx, api, needCredential(cfg), *cid, *after, *limit)
+			if e != nil {
+				return e
+			}
+			return out.Encode(v)
 		}
 		v, e := api.ListParticipants(ctx, needCredential(cfg), *cid, *limit)
 		if e != nil {

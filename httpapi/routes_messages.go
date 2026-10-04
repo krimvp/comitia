@@ -3,19 +3,29 @@ package httpapi
 import (
 	"context"
 	"encoding/json"
-	"github.com/krimvp/comitia"
+	"errors"
+	"strings"
 	"time"
+
+	"github.com/krimvp/comitia"
 )
 
 func (h *handler) messageRoutes() map[string]endpoint {
 	return map[string]endpoint{
-		"participants/list": typedEndpoint(func(ctx context.Context, token string, q participantsRequest) (participantsResult, error) {
+		"participants/list": typedEndpoint(func(ctx context.Context, token string, q participantsRequest) (listParticipantsResult, error) {
 			limit, err := listLimit(q.Limit)
 			if err != nil {
-				return participantsResult{}, err
+				return listParticipantsResult{}, err
+			}
+			if q.Page || q.AfterID != "" {
+				v, err := comitia.ListParticipantPage(ctx, h.api, token, q.ContextID, q.AfterID, limit)
+				if err != nil {
+					return listParticipantsResult{}, err
+				}
+				return listParticipantsResult{ParticipantPage: ptr(wireParticipantPage(v))}, nil
 			}
 			v, err := h.api.ListParticipants(ctx, token, q.ContextID, limit)
-			return participantsResult{mapSlice(v, func(p comitia.Participant) participantDTO { return participantDTO(p) })}, err
+			return listParticipantsResult{Participants: ptr(mapSlice(v, func(p comitia.Participant) participantDTO { return participantDTO(p) }))}, err
 		}),
 		"messages/append": typedEndpoint(func(ctx context.Context, token string, q appendRequest) (messageResult, error) {
 			if q.Message == nil {
@@ -201,8 +211,33 @@ func (c *Client) MessageCursor(ctx context.Context, token, id string, instances 
 }
 func (c *Client) ListParticipants(ctx context.Context, token, id string, limit int) ([]comitia.Participant, error) {
 	var out participantsResult
-	err := c.call(ctx, token, "participants/list", participantsRequest{id, ptr(limit)}, &out)
+	err := c.call(ctx, token, "participants/list", participantsRequest{ContextID: id, Limit: ptr(limit)}, &out)
 	return mapSlice(out.Participants, func(p participantDTO) comitia.Participant { return comitia.Participant(p) }), err
+}
+
+// ListParticipantsPage falls back to the bounded legacy list when the server
+// predates participant paging.
+func (c *Client) ListParticipantsPage(ctx context.Context, token, id, after string, limit int) (comitia.ParticipantPage, error) {
+	var out struct {
+		ParticipantPage *participantPageDTO `json:"participant_page,omitempty"`
+	}
+	err := c.call(ctx, token, "participants/list", participantsRequest{ContextID: id, AfterID: after, Limit: ptr(limit), Page: true}, &out)
+	if pagingUnsupported(err) || err == nil && out.ParticipantPage == nil {
+		return comitia.ListParticipantPage(ctx, legacyParticipantLists{c}, token, id, after, limit)
+	}
+	if err != nil {
+		return comitia.ParticipantPage{}, err
+	}
+	return out.ParticipantPage.core(), nil
+}
+
+// legacyParticipantLists hides the Client's paging capability from the fallback.
+type legacyParticipantLists struct{ comitia.MessageAPI }
+
+// Endpoint-DTO servers before discovery paging reject its request members;
+// older union servers ignore them and omit the page.
+func pagingUnsupported(err error) bool {
+	return errors.Is(err, comitia.ErrInvalid) && (strings.Contains(err.Error(), `unknown field "page"`) || strings.Contains(err.Error(), `unknown field "after_id"`))
 }
 
 func boundWireMessages(messages []messageDTO, budget int) ([]messageDTO, error) {

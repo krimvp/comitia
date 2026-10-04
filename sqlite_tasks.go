@@ -5,6 +5,8 @@ import "database/sql"
 const taskSchema = `
 CREATE TABLE IF NOT EXISTS tasks (id TEXT PRIMARY KEY, context_id TEXT NOT NULL REFERENCES contexts(id), title TEXT NOT NULL, body TEXT NOT NULL, status TEXT NOT NULL, lease_owner_session_id TEXT, lease_version INTEGER NOT NULL, lease_expires_at TEXT, lease_token_hash TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL);
 CREATE INDEX IF NOT EXISTS tasks_lookup ON tasks(context_id,status,created_at);
+CREATE INDEX IF NOT EXISTS tasks_page ON tasks(context_id,created_at,id);
+CREATE INDEX IF NOT EXISTS tasks_status_page ON tasks(context_id,status,created_at,id);
 CREATE TABLE IF NOT EXISTS task_instances (task_id TEXT PRIMARY KEY REFERENCES tasks(id), instance_id TEXT NOT NULL, label TEXT NOT NULL);
 `
 
@@ -41,13 +43,20 @@ func (x *sqlStore) Task(id string) (Task, error) {
 	return scanTask(x.q.QueryRow(taskSelect+" WHERE t.id=?", id))
 }
 func (x *sqlStore) Tasks(cid string, status TaskStatus, limit int) ([]Task, error) {
+	return x.TasksAfter(cid, status, "", "", limit)
+}
+func (x *sqlStore) TasksAfter(cid string, status TaskStatus, created, afterID string, limit int) ([]Task, error) {
 	q := taskSelect + " WHERE t.context_id=?"
 	args := []any{cid}
 	if status != "" {
 		q += " AND t.status=?"
 		args = append(args, status)
 	}
-	q += " ORDER BY t.created_at LIMIT ?"
+	if afterID != "" {
+		q += " AND (t.created_at,t.id)>(?,?)"
+		args = append(args, created, afterID)
+	}
+	q += " ORDER BY t.created_at,t.id LIMIT ?"
 	args = append(args, limit)
 	rows, e := x.q.Query(q, args...)
 	if e != nil {

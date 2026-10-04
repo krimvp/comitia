@@ -11,6 +11,22 @@ to list tasks. Optional `--status pending|leased|completed` filters the list;
 `--limit` defaults to 100 and accepts 1–1000. An empty CLI result is `[]`.
 The equivalent MCP tools are `get_task` and `list_tasks`, with the same
 context authorization and bound session credential as other tools.
+Use `task-list --page` (MCP `page:true`) for `{tasks,next_after,has_more}`.
+Continue with `--after-id NEXT_AFTER` (MCP `after_id`); a nonempty cursor implies
+page output. Tasks sort by the stored creation timestamp and ID; their opaque
+cursor encodes both values and survives deletion of the last returned task.
+Keep the context and status filter unchanged while paging. Library callers use
+`ListTaskPage(ctx,api,...)`, which detects the optional `TaskPageAPI`.
+HTTP `/v1/tasks/list` accepts `page` and `after_id` and returns
+the page under `task_page`. Legacy calls still return arrays. Pages reflect
+current state, rather than freezing a directory snapshot across requests.
+Custom stores may implement optional `TaskPageStore` with
+`TasksAfter(contextID,status,createdAt,taskID,limit)`, an exclusive tuple bound
+and deterministic order. Existing API/store implementations still compile and
+ordinary list calls are unchanged. Without paging capabilities, the helper and
+service fall back to the existing list when a 1,000-entry read returns fewer
+than 1,000 tasks. At that ceiling, paging returns an explicit unsupported error
+because the legacy list cannot establish whether a tail remains.
 
 `task-claim --agent-instance ID` records which process of a shared session holds
 a claim (shown as `lease_owner_instance`). Omitted instances default to

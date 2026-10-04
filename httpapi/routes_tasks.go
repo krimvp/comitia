@@ -19,13 +19,20 @@ func (h *handler) taskRoutes() map[string]endpoint {
 			v, err := h.api.GetTask(ctx, token, q.TaskID)
 			return taskResult{ptr(taskDTO(v))}, err
 		}),
-		"tasks/list": typedEndpoint(func(ctx context.Context, token string, q listTasksRequest) (tasksResult, error) {
+		"tasks/list": typedEndpoint(func(ctx context.Context, token string, q listTasksRequest) (listTasksResult, error) {
 			limit, err := listLimit(q.Limit)
 			if err != nil {
-				return tasksResult{}, err
+				return listTasksResult{}, err
+			}
+			if q.Page || q.AfterID != "" {
+				v, err := comitia.ListTaskPage(ctx, h.api, token, q.ContextID, q.Status, q.AfterID, limit)
+				if err != nil {
+					return listTasksResult{}, err
+				}
+				return listTasksResult{TaskPage: ptr(wireTaskPage(v))}, nil
 			}
 			v, err := h.api.ListTasks(ctx, token, q.ContextID, q.Status, limit)
-			return tasksResult{mapSlice(v, func(t comitia.Task) taskDTO { return taskDTO(t) })}, err
+			return listTasksResult{Tasks: ptr(mapSlice(v, func(t comitia.Task) taskDTO { return taskDTO(t) }))}, err
 		}),
 		"tasks/claim": typedEndpoint(func(ctx context.Context, token string, q claimRequest) (claimResult, error) {
 			lease, err := durationSeconds(q.LeaseSeconds, q.TTL, 300*time.Second, q.OpenEnded)
@@ -85,9 +92,29 @@ func (c *Client) GetTask(ctx context.Context, token, id string) (comitia.Task, e
 }
 func (c *Client) ListTasks(ctx context.Context, token, id string, status comitia.TaskStatus, limit int) ([]comitia.Task, error) {
 	var out tasksResult
-	err := c.call(ctx, token, "tasks/list", listTasksRequest{id, status, ptr(limit)}, &out)
+	err := c.call(ctx, token, "tasks/list", listTasksRequest{ContextID: id, Status: status, Limit: ptr(limit)}, &out)
 	return mapSlice(out.Tasks, func(t taskDTO) comitia.Task { return comitia.Task(t) }), err
 }
+
+// ListTasksPage falls back to the bounded legacy list when the server predates
+// task paging, preserving the same exhaustion guarantee as other legacy APIs.
+func (c *Client) ListTasksPage(ctx context.Context, token, id string, status comitia.TaskStatus, after string, limit int) (comitia.TaskPage, error) {
+	var out struct {
+		TaskPage *taskPageDTO `json:"task_page,omitempty"`
+	}
+	err := c.call(ctx, token, "tasks/list", listTasksRequest{ContextID: id, Status: status, AfterID: after, Limit: ptr(limit), Page: true}, &out)
+	if pagingUnsupported(err) || err == nil && out.TaskPage == nil {
+		return comitia.ListTaskPage(ctx, legacyTaskLists{c}, token, id, status, after, limit)
+	}
+	if err != nil {
+		return comitia.TaskPage{}, err
+	}
+	return out.TaskPage.core(), nil
+}
+
+// legacyTaskLists hides the Client's paging capability from the fallback.
+type legacyTaskLists struct{ comitia.TaskAPI }
+
 func (c *Client) ClaimTask(ctx context.Context, token, id string, lease time.Duration, instances ...comitia.AgentInstance) (comitia.TaskClaim, error) {
 	q := claimRequest{TaskID: id, TTL: ptr(lease)}
 	switch len(instances) {

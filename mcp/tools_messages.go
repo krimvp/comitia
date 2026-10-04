@@ -12,7 +12,7 @@ import (
 func messageTools() []map[string]any {
 	return []map[string]any{
 		tool("send_message", "Append a message; optional validated envelope addresses session IDs, not names. Context readers can see all messages. Omitted agent_instance defaults to COMITIA_AGENT_INSTANCE / COMITIA_AGENT_INSTANCE_LABEL.", schema(map[string]any{"context_id": str("Context ID"), "dedupe_key": str("Stable caller-chosen key; scoped to this session and instance"), "body": str("Message explanation; required for untyped/discussion messages"), "envelope": envelopeSchema(), "agent_instance": agentInstanceSchema()}, "context_id", "dedupe_key")),
-		tool("list_participants", "Discover active readable sessions in a context. Names may repeat; address by SessionID.", schema(map[string]any{"context_id": str("Context ID"), "limit": integer("Maximum participants (default 100)")}, "context_id")),
+		tool("list_participants", "Discover active readable sessions in a context. Names may repeat; address by SessionID.", schema(map[string]any{"context_id": str("Context ID"), "limit": integer("Maximum participants (default 100)"), "page": map[string]any{"type": "boolean", "description": "Return participants, next_after and has_more"}, "after_id": str("Exclusive session ID from next_after; implies page")}, "context_id")),
 		tool("replay_messages", "Read context messages after a sequence", schema(messageReadProperties(false), "context_id")),
 		tool("ack_messages", "Record consumption through a sequence; omitted agent_instance defaults to COMITIA_AGENT_INSTANCE", schema(map[string]any{"context_id": str("Context ID"), "sequence": integer("Inclusive sequence"), "agent_instance": str("Optional instance ID; defaults to COMITIA_AGENT_INSTANCE; isolates this cursor within the authenticated session")}, "context_id", "sequence")),
 		tool("message_cursor", "Read this session's persisted acknowledgement cursor; omitted agent_instance defaults to COMITIA_AGENT_INSTANCE", schema(map[string]any{"context_id": str("Context ID"), "agent_instance": str("Optional instance ID used by ack_messages; defaults to COMITIA_AGENT_INSTANCE")}, "context_id")),
@@ -52,6 +52,8 @@ func (s *Server) callMessages(ctx context.Context, name string, raw json.RawMess
 		return s.API.AppendMessage(ctx, s.Credential, a.ContextID, comitia.MessageInput{DedupeKey: a.DedupeKey, Body: a.Body, Envelope: a.Envelope, AgentInstance: s.InstanceDefaults.Message(a.AgentInstance)})
 	case "list_participants":
 		var a struct {
+			Page      bool   `json:"page"`
+			AfterID   string `json:"after_id"`
 			ContextID string `json:"context_id"`
 			Limit     *int   `json:"limit"`
 		}
@@ -67,6 +69,9 @@ func (s *Server) callMessages(ctx context.Context, name string, raw json.RawMess
 		}
 		if limit < 1 || limit > 1000 {
 			return nil, comitia.Invalidf("limit must be between 1 and 1000")
+		}
+		if a.Page || a.AfterID != "" {
+			return comitia.ListParticipantPage(ctx, s.API, s.Credential, a.ContextID, a.AfterID, limit)
 		}
 		return s.API.ListParticipants(ctx, s.Credential, a.ContextID, limit)
 	case "replay_messages":
