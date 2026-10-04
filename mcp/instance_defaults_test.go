@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/krimvp/comitia"
 )
@@ -15,6 +16,7 @@ type instanceAPI struct {
 	messages []comitia.MessageInput
 	acks     []string
 	cursors  []string
+	claims   []comitia.AgentInstance
 }
 
 func (a *instanceAPI) AppendMessage(_ context.Context, _, _ string, in comitia.MessageInput) (comitia.Message, error) {
@@ -30,6 +32,11 @@ func (a *instanceAPI) AckMessages(_ context.Context, _, _ string, _ int64, insta
 func (a *instanceAPI) MessageCursor(_ context.Context, _, _ string, instances ...string) (int64, error) {
 	a.cursors = append(a.cursors, instances[0])
 	return 0, nil
+}
+
+func (a *instanceAPI) ClaimTask(_ context.Context, _, _ string, _ time.Duration, instances ...comitia.AgentInstance) (comitia.TaskClaim, error) {
+	a.claims = append(a.claims, instances...)
+	return comitia.TaskClaim{}, nil
 }
 
 func TestMCPInstanceDefaultsOnBothTransports(t *testing.T) {
@@ -48,6 +55,9 @@ func TestMCPInstanceDefaultsOnBothTransports(t *testing.T) {
 		`{"jsonrpc":"2.0","id":6,"method":"tools/call","params":{"name":"message_cursor","arguments":{"context_id":"c","agent_instance":"explicit"}}}`,
 		`{"jsonrpc":"2.0","id":7,"method":"tools/call","params":{"name":"message_cursor","arguments":{"context_id":"c","agent_instance":""}}}`,
 		`{"jsonrpc":"2.0","id":8,"method":"tools/call","params":{"name":"ack_messages","arguments":{"context_id":"c","sequence":1,"agent_instance":""}}}`,
+		`{"jsonrpc":"2.0","id":9,"method":"tools/call","params":{"name":"claim_task","arguments":{"task_id":"t"}}}`,
+		`{"jsonrpc":"2.0","id":10,"method":"tools/call","params":{"name":"claim_task","arguments":{"task_id":"t","agent_instance":{"id":"explicit"}}}}`,
+		`{"jsonrpc":"2.0","id":11,"method":"tools/call","params":{"name":"claim_task","arguments":{"task_id":"t","agent_instance":null}}}`,
 	}
 	for _, transport := range []string{"stdio", "http"} {
 		t.Run(transport, func(t *testing.T) {
@@ -70,6 +80,15 @@ func TestMCPInstanceDefaultsOnBothTransports(t *testing.T) {
 					}
 				}
 			}
+			wantClaims := []comitia.AgentInstance{{ID: "worker", Label: "Worker"}, {ID: "explicit"}, {ID: "worker", Label: "Worker"}}
+			if len(api.claims) != len(wantClaims) {
+				t.Fatalf("claims: %v", api.claims)
+			}
+			for i, want := range wantClaims {
+				if api.claims[i] != want {
+					t.Fatalf("claim %d: %v want=%v", i, api.claims[i], want)
+				}
+			}
 			if len(api.messages) != 2 || *api.messages[0].AgentInstance != (comitia.AgentInstance{ID: "worker", Label: "Worker"}) || *api.messages[1].AgentInstance != (comitia.AgentInstance{ID: "explicit"}) {
 				t.Fatalf("message defaults: %v", api.messages)
 			}
@@ -81,7 +100,7 @@ func TestMCPInstanceDefaultsOnBothTransports(t *testing.T) {
 }
 
 func TestInstanceToolDescriptions(t *testing.T) {
-	for _, name := range []string{"send_message", "ack_messages", "message_cursor"} {
+	for _, name := range []string{"send_message", "claim_task", "ack_messages", "message_cursor"} {
 		found := false
 		for _, tool := range tools() {
 			if tool["name"] == name {

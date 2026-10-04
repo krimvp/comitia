@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"strconv"
 	"testing"
 	"time"
 
@@ -55,5 +56,36 @@ func TestClaimInstanceOpenLeaseAndRelease(t *testing.T) {
 	}
 	if _, err = s.call(ctx, "release_task", json.RawMessage(`{"lease_version":4}`)); !errors.Is(err, comitia.ErrInvalid) {
 		t.Fatalf("release without task: %v", err)
+	}
+}
+
+func TestClaimInstanceExplicitEmpty(t *testing.T) {
+	for _, remote := range []bool{false, true} {
+		t.Run(strconv.FormatBool(remote), func(t *testing.T) {
+			t.Setenv("COMITIA_AGENT_INSTANCE", "")
+			t.Setenv("COMITIA_AGENT_INSTANCE_LABEL", "")
+			s, svc, owner, c := contextServer(t, remote)
+			ctx := context.Background()
+			task, err := svc.CreateTask(ctx, owner.Token, c.ID, comitia.TaskInput{Title: "claim"})
+			if err != nil {
+				t.Fatal(err)
+			}
+			defaults, err := comitia.NewInstanceDefaults(&comitia.AgentInstance{ID: "worker", Label: "Worker"})
+			if err != nil {
+				t.Fatal(err)
+			}
+			for _, d := range []comitia.InstanceDefaults{{}, defaults} {
+				s.InstanceDefaults = d
+				for _, instance := range []string{`{}`, `{"id":""}`, `{"label":"orphan"}`, `{"id":"bad id"}`} {
+					raw, err := json.Marshal(map[string]any{"task_id": task.ID, "agent_instance": json.RawMessage(instance)})
+					if err != nil {
+						t.Fatal(err)
+					}
+					if _, err := s.call(ctx, "claim_task", raw); !errors.Is(err, comitia.ErrInvalid) {
+						t.Fatalf("instance %s: %v", instance, err)
+					}
+				}
+			}
+		})
 	}
 }
