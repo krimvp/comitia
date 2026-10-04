@@ -49,7 +49,8 @@ func (s *Service) GrantContext(ctx context.Context, raw string, in GrantInput) (
 		if e != nil {
 			return e
 		}
-		if _, e = w.Context(in.ContextID); e != nil {
+		wc, e := w.Context(in.ContextID)
+		if e != nil {
 			return e
 		}
 		target, e := w.Session(in.SessionID)
@@ -57,7 +58,13 @@ func (s *Service) GrantContext(ctx context.Context, raw string, in GrantInput) (
 			return e
 		}
 		if target.ParentID != a.session.ID && !a.principal.Admin {
-			return ErrForbidden
+			ok, e := sessionInWorkspace(w, target, wc.WorkspaceID, s.now().UTC())
+			if e != nil {
+				return e
+			}
+			if !ok {
+				return ErrForbidden
+			}
 		}
 		if in.Permissions == 0 || !in.ExpiresAt.After(s.now().UTC()) || in.ExpiresAt.After(target.ExpiresAt) || in.ExpiresAt.After(a.session.ExpiresAt) {
 			return ErrInvalid
@@ -85,4 +92,35 @@ func (s *Service) GrantContext(ctx context.Context, raw string, in GrantInput) (
 		return w.PutGrant(g)
 	})
 	return g, e
+}
+
+// Workspace eligibility uses only the target's own effective grants. Ancestor
+// sessions may hold authority in workspaces their children do not belong to.
+func sessionInWorkspace(r ReadStore, target Session, workspaceID string, now time.Time) (bool, error) {
+	if target.RevokedAt != nil || !target.ExpiresAt.After(now) {
+		return false, nil
+	}
+	cursor := ""
+	for {
+		candidates, e := r.ContextCandidates(target.ID, cursor, 100)
+		if e != nil {
+			return false, e
+		}
+		for _, c := range candidates {
+			cursor = c.ID
+			if c.WorkspaceID != workspaceID {
+				continue
+			}
+			grants, e := r.Grants(target.ID, c.ID, now)
+			if e != nil {
+				return false, e
+			}
+			if len(grants) > 0 {
+				return true, nil
+			}
+		}
+		if len(candidates) < 100 {
+			return false, nil
+		}
+	}
 }
