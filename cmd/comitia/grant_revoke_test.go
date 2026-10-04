@@ -10,13 +10,14 @@ import (
 
 	"github.com/krimvp/comitia"
 	"github.com/krimvp/comitia/httpapi"
+	"github.com/krimvp/comitia/sqlite"
 )
 
 func TestGrantRevokeCommandEmbeddedAndRemote(t *testing.T) {
 	for _, remote := range []bool{false, true} {
 		t.Run(map[bool]string{false: "embedded", true: "remote"}[remote], func(t *testing.T) {
 			db := filepath.Join(t.TempDir(), "revoke.db")
-			store, err := comitia.OpenSQLite(db)
+			store, err := sqlite.OpenSQLite(db)
 			if err != nil {
 				t.Fatal(err)
 			}

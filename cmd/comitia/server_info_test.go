@@ -11,11 +11,12 @@ import (
 
 	"github.com/krimvp/comitia"
 	"github.com/krimvp/comitia/httpapi"
+	"github.com/krimvp/comitia/sqlite"
 )
 
 func TestServerInfoAndValidationCLI(t *testing.T) {
 	db := filepath.Join(t.TempDir(), "cli.db")
-	st, err := comitia.OpenSQLite(db)
+	st, err := sqlite.OpenSQLite(db)
 	if err != nil {
 		t.Fatal(err)
 	}

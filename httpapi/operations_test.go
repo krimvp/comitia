@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/krimvp/comitia"
+	"github.com/krimvp/comitia/sqlite"
 )
 
 func TestUnknownRouteClassification(t *testing.T) {
@@ -52,7 +53,7 @@ func (s *unavailableWrites) Update(ctx context.Context, fn func(comitia.WriteSto
 }
 
 func TestStorageReadinessSeparateFromCapabilities(t *testing.T) {
-	st, err := comitia.OpenSQLite(":memory:")
+	st, err := sqlite.OpenSQLite(":memory:")
 	if err != nil {
 		t.Fatal(err)
 	}

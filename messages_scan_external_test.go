@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/krimvp/comitia"
+	"github.com/krimvp/comitia/sqlite"
 )
 
 var _ comitia.MessageScanStore = externalScanReader{}
@@ -53,7 +54,7 @@ func (r externalScanReader) MessagesScanned(cid, sid string, after int64, limit 
 func TestExternalStoreFilteredWaitScanner(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	st, err := comitia.OpenSQLite(":memory:")
+	st, err := sqlite.OpenSQLite(":memory:")
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -77,7 +77,7 @@ The application layer exposes use cases rather than transport-shaped handlers th
 - durable message append, replay, acknowledgement, and deduplication;
 - task creation, lease acquisition, renewal, completion, release, and recovery.
 
-The package's `API` interface is the authoritative method inventory. `Bootstrap` is a one-time, local operation and must not be exposed through the HTTP adapter. Adapters should map the package's stable errors into their own status or exit conventions without exposing SQLite errors as public contracts.
+The package's `API` interface is the authoritative method inventory. Embedded applications open storage through `github.com/krimvp/comitia/sqlite.OpenSQLite`; that package supplies the driver, while the root package retains the SQL persistence implementation. The root package does not import the SQLite subpackage, so remote `httpapi` and `mcp` callers avoid the driver build dependency and registration. The deprecated root `OpenSQLite` constructor requires explicit driver registration. `Bootstrap` is a one-time, local operation and must not be exposed through the HTTP adapter. Adapters should map the package's stable errors into their own status or exit conventions without exposing SQLite errors as public contracts.
 
 ## Consistency and recovery
 

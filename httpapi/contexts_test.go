@@ -8,11 +8,12 @@ import (
 	"time"
 
 	"github.com/krimvp/comitia"
+	"github.com/krimvp/comitia/sqlite"
 )
 
 func TestRemoteChildContexts(t *testing.T) {
 	ctx := context.Background()
-	store, err := comitia.OpenSQLite(t.TempDir() + "/children.db")
+	store, err := sqlite.OpenSQLite(t.TempDir() + "/children.db")
 	if err != nil {
 		t.Fatal(err)
 	}

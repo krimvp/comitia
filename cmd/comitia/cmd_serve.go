@@ -71,15 +71,14 @@ func runServe(ctx context.Context, cfg config, api comitia.API, out *json.Encode
 			}
 		}
 		handler := mcp.NewHTTPHandler(api, mcp.HTTPConfig{
-			SessionsDir:       *dir,
-			ServerURL:         cfg.serverURL,
-			AllowDelegation:   *allowDelegation,
-			AllowedOrigins:    allow,
-			InstanceDefaults:  cfg.instances,
-			MaxBody:           *maxBody,
-			RatePerSecond:     *rate,
-			RateBurst:         *burst,
-			ReadHeaderTimeout: 10 * time.Second,
+			SessionsDir:      *dir,
+			ServerURL:        cfg.serverURL,
+			AllowDelegation:  *allowDelegation,
+			AllowedOrigins:   allow,
+			InstanceDefaults: cfg.instances,
+			MaxBody:          *maxBody,
+			RatePerSecond:    *rate,
+			RateBurst:        *burst,
 		})
 		// Optional request logging uses only allowlisted, non-sensitive metadata.
 		if *logRequests {

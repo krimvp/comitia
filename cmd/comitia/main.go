@@ -12,6 +12,7 @@ import (
 
 	"github.com/krimvp/comitia"
 	"github.com/krimvp/comitia/httpapi"
+	"github.com/krimvp/comitia/sqlite"
 )
 
 type config struct {
@@ -107,7 +108,7 @@ func open(cfg config) (comitia.API, func(), error) {
 		c, e := httpapi.NewClientWithInstanceDefaults(cfg.serverURL, http.DefaultClient, cfg.instances)
 		return c, func() {}, e
 	}
-	store, e := comitia.OpenSQLite(cfg.db)
+	store, e := sqlite.OpenSQLite(cfg.db)
 	if e != nil {
 		return nil, func() {}, e
 	}

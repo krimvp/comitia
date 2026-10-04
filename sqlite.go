@@ -7,10 +7,8 @@ import (
 	"fmt"
 	"net/url"
 	"path/filepath"
+	"slices"
 	"time"
-
-	"modernc.org/sqlite"
-	sqlite3 "modernc.org/sqlite/lib"
 )
 
 type SQLiteStore struct {
@@ -21,9 +19,16 @@ type SQLiteStore struct {
 
 const sqliteReaderLimit = 4
 
+// OpenSQLite opens a store using an explicitly registered SQLite driver.
+//
+// Deprecated: use github.com/krimvp/comitia/sqlite.OpenSQLite, which supplies
+// the driver. Remote clients importing comitia do not register a driver.
 func OpenSQLite(path string) (*SQLiteStore, error) {
 	if path == "" {
 		return nil, fmt.Errorf("%w: sqlite path", ErrInvalid)
+	}
+	if !slices.Contains(sql.Drivers(), "sqlite") {
+		return nil, fmt.Errorf("%w: SQLite driver unavailable; use github.com/krimvp/comitia/sqlite.OpenSQLite", ErrInvalid)
 	}
 	absPath, e := filepath.Abs(path)
 	if e != nil {
@@ -124,8 +129,10 @@ func (s *SQLiteStore) begin(ctx context.Context, opts *sql.TxOptions) (*sql.Tx, 
 		if ctx.Err() != nil {
 			return nil, ctx.Err()
 		}
-		var sqliteErr *sqlite.Error
-		if !errors.As(err, &sqliteErr) || (sqliteErr.Code()&0xff != sqlite3.SQLITE_BUSY && sqliteErr.Code()&0xff != sqlite3.SQLITE_LOCKED) || !time.Now().Before(deadline) {
+		var sqliteErr interface{ Code() int }
+		// SQLite primary result codes: BUSY (5), LOCKED (6). Extended codes
+		// retain the primary result in their low byte.
+		if !errors.As(err, &sqliteErr) || (sqliteErr.Code()&0xff != 5 && sqliteErr.Code()&0xff != 6) || !time.Now().Before(deadline) {
 			return nil, err
 		}
 		timer := time.NewTimer(5 * time.Millisecond)

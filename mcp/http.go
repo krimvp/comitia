@@ -37,9 +37,6 @@ type HTTPConfig struct {
 	// MaxBody caps the request body in bytes.
 	MaxBody int64
 
-	// ReadHeaderTimeout guards slow-header clients.
-	ReadHeaderTimeout time.Duration
-
 	// RatePerSecond and RateBurst bound the steady-state and peak request rate
 	// per credential. Zero disables limiting. This is a local backstop against
 	// accidental agent loops; edge rate limiting remains the primary control.
@@ -55,6 +52,9 @@ type HTTPConfig struct {
 // to expire, and any client can retry a request independently. Comitia persists
 // message cursors and task leases in its own store, so correctness does not
 // depend on connection affinity.
+//
+// Set http.Server.ReadHeaderTimeout on the listener that hosts this handler;
+// a handler receives a request only after its headers have already been read.
 func NewHTTPHandler(api comitia.API, cfg HTTPConfig) http.Handler {
 	if cfg.MaxBody <= 0 {
 		cfg.MaxBody = 1 << 20 // 1 MiB, matching the REST adapter's cap

@@ -12,11 +12,12 @@ import (
 
 	"github.com/krimvp/comitia"
 	"github.com/krimvp/comitia/httpapi"
+	"github.com/krimvp/comitia/sqlite"
 )
 
 func TestRemoteCLIReplayAndWaitPages(t *testing.T) {
 	ctx := context.Background()
-	st, err := comitia.OpenSQLite(":memory:")
+	st, err := sqlite.OpenSQLite(":memory:")
 	if err != nil {
 		t.Fatal(err)
 	}
