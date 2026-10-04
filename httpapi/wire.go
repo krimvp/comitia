@@ -62,6 +62,7 @@ type grantDTO struct {
 }
 
 type messageDTO struct {
+	TaskAttempt               *comitia.TaskAttempt     `json:"task_attempt,omitempty"`
 	ID                        string                   `json:"id"`
 	ContextID                 string                   `json:"context_id"`
 	SessionID                 string                   `json:"session_id"`
@@ -166,6 +167,7 @@ type delegateInput struct {
 }
 
 type messageInput struct {
+	TaskFence     *comitia.TaskFence       `json:"task_fence,omitempty"`
 	DedupeKey     string                   `json:"dedupe_key"`
 	Body          string                   `json:"body"`
 	Envelope      *comitia.MessageEnvelope `json:"envelope,omitempty"`
@@ -173,8 +175,9 @@ type messageInput struct {
 }
 
 type taskInput struct {
-	Title string `json:"title"`
-	Body  string `json:"body"`
+	Title       string `json:"title"`
+	Body        string `json:"body"`
+	OperationID string `json:"operation_id,omitempty"`
 }
 
 type emptyRequest struct {
@@ -255,6 +258,7 @@ type listTasksRequest struct {
 
 type claimRequest struct {
 	TaskID        string                 `json:"task_id"`
+	OperationID   string                 `json:"operation_id,omitempty"`
 	LeaseSeconds  *float64               `json:"lease_seconds,omitempty"`
 	TTL           *time.Duration         `json:"ttl,omitempty"`
 	OpenEnded     bool                   `json:"open_ended,omitempty"`
@@ -263,6 +267,7 @@ type claimRequest struct {
 
 type renewRequest struct {
 	TaskID       string         `json:"task_id"`
+	OperationID  string         `json:"operation_id,omitempty"`
 	ClaimToken   string         `json:"claim_token"`
 	LeaseVersion *int64         `json:"lease_version"`
 	LeaseSeconds *float64       `json:"lease_seconds,omitempty"`

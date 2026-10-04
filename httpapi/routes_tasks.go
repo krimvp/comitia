@@ -2,9 +2,17 @@ package httpapi
 
 import (
 	"context"
-	"github.com/krimvp/comitia"
+	"errors"
+	"fmt"
+	"strings"
 	"time"
+
+	"github.com/krimvp/comitia"
 )
+
+// Servers before task mutation receipts reject operation_id while decoding, so
+// the request was not applied. Clients must not retry it without idempotency.
+var ErrTaskMutationReceiptsUnsupported = fmt.Errorf("%w: server does not support task mutation receipts (operation_id); upgrade the server before retrying", comitia.ErrInvalid)
 
 func (h *handler) taskRoutes() map[string]endpoint {
 	return map[string]endpoint{
@@ -12,7 +20,7 @@ func (h *handler) taskRoutes() map[string]endpoint {
 			if q.Task == nil {
 				return taskResult{}, comitia.Invalidf("task required")
 			}
-			v, err := h.api.CreateTask(ctx, token, q.ContextID, comitia.TaskInput(*q.Task))
+			v, err := comitia.CreateTaskOperation(ctx, h.api, token, q.ContextID, comitia.TaskInput(*q.Task))
 			return taskResult{ptr(taskDTO(v))}, err
 		}),
 		"tasks/get": typedEndpoint(func(ctx context.Context, token string, q taskRequest) (taskResult, error) {
@@ -43,7 +51,7 @@ func (h *handler) taskRoutes() map[string]endpoint {
 			if q.ClaimInstance != nil {
 				instances = append(instances, *q.ClaimInstance)
 			}
-			v, err := h.api.ClaimTask(ctx, token, q.TaskID, lease, instances...)
+			v, err := comitia.ClaimTaskOperation(ctx, h.api, token, q.TaskID, lease, q.OperationID, instances...)
 			return claimResult{ptr(wireClaim(v))}, err
 		}),
 		"tasks/renew": typedEndpoint(func(ctx context.Context, token string, q renewRequest) (claimResult, error) {
@@ -54,7 +62,7 @@ func (h *handler) taskRoutes() map[string]endpoint {
 			if err != nil {
 				return claimResult{}, err
 			}
-			v, err := h.api.RenewClaim(ctx, token, q.TaskID, q.ClaimToken, *q.LeaseVersion, lease)
+			v, err := comitia.RenewClaimOperation(ctx, h.api, token, q.TaskID, q.ClaimToken, *q.LeaseVersion, lease, q.OperationID)
 			return claimResult{ptr(wireClaim(v))}, err
 		}),
 		"tasks/complete": typedEndpoint(func(ctx context.Context, token string, q finishTaskRequest) (taskResult, error) {
@@ -77,6 +85,9 @@ func (h *handler) taskRoutes() map[string]endpoint {
 func (c *Client) CreateTask(ctx context.Context, token, id string, input comitia.TaskInput) (comitia.Task, error) {
 	var out taskResult
 	err := c.call(ctx, token, "tasks/create", createTaskRequest{id, ptr(taskInput(input))}, &out)
+	if input.OperationID != "" && unknownField(err, "operation_id") {
+		return comitia.Task{}, ErrTaskMutationReceiptsUnsupported
+	}
 	if err = requiredResult(err, out.Task); err != nil {
 		return comitia.Task{}, err
 	}
@@ -116,7 +127,12 @@ func (c *Client) ListTasksPage(ctx context.Context, token, id string, status com
 type legacyTaskLists struct{ comitia.TaskAPI }
 
 func (c *Client) ClaimTask(ctx context.Context, token, id string, lease time.Duration, instances ...comitia.AgentInstance) (comitia.TaskClaim, error) {
-	q := claimRequest{TaskID: id, TTL: ptr(lease)}
+	return c.ClaimTaskWithOperation(ctx, token, id, lease, "", instances...)
+}
+
+// ClaimTaskWithOperation records a session-scoped receipt; see comitia.TaskMutationAPI.
+func (c *Client) ClaimTaskWithOperation(ctx context.Context, token, id string, lease time.Duration, operationID string, instances ...comitia.AgentInstance) (comitia.TaskClaim, error) {
+	q := claimRequest{TaskID: id, TTL: ptr(lease), OperationID: operationID}
 	switch len(instances) {
 	case 0:
 		q.ClaimInstance = c.InstanceDefaults.Message(nil)
@@ -127,14 +143,23 @@ func (c *Client) ClaimTask(ctx context.Context, token, id string, lease time.Dur
 	}
 	var out claimResult
 	err := c.call(ctx, token, "tasks/claim", q, &out)
+	if operationID != "" && unknownField(err, "operation_id") {
+		return comitia.TaskClaim{}, ErrTaskMutationReceiptsUnsupported
+	}
 	if err = requiredResult(err, out.Claim); err != nil {
 		return comitia.TaskClaim{}, err
 	}
 	return out.Claim.core(), nil
 }
 func (c *Client) RenewClaim(ctx context.Context, token, id, key string, version int64, lease time.Duration) (comitia.TaskClaim, error) {
+	return c.RenewClaimWithOperation(ctx, token, id, key, version, lease, "")
+}
+func (c *Client) RenewClaimWithOperation(ctx context.Context, token, id, key string, version int64, lease time.Duration, operationID string) (comitia.TaskClaim, error) {
 	var out claimResult
-	err := c.call(ctx, token, "tasks/renew", renewRequest{TaskID: id, ClaimToken: key, LeaseVersion: ptr(version), TTL: ptr(lease)}, &out)
+	err := c.call(ctx, token, "tasks/renew", renewRequest{TaskID: id, ClaimToken: key, LeaseVersion: ptr(version), TTL: ptr(lease), OperationID: operationID}, &out)
+	if operationID != "" && unknownField(err, "operation_id") {
+		return comitia.TaskClaim{}, ErrTaskMutationReceiptsUnsupported
+	}
 	if err = requiredResult(err, out.Claim); err != nil {
 		return comitia.TaskClaim{}, err
 	}
@@ -156,3 +181,11 @@ func (c *Client) ReleaseTask(ctx context.Context, token, id, key string, version
 	}
 	return comitia.Task(*out.Task), nil
 }
+
+// unknownField reports a strict decoder rejection, from either an endpoint-DTO
+// Handler or the older request-union Handler, of a member it predates.
+func unknownField(err error, name string) bool {
+	return errors.Is(err, comitia.ErrInvalid) && strings.Contains(err.Error(), `unknown field "`+name+`"`)
+}
+
+var _ comitia.TaskMutationAPI = (*Client)(nil)

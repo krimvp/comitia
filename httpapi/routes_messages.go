@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"strings"
 	"time"
 
@@ -122,6 +123,9 @@ func (c *Client) AppendMessage(ctx context.Context, token, id string, input comi
 	input.AgentInstance = c.InstanceDefaults.Message(input.AgentInstance)
 	var out messageResult
 	err := c.call(ctx, token, "messages/append", appendRequest{id, ptr(messageInput(input))}, &out)
+	if input.TaskFence != nil && unknownField(err, "task_fence") {
+		return comitia.Message{}, ErrTaskResultFencingUnsupported
+	}
 	if err = requiredResult(err, out.Message); err != nil {
 		return comitia.Message{}, err
 	}
@@ -233,6 +237,10 @@ func (c *Client) ListParticipantsPage(ctx context.Context, token, id, after stri
 
 // legacyParticipantLists hides the Client's paging capability from the fallback.
 type legacyParticipantLists struct{ comitia.MessageAPI }
+
+// Servers before task result fencing reject task_fence while decoding, so an
+// unfenced copy of the result was not appended either.
+var ErrTaskResultFencingUnsupported = fmt.Errorf("%w: server does not support task result fencing (task_fence); upgrade the server before retrying", comitia.ErrInvalid)
 
 // Endpoint-DTO servers before discovery paging reject its request members;
 // older union servers ignore them and omit the page.

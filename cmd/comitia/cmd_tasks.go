@@ -12,6 +12,7 @@ func runTasks(ctx context.Context, cfg config, api comitia.API, out *json.Encode
 	switch cmd {
 	case "task-create":
 		fs := newFlags(cmd)
+		operationID := fs.String("operation-id", "", "stable session-scoped mutation ID for recovery after lost responses")
 		cid := fs.String("context-id", "", "context ID")
 		title := fs.String("title", "", "task title")
 		body := fs.String("body", "", "task body")
@@ -21,7 +22,7 @@ func runTasks(ctx context.Context, cfg config, api comitia.API, out *json.Encode
 		if cfg.parseOnly {
 			return nil
 		}
-		v, e := api.CreateTask(ctx, needCredential(cfg), *cid, comitia.TaskInput{Title: *title, Body: *body})
+		v, e := comitia.CreateTaskOperation(ctx, api, needCredential(cfg), *cid, comitia.TaskInput{Title: *title, Body: *body, OperationID: *operationID})
 		if e != nil {
 			return e
 		}
@@ -83,6 +84,7 @@ func runTasks(ctx context.Context, cfg config, api comitia.API, out *json.Encode
 		return out.Encode(v)
 	case "task-claim":
 		fs := newFlags(cmd)
+		operationID := fs.String("operation-id", "", "stable session-scoped mutation ID for recovery after lost responses")
 		tid := fs.String("task-id", "", "task ID")
 		lease := fs.Duration("lease", 5*time.Minute, "lease duration")
 		openEnded := fs.Bool("open-ended", false, "hold the lease until completed or released (capped at session expiry)")
@@ -107,13 +109,14 @@ func runTasks(ctx context.Context, cfg config, api comitia.API, out *json.Encode
 		if owner != nil {
 			instance = append(instance, *owner)
 		}
-		v, e := api.ClaimTask(ctx, needCredential(cfg), *tid, openLease(*lease, *openEnded), instance...)
+		v, e := comitia.ClaimTaskOperation(ctx, api, needCredential(cfg), *tid, openLease(*lease, *openEnded), *operationID, instance...)
 		if e != nil {
 			return e
 		}
 		return out.Encode(v)
 	case "task-renew":
 		fs := newFlags(cmd)
+		operationID := fs.String("operation-id", "", "stable session-scoped mutation ID for recovery after lost responses")
 		tid := fs.String("task-id", "", "task ID")
 		token := fs.String("claim-token", "", "claim token")
 		ver := fs.Int64("lease-version", 0, "lease version")
@@ -125,7 +128,7 @@ func runTasks(ctx context.Context, cfg config, api comitia.API, out *json.Encode
 		if cfg.parseOnly {
 			return nil
 		}
-		v, e := api.RenewClaim(ctx, needCredential(cfg), *tid, *token, *ver, openLease(*lease, *openEnded))
+		v, e := comitia.RenewClaimOperation(ctx, api, needCredential(cfg), *tid, *token, *ver, openLease(*lease, *openEnded), *operationID)
 		if e != nil {
 			return e
 		}

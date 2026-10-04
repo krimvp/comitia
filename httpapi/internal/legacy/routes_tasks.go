@@ -15,7 +15,7 @@ func (h *handler) routeTasks(ctx context.Context, token, route string, q request
 			break
 		}
 		var v comitia.Task
-		v, err = h.api.CreateTask(ctx, token, q.ContextID, *q.Task)
+		v, err = h.api.CreateTask(ctx, token, q.ContextID, comitia.TaskInput{Title: q.Task.Title, Body: q.Task.Body})
 		out.Task = &v
 	case "tasks/get":
 		var v comitia.Task
@@ -51,7 +51,7 @@ func (h *handler) routeTasks(ctx context.Context, token, route string, q request
 
 func (c *Client) CreateTask(x context.Context, t, id string, i comitia.TaskInput) (comitia.Task, error) {
 	var o response
-	e := c.call(x, t, "tasks/create", request{ContextID: id, Task: &i}, &o)
+	e := c.call(x, t, "tasks/create", request{ContextID: id, Task: &taskInput{i.Title, i.Body}}, &o)
 	if o.Task == nil {
 		return comitia.Task{}, missing(e)
 	}

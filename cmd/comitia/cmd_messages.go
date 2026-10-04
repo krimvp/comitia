@@ -20,6 +20,8 @@ func runMessages(ctx context.Context, cfg config, api comitia.API, out *json.Enc
 		body := fs.String("body", "", "message body")
 		instanceID := fs.String("agent-instance", "", "self-reported instance ID (defaults to COMITIA_AGENT_INSTANCE)")
 		instanceLabel := fs.String("agent-instance-label", "", "optional self-reported instance label (defaults to COMITIA_AGENT_INSTANCE_LABEL)")
+		claimToken := fs.String("claim-token", "", "current task lease token for a fenced result")
+		leaseVersion := fs.Int64("lease-version", 0, "current task lease version for a fenced result")
 		envelopeFile := fs.String("envelope-file", "", "validated message envelope JSON file")
 		if err := fs.Parse(args); err != nil {
 			return err
@@ -31,8 +33,15 @@ func runMessages(ctx context.Context, cfg config, api comitia.API, out *json.Enc
 		if e != nil {
 			return e
 		}
+		var fence *comitia.TaskFence
+		if flagProvided(fs, "claim-token") || flagProvided(fs, "lease-version") {
+			if envelope == nil {
+				return comitia.Invalidf("fenced result requires envelope-file with task_id")
+			}
+			fence = &comitia.TaskFence{TaskID: envelope.TaskID, ClaimToken: *claimToken, LeaseVersion: *leaseVersion}
+		}
 		instance := messageInstance(cfg, fs, *instanceID, *instanceLabel)
-		v, e := api.AppendMessage(ctx, needCredential(cfg), *cid, comitia.MessageInput{DedupeKey: *key, Body: *body, Envelope: envelope, AgentInstance: instance})
+		v, e := api.AppendMessage(ctx, needCredential(cfg), *cid, comitia.MessageInput{TaskFence: fence, DedupeKey: *key, Body: *body, Envelope: envelope, AgentInstance: instance})
 		if e != nil {
 			return e
 		}

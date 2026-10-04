@@ -78,6 +78,8 @@ var serverFeatures = []string{
 	"task_status",
 	"approvals",
 	"instance_claims",
+	"task_mutation_receipts",
+	"task_result_fencing",
 	"replay_filters",
 	"wait_messages",
 	"context_tools",

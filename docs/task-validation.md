@@ -93,10 +93,34 @@ After **every** successful renewal, replace `Token` and `Task.LeaseVersion`
 together. The previous pair, or either mixed pair, is stale and cannot complete
 or renew. If the lease expires, stop owner-only side effects and claim again;
 another worker may already own it. A stale-claim error is an ownership failure,
-not permission to retry completion blindly. Claim and renewal are not
-idempotent: after an uncertain network response, inspect `get_task`; it does
-not reveal the new token. Release/reclaim through an authorized coordinator if
-the renewed token is lost. To abandon work, release with the current pair; a
+not permission to retry completion blindly. Create, claim and renewal accept an optional stable `operation_id` (CLI
+`--operation-id`, at most 256 bytes). Persist a distinct key and the original
+arguments before each logical mutation; retry with exactly the same arguments
+and key after a lost response. SQLite commits a non-secret task receipt atomically with the
+mutation and retains it across restart. Claim tokens are never stored in receipts
+or SQLite files. Identical create retries return the original task snapshot.
+An identical claim/renew retry returns a fresh token only while its recorded
+lease is still live and owned by the caller with the same version. It changes
+only the lease token hash: version, expiry and task outcome stay unchanged, and
+every earlier token for that lease becomes stale. Replace the token after each
+successful retry; serialize retries of the same operation before starting a new
+one, since concurrent retries fence each other's tokens. Retry renewal with the
+original input token/version and key, not the recovered response token. Changed
+arguments or reuse for another mutation conflict. After completion, release,
+expiry, reassignment or another renewal, the old operation returns a conflict
+and no token; inspect the task and use a new operation ID for new work.
+Keys are scoped to the authenticated session across methods and contexts;
+instance IDs are part of the claim request, not a separate receipt scope.
+Retrieval rechecks the original context permission. Receipts do not make external jobs idempotent; give those jobs a
+stable identity and enforce their own ownership boundary. HTTP create puts
+`operation_id` inside `task`; claim/renew put it at the request top level. Go uses
+`TaskInput.OperationID`, `ClaimTaskWithOperation` and `RenewClaimWithOperation`.
+Servers without the `task_mutation_receipts` feature reject `operation_id`
+while decoding, before applying the request; the Go HTTP client then returns
+`httpapi.ErrTaskMutationReceiptsUnsupported` and never resends the call without
+its key. Upgrade the server before relying on recovery.
+Without a key, an uncertain claim/renew response still requires authorized
+release/reclaim because `get_task` does not reveal the new token. To abandon work, release with the current pair; a
 context admin may omit the token but must supply the current version.
 
 ## Validation

@@ -2,6 +2,7 @@ package comitia
 
 import (
 	"context"
+	"crypto/subtle"
 	"errors"
 )
 
@@ -18,6 +19,10 @@ func (s *Service) AppendMessage(ctx context.Context, raw, cid string, in Message
 	if err != nil {
 		return m, err
 	}
+	attempt := taskAttempt(in.TaskFence)
+	if in.TaskFence != nil && (in.TaskFence.TaskID == "" || in.TaskFence.ClaimToken == "" || in.TaskFence.LeaseVersion < 1) {
+		return m, Invalidf("task_fence requires task_id, claim_token and positive lease_version")
+	}
 	envelope, err := s.normalizeEnvelope(in.Envelope, in.Body)
 	if err != nil {
 		return m, err
@@ -27,13 +32,18 @@ func (s *Service) AppendMessage(ctx context.Context, raw, cid string, in Message
 		if e != nil {
 			return e
 		}
+		if in.TaskFence != nil {
+			if _, _, e := s.require(w, raw, cid, PermissionClaim); e != nil {
+				return e
+			}
+		}
 		instanceID := ""
 		if instance != nil {
 			instanceID = instance.ID
 		}
 		old, e := w.MessageByDedupe(cid, a.session.ID, in.DedupeKey, instanceID)
 		if e == nil {
-			if old.Body != in.Body || !sameEnvelope(old.Envelope, envelope) || !sameAgentInstance(old.AgentInstance, instance) {
+			if old.Body != in.Body || !sameEnvelope(old.Envelope, envelope) || !sameAgentInstance(old.AgentInstance, instance) || !sameTaskAttempt(old.TaskAttempt, attempt) {
 				return ErrConflict
 			}
 			m = old
@@ -43,13 +53,16 @@ func (s *Service) AppendMessage(ctx context.Context, raw, cid string, in Message
 		if !errors.Is(e, ErrNotFound) {
 			return e
 		}
+		if e := s.validateTaskFence(w, raw, cid, envelope, in.TaskFence); e != nil {
+			return e
+		}
 		if e := s.requireTaskStatusRead(w, raw, cid, envelope); e != nil {
 			return e
 		}
 		if e := s.validateEnvelopeReferences(w, cid, envelope); e != nil {
 			return e
 		}
-		m = Message{ID: id(), ContextID: cid, SessionID: a.session.ID, DedupeKey: in.DedupeKey, Body: in.Body, CreatedAt: s.now().UTC(), Envelope: envelope, AgentInstance: instance, AgentInstanceSelfReported: instance != nil}
+		m = Message{TaskAttempt: attempt, ID: id(), ContextID: cid, SessionID: a.session.ID, DedupeKey: in.DedupeKey, Body: in.Body, CreatedAt: s.now().UTC(), Envelope: envelope, AgentInstance: instance, AgentInstanceSelfReported: instance != nil}
 		m, e = w.PutMessage(m)
 		appended = e == nil
 		if e == nil {
@@ -111,4 +124,59 @@ func (s *Service) MessageCursor(ctx context.Context, raw, cid string, instances 
 		s.touchInstance(ctx, sid, cid, &AgentInstance{ID: instance})
 	}
 	return cursor, e
+}
+
+// TaskFence authenticates a result against the current live lease in the append transaction.
+type TaskFence struct {
+	TaskID       string `json:"task_id"`
+	ClaimToken   string `json:"claim_token"`
+	LeaseVersion int64  `json:"lease_version"`
+}
+
+// TaskAttempt is server-validated provenance. SessionID and Envelope.ReplyTo on
+// the containing message identify the authenticated author and request.
+type TaskAttempt struct {
+	TaskID         string `json:"task_id"`
+	LeaseVersion   int64  `json:"lease_version"`
+	ClaimTokenHash string `json:"-"`
+}
+
+func taskAttempt(f *TaskFence) *TaskAttempt {
+	if f == nil {
+		return nil
+	}
+	return &TaskAttempt{TaskID: f.TaskID, LeaseVersion: f.LeaseVersion, ClaimTokenHash: tokenHash(f.ClaimToken)}
+}
+func sameTaskAttempt(a, b *TaskAttempt) bool {
+	if a == nil || b == nil {
+		return a == b
+	}
+	return a.TaskID == b.TaskID && a.LeaseVersion == b.LeaseVersion && subtle.ConstantTimeCompare([]byte(a.ClaimTokenHash), []byte(b.ClaimTokenHash)) == 1
+}
+func (s *Service) validateTaskFence(w WriteStore, raw, cid string, envelope *MessageEnvelope, f *TaskFence) error {
+	if f == nil {
+		return nil
+	}
+	if envelope == nil || envelope.TaskID != f.TaskID {
+		return Invalidf("task_fence must match envelope.task_id")
+	}
+	a, _, e := s.require(w, raw, cid, PermissionClaim)
+	if e != nil {
+		return e
+	}
+	t, e := w.Task(f.TaskID)
+	if errors.Is(e, ErrNotFound) {
+		return ErrForbidden
+	}
+	if e != nil {
+		return e
+	}
+	if t.ContextID != cid {
+		return ErrForbidden
+	}
+	now := s.now().UTC()
+	if t.Status != TaskLeased || t.LeaseOwnerSessionID != a.session.ID || t.LeaseVersion != f.LeaseVersion || t.LeaseExpiresAt == nil || !t.LeaseExpiresAt.After(now) || subtle.ConstantTimeCompare([]byte(t.LeaseTokenHash), []byte(tokenHash(f.ClaimToken))) != 1 {
+		return ErrStaleClaim
+	}
+	return nil
 }
