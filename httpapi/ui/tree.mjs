@@ -79,8 +79,19 @@ function button(text, action, className) {
   return element;
 }
 
+// Polling re-renders often; rebuilding unchanged rows would drop keyboard focus. A render is skipped
+// while the target still holds the nodes of the last render with the same key.
+const rendered = new WeakMap();
+function unchanged(target, key) {
+  const last = rendered.get(target);
+  return last?.key === key && last.first === target.children[0];
+}
+function remember(target, key) { rendered.set(target, {key, first:target.children[0]}); }
+
 // Rows render as a flat, indented list; data is set only through text nodes.
-export function renderContextTree(target, rows, {active = '', taskTitle = () => '', creator = id => shortID(id), onOpen}) {
+export function renderContextTree(target, rows, {active = '', taskTitle = () => '', creator = id => shortID(id), truncated = new Set(), onOpen}) {
+  const key = JSON.stringify([active, rows.map(({context:c, locked, depth}) => [c.ID, c.Name, locked, depth, c.Archived, c.TaskID, c.TaskID && taskTitle(c.TaskID), c.CreatorSessionID && creator(c.CreatorSessionID), truncated.has(c.ID)])]);
+  if (unchanged(target, key)) return;
   target.replaceChildren(...rows.map(({context, locked, depth}) => {
     const classes = `context-item${locked ? ' locked' : ''}${context.Archived ? ' archived' : ''}${context.ID === active ? ' active' : ''}`;
     const item = locked ? node('div', context.Name, classes) : button(context.Name, () => onOpen(context.ID), classes);
@@ -95,13 +106,17 @@ export function renderContextTree(target, rows, {active = '', taskTitle = () => 
       item.append(node('span', 'Locked · metadata only', 'badge context-locked'));
       if (context.CreatorSessionID) item.append(node('small', `Created by ${creator(context.CreatorSessionID)}`, 'context-task'));
     }
+    if (truncated.has(context.ID)) item.append(node('small', 'More child contexts not shown', 'context-task'));
     return item;
   }));
+  remember(target, key);
 }
 
 export function renderTaskBoard(target, entries, {onOpen, onTask}) {
   target.hidden = !entries.length;
-  if (!entries.length) { target.replaceChildren(); return; }
+  const key = JSON.stringify(entries);
+  if (unchanged(target, key)) return;
+  if (!entries.length) { target.replaceChildren(); remember(target, key); return; }
   target.replaceChildren(node('h2', 'Task progress'), ...entries.map(item => {
     const row = node('div', undefined, 'task-board-item');
     const task = button('', () => onTask(item.taskID), 'task-board-task');
@@ -115,4 +130,5 @@ export function renderTaskBoard(target, entries, {onOpen, onTask}) {
     else if (item.childContextID) row.append(node('small', `Child context ${shortID(item.childContextID)} · not visible`, 'context-locked-note'));
     return row;
   }));
+  remember(target, key);
 }

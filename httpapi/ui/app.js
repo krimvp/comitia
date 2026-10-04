@@ -18,8 +18,10 @@ function rememberCredential(value) {
 }
 let token = '', connection = 0, controller = new AbortController(), timer;
 let contexts = [], contextsAfter = '', contextsBusy = false;
-// Parent ID -> child metadata from contexts/children, and task titles seen in readable task lists.
-let children = new Map(), taskTitles = new Map();
+// Parent ID -> child metadata from contexts/children (parents whose listing hit the cap are truncated),
+// and task titles seen in readable task lists.
+let children = new Map(), truncated = new Set(), taskTitles = new Map();
+const CHILD_PAGE = 1000, CHILD_LIMIT = 5000;
 let participants = [], tasks = [], selected = '', thread = '', paused = false, busy = false, windowStart = 0, displayStart = null, route = null, connectionPage = 0;
 let view = 'sequence', sequenceOptions = {}, sequenceFilterKey = '', sequenceCurrent;
 
@@ -84,7 +86,7 @@ function instanceLabel(message) {
 function disconnect(message = '', forget = true) {
   if (forget) rememberCredential('');
   connection++; controller.abort(); controller = new AbortController(); clearTimeout(timer);
-  token = ''; state.reset(); displayStart = null; contexts = []; contextsAfter = ''; contextsBusy = false; children = new Map(); taskTitles = new Map();
+  token = ''; state.reset(); displayStart = null; contexts = []; contextsAfter = ''; contextsBusy = false; children = new Map(); truncated = new Set(); taskTitles = new Map();
   participants = []; tasks = []; selected = ''; thread = ''; route = null; connectionPage = 0; busy = false;
   $('credential').value = ''; $('connect-error').textContent = message;
   $('connect-panel').hidden = false; $('workspace').hidden = true; $('disconnect').hidden = true;
@@ -125,7 +127,7 @@ function refreshFilters() {
 }
 function readable() { return [...readableContexts(contexts, children).values()]; }
 function renderContexts() {
-  renderContextTree($('contexts'), contextTree(contexts, children), {active:state.contextID, taskTitle:id => taskTitles.get(id), creator:agentLabel, onOpen:openContext});
+  renderContextTree($('contexts'), contextTree(contexts, children), {active:state.contextID, taskTitle:id => taskTitles.get(id), creator:agentLabel, truncated, onOpen:openContext});
 }
 function renderBoard() {
   renderTaskBoard($('task-board'), state.contextID ? taskBoard(state.contextID, state.messages, tasks, contextTree(contexts, children)) : [], {
@@ -135,10 +137,18 @@ function renderBoard() {
 }
 // Children metadata needs read on the parent only, so it is requested for opened contexts alone.
 async function loadChildren(id, generation) {
-  const result = await request('contexts/children', {context_id:id, limit:1000});
-  if (generation !== state.generation) return;
-  if (!Array.isArray(result.contexts || [])) throw new Error('Invalid contexts response.');
-  children.set(id, result.contexts || []); renderContexts(); renderBoard();
+  const list = [];
+  while (list.length < CHILD_LIMIT) {
+    const result = await request('contexts/children', {context_id:id, after_id:list.at(-1)?.ID || '', limit:CHILD_PAGE});
+    if (generation !== state.generation) return;
+    const page = result.contexts || [];
+    if (!Array.isArray(page)) throw new Error('Invalid contexts response.');
+    list.push(...page);
+    if (page.length < CHILD_PAGE) break;
+  }
+  children.set(id, list);
+  if (list.length >= CHILD_LIMIT) truncated.add(id); else truncated.delete(id);
+  renderContexts(); renderBoard();
 }
 // Missing children metadata only hides locked entries; lost access still disconnects.
 function childrenUnavailable(error) {

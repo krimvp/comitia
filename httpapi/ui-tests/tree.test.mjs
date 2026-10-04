@@ -20,6 +20,10 @@ test('context tree nests readable children, locks the rest and follows parent_re
   assert.deepEqual([...readableContexts([epic, granted], children).keys()].sort(), ['child-a','child-b','child-b1','epic']);
   // Children metadata of a context that is not readable, or mislabelled entries, attach nowhere.
   assert.deepEqual(shape(contextTree([old], new Map([['epic',[locked]], ['old',[{...locked, ParentContextID:'epic'}]]]))), [['old',0,false]]);
+  // A parent_readable entry listed under the wrong parent grants nothing.
+  const misfiled = {ID:'misfiled', Name:'misfiled', ParentContextID:'elsewhere', ParentReadable:true};
+  assert.deepEqual([...readableContexts([epic], new Map([['epic',[misfiled]]])).keys()], ['epic']);
+  assert.deepEqual(shape(contextTree([epic], new Map([['epic',[misfiled]]]))), [['epic',0,false]]);
 });
 
 test('task board groups task-status reports per task with the linked child',()=>{
@@ -64,6 +68,11 @@ test('inspector shows the context tree, never requests locked children and marks
     const ok=data=>({ok:true,status:200,json:async()=>data});
     if(path.endsWith('/contexts/list'))return ok({contexts:body.after_id?[]:listed});
     if(path.endsWith('/contexts/get'))return ok({context:all.find(c=>c.ID===body.context_id)});
+    // child-b has more children than the inspector pages through.
+    if(path.endsWith('/contexts/children')&&body.context_id==='child-b'){
+      const start=body.after_id?Number(body.after_id.slice(-5))+1:0;
+      return ok({contexts:Array.from({length:body.limit},(_,i)=>({ID:`child-b-${String(start+i).padStart(5,'0')}`,Name:`many ${start+i}`,WorkspaceID:'w',ParentContextID:'child-b'}))});
+    }
     if(path.endsWith('/contexts/children'))return body.context_id==='old'?{ok:false,status:503}:ok({contexts:all.filter(c=>c.ParentContextID===body.context_id)});
     if(path.endsWith('/participants/list'))return ok({participants:[{SessionID:'coord',Name:'Coordinator'}]});
     if(path.endsWith('/tasks/list'))return ok({tasks:body.context_id==='epic'?[{ID:'t1',ContextID:'epic',Title:'Child contexts',Status:'leased'},{ID:'t2',ContextID:'epic',Title:'Invites',Status:'open'},{ID:'t3',ContextID:'epic',Title:'Locked task',Status:'leased'}]:[]});
@@ -84,8 +93,20 @@ test('inspector shows the context tree, never requests locked children and marks
     assert.match(text(rows[1]),/Task: Child contexts/);
     assert.match(text(rows[4]),/Archived/);assert.doesNotMatch(text(rows[0]),/Archived/);
 
+    // Polling with unchanged data keeps the sidebar nodes, so keyboard focus survives a tick.
     const board=elements.get('task-board');
+    const [firstRow,firstBoard]=[rows[0],board.children[0]];
+    await elements.get('load-more').fire('click');
+    assert.equal(elements.get('contexts').children[0],firstRow);assert.equal(board.children[0],firstBoard);
     assert.equal(board.hidden,false);
+    // Status cards and details never offer to open a locked child.
+    await elements.get('show-timeline').fire('click');
+    assert.ok(find(elements.get('messages'),/Child context issue-6/));
+    assert.ok(!find(elements.get('messages'),/Child context <img/));
+    await elements.get('messages').children[1].children[0].fire('click');
+    assert.match(text(elements.get('details')),/Child context child-c is not in your loaded readable contexts/);
+    assert.ok(!find(elements.get('details'),/child context <img/i));
+    await elements.get('show-sequence').fire('click');
     assert.match(text(board),/Child contexts/);assert.match(text(board),/in progress/);assert.match(text(board),/t3 is blocked/);
     assert.match(text(board),/Child context <img src=x onerror=bad\(\)> · locked/);assert.match(text(board),/No status reported/);
     assert.ok(!find(board,/Open child context <img/));
@@ -97,9 +118,15 @@ test('inspector shows the context tree, never requests locked children and marks
     assert.match(text(elements.get('messages')),/Inside issue-6/);
     assert.equal(board.hidden,true);
     assert.equal(elements.get('contexts').children[1]['aria-current'],'page');
+    assert.notEqual(elements.get('contexts').children[0],firstRow);
 
     await elements.get('contexts').children[2].fire('click');
     assert.equal(elements.get('context-title').textContent,'issue-7');
+    const pages=calls.filter(c=>c.path.endsWith('/contexts/children')&&c.body.context_id==='child-b');
+    assert.deepEqual(pages.map(c=>c.body.after_id),['','child-b-00999','child-b-01999','child-b-02999','child-b-03999']);
+    assert.equal(elements.get('contexts').children.filter(r=>r.title.startsWith('child-b-')).length,5000);
+    assert.match(text(elements.get('contexts').children[2]),/More child contexts not shown/);
+    assert.doesNotMatch(text(elements.get('contexts').children[0]),/More child contexts not shown/);
     await elements.get('refresh-contexts').fire('click');
     assert.equal(elements.get('context-title').textContent,'issue-7');
 
