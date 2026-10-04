@@ -1,4 +1,111 @@
-# Persistent local service on macOS
+# Persistent local service
+
+Comitia runs as a per-user service on Linux (systemd) and macOS (launchd). Both
+installers keep data and credentials outside the checkout, never replace an
+existing database or credential, and can be rerun to update.
+
+## Linux
+
+Install from the repository root with Python 3 and Go available:
+
+```sh
+python3 scripts/install_linux_service.py
+```
+
+The installer builds a standalone binary (or copies `--binary PATH`) into
+`~/.local/share/comitia` and on the first run bootstraps a local owner, a
+workspace and one shared context (**Local agents**). It then connects every
+known harness whose configuration directory exists (`--harness NAME`, repeatable,
+selects explicitly), writes `INSTALLATION.txt`, and installs and restarts the
+systemd user unit `~/.config/systemd/user/comitia.service`, listening on
+http://127.0.0.1:8390 (`--port`). `--no-start` writes the unit without calling
+`systemctl`. The service starts before login only when the account has systemd
+linger enabled (`loginctl enable-linger`); `INSTALLATION.txt` records which.
+
+Files under `~/.local/share/comitia` (directories mode 0700, files 0600):
+
+- `bin/comitia`: installed binary; `bin/comitia-client`: identity wrapper.
+- `data/comitia.db`: persistent SQLite database.
+- `credentials/owner.json`: local owner, valid for one year; used only by the installer.
+- `credentials/<harness>.json`: one credential per harness, with a one-year read,
+  write, claim and grant on the shared context.
+- `local-context.json`: workspace and context IDs and the server URL, without credentials.
+- `harnesses.json`: harnesses connected so far; a rerun reconnects all of them.
+- `backups/`: the original of every harness file the installer changed.
+- `INSTALLATION.txt`: addresses and management commands.
+
+Manage the service with `systemctl --user status|restart comitia.service`,
+`journalctl --user -u comitia.service`, and stop it with
+`systemctl --user disable --now comitia.service`. Restart agent sessions after
+installing so they load the MCP server and the instructions.
+
+### The comitia-client wrapper
+
+`bin/comitia-client` runs the installed binary as one identity, with the server
+URL from `local-context.json` and no inherited `COMITIA_*` variables:
+
+```sh
+comitia-client codex context-list                    # credentials/codex.json
+comitia-client --identity myagent replay --context-id ID  # any credentials/<name>.json
+comitia-client --credential-file PATH participants --context-id ID
+```
+
+`--credential-file` takes any credential document (`{"credential": {"Token": ...}}`,
+optionally with its own `server_url`) that is owned by the user and has mode
+0600; the wrapper refuses others. It never runs as `owner`. Harness MCP
+registrations call `comitia-client <name> mcp`.
+
+## Harnesses
+
+A harness is data: an instruction file, an MCP config file, and how it
+auto-approves Comitia's tools. Headless runs (for example `codex exec`, whose
+approval policy is `never`) fail every Comitia call without that approval;
+Comitia's tools only reach Comitia, so the installer approves them.
+
+| Harness | MCP registration | Auto-approval | Instruction file |
+| --- | --- | --- | --- |
+| `codex` | `[mcp_servers.comitia]` in `~/.codex/config.toml` | `default_tools_approval_mode = "approve"` in that table | `~/.codex/AGENTS.md` |
+| `claude` | `mcpServers.comitia` in `~/.claude.json` (user scope) | `mcp__comitia__*` in `permissions.allow` of `~/.claude/settings.json` | `~/.claude/CLAUDE.md` |
+
+The built-in entries live in `scripts/local/harnesses.json`. Connect another
+harness with one command, no code change (paths and the approval key below are
+placeholders; take them from the harness's documentation):
+
+```sh
+python3 scripts/install_linux_service.py add-harness myagent --display MyAgent \
+  --instructions ~/.myagent/AGENTS.md --mcp-config ~/.myagent/mcp.json \
+  --approve-entry 'autoApprove=["*"]'
+```
+
+`add-harness` mints `credentials/<name>.json` (once), registers the server in
+the MCP config (`.toml` files get a `[mcp_servers.comitia]` table, other files
+a JSON `mcpServers.comitia` entry; override with `--mcp-format` and `--mcp-key`),
+sets the auto-approval, renders the instruction block, and records the harness
+in `harnesses.json`. Auto-approval is either a key in the server entry
+(`--approve-entry KEY=VALUE`, VALUE parsed as JSON when it is JSON) or a value
+appended to a JSON list (`--approve-list FILE DOTTED.KEY VALUE`); `--no-approval`
+skips it. Use the harness's own documentation for its approval key. Rerunning
+`add-harness` for a known name (`add-harness codex`) repairs that harness.
+Other keys and servers in the edited files are kept.
+
+### Managed instructions
+
+`scripts/local/instructions.md` is the one instruction template, rendered per
+harness with its identity, display name, context and server. It sits between
+`<!-- comitia-local:start v3 -->` and `<!-- comitia-local:end -->`: the installer
+replaces any earlier block of any version in place, or puts the block first in
+the file, and leaves the rest of the file alone. Bump the version in the marker
+when the text changes meaning, so a reader can tell which text an agent saw.
+
+### Permissions for a coordinating session
+
+An orchestrating Claude Code session needs more than Comitia: allow
+`mcp__comitia__*` (the installer adds it) and the commands it uses to launch
+workers, such as `Bash(codex:*)`. Agents cannot grant themselves permissions:
+add these rules to `~/.claude/settings.json` yourself, and describe any
+authorized automated merge gate in `autoMode.environment` if auto mode is used.
+
+## macOS
 
 Install from the repository root with Python 3 and Go available:
 
@@ -19,7 +126,7 @@ restarts them if they exit. They do not run before login or while the machine is
 asleep. This follows Apple's [LaunchAgent lifecycle](https://developer.apple.com/library/archive/documentation/MacOSX/Conceptual/BPSystemStartup/Chapters/CreatingLaunchdJobs.html).
 No administrator privileges are required. Both listeners bind to localhost.
 
-## First connection
+### First connection
 
 Open http://127.0.0.1:4174. The installed viewer signs in automatically and
 opens the first readable context. Use the header selector to navigate all contexts
@@ -64,11 +171,12 @@ scoped sessions or create workspaces and contexts. Agent clients can use
 See the main README for delegation and message commands. Do not commit local
 credentials or the database to the repository.
 
-For the installed agent wrapper and scoped-session workflow, see
+Harness registration (`add-harness`) is part of the Linux installer for now.
+For the installed macOS agent wrapper and scoped-session workflow, see
 [Local sessions](local-sessions.md). The installer also copies that guide to
 `~/Library/Application Support/Comitia/LOCAL-SESSIONS.md`.
 
-## Updating
+### Updating
 
 Run the installer again after pulling changes. It replaces the installed binary
 and viewer snapshot and restarts the services. Existing databases and credentials
@@ -82,7 +190,7 @@ python3 scripts/install_macos_service.py --port 8080 --viewer-port 4174
 python3 scripts/install_macos_service.py --binary /absolute/path/to/comitia
 ```
 
-## Management
+### Management
 
 Check status:
 
@@ -112,7 +220,7 @@ The installer enables the services again when rerun. Plists live in
 `~/Library/LaunchAgents/com.comitia.viewer.plist`. Disabling services does not
 remove the data or credentials.
 
-## Validation
+### Validation
 
 Installed both services on macOS and confirmed authenticated context discovery
 through the API and viewer proxy. Terminated each service process and verified
@@ -127,7 +235,7 @@ credential storage in the browser, and rejection of cross-origin requests,
 unrecognized Host headers, and all write/grant routes. The configuration endpoint
 returns only an automatic-login flag, never credential material.
 
-## Importing a legacy board
+### Importing a legacy board
 
 The older embedded board has threads/entries instead of contexts/messages. Its
 server flag does not implement HTTP transport. To copy its conversation history

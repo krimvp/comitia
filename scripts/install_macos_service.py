@@ -5,11 +5,13 @@ import json
 import os
 from pathlib import Path
 import plistlib
-import secrets
 import shutil
 import socket
 import subprocess
 import sys
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import comitia_install as local  # noqa: E402
 
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument('--binary', type=Path, help='Use an already built Comitia binary')
@@ -37,44 +39,14 @@ for directory in (root, root/'bin', root/'data', root/'credentials', root/'logs'
     directory.mkdir(parents=True, exist_ok=True)
     if directory != launch_dir:
         directory.chmod(0o700)
-binary = root/'bin/comitia'
-staged = root/'bin/comitia.new'
-if args.binary:
-    shutil.copy2(args.binary.resolve(), staged)
-else:
-    subprocess.run(['go', 'build', '-o', str(staged), './cmd/comitia'], cwd=repo, check=True)
-staged.chmod(0o700)
-os.replace(staged, binary)
-# Exclude inherited credentials and server routing from local initialization.
-env = {k:v for k,v in os.environ.items() if not k.startswith('COMITIA_')}
 database = root/'data/comitia.db'
-env['COMITIA_DB'] = str(database)
-def run(*command, token=None):
-    command_env = dict(env)
-    if token:
-        command_env['COMITIA_CREDENTIAL'] = token
-    result = subprocess.run([str(binary), *command], env=command_env, capture_output=True, text=True)
-    if result.returncode:
-        raise RuntimeError(f'Comitia {command[0]} failed: {result.stderr.strip()}')
-    return json.loads(result.stdout)
-def private_json(path, value):
-    fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
-    with os.fdopen(fd, 'w') as stream:
-        json.dump(value, stream, indent=2)
-        stream.write('\n')
-if not database.exists():
-    env['COMITIA_BOOTSTRAP_CREDENTIAL'] = secrets.token_urlsafe(32)
-    owner = run('bootstrap', '--name', 'Local owner', '--ttl', '8760h')
-    private_json(root/'credentials/owner.json', owner)
-    env.pop('COMITIA_BOOTSTRAP_CREDENTIAL', None)
-    token = owner['credential']['Token']
-    workspace = run('workspace-create', '--name', 'Local workspace', token=token)
-    context = run('context-create', '--workspace-id', workspace['ID'], '--name', 'Local agents', token=token)
-    observer = run('delegate', '--name', 'World viewer', '--ttl', '744h', '--context-id', context['ID'],
-                   '--permissions', 'read', '--grant-ttl', '720h', token=token)
-    private_json(root/'credentials/viewer.json', observer)
-    private_json(root/'local-context.json', {'workspace_id': workspace['ID'], 'context_id': context['ID']})
-    database.chmod(0o600)
+run = local.runner(local.install_binary(root, args.binary), database)
+created = local.bootstrap(run, root, database)
+if created:
+    observer = run('delegate', '--name', 'World viewer', '--ttl', '744h', '--context-id', created['context_id'],
+                   '--permissions', 'read', '--grant-ttl', '720h', token=local.token(root/'credentials/owner.json'))
+    local.private_json(root/'credentials/viewer.json', observer)
+    local.private_json(root/'local-context.json', created)
 # A reinstall never bootstraps or replaces an existing database or credential.
 viewer = root/'viewer'
 shutil.copytree(repo/'httpapi/ui/world-prototype', viewer, dirs_exist_ok=True,
