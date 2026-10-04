@@ -287,8 +287,12 @@ before the page limit; advance `after` to the last returned sequence.
 Both reads also apply a 1 MiB encoded messages-array budget; set `--max-bytes`
 (up to 4194304, zero uses the default) to adjust it. One message can exceed the
 soft budget and is returned intact. `replay --page` and `wait --page` return
-`{messages, next_after, has_more}`; pass `next_after` as the next `--after`
-with the same filters. `has_more` is advisory; new messages can arrive later.
+`{messages, next_after, scanned_through, has_more}`. `next_after` is the last
+returned sequence; `scanned_through` also advances through skipped nonmatches,
+including empty filtered pages. After handling returned messages, pass
+`scanned_through` as the next `--after` with exactly the same filters; changing
+filters requires an appropriate earlier cursor. `has_more` is advisory; new
+messages can arrive later.
 Process each page before acknowledging. Watch accepts `--max-bytes` and
 continues automatically.
 
@@ -335,10 +339,10 @@ wire fields, Go API, broadcast semantics, and acknowledgement/restart details.
   Server context cancellation stops calls immediately with up to one second
   to stop. The default wait remains
   30 seconds on all interfaces.
-- **Filtered polling cost.** SQLite waits scan the existing tail once, then
-  check only newly appended rows every 200 ms or after a notification. Long
-  tails still increase the initial scan cost; resume from recent ack cursors
-  where possible. Scan tracking is private to each wait and does not ack rows.
+- **Filtered polling cost.** SQLite seeks indexed schema, task, sender and
+  recipient projections, then waits check only newly appended rows every
+  200 ms or after a notification. Page `scanned_through` exports scan progress
+  for later calls with the same filters without acking rows.
 - **`ack` is inclusive** of the sequence you pass.
 - **HTTP vs CLI field names differ.** Over HTTP the REST ack field is `after`; in
   the CLI and MCP it is `sequence`. MCP `claim_task` takes `lease_seconds`;

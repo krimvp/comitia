@@ -170,11 +170,17 @@ Default MCP/CLI results remain arrays. To request continuation metadata, pass
 `page: true` to replay/wait tools or `--page` to CLI `replay`/`wait`:
 
 ```json
-{"messages":[],"next_after":42,"has_more":false}
+{"messages":[],"next_after":42,"scanned_through":57,"has_more":false}
 ```
 
 `next_after` is the last returned sequence, or the supplied `after` on an empty
-page. Continue with that exclusive cursor and the same filters. In legacy
+page. `scanned_through` reports safe progress through skipped nonmatches from
+that same read snapshot; an empty filtered page can advance it beyond
+`next_after`. After handling returned messages, continue with `scanned_through`
+and exactly the same filters to avoid scanning the same tail again. Count and
+byte truncation never advance it past an omitted match. Changing filters means
+returning to the appropriate earlier cursor. Custom APIs/stores without scan
+tracking conservatively report only `next_after` as `scanned_through`. In legacy
 arrays, use the last message's `Sequence`. Reading and continuing never
 acknowledge messages: acknowledge only after handling them. `has_more` comes
 from a separate authorized lookahead and is advisory; later appends can arrive
@@ -184,7 +190,7 @@ lookahead. If only that lookahead times out, already-read messages survive and
 empty page always has `messages: []`.
 
 REST requests accept the same `max_bytes` and `page` fields. With `page: true`,
-the response is `{"page":{"messages":[],"next_after":42,"has_more":false}}`.
+the response is `{"page":{"messages":[],"next_after":42,"scanned_through":57,"has_more":false}}`.
 Go callers can use `ReplayMessagePage`/`WaitMessagePage`, or the optional
 `MessagePageAPI` implemented by Service and the HTTP client. Existing custom
 APIs need no new methods; the helpers derive pages using their legacy reads.
@@ -212,11 +218,12 @@ service/HTTP errors preserve the existing authentication, authorization and
 invalid-input sentinels. Deduplicated retries do not notify because they append
 no new row.
 
-SQLite waits track a private scanned-through sequence. After an empty scan,
-later notifications and 200 ms polls evaluate filters only on newly appended
-rows. The initial scan still costs more for a long tail; resume from recent
-acknowledgement cursors where possible. The private cursor lasts only for that
-wait call and does not change replay results or acknowledgement cursors.
+SQLite indexes context/sequence projections for schema, task and sender, plus
+recipient membership, so sparse filtered reads seek candidates before loading
+message bodies or decoding envelopes. Waits retain a scanned-through sequence;
+after an empty scan, later notifications and 200 ms polls evaluate only newly
+appended rows. Page results export that progress for subsequent calls. Scanning
+never changes session or instance acknowledgement cursors.
 Polling remains enabled to detect other processes writing the SQLite file.
 Custom stores without scan tracking retain replay from the original `after`.
 
@@ -556,7 +563,28 @@ receives the authenticated caller session ID after the context ID, so it can
 match session-addressed messages.
 A custom store must filter before limiting (or provide equivalent paging) while
 the service retains the read-grant check.
-No new SQLite tables are required for replay filters or waiting.
+A `ReadStore` may additionally implement the exported optional `MessageScanStore`:
+
+```go
+MessagesScanned(contextID, callerSessionID string, after int64, limit int, filters comitia.MessageFilters) ([]comitia.Message, int64, error)
+```
+
+The returned scan watermark must be at least `after`. Every match after `after`
+through that watermark must be returned, subject to the same count/byte limits;
+a limited result must not skip omitted matches. Both results and watermark must
+come from the same `Store.View` snapshot, so concurrent appends are not skipped.
+It is scan progress for the supplied filters, never proof that skipped messages
+were processed. The service retains authorization and presence checks, bounds
+returned bytes, and uses `Messages` when the capability is absent. SQLite adds
+filter and recipient side tables. SQLite insert triggers on messages, envelopes
+and sender instances maintain them in the writer's transaction, including when
+an older CLI/binary appends while a new reader is already running. Inserting an
+envelope replaces provisional broadcast membership with its final routing;
+instance recipients retain precedence over session recipients. Startup backfills
+rebuild projections from the base tables when the schema generation changes or
+an object is missing, repairing messages that predate the triggers and partial
+projections from a missing trigger. Unchanged generations with complete schema
+objects keep the lock-free migration probe.
 
 ## Task claims by instance
 

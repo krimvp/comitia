@@ -215,7 +215,17 @@ func TestSQLiteLegacyRepairBatchIsAtomicAndResumable(t *testing.T) {
 		t.Fatalf("failed repair consumed queue: %d %v", queued, err)
 	}
 	// Removing the conflicting duplicate permits a retry of all remaining rows.
-	if _, err := f.store.db.Exec("DELETE FROM message_instances WHERE message_id=?; DELETE FROM messages WHERE id=?", fmt.Sprintf("legacy-%d", batch), fmt.Sprintf("legacy-%d", batch)); err != nil {
+	if err := f.store.Update(ctx, func(w WriteStore) error {
+		q := w.(*sqlStore).q
+		mid := fmt.Sprintf("legacy-%d", batch)
+		for _, table := range []string{"message_filters", "message_recipients", "message_instances"} {
+			if _, err := q.Exec("DELETE FROM "+table+" WHERE message_id=?", mid); err != nil {
+				return err
+			}
+		}
+		_, err := q.Exec("DELETE FROM messages WHERE id=?", mid)
+		return err
+	}); err != nil {
 		t.Fatal(err)
 	}
 	if err := f.store.migrate(ctx); err != nil || f.store.migrationPending(ctx) {

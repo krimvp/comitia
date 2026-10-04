@@ -94,17 +94,27 @@ func (n *messageNotifications) notify(cid string) {
 	}
 }
 
-type messageScanStore interface {
-	messagesScanned(string, string, int64, int, MessageFilters) ([]Message, int64, error)
+// MessageScanStore is an optional ReadStore capability for filtered reads.
+// MessagesScanned applies the same filters and limits as Messages. Its watermark
+// is at least after; every match in (after, watermark] must be returned.
+// Matches and watermark must come from the same View snapshot. Empty reads may
+// advance through nonmatches; limited reads must not skip an omitted match.
+// The watermark is read progress for these filters, never an acknowledgement.
+// Stores without this capability retain Messages fallback behavior.
+type MessageScanStore interface {
+	MessagesScanned(string, string, int64, int, MessageFilters) ([]Message, int64, error)
 }
 
-func (s *Service) scanWaitMessages(ctx context.Context, raw, cid string, after int64, filters []MessageFilters) ([]Message, int64, error) {
+func (s *Service) scanMessages(ctx context.Context, raw, cid string, after int64, limit int, filters []MessageFilters) ([]Message, int64, error) {
 	f, err := messageFilters(filters)
 	if err != nil {
 		return nil, after, err
 	}
 	if after < 0 {
 		return nil, after, Invalidf("after must be nonnegative")
+	}
+	if limit < 1 || limit > 1000 {
+		return nil, after, Invalidf("limit must be between 1 and 1000")
 	}
 	instance := f.agentInstance()
 	var sid string
@@ -117,22 +127,31 @@ func (s *Service) scanWaitMessages(ctx context.Context, raw, cid string, after i
 			return e
 		}
 		sid = a.session.ID
-		if scan, ok := r.(messageScanStore); ok {
-			out, scanned, e = scan.messagesScanned(cid, a.session.ID, after, 100, f)
+		if scan, ok := r.(MessageScanStore); ok {
+			out, scanned, e = scan.MessagesScanned(cid, a.session.ID, after, limit, f)
 		} else {
-			out, e = r.Messages(cid, a.session.ID, after, 100, f)
+			out, e = r.Messages(cid, a.session.ID, after, limit, f)
 		}
 		if e == nil {
 			heartbeat = s.instanceHeartbeatDue(r, sid, cid, instance)
 		}
 		return e
 	})
-	// Waits record presence exactly like replay: after a successful read, throttled.
+	// Presence follows a successful read and remains throttled.
 	if err == nil && heartbeat {
 		s.touchInstance(ctx, sid, cid, &AgentInstance{ID: instance})
 	}
 	if err == nil {
-		out, err = boundMessages(out, f.MaxBytes)
+		var bounded []Message
+		bounded, err = boundMessages(out, f.MaxBytes)
+		if err == nil && len(bounded) < len(out) {
+			scanned = bounded[len(bounded)-1].Sequence
+		}
+		out = bounded
+		if len(out) > 0 {
+			scanned = max(scanned, out[len(out)-1].Sequence)
+		}
+		scanned = max(after, scanned)
 	}
 	return out, scanned, err
 }
@@ -141,8 +160,13 @@ func (s *Service) scanWaitMessages(ctx context.Context, raw, cid string, after i
 // subscribes before reading to avoid losing an append between read and wait.
 // Each read rechecks authorization; no transaction remains open while waiting.
 func (s *Service) WaitMessages(ctx context.Context, raw, cid string, after int64, timeout time.Duration, filters ...MessageFilters) ([]Message, error) {
+	messages, _, err := s.waitMessagesScanned(ctx, raw, cid, after, timeout, filters...)
+	return messages, err
+}
+
+func (s *Service) waitMessagesScanned(ctx context.Context, raw, cid string, after int64, timeout time.Duration, filters ...MessageFilters) ([]Message, int64, error) {
 	if timeout < 0 {
-		return nil, Invalidf("timeout must be nonnegative")
+		return nil, after, Invalidf("timeout must be nonnegative")
 	}
 	if timeout > MaxMessageWait {
 		timeout = MaxMessageWait
@@ -161,31 +185,34 @@ func (s *Service) WaitMessages(ctx context.Context, raw, cid string, after int64
 	defer poll.Stop()
 	for {
 		if err := ctx.Err(); err != nil {
-			return nil, err
+			return nil, after, err
 		}
 		changed := s.messageNotifications.channel(v)
-		messages, scanned, err := s.scanWaitMessages(scanCtx, raw, cid, after, filters)
+		messages, scanned, err := s.scanMessages(scanCtx, raw, cid, after, 100, filters)
 		if err := ctx.Err(); err != nil {
-			return nil, err
+			return nil, after, err
 		}
 		if err == nil && len(messages) != 0 {
-			return messages, nil
+			return messages, scanned, nil
 		}
 		if scanCtx.Err() != nil {
-			return []Message{}, nil
+			if err == nil {
+				after = scanned
+			}
+			return []Message{}, after, nil
 		}
 		if err != nil {
-			return messages, err
+			return messages, after, err
 		}
 		after = scanned
 		select {
 		case <-ctx.Done():
-			return nil, ctx.Err()
+			return nil, after, ctx.Err()
 		case <-timer.C:
 			if err := ctx.Err(); err != nil {
-				return nil, err
+				return nil, after, err
 			}
-			return []Message{}, nil
+			return []Message{}, after, nil
 		case <-changed:
 		case <-poll.C:
 		}

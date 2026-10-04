@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"strings"
 	"time"
 )
 
@@ -14,6 +15,31 @@ CREATE TABLE IF NOT EXISTS message_instances (message_id TEXT PRIMARY KEY REFERE
 CREATE TABLE IF NOT EXISTS instance_acks (session_id TEXT NOT NULL REFERENCES sessions(id), context_id TEXT NOT NULL REFERENCES contexts(id), instance_id TEXT NOT NULL, seq INTEGER NOT NULL, updated_at TEXT NOT NULL, PRIMARY KEY(session_id,context_id,instance_id));
 CREATE TABLE IF NOT EXISTS message_dedupe_scopes (context_id TEXT NOT NULL REFERENCES contexts(id), session_id TEXT NOT NULL REFERENCES sessions(id), instance_id TEXT NOT NULL, dedupe_key TEXT NOT NULL, message_id TEXT NOT NULL UNIQUE REFERENCES messages(id), PRIMARY KEY(context_id,session_id,instance_id,dedupe_key));
 INSERT INTO message_dedupe_scopes SELECT m.context_id,m.session_id,COALESCE(i.instance_id,''),m.dedupe_key,m.id FROM messages m LEFT JOIN message_instances i ON i.message_id=m.id WHERE NOT EXISTS (SELECT 1 FROM message_dedupe_scopes d WHERE d.message_id=m.id);
+CREATE TABLE IF NOT EXISTS message_filters (message_id TEXT PRIMARY KEY REFERENCES messages(id), context_id TEXT NOT NULL REFERENCES contexts(id), seq INTEGER NOT NULL, schema TEXT NOT NULL, task_id TEXT NOT NULL, sender TEXT NOT NULL);
+CREATE INDEX IF NOT EXISTS message_filters_schema ON message_filters(context_id,schema,seq);
+CREATE INDEX IF NOT EXISTS message_filters_task ON message_filters(context_id,task_id,seq);
+CREATE INDEX IF NOT EXISTS message_filters_sender ON message_filters(context_id,sender,seq);
+CREATE TABLE IF NOT EXISTS message_recipients (message_id TEXT NOT NULL REFERENCES messages(id), context_id TEXT NOT NULL REFERENCES contexts(id), seq INTEGER NOT NULL, kind TEXT NOT NULL, recipient TEXT NOT NULL, PRIMARY KEY(message_id,kind,recipient));
+CREATE INDEX IF NOT EXISTS message_recipients_lookup ON message_recipients(context_id,kind,recipient,seq);
+INSERT OR REPLACE INTO message_filters SELECT m.id,m.context_id,m.seq,COALESCE(json_extract(e.envelope,'$.schema'),''),COALESCE(json_extract(e.envelope,'$.task_id'),''),COALESCE(i.instance_id,'') FROM messages m LEFT JOIN message_envelopes e ON e.message_id=m.id LEFT JOIN message_instances i ON i.message_id=m.id;
+DELETE FROM message_recipients;
+INSERT INTO message_recipients SELECT m.id,m.context_id,m.seq,'broadcast','' FROM messages m LEFT JOIN message_envelopes e ON e.message_id=m.id WHERE COALESCE(json_array_length(e.envelope,'$.recipient_instances'),0)=0 AND COALESCE(json_array_length(e.envelope,'$.recipient_session_ids'),0)=0;
+INSERT INTO message_recipients SELECT DISTINCT m.id,m.context_id,m.seq,'session',j.value FROM messages m JOIN message_envelopes e ON e.message_id=m.id JOIN json_each(e.envelope,'$.recipient_session_ids') j WHERE COALESCE(json_array_length(e.envelope,'$.recipient_instances'),0)=0;
+INSERT INTO message_recipients SELECT DISTINCT m.id,m.context_id,m.seq,'instance',j.value FROM messages m JOIN message_envelopes e ON e.message_id=m.id JOIN json_each(e.envelope,'$.recipient_instances') j;
+CREATE TRIGGER IF NOT EXISTS comitia_message_filter_insert AFTER INSERT ON messages BEGIN
+ INSERT INTO message_filters VALUES(NEW.id,NEW.context_id,NEW.seq,'','','');
+ INSERT INTO message_recipients VALUES(NEW.id,NEW.context_id,NEW.seq,'broadcast','');
+END;
+CREATE TRIGGER IF NOT EXISTS comitia_message_envelope_filter_insert AFTER INSERT ON message_envelopes BEGIN
+ UPDATE message_filters SET schema=COALESCE(json_extract(NEW.envelope,'$.schema'),''),task_id=COALESCE(json_extract(NEW.envelope,'$.task_id'),'') WHERE message_id=NEW.message_id;
+ DELETE FROM message_recipients WHERE message_id=NEW.message_id;
+ INSERT INTO message_recipients SELECT id,context_id,seq,'broadcast','' FROM messages WHERE id=NEW.message_id AND COALESCE(json_array_length(NEW.envelope,'$.recipient_instances'),0)=0 AND COALESCE(json_array_length(NEW.envelope,'$.recipient_session_ids'),0)=0;
+ INSERT INTO message_recipients SELECT DISTINCT m.id,m.context_id,m.seq,'session',j.value FROM messages m JOIN json_each(NEW.envelope,'$.recipient_session_ids') j WHERE m.id=NEW.message_id AND COALESCE(json_array_length(NEW.envelope,'$.recipient_instances'),0)=0;
+ INSERT INTO message_recipients SELECT DISTINCT m.id,m.context_id,m.seq,'instance',j.value FROM messages m JOIN json_each(NEW.envelope,'$.recipient_instances') j WHERE m.id=NEW.message_id;
+END;
+CREATE TRIGGER IF NOT EXISTS comitia_message_instance_filter_insert AFTER INSERT ON message_instances BEGIN
+ UPDATE message_filters SET sender=NEW.instance_id WHERE message_id=NEW.message_id;
+END;
 CREATE TABLE IF NOT EXISTS acks (session_id TEXT NOT NULL REFERENCES sessions(id), context_id TEXT NOT NULL REFERENCES contexts(id), seq INTEGER NOT NULL, updated_at TEXT NOT NULL, PRIMARY KEY(session_id,context_id));
 `
 
@@ -86,31 +112,54 @@ func (x *sqlStore) PutMessage(m Message) (Message, error) {
 	}
 	return m, e
 }
+
+// Seek matching projections before loading bodies or decoding envelopes.
+func messageQuery(cid, sid string, after int64, limit int, f MessageFilters) (string, []any) {
+	query := messageSelect
+	args := []any{cid, after}
+	where, order := "m.context_id=? AND m.seq>?", "m.seq"
+	index := ""
+	switch {
+	case f.TaskID != "":
+		index = "message_filters_task"
+	case f.FromInstance != "":
+		index = "message_filters_sender"
+	case f.Schema != "":
+		index = "message_filters_schema"
+	}
+	if index != "" {
+		query = strings.Replace(query, "FROM messages m", "FROM message_filters p INDEXED BY "+index+" CROSS JOIN messages m ON m.id=p.message_id", 1)
+		where, order = "p.context_id=? AND p.seq>?", "p.seq"
+		for _, field := range []struct{ column, value string }{{"task_id", f.TaskID}, {"sender", f.FromInstance}, {"schema", f.Schema}} {
+			if field.value != "" {
+				where += " AND p." + field.column + "=?"
+				args = append(args, field.value)
+			}
+		}
+		if f.ForInstance != "" {
+			where += ` AND EXISTS (SELECT 1 FROM message_recipients r WHERE r.message_id=p.message_id AND ((r.kind='broadcast' AND r.recipient='') OR (r.kind='session' AND r.recipient=?) OR (r.kind='instance' AND r.recipient=?)))`
+			args = append(args, sid, f.ForInstance)
+		}
+	} else if f.ForInstance != "" {
+		// The routing classes are disjoint. Bound each ordered seek before
+		// merging, so a small page does not materialize all eligible history.
+		recipients := `SELECT message_id,seq FROM (SELECT message_id,seq FROM message_recipients WHERE context_id=? AND seq>? AND kind='broadcast' AND recipient='' ORDER BY seq LIMIT ?)
+UNION ALL SELECT message_id,seq FROM (SELECT message_id,seq FROM message_recipients WHERE context_id=? AND seq>? AND kind='session' AND recipient=? ORDER BY seq LIMIT ?)
+UNION ALL SELECT message_id,seq FROM (SELECT message_id,seq FROM message_recipients WHERE context_id=? AND seq>? AND kind='instance' AND recipient=? ORDER BY seq LIMIT ?)`
+		recipientArgs := []any{cid, after, limit, cid, after, sid, limit, cid, after, f.ForInstance, limit}
+		query = strings.Replace(query, "FROM messages m", "FROM ("+recipients+") p CROSS JOIN messages m ON m.id=p.message_id", 1)
+		where, order, args = "1=1", "p.seq", recipientArgs
+	}
+	return query + " WHERE " + where + " ORDER BY " + order + " LIMIT ?", append(args, limit)
+}
+
 func (x *sqlStore) Messages(cid, callerSessionID string, after int64, limit int, filters ...MessageFilters) ([]Message, error) {
 	f, err := messageFilters(filters)
 	if err != nil {
 		return nil, err
 	}
-	query := messageSelect + " WHERE m.context_id=? AND m.seq>?"
-	args := []any{cid, after}
-	if f.ForInstance != "" {
-		query += ` AND ((COALESCE(json_array_length(e.envelope,'$.recipient_instances'),0)=0 AND (COALESCE(json_array_length(e.envelope,'$.recipient_session_ids'),0)=0 OR EXISTS (SELECT 1 FROM json_each(e.envelope,'$.recipient_session_ids') WHERE value=?))) OR EXISTS (SELECT 1 FROM json_each(e.envelope,'$.recipient_instances') WHERE value=?))`
-		args = append(args, callerSessionID, f.ForInstance)
-	}
-	if f.FromInstance != "" {
-		query += " AND i.instance_id=?"
-		args = append(args, f.FromInstance)
-	}
-	if f.TaskID != "" {
-		query += " AND json_extract(e.envelope,'$.task_id')=?"
-		args = append(args, f.TaskID)
-	}
-	if f.Schema != "" {
-		query += " AND json_extract(e.envelope,'$.schema')=?"
-		args = append(args, f.Schema)
-	}
-	args = append(args, limit)
-	rows, e := x.q.Query(query+" ORDER BY m.seq LIMIT ?", args...)
+	query, args := messageQuery(cid, callerSessionID, after, limit, f)
+	rows, e := x.q.Query(query, args...)
 	if e != nil {
 		return nil, e
 	}
@@ -142,10 +191,13 @@ func (x *sqlStore) Messages(cid, callerSessionID string, after int64, limit int,
 
 // The empty scan and high-water mark share the caller's read transaction, so
 // an append committed by another process cannot be skipped between them.
-func (x *sqlStore) messagesScanned(cid, sid string, after int64, limit int, f MessageFilters) ([]Message, int64, error) {
+func (x *sqlStore) MessagesScanned(cid, sid string, after int64, limit int, f MessageFilters) ([]Message, int64, error) {
 	messages, err := x.Messages(cid, sid, after, limit, f)
-	if err != nil || len(messages) != 0 {
+	if err != nil {
 		return messages, after, err
+	}
+	if len(messages) != 0 {
+		return messages, messages[len(messages)-1].Sequence, nil
 	}
 	var scanned int64
 	err = x.q.QueryRow("SELECT COALESCE(MAX(seq),0) FROM messages WHERE context_id=?", cid).Scan(&scanned)

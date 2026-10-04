@@ -182,7 +182,7 @@ type scanProbeQuerier struct {
 }
 
 func (q *scanProbeQuerier) Query(query string, args ...any) (*sql.Rows, error) {
-	if strings.HasPrefix(query, messageSelect) {
+	if strings.HasPrefix(query, "SELECT m.id,") {
 		q.after = args[1].(int64)
 	}
 	return q.querier.Query(query, args...)
