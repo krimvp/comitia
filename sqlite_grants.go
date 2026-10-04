@@ -11,6 +11,7 @@ CREATE INDEX IF NOT EXISTS grants_lookup ON grants(session_id,context_id);
 `
 
 func (x *sqlStore) PutGrant(g Grant) error {
+	x.invalidateGrantPolicy()
 	_, e := x.q.Exec("INSERT INTO grants VALUES(?,?,?,?,?,?,?,?,?)", g.ID, g.SessionID, g.ContextID, nullString(g.ParentGrantID), g.IssuerSessionID, g.Permissions, ts(g.ExpiresAt), timeString(g.RevokedAt), ts(g.CreatedAt))
 	return e
 }
@@ -30,42 +31,39 @@ func (x *sqlStore) grant(id string) (Grant, error) {
 }
 func (x *sqlStore) Grant(id string) (Grant, error) { return x.grant(id) }
 func (x *sqlStore) Grants(sid, cid string, now time.Time) ([]Grant, error) {
-	rows, e := x.q.Query("SELECT id,session_id,context_id,parent_grant_id,issuer_session_id,permissions,expires_at,revoked_at,created_at FROM grants WHERE session_id=? AND context_id=?", sid, cid)
-	if e != nil {
-		return nil, e
+	candidates, err := x.rawGrants("SELECT id,session_id,context_id,parent_grant_id,issuer_session_id,permissions,expires_at,revoked_at,created_at FROM grants WHERE session_id=? AND context_id=?", sid, cid)
+	if err != nil {
+		return nil, err
+	}
+	return x.effectiveGrants(candidates, now)
+}
+func (x *sqlStore) rawGrants(query string, args ...any) ([]Grant, error) {
+	rows, err := x.q.Query(query, args...)
+	if err != nil {
+		return nil, err
 	}
 	defer rows.Close()
-	var candidates []Grant
+	var grants []Grant
 	for rows.Next() {
-		g, e := scanGrant(rows)
-		if e != nil {
-			return nil, e
+		g, err := scanGrant(rows)
+		if err != nil {
+			return nil, err
 		}
-		candidates = append(candidates, g)
+		grants = append(grants, g)
 	}
-	if e = rows.Err(); e != nil {
-		return nil, e
+	return grants, rows.Err()
+}
+
+func (x *sqlStore) effectiveGrants(candidates []Grant, now time.Time) ([]Grant, error) {
+	policy := x.grantPolicy()
+	for _, g := range candidates {
+		policy.grants[g.ID] = g
 	}
 	var out []Grant
 	for _, g := range candidates {
-		ok := true
-		seen := map[string]bool{}
-		for cur := g; ; {
-			owner, ownerErr := x.Session(cur.SessionID)
-			issuer, issuerErr := x.Session(cur.IssuerSessionID)
-			if seen[cur.ID] || cur.RevokedAt != nil || !cur.ExpiresAt.After(now) || ownerErr != nil || owner.RevokedAt != nil || !owner.ExpiresAt.After(now) || issuerErr != nil || issuer.RevokedAt != nil || !issuer.ExpiresAt.After(now) {
-				ok = false
-				break
-			}
-			seen[cur.ID] = true
-			if cur.ParentGrantID == "" {
-				break
-			}
-			cur, e = x.grant(cur.ParentGrantID)
-			if e != nil {
-				ok = false
-				break
-			}
+		ok, err := policy.Effective(g, now)
+		if err != nil {
+			return nil, err
 		}
 		if ok {
 			out = append(out, g)
@@ -73,7 +71,9 @@ func (x *sqlStore) Grants(sid, cid string, now time.Time) ([]Grant, error) {
 	}
 	return out, nil
 }
+
 func (x *sqlStore) RevokeGrantTree(root string, at time.Time) error {
+	x.invalidateGrantPolicy()
 	r, e := x.q.Exec(`WITH RECURSIVE d(id) AS (SELECT id FROM grants WHERE id=? UNION ALL SELECT g.id FROM grants g JOIN d ON g.parent_grant_id=d.id) UPDATE grants SET revoked_at=? WHERE id IN (SELECT id FROM d) AND revoked_at IS NULL`, root, ts(at))
 	if e != nil {
 		return e

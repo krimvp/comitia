@@ -1,0 +1,217 @@
+package comitia
+
+import (
+	"context"
+	"database/sql"
+	"strings"
+	"testing"
+	"time"
+)
+
+type grantQueryCounts struct{ auth, sessions, grants, archives int }
+type grantCountingQuery struct {
+	querier
+	counts *grantQueryCounts
+}
+
+func (q grantCountingQuery) count(query string) {
+	switch {
+	case strings.Contains(query, "FROM sessions WHERE token_hash"):
+		q.counts.auth++
+	case strings.Contains(query, "FROM sessions WHERE id"):
+		q.counts.sessions++
+	case strings.Contains(query, "FROM grants WHERE"):
+		q.counts.grants++
+	case strings.Contains(query, "LEFT JOIN context_archives"):
+		q.counts.archives++
+	}
+}
+func (q grantCountingQuery) Query(query string, args ...any) (*sql.Rows, error) {
+	q.count(query)
+	return q.querier.Query(query, args...)
+}
+func (q grantCountingQuery) QueryRow(query string, args ...any) *sql.Row {
+	q.count(query)
+	return q.querier.QueryRow(query, args...)
+}
+
+type grantCountingStore struct {
+	Store
+	counts *grantQueryCounts
+}
+
+func (s grantCountingStore) View(ctx context.Context, fn func(ReadStore) error) error {
+	return s.Store.View(ctx, func(r ReadStore) error { x := r.(*sqlStore); x.q = grantCountingQuery{x.q, s.counts}; return fn(x) })
+}
+
+func TestGrantAndArchiveShareTransactionEvaluation(t *testing.T) {
+	f := setup(t, ":memory:")
+	defer f.store.Close()
+	var children []WorkContext
+	for i := 0; i < 12; i++ {
+		children = append(children, childContext(t, f, f.admin.Token, f.context.ID))
+	}
+	counts := new(grantQueryCounts)
+	st := grantCountingStore{f.store, counts}
+	if err := st.View(context.Background(), func(r ReadStore) error {
+		for _, c := range children {
+			gs, err := r.Grants(f.admin.Session.ID, c.ID, *f.now)
+			if err != nil {
+				return err
+			}
+			if len(gs) != 1 {
+				t.Fatalf("grants=%d", len(gs))
+			}
+			at, err := r.ContextArchivedAt(c.ID, *f.now)
+			if err != nil {
+				return err
+			}
+			if at != nil {
+				t.Fatal("active context archived")
+			}
+		}
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+	t.Logf("shared evaluation: %+v", *counts)
+	if counts.sessions > 1 || counts.grants > 13 {
+		t.Fatalf("shared ancestry was reloaded: %+v", *counts)
+	}
+}
+
+func TestListContextsAuthenticatesOnceAndBatchesPolicyReads(t *testing.T) {
+	f := setup(t, ":memory:")
+	defer f.store.Close()
+	for i := 0; i < 12; i++ {
+		childContext(t, f, f.admin.Token, f.context.ID)
+	}
+	counts := new(grantQueryCounts)
+	calls := 0
+	svc, err := New(Config{Store: grantCountingStore{f.store, counts}, Clock: func() time.Time { calls++; return *f.now }})
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, err := svc.ListContexts(context.Background(), f.admin.Token, "", 100)
+	if err != nil || len(got) != 13 {
+		t.Fatalf("contexts=%d err=%v", len(got), err)
+	}
+	t.Logf("listing: queries=%+v clock=%d", *counts, calls)
+	if counts.auth != 1 || calls != 1 || counts.grants > 1 || counts.archives > 1 || counts.sessions > 1 {
+		t.Fatalf("repeated list work: queries=%+v clock=%d", *counts, calls)
+	}
+}
+
+func TestDeepGrantFanInEvaluatesEachRecordOnce(t *testing.T) {
+	f := setup(t, ":memory:")
+	defer f.store.Close()
+	ctx := context.Background()
+	cred := f.admin
+	grant := DelegatedGrant{ContextID: f.context.ID, Permissions: PermissionRead | PermissionGrant, ExpiresAt: f.now.Add(time.Hour)}
+	for i := 0; i < 40; i++ {
+		_, child, _, err := f.svc.DelegateSession(ctx, cred.Token, DelegateInput{PrincipalName: "delegate", TTL: 2 * time.Hour, Grants: []DelegatedGrant{grant}})
+		if err != nil {
+			t.Fatal(err)
+		}
+		cred = child
+	}
+	grants := make([]DelegatedGrant, 40)
+	for i := range grants {
+		grants[i] = grant
+	}
+	_, leaf, _, err := f.svc.DelegateSession(ctx, cred.Token, DelegateInput{PrincipalName: "leaf", TTL: 2 * time.Hour, Grants: grants})
+	if err != nil {
+		t.Fatal(err)
+	}
+	counts := new(grantQueryCounts)
+	if err := (grantCountingStore{f.store, counts}).View(ctx, func(r ReadStore) error {
+		gs, err := r.Grants(leaf.Session.ID, f.context.ID, *f.now)
+		if err != nil {
+			return err
+		}
+		if len(gs) != 40 {
+			t.Fatalf("grants=%d", len(gs))
+		}
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+	t.Logf("deep fan-in: %+v", *counts)
+	if counts.grants > 42 || counts.sessions > 42 {
+		t.Fatalf("fan-in revisited shared ancestry: %+v", *counts)
+	}
+}
+
+type legacyGrantRead struct{ ReadStore }
+type legacyGrantStore struct{ Store }
+
+func (s legacyGrantStore) View(ctx context.Context, fn func(ReadStore) error) error {
+	return s.Store.View(ctx, func(r ReadStore) error { return fn(legacyGrantRead{r}) })
+}
+
+func TestContextBatchAndFallbackKeepEffectiveAccess(t *testing.T) {
+	f := setup(t, ":memory:")
+	defer f.store.Close()
+	ctx := context.Background()
+	reader, gs := delegate(t, f, f.admin.Token, "reader", f.context.ID, PermissionRead, time.Hour)
+	c := childContext(t, f, f.admin.Token, f.context.ID)
+	_, err := f.svc.GrantContext(ctx, f.admin.Token, GrantInput{SessionID: reader.Session.ID, ContextID: c.ID, Permissions: PermissionRead, ExpiresAt: f.now.Add(time.Hour)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := f.svc.ArchiveContext(ctx, f.admin.Token, c.ID); err != nil {
+		t.Fatal(err)
+	}
+	for _, st := range []Store{f.store, legacyGrantStore{f.store}} {
+		calls := 0
+		svc, err := New(Config{Store: st, Clock: func() time.Time { calls++; return *f.now }})
+		if err != nil {
+			t.Fatal(err)
+		}
+		got, err := svc.ListContexts(ctx, reader.Token, "", 100)
+		if err != nil || len(got) != 2 {
+			t.Fatalf("contexts=%+v err=%v", got, err)
+		}
+		for _, item := range got {
+			if item.ID == c.ID && !item.Archived {
+				t.Fatal("missing archive metadata")
+			}
+		}
+		if calls != 1 {
+			t.Fatalf("clock calls=%d", calls)
+		}
+		children, err := svc.ListChildContexts(ctx, reader.Token, f.context.ID, "", 100)
+		if err != nil || len(children) != 1 || !children[0].Archived {
+			t.Fatalf("children=%+v err=%v", children, err)
+		}
+	}
+	if err := f.svc.RevokeGrant(ctx, f.admin.Token, gs.ID); err != nil {
+		t.Fatal(err)
+	}
+	for _, st := range []Store{f.store, legacyGrantStore{f.store}} {
+		svc, _ := New(Config{Store: st, Clock: func() time.Time { return *f.now }})
+		got, err := svc.ListContexts(ctx, reader.Token, "", 100)
+		if err != nil || len(got) != 1 || got[0].ID != c.ID {
+			t.Fatalf("stale authorization: %+v err=%v", got, err)
+		}
+	}
+}
+
+func TestListChildContextsBatchesArchiveMetadata(t *testing.T) {
+	f := setup(t, ":memory:")
+	defer f.store.Close()
+	for i := 0; i < 12; i++ {
+		childContext(t, f, f.admin.Token, f.context.ID)
+	}
+	counts := new(grantQueryCounts)
+	calls := 0
+	svc, _ := New(Config{Store: grantCountingStore{f.store, counts}, Clock: func() time.Time { calls++; return *f.now }})
+	got, err := svc.ListChildContexts(context.Background(), f.admin.Token, f.context.ID, "", 100)
+	if err != nil || len(got) != 12 {
+		t.Fatalf("children=%d err=%v", len(got), err)
+	}
+	t.Logf("child listing: queries=%+v clock=%d", *counts, calls)
+	if counts.auth != 1 || calls != 1 || counts.archives != 1 || counts.sessions > 1 || counts.grants > 2 {
+		t.Fatalf("repeated child list work: %+v clock=%d", *counts, calls)
+	}
+}

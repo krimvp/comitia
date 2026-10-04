@@ -159,7 +159,10 @@ type querier interface {
 	Query(string, ...any) (*sql.Rows, error)
 	QueryRow(string, ...any) *sql.Row
 }
-type sqlStore struct{ q querier }
+type sqlStore struct {
+	q              querier
+	grantEvaluator *GrantEvaluator
+}
 
 func ts(t time.Time) string    { return t.UTC().Format(time.RFC3339Nano) }
 func parse(s string) time.Time { t, _ := time.Parse(time.RFC3339Nano, s); return t }

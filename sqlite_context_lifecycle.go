@@ -2,7 +2,6 @@ package comitia
 
 import (
 	"database/sql"
-	"fmt"
 	"time"
 )
 
@@ -42,6 +41,9 @@ WHERE c.id=?`, contextID).Scan(&explicit, &creator)
 	if err != nil {
 		return nil, dbErr(err)
 	}
+	return x.contextArchiveTime(explicit, creator, now)
+}
+func (x *sqlStore) contextArchiveTime(explicit, creator sql.NullString, now time.Time) (*time.Time, error) {
 	at := nullTime(explicit)
 	if creator.Valid {
 		end, err := x.creatorGrantEnd(creator.String)
@@ -55,39 +57,6 @@ WHERE c.id=?`, contextID).Scan(&explicit, &creator)
 	return at, nil
 }
 
-// Match Grants' effective ancestry checks, retaining the first instant access ended.
 func (x *sqlStore) creatorGrantEnd(grantID string) (time.Time, error) {
-	var end time.Time
-	include := func(at time.Time) {
-		if end.IsZero() || at.Before(end) {
-			end = at
-		}
-	}
-	seen := map[string]bool{}
-	for grantID != "" {
-		if seen[grantID] {
-			return end, fmt.Errorf("%w: creator grant cycle", ErrInvalid)
-		}
-		seen[grantID] = true
-		g, err := x.grant(grantID)
-		if err != nil {
-			return end, err
-		}
-		include(g.ExpiresAt)
-		if g.RevokedAt != nil {
-			include(*g.RevokedAt)
-		}
-		for _, sessionID := range []string{g.SessionID, g.IssuerSessionID} {
-			ss, err := x.Session(sessionID)
-			if err != nil {
-				return end, err
-			}
-			include(ss.ExpiresAt)
-			if ss.RevokedAt != nil {
-				include(*ss.RevokedAt)
-			}
-		}
-		grantID = g.ParentGrantID
-	}
-	return end, nil
+	return x.grantPolicy().End(grantID)
 }

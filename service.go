@@ -66,6 +66,7 @@ func validTTL(d time.Duration) bool { return d > 0 }
 type authInfo struct {
 	session   Session
 	principal Principal
+	now       time.Time
 }
 
 func (s *Service) auth(r ReadStore, raw string) (authInfo, error) {
@@ -85,21 +86,24 @@ func (s *Service) auth(r ReadStore, raw string) (authInfo, error) {
 	if e != nil {
 		return a, ErrUnauthenticated
 	}
-	return authInfo{ss, p}, nil
+	return authInfo{session: ss, principal: p, now: now}, nil
 }
 func (s *Service) require(r ReadStore, raw, contextID string, permission Permission) (authInfo, []Grant, error) {
 	a, e := s.auth(r, raw)
 	if e != nil {
 		return a, nil, e
 	}
-	gs, e := r.Grants(a.session.ID, contextID, s.now().UTC())
+	return s.requireAuthenticated(r, a, contextID, permission)
+}
+func (s *Service) requireAuthenticated(r ReadStore, a authInfo, contextID string, permission Permission) (authInfo, []Grant, error) {
+	gs, e := r.Grants(a.session.ID, contextID, a.now)
 	if e != nil {
 		return a, nil, e
 	}
 	for _, g := range gs {
 		if g.Permissions&permission == permission {
 			if permission&(PermissionWrite|PermissionClaim|PermissionCreate|PermissionAdmin) != 0 {
-				if e := s.contextActive(r, contextID); e != nil {
+				if e := s.contextActiveAt(r, contextID, a.now); e != nil {
 					return a, nil, e
 				}
 			}
@@ -125,7 +129,7 @@ func (s *Service) require(r ReadStore, raw, contextID string, permission Permiss
 			return a, nil, ErrForbidden
 		}
 		contextID = c.ParentContextID
-		gs, e := r.Grants(a.session.ID, contextID, s.now().UTC())
+		gs, e := r.Grants(a.session.ID, contextID, a.now)
 		if e != nil {
 			return a, nil, e
 		}
