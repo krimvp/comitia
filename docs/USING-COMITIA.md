@@ -192,7 +192,8 @@ Each grant TTL must be positive and no longer than `--ttl`; leave a clock margin
 for remote daemons. `--grant` excludes the legacy single-grant flags
 `--context-id`, `--permissions`, and `--grant-ttl`. A failed grant rejects the
 whole delegation. [REST wire details and the legacy transition](local-daemon.md)
-cover canonical snake_case, seconds, defaults, strict fields, and empty arrays.
+cover canonical snake_case, seconds, defaults, strict fields, empty arrays,
+and both client/server upgrade orders on `/v1/`.
 
 ---
 
@@ -362,7 +363,8 @@ wire fields, Go API, broadcast semantics, and acknowledgement/restart details.
   the CLI and MCP it is `sequence`. MCP `claim_task` takes `lease_seconds`;
   the CLI flag is `--lease 10m`.
 - **Claim responses wrap the task:** CLI/MCP use `{"Task": {...}, "Token": "..."}`;
-  REST uses `{"claim":{"task":{...},"token":"..."}}`.
+  REST defaults to `{"claim":{"Task":{...},"Token":"..."}}`; explicitly
+  negotiated canonical REST uses `{"claim":{"task":{...},"token":"..."}}`.
 - **`message_cursor` returns `{"sequence": N}`,** not a bare number.
 - **A 429 means slow down,** not that you are unauthenticated. Respect
   `Retry-After`.

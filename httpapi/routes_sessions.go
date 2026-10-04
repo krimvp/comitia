@@ -52,14 +52,14 @@ func (c *Client) CreatePrincipal(ctx context.Context, token, name string) (comit
 }
 func (c *Client) MintSession(ctx context.Context, token, principal string, ttl time.Duration) (comitia.Credential, error) {
 	var out credentialResult
-	err := c.call(ctx, token, "sessions/mint", mintRequest{PrincipalID: principal, TTLSeconds: ptr(ttl.Seconds())}, &out)
+	err := c.call(ctx, token, "sessions/mint", mintRequest{PrincipalID: principal, TTL: ptr(ttl)}, &out)
 	if err = requiredResult(err, out.Credential); err != nil {
 		return comitia.Credential{}, err
 	}
 	return out.Credential.core(), nil
 }
 func (c *Client) DelegateSession(ctx context.Context, token string, input comitia.DelegateInput) (comitia.Principal, comitia.Credential, []comitia.Grant, error) {
-	d := delegateInput{PrincipalName: input.PrincipalName, TTLSeconds: ptr(input.TTL.Seconds()), Grants: mapSlice(input.Grants, func(g comitia.DelegatedGrant) delegatedGrantInput { return delegatedGrantInput(g) })}
+	d := delegateInput{PrincipalName: input.PrincipalName, TTL: ptr(input.TTL), Grants: mapSlice(input.Grants, func(g comitia.DelegatedGrant) delegatedGrantInput { return delegatedGrantInput(g) })}
 	var out delegateResult
 	err := c.call(ctx, token, "sessions/delegate", delegateRequest{&d}, &out)
 	if err = requiredResult(err, out.Principal, out.Credential); err != nil {

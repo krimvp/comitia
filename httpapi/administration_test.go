@@ -180,6 +180,7 @@ func TestCanonicalAndLegacyHTTPInputs(t *testing.T) {
 			r := httptest.NewRequest("POST", "/v1/"+tc.route, strings.NewReader(tc.body))
 			r.Header.Set("Authorization", "Bearer "+owner.Token)
 			r.Header.Set("Content-Type", "application/json")
+			r.Header.Set(wireHeader, canonicalWire)
 			w := httptest.NewRecorder()
 			h.ServeHTTP(w, r)
 			if w.Code != tc.status {
@@ -232,7 +233,7 @@ func TestReferenceHTTPRoundTripAndPermissions(t *testing.T) {
 	}
 }
 
-func TestClientSendsCanonicalWireDTOs(t *testing.T) {
+func TestClientSendsCompatibleV1WireDTOs(t *testing.T) {
 	probe := new(wireProbe)
 	handler := NewHandler(probe)
 	var body string
@@ -253,13 +254,13 @@ func TestClientSendsCanonicalWireDTOs(t *testing.T) {
 	if _, err := client.ClaimTask(context.Background(), "caller", "task", 1250*time.Millisecond); err != nil {
 		t.Fatal(err)
 	}
-	if body != `{"task_id":"task","lease_seconds":1.25}` || probe.lease != 1250*time.Millisecond {
+	if body != `{"task_id":"task","ttl":1250000000}` || probe.lease != 1250*time.Millisecond {
 		t.Fatalf("wire=%s lease=%v", body, probe.lease)
 	}
 	if _, err := client.ClaimTask(context.Background(), "caller", "task", comitia.OpenLease); err != nil {
 		t.Fatal(err)
 	}
-	if body != `{"task_id":"task","open_ended":true}` {
+	if body != `{"task_id":"task","ttl":9223372036854775807}` {
 		t.Fatalf("open lease wire=%s", body)
 	}
 }

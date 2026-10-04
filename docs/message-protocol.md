@@ -20,7 +20,9 @@ Equivalent interfaces are `API.ListParticipants`, HTTP POST
 `/v1/participants/list` (`context_id`, `limit`), and MCP `list_participants`.
 CLI/MCP/HTTP default omitted limits to 100; explicit limits must be 1–1000. Library
 callers supply a limit. CLI/MCP results contain `SessionID`, `PrincipalID`, `Name`, and
-session `ExpiresAt`; REST uses `session_id`, `principal_id`, `name`, and `expires_at`. The list includes only currently active sessions with an
+session `ExpiresAt`; canonical REST responses use `session_id`, `principal_id`, `name`, and `expires_at`.
+Unnegotiated `/v1/` responses retain legacy record names; see the
+[wire compatibility policy](local-daemon.md). The list includes only currently active sessions with an
 effective read grant in that context. Grant expiry/revocation can subsequently
 remove access; discovery is not a reservation. Results are bounded, ordered by
 session ID, and are not a complete directory beyond the requested limit.
@@ -207,7 +209,8 @@ embedded reader. The client also rejects trailing response data.
 
 HTTP replay and wait always include `messages`, using `{"messages":[]}` for an empty
 result (or `page.messages: []` in page mode). The Go HTTP client requires that
-collection member. MCP and CLI return an empty JSON array; the inspector remains
+collection member in negotiated canonical responses, but normalizes missing/null
+empty collections from older unnegotiated Handlers. MCP and CLI return an empty JSON array; the inspector remains
 tolerant of older servers that omitted empty collections.
 
 Append broadcasts an in-process notification **after commit** to every waiter

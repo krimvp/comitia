@@ -89,8 +89,7 @@ func (c *Client) ListTasks(ctx context.Context, token, id string, status comitia
 	return mapSlice(out.Tasks, func(t taskDTO) comitia.Task { return comitia.Task(t) }), err
 }
 func (c *Client) ClaimTask(ctx context.Context, token, id string, lease time.Duration, instances ...comitia.AgentInstance) (comitia.TaskClaim, error) {
-	seconds, open := wireDuration(lease)
-	q := claimRequest{TaskID: id, LeaseSeconds: seconds, OpenEnded: open}
+	q := claimRequest{TaskID: id, TTL: ptr(lease)}
 	switch len(instances) {
 	case 0:
 		q.ClaimInstance = c.InstanceDefaults.Message(nil)
@@ -107,9 +106,8 @@ func (c *Client) ClaimTask(ctx context.Context, token, id string, lease time.Dur
 	return out.Claim.core(), nil
 }
 func (c *Client) RenewClaim(ctx context.Context, token, id, key string, version int64, lease time.Duration) (comitia.TaskClaim, error) {
-	seconds, open := wireDuration(lease)
 	var out claimResult
-	err := c.call(ctx, token, "tasks/renew", renewRequest{TaskID: id, ClaimToken: key, LeaseVersion: ptr(version), LeaseSeconds: seconds, OpenEnded: open}, &out)
+	err := c.call(ctx, token, "tasks/renew", renewRequest{TaskID: id, ClaimToken: key, LeaseVersion: ptr(version), TTL: ptr(lease)}, &out)
 	if err = requiredResult(err, out.Claim); err != nil {
 		return comitia.TaskClaim{}, err
 	}

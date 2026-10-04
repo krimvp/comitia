@@ -52,7 +52,10 @@ func TestEveryHTTPEmptyCollectionHasRequiredArray(t *testing.T) {
 
 func TestHTTPClientRejectsMissingCollectionMembers(t *testing.T) {
 	for _, body := range []string{`{}`, `{"tasks":null}`} {
-		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { w.Write([]byte(body)) }))
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			w.Header().Set(wireHeader, canonicalWire)
+			w.Write([]byte(body))
+		}))
 		client, err := NewClientWithInstanceDefaults(server.URL, server.Client(), comitia.InstanceDefaults{})
 		if err != nil {
 			t.Fatal(err)

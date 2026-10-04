@@ -109,6 +109,11 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		writeOperationError(w, err, 0, operation, requestID)
 		return
 	}
+	if r.Header.Get(wireHeader) == canonicalWire {
+		w.Header().Set(wireHeader, canonicalWire)
+	} else {
+		out = legacyValue(reflect.ValueOf(out))
+	}
 	w.WriteHeader(http.StatusOK)
 	_ = json.NewEncoder(w).Encode(out)
 }
@@ -198,7 +203,7 @@ func NewClientWithInstanceDefaults(baseURL string, hc *http.Client, defaults com
 	return &Client{base: u, http: hc, InstanceDefaults: defaults}, nil
 }
 func (c *Client) call(ctx context.Context, token, path string, in, out any) error {
-	b, err := json.Marshal(in)
+	b, err := json.Marshal(legacyValue(reflect.ValueOf(in)))
 	if err != nil {
 		return err
 	}
@@ -213,6 +218,7 @@ func (c *Client) call(ctx context.Context, token, path string, in, out any) erro
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+token)
+	req.Header.Set(wireHeader, canonicalWire)
 	resp, err := c.http.Do(req)
 	if err != nil {
 		return err
@@ -246,6 +252,9 @@ func (c *Client) call(ctx context.Context, token, path string, in, out any) erro
 	}
 	if err = json.Unmarshal(raw, out); err != nil {
 		return fmt.Errorf("decode response: %w", err)
+	}
+	if resp.Header.Get(wireHeader) != canonicalWire {
+		legacyCollections(reflect.ValueOf(out).Elem())
 	}
 	return validateCollections(out)
 }

@@ -17,6 +17,7 @@ func TestEndpointRejectsMisplacedFields(t *testing.T) {
 		r := httptest.NewRequest("POST", "/v1/workspaces/create", strings.NewReader(body))
 		r.Header.Set("Authorization", "Bearer admin")
 		r.Header.Set("Content-Type", "application/json")
+		r.Header.Set(wireHeader, canonicalWire)
 		w := httptest.NewRecorder()
 		h.ServeHTTP(w, r)
 		if w.Code != 400 {
@@ -27,6 +28,7 @@ func TestEndpointRejectsMisplacedFields(t *testing.T) {
 	r := httptest.NewRequest("POST", "/v1/unknown", strings.NewReader(`{"task_id":"x"} trailing`))
 	r.Header.Set("Authorization", "Bearer admin")
 	r.Header.Set("Content-Type", "application/json")
+	r.Header.Set(wireHeader, canonicalWire)
 	w := httptest.NewRecorder()
 	h.ServeHTTP(w, r)
 	if w.Code != 404 {
@@ -74,6 +76,7 @@ func TestHTTPWireDefaultsSecondsAndConflicts(t *testing.T) {
 			r := httptest.NewRequest("POST", "/v1/"+tc.path, strings.NewReader(tc.body))
 			r.Header.Set("Authorization", "Bearer caller")
 			r.Header.Set("Content-Type", "application/json")
+			r.Header.Set(wireHeader, canonicalWire)
 			w := httptest.NewRecorder()
 			h.ServeHTTP(w, r)
 			if w.Code != tc.status || p.limit != tc.limit || p.lease != tc.lease {
@@ -104,6 +107,7 @@ func TestListRoutesRejectUnrelatedUnionFields(t *testing.T) {
 		}
 		r.Header.Set("Authorization", "Bearer caller")
 		r.Header.Set("Content-Type", "application/json")
+		r.Header.Set(wireHeader, canonicalWire)
 		w := httptest.NewRecorder()
 		h.ServeHTTP(w, r)
 		if w.Code != 400 {
@@ -128,6 +132,7 @@ func TestHTTPTaskVersionPresence(t *testing.T) {
 			r := httptest.NewRequest("POST", "/v1/"+route, strings.NewReader(`{"task_id":"task","claim_token":"claim"`+version+`}`))
 			r.Header.Set("Authorization", "Bearer caller")
 			r.Header.Set("Content-Type", "application/json")
+			r.Header.Set(wireHeader, canonicalWire)
 			w := httptest.NewRecorder()
 			h.ServeHTTP(w, r)
 			want := 400

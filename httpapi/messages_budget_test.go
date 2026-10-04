@@ -177,6 +177,7 @@ func TestCanonicalMessageBytesBoundBothReadShapes(t *testing.T) {
 			}
 			r := httptest.NewRequest("POST", "/v1/"+path, strings.NewReader(body))
 			r.Header.Set("Content-Type", "application/json")
+			r.Header.Set(wireHeader, canonicalWire)
 			r.Header.Set("Authorization", "Bearer "+owner.Token)
 			w := httptest.NewRecorder()
 			NewHandler(svc).ServeHTTP(w, r)

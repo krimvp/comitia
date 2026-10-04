@@ -186,13 +186,6 @@ func durationSeconds(seconds *float64, legacy *time.Duration, fallback time.Dura
 	return d, nil
 }
 
-func wireDuration(d time.Duration) (*float64, bool) {
-	if d == comitia.OpenLease {
-		return nil, true
-	}
-	return ptr(d.Seconds()), false
-}
-
 func requiredResult(err error, values ...any) error {
 	if err != nil {
 		return err
