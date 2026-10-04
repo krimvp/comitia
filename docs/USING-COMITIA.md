@@ -328,9 +328,10 @@ wire fields, Go API, broadcast semantics, and acknowledgement/restart details.
   for concurrent work. Service/HTTP context cancellation is supported;
   concurrent stdio calls and request cancellation are follow-up work. The
   default remains 30 seconds on all interfaces.
-- **Filtered polling cost.** Wait rechecks the same tail every 200 ms until a
-  match arrives. Long tails with no matches and many concurrent waiters increase
-  CPU use; resume from recent ack cursors where possible.
+- **Filtered polling cost.** SQLite waits scan the existing tail once, then
+  check only newly appended rows every 200 ms or after a notification. Long
+  tails still increase the initial scan cost; resume from recent ack cursors
+  where possible. Scan tracking is private to each wait and does not ack rows.
 - **`ack` is inclusive** of the sequence you pass.
 - **HTTP vs CLI field names differ.** Over HTTP the REST ack field is `after`; in
   the CLI and MCP it is `sequence`. MCP `claim_task` takes `lease_seconds`;

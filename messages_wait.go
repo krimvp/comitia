@@ -81,6 +81,35 @@ func (n *messageNotifications) notify(cid string) {
 	}
 }
 
+type messageScanStore interface {
+	messagesScanned(string, string, int64, int, MessageFilters) ([]Message, int64, error)
+}
+
+func (s *Service) scanWaitMessages(ctx context.Context, raw, cid string, after int64, filters []MessageFilters) ([]Message, int64, error) {
+	f, err := messageFilters(filters)
+	if err != nil {
+		return nil, after, err
+	}
+	if after < 0 {
+		return nil, after, Invalidf("after must be nonnegative")
+	}
+	var out []Message
+	scanned := after
+	err = s.store.View(ctx, func(r ReadStore) error {
+		a, _, e := s.require(r, raw, cid, PermissionRead)
+		if e != nil {
+			return e
+		}
+		if scan, ok := r.(messageScanStore); ok {
+			out, scanned, e = scan.messagesScanned(cid, a.session.ID, after, 100, f)
+		} else {
+			out, e = r.Messages(cid, a.session.ID, after, 100, f)
+		}
+		return e
+	})
+	return out, scanned, err
+}
+
 // WaitMessages returns up to 100 matches, or an empty slice on timeout. It
 // subscribes before reading to avoid losing an append between read and wait.
 // Each read rechecks authorization; no transaction remains open while waiting.
@@ -102,14 +131,21 @@ func (s *Service) WaitMessages(ctx context.Context, raw, cid string, after int64
 			return nil, err
 		}
 		changed := s.messageNotifications.channel(v)
-		messages, err := s.ReplayMessages(ctx, raw, cid, after, 100, filters...)
+		messages, scanned, err := s.scanWaitMessages(ctx, raw, cid, after, filters)
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
 		if err != nil || len(messages) != 0 {
 			return messages, err
 		}
+		after = scanned
 		select {
 		case <-ctx.Done():
 			return nil, ctx.Err()
 		case <-timer.C:
+			if err := ctx.Err(); err != nil {
+				return nil, err
+			}
 			return []Message{}, nil
 		case <-changed:
 		case <-poll.C:
