@@ -3,6 +3,7 @@ package comitia
 import (
 	"context"
 	"crypto/subtle"
+	"math"
 	"time"
 )
 
@@ -22,6 +23,7 @@ type Task struct {
 	LeaseExpiresAt             *time.Time
 	LeaseTokenHash             string `json:"-"`
 	CreatedAt, UpdatedAt       time.Time
+	LeaseOwnerInstance         *AgentInstance `json:"lease_owner_instance,omitempty"`
 }
 type TaskClaim struct {
 	Task  Task
@@ -29,13 +31,18 @@ type TaskClaim struct {
 }
 type TaskInput struct{ Title, Body string }
 
+// OpenLease asks for a lease that lasts until the task is completed or released.
+// Every lease is capped at the claiming session's expiry, so it is still bounded.
+const OpenLease = time.Duration(math.MaxInt64)
+
 type TaskAPI interface {
 	CreateTask(context.Context, string, string, TaskInput) (Task, error)
 	GetTask(context.Context, string, string) (Task, error)
 	ListTasks(context.Context, string, string, TaskStatus, int) ([]Task, error)
-	ClaimTask(context.Context, string, string, time.Duration) (TaskClaim, error)
+	ClaimTask(context.Context, string, string, time.Duration, ...AgentInstance) (TaskClaim, error)
 	RenewClaim(context.Context, string, string, string, int64, time.Duration) (TaskClaim, error)
 	CompleteTask(context.Context, string, string, string, int64) (Task, error)
+	ReleaseTask(context.Context, string, string, string, int64) (Task, error)
 }
 type TaskReadStore interface {
 	Task(string) (Task, error)
@@ -97,10 +104,20 @@ func (s *Service) ListTasks(ctx context.Context, raw, cid string, status TaskSta
 	})
 	return out, e
 }
-func (s *Service) ClaimTask(ctx context.Context, raw, taskID string, lease time.Duration) (TaskClaim, error) {
+
+// The optional instance records which process of a shared session holds the
+// claim. It is self-reported routing metadata and confers no permissions.
+func (s *Service) ClaimTask(ctx context.Context, raw, taskID string, lease time.Duration, instance ...AgentInstance) (TaskClaim, error) {
 	var c TaskClaim
-	if !validTTL(lease) {
+	if !validTTL(lease) || len(instance) > 1 {
 		return c, ErrInvalid
+	}
+	var owner *AgentInstance
+	if len(instance) == 1 {
+		var e error
+		if owner, e = normalizeAgentInstance(&instance[0]); e != nil {
+			return c, e
+		}
 	}
 	e := s.store.Update(ctx, func(w WriteStore) error {
 		t, e := w.Task(taskID)
@@ -120,11 +137,9 @@ func (s *Service) ClaimTask(ctx context.Context, raw, taskID string, lease time.
 		}
 		t.Status = TaskLeased
 		t.LeaseOwnerSessionID = a.session.ID
+		t.LeaseOwnerInstance = owner
 		t.LeaseVersion++
-		exp := now.Add(lease)
-		if exp.After(a.session.ExpiresAt) {
-			exp = a.session.ExpiresAt
-		}
+		exp := leaseExpiry(now, lease, a.session)
 		t.LeaseExpiresAt = &exp
 		t.UpdatedAt = now
 		c = TaskClaim{Task: t, Token: token()}
@@ -165,10 +180,7 @@ func (s *Service) changeLease(ctx context.Context, raw, taskID, claimToken strin
 			t.LeaseExpiresAt = nil
 			t.LeaseTokenHash = ""
 		} else {
-			exp := now.Add(lease)
-			if exp.After(a.session.ExpiresAt) {
-				exp = a.session.ExpiresAt
-			}
+			exp := leaseExpiry(now, lease, a.session)
 			t.LeaseExpiresAt = &exp
 			t.LeaseVersion++
 			c.Token = token()
@@ -180,4 +192,53 @@ func (s *Service) changeLease(ctx context.Context, raw, taskID, claimToken strin
 		return w.PutTask(t)
 	})
 	return c, e
+}
+
+// Leases never outlive the session that holds them, which also bounds OpenLease.
+func leaseExpiry(now time.Time, lease time.Duration, holder Session) time.Time {
+	if lease >= holder.ExpiresAt.Sub(now) {
+		return holder.ExpiresAt
+	}
+	return now.Add(lease)
+}
+
+// ReleaseTask returns a leased task to pending. The holder releases with its
+// claim token; a context admin may release without it, e.g. to free a task whose
+// worker went silent, but must name the current lease version. Releasing an
+// expired lease is allowed and just tidies the task.
+func (s *Service) ReleaseTask(ctx context.Context, raw, taskID, claimToken string, version int64) (Task, error) {
+	var t Task
+	e := s.store.Update(ctx, func(w WriteStore) error {
+		found, e := w.Task(taskID)
+		if e != nil {
+			return e
+		}
+		a, _, e := s.require(w, raw, found.ContextID, PermissionClaim)
+		holder := e == nil && found.LeaseOwnerSessionID == a.session.ID && claimToken != "" && subtle.ConstantTimeCompare([]byte(found.LeaseTokenHash), []byte(tokenHash(claimToken))) == 1
+		if !holder {
+			if _, _, e = s.require(w, raw, found.ContextID, PermissionAdmin); e != nil {
+				return e
+			}
+		}
+		now := s.now().UTC()
+		if found.Status != TaskLeased {
+			return ErrConflict
+		}
+		if found.LeaseVersion != version {
+			return ErrStaleClaim
+		}
+		found.Status = TaskPending
+		found.LeaseOwnerSessionID = ""
+		found.LeaseOwnerInstance = nil
+		found.LeaseExpiresAt = nil
+		found.LeaseTokenHash = ""
+		found.LeaseVersion++
+		found.UpdatedAt = now
+		t = found
+		return w.PutTask(found)
+	})
+	if e != nil {
+		return Task{}, e
+	}
+	return t, nil
 }

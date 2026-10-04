@@ -151,9 +151,10 @@ func builtinMessageSchemas() map[string]PayloadValidator {
 				Status       string   `json:"status"`
 				Checks       []string `json:"checks"`
 				EvidenceRefs []string `json:"evidence_refs,omitempty"`
+				ArtifactRefs []string `json:"artifact_refs,omitempty"`
 				Reason       string   `json:"reason,omitempty"`
 			}
-			if strictPayload(raw, &p) != nil || !nonempty(p.Checks) {
+			if strictPayload(raw, &p) != nil || !nonempty(p.Checks) || p.ArtifactRefs != nil && !nonempty(p.ArtifactRefs) {
 				return ErrInvalid
 			}
 			switch p.Status {
@@ -173,6 +174,7 @@ func builtinMessageSchemas() map[string]PayloadValidator {
 		EvaluationResultSchema: validEvaluationResult,
 		ExecutionEventSchema:   validExecutionEvent,
 		TaskStatusSchema:       validTaskStatus,
+		ApprovalSchema:         validApproval,
 	}
 }
 
@@ -214,9 +216,14 @@ func (s *Service) normalizeEnvelope(in *MessageEnvelope, body string) (*MessageE
 		return nil, ErrInvalid
 	}
 	switch out.Schema {
-	case "comitia.assignment.v1", "comitia.review-request.v1", "comitia.blocker.v1", "comitia.work-submitted.v1", "comitia.verification-result.v1", EvaluationResultSchema, ExecutionEventSchema:
+	case "comitia.assignment.v1", "comitia.review-request.v1", "comitia.blocker.v1", EvaluationResultSchema, ExecutionEventSchema:
 		if out.TaskID == "" {
 			return nil, fmt.Errorf("%w: task_id required", ErrInvalid)
+		}
+	case "comitia.verification-result.v1":
+		// Exact artifact refs identify the work as well as a task does.
+		if out.TaskID == "" && payload["artifact_refs"] == nil {
+			return nil, fmt.Errorf("%w: task_id or artifact_refs required", ErrInvalid)
 		}
 	}
 	if out.Schema == TaskStatusSchema && out.TaskID == "" {

@@ -176,10 +176,15 @@ direct client would need an OAuth 2.1 authorization server (option C in
 
 - **Envelope schemas are strictly validated** and unknown fields are rejected.
   `review-request` needs `artifact_refs` **and** `checks`; `assignment` needs
-  `instructions` and `acceptance_criteria`; the five task-bearing schemas require
-  `task_id`. There is no `review-response` schema — use `work-submitted`.
+  `instructions` and `acceptance_criteria`; `assignment`, `review-request` and
+  `blocker` require `task_id`, while `work-submitted` and `verification-result`
+  may name `artifact_refs` instead. There is no `review-response` schema — use
+  `work-submitted`, or `approval` for a reviewer's verdict.
 - **CLI `send` uses `--envelope-file`**, not `--envelope`.
-- **CLI `task-claim` uses `--lease 10m`** (a Go duration), not seconds.
+- **CLI `task-claim` uses `--lease 10m`** (a Go duration), not seconds. Add
+  `--agent-instance ID` to record which process holds the claim, and
+  `--open-ended` for a lease that lasts until `task-release`/`task-complete`
+  (capped at the session's expiry).
 - **Claim response wraps the task:** `{"Task": {...}, "Token": "..."}`.
 - **HTTP ack field is `after`**; the CLI/MCP name is `sequence`. `message_cursor`
   returns `{"sequence": N}`, not a bare number.

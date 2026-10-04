@@ -52,7 +52,8 @@ type request struct {
 	Message       *comitia.MessageInput       `json:"message,omitempty"`
 	Task          *comitia.TaskInput          `json:"task,omitempty"`
 
-	ChildContext *comitia.CreateChildContextInput `json:"child_context,omitempty"`
+	ChildContext  *comitia.CreateChildContextInput `json:"child_context,omitempty"`
+	ClaimInstance *comitia.AgentInstance           `json:"claim_instance,omitempty"`
 }
 
 type response struct {

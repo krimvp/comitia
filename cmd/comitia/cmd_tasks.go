@@ -69,10 +69,17 @@ func runTasks(ctx context.Context, cfg config, api comitia.API, out *json.Encode
 		fs := newFlags(cmd)
 		tid := fs.String("task-id", "", "task ID")
 		lease := fs.Duration("lease", 5*time.Minute, "lease duration")
+		openEnded := fs.Bool("open-ended", false, "hold the lease until completed or released (capped at session expiry)")
+		instanceID := fs.String("agent-instance", "", "self-reported instance ID holding the claim")
+		instanceLabel := fs.String("agent-instance-label", "", "optional self-reported instance label")
 		if err := fs.Parse(args); err != nil {
 			return err
 		}
-		v, e := api.ClaimTask(ctx, needCredential(cfg), *tid, *lease)
+		var instance []comitia.AgentInstance
+		if *instanceID != "" || *instanceLabel != "" {
+			instance = append(instance, comitia.AgentInstance{ID: *instanceID, Label: *instanceLabel})
+		}
+		v, e := api.ClaimTask(ctx, needCredential(cfg), *tid, openLease(*lease, *openEnded), instance...)
 		if e != nil {
 			return e
 		}
@@ -83,10 +90,11 @@ func runTasks(ctx context.Context, cfg config, api comitia.API, out *json.Encode
 		token := fs.String("claim-token", "", "claim token")
 		ver := fs.Int64("lease-version", 0, "lease version")
 		lease := fs.Duration("lease", 5*time.Minute, "lease duration")
+		openEnded := fs.Bool("open-ended", false, "hold the lease until completed or released (capped at session expiry)")
 		if err := fs.Parse(args); err != nil {
 			return err
 		}
-		v, e := api.RenewClaim(ctx, needCredential(cfg), *tid, *token, *ver, *lease)
+		v, e := api.RenewClaim(ctx, needCredential(cfg), *tid, *token, *ver, openLease(*lease, *openEnded))
 		if e != nil {
 			return e
 		}
@@ -100,6 +108,22 @@ func runTasks(ctx context.Context, cfg config, api comitia.API, out *json.Encode
 			return err
 		}
 		v, e := api.CompleteTask(ctx, needCredential(cfg), *tid, *token, *ver)
+		if e != nil {
+			return e
+		}
+		return out.Encode(v)
+	case "task-release":
+		fs := newFlags(cmd)
+		tid := fs.String("task-id", "", "task ID")
+		token := fs.String("claim-token", "", "claim token (optional for a context admin)")
+		ver := fs.Int64("lease-version", 0, "lease version")
+		if err := fs.Parse(args); err != nil {
+			return err
+		}
+		if *tid == "" {
+			return errors.New("task-id is required")
+		}
+		v, e := api.ReleaseTask(ctx, needCredential(cfg), *tid, *token, *ver)
 		if e != nil {
 			return e
 		}
@@ -122,4 +146,11 @@ func parseTaskStatus(s string) (comitia.TaskStatus, error) {
 	default:
 		return "", fmt.Errorf("invalid task status %q", s)
 	}
+}
+
+func openLease(lease time.Duration, open bool) time.Duration {
+	if open {
+		return comitia.OpenLease
+	}
+	return lease
 }
