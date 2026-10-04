@@ -22,8 +22,10 @@ func (h *handler) routeMessages(ctx context.Context, token, route string, q requ
 	case "messages/replay":
 		out.Messages, err = h.api.ReplayMessages(ctx, token, q.ContextID, q.After, q.Limit, q.messageFilters())
 	case "messages/wait":
-		var timeout time.Duration
-		timeout, err = comitia.MessageWaitTimeout(q.TimeoutSeconds)
+		timeout := 30 * time.Second
+		if q.TimeoutSeconds != nil {
+			timeout, err = comitia.MessageWaitTimeout(*q.TimeoutSeconds)
+		}
 		if err == nil {
 			out.Messages, err = h.api.WaitMessages(ctx, token, q.ContextID, q.After, timeout, q.messageFilters())
 		}
@@ -108,7 +110,8 @@ func (c *Client) WaitMessages(ctx context.Context, token, cid string, after int6
 	if err != nil {
 		return nil, err
 	}
-	q.TimeoutSeconds = timeout.Seconds()
+	seconds := timeout.Seconds()
+	q.TimeoutSeconds = &seconds
 	var out response
 	err = c.call(ctx, token, "messages/wait", q, &out)
 	if err == nil && out.Messages == nil {

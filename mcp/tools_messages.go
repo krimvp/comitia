@@ -20,7 +20,7 @@ func messageTools() []map[string]any {
 }
 
 func messageReadProperties(wait bool) map[string]any {
-	p := map[string]any{"context_id": str("Context ID"), "after": integer("Exclusive sequence cursor"), "for_instance": str("Recipient instance or broadcast with no recipients"), "from_instance": str("Self-reported sender instance"), "task_id": str("Envelope task ID"), "schema": str("Exact envelope schema ID")}
+	p := map[string]any{"context_id": str("Context ID"), "after": integer("Exclusive sequence cursor"), "for_instance": str("Recipient instance, caller session with no instance recipients, or broadcast"), "from_instance": str("Self-reported sender instance"), "task_id": str("Envelope task ID"), "schema": str("Exact envelope schema ID")}
 	if wait {
 		p["timeout_seconds"] = map[string]any{"type": "number", "description": "Timeout seconds (default 30, capped at 60; zero reads immediately)"}
 	} else {
@@ -65,13 +65,12 @@ func (s *Server) callMessages(ctx context.Context, name string, raw json.RawMess
 			return nil, comitia.ErrInvalid
 		}
 		return s.API.ListParticipants(ctx, s.Credential, a.ContextID, limit)
-	case "replay_messages", "wait_messages":
+	case "replay_messages":
 		var a struct {
 			comitia.MessageFilters
-			ContextID      string   `json:"context_id"`
-			After          int64    `json:"after"`
-			Limit          int      `json:"limit"`
-			TimeoutSeconds *float64 `json:"timeout_seconds"`
+			ContextID string `json:"context_id"`
+			After     int64  `json:"after"`
+			Limit     int    `json:"limit"`
 		}
 		if err := decode(raw, &a); err != nil {
 			return nil, err
@@ -82,18 +81,29 @@ func (s *Server) callMessages(ctx context.Context, name string, raw json.RawMess
 		if a.Limit == 0 {
 			a.Limit = 100
 		}
-		if name == "wait_messages" {
-			timeout := 30 * time.Second
-			if a.TimeoutSeconds != nil {
-				var err error
-				timeout, err = comitia.MessageWaitTimeout(*a.TimeoutSeconds)
-				if err != nil {
-					return nil, err
-				}
-			}
-			return s.API.WaitMessages(ctx, s.Credential, a.ContextID, a.After, timeout, a.MessageFilters)
-		}
 		return s.API.ReplayMessages(ctx, s.Credential, a.ContextID, a.After, a.Limit, a.MessageFilters)
+	case "wait_messages":
+		var a struct {
+			comitia.MessageFilters
+			ContextID      string   `json:"context_id"`
+			After          int64    `json:"after"`
+			TimeoutSeconds *float64 `json:"timeout_seconds"`
+		}
+		if err := decode(raw, &a); err != nil {
+			return nil, err
+		}
+		if err := required(a.ContextID); err != nil {
+			return nil, err
+		}
+		timeout := 30 * time.Second
+		if a.TimeoutSeconds != nil {
+			var err error
+			timeout, err = comitia.MessageWaitTimeout(*a.TimeoutSeconds)
+			if err != nil {
+				return nil, err
+			}
+		}
+		return s.API.WaitMessages(ctx, s.Credential, a.ContextID, a.After, timeout, a.MessageFilters)
 	case "ack_messages":
 		var a struct {
 			ContextID     string  `json:"context_id"`

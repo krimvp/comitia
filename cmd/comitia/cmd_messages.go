@@ -60,7 +60,11 @@ func runMessages(ctx context.Context, cfg config, api comitia.API, out *json.Enc
 		after := fs.Int64("after", 0, "exclusive sequence cursor")
 		limit := fs.Int("limit", 100, "maximum matching messages for replay")
 		timeoutSeconds := fs.Float64("timeout-seconds", 30, "wait timeout seconds (capped at 60)")
-		instance := fs.String("agent-instance", "", "self-reported instance ID for watch cursor")
+		defaultID := ""
+		if cmd == "watch" {
+			defaultID, _ = cfg.instances.ID()
+		}
+		instance := fs.String("agent-instance", defaultID, "self-reported instance ID for watch cursor (defaults to COMITIA_AGENT_INSTANCE)")
 		noAck := fs.Bool("no-ack", false, "do not acknowledge printed watch messages")
 		filters := messageFilterFlags(fs)
 		if err := fs.Parse(args); err != nil {
@@ -130,7 +134,7 @@ func flagProvided(fs *flag.FlagSet, name string) bool {
 
 func messageFilterFlags(fs *flag.FlagSet) *comitia.MessageFilters {
 	f := new(comitia.MessageFilters)
-	fs.StringVar(&f.ForInstance, "for-instance", "", "recipient instance or broadcast with no recipients")
+	fs.StringVar(&f.ForInstance, "for-instance", "", "recipient instance, caller session with no instance recipients, or broadcast")
 	fs.StringVar(&f.FromInstance, "from-instance", "", "self-reported sender instance")
 	fs.StringVar(&f.TaskID, "task-id", "", "envelope task ID")
 	fs.StringVar(&f.Schema, "schema", "", "exact envelope schema ID")

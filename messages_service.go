@@ -65,11 +65,11 @@ func (s *Service) ReplayMessages(ctx context.Context, raw, cid string, after int
 		return nil, ErrInvalid
 	}
 	e := s.store.View(ctx, func(r ReadStore) error {
-		if _, _, e := s.require(r, raw, cid, PermissionRead); e != nil {
+		a, _, e := s.require(r, raw, cid, PermissionRead)
+		if e != nil {
 			return e
 		}
-		var e error
-		out, e = r.Messages(cid, after, limit, f)
+		out, e = r.Messages(cid, a.session.ID, after, limit, f)
 		return e
 	})
 	return out, e

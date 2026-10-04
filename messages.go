@@ -69,7 +69,7 @@ type MessageReadStore interface {
 	Participants(string, time.Time, int) ([]Participant, error)
 	MessageByDedupe(string, string, string, ...string) (Message, error)
 	AckCursor(string, string, string) (int64, error)
-	Messages(string, int64, int, ...MessageFilters) ([]Message, error)
+	Messages(string, string, int64, int, ...MessageFilters) ([]Message, error)
 }
 type MessageWriteStore interface {
 	PutMessage(Message) (Message, error)

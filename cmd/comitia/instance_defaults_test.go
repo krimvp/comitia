@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"testing"
+	"time"
 
 	"github.com/krimvp/comitia"
 	"github.com/krimvp/comitia/httpapi"
@@ -136,7 +137,7 @@ func TestMCPCommandUsesInstanceEnvironment(t *testing.T) {
 
 func TestInvalidInstanceEnvironmentFailsBeforeOpeningBackend(t *testing.T) {
 	for _, tc := range []struct{ id, label string }{{"bad id", ""}, {"", "orphan"}, {"ok", "bad\nlabel"}} {
-		for _, cmd := range []string{"send", "cursor", "ack", "replay", "wait", "watch", "mcp", "mcp-http", "task-claim"} {
+		for _, cmd := range []string{"send", "cursor", "ack", "watch", "mcp", "mcp-http", "task-claim"} {
 			t.Setenv("COMITIA_AGENT_INSTANCE", tc.id)
 			t.Setenv("COMITIA_AGENT_INSTANCE_LABEL", tc.label)
 			db := filepath.Join(t.TempDir(), "must-not-exist.db")
@@ -178,5 +179,42 @@ func TestAdministrativeCommandsIgnoreInvalidInstanceEnvironment(t *testing.T) {
 	// An invalid listen address reaches the serve path without starting a daemon.
 	if err := commandErr(t, "--db", db, "serve", "--listen", "invalid-address"); err == nil || errors.Is(err, comitia.ErrInvalid) {
 		t.Fatalf("serve rejected inherited instance configuration: %v", err)
+	}
+}
+
+func TestWatchInstanceDefault(t *testing.T) {
+	for _, remote := range []bool{false, true} {
+		t.Run(strconv.FormatBool(remote), func(t *testing.T) {
+			base, cid := instanceCommandSetup(t, remote)
+			command(t, append(base, "send", "--context-id", cid, "--dedupe-key", "m", "--body", "ready")...)
+			t.Setenv("COMITIA_AGENT_INSTANCE", "worker")
+			watch := func(extra ...string) {
+				t.Helper()
+				old := os.Stdout
+				devNull, err := os.OpenFile(os.DevNull, os.O_WRONLY, 0)
+				if err != nil {
+					t.Fatal(err)
+				}
+				defer func() { os.Stdout = old; _ = devNull.Close() }()
+				os.Stdout = devNull
+				ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+				defer cancel()
+				if err := run(ctx, append(append(base, "watch", "--context-id", cid, "--timeout-seconds", "0.1"), extra...)); err != nil {
+					t.Fatal(err)
+				}
+			}
+			cursor := append(base, "cursor", "--context-id", cid)
+			watch()
+			if got := command(t, cursor...); got["sequence"] != float64(1) {
+				t.Fatalf("default watch cursor: %v", got)
+			}
+			if got := command(t, append(cursor, "--agent-instance", "")...); got["sequence"] != float64(0) {
+				t.Fatalf("default watch moved legacy cursor: %v", got)
+			}
+			watch("--agent-instance", "")
+			if got := command(t, append(cursor, "--agent-instance", "")...); got["sequence"] != float64(1) {
+				t.Fatalf("explicit legacy watch cursor: %v", got)
+			}
+		})
 	}
 }

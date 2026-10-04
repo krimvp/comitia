@@ -57,7 +57,7 @@ type request struct {
 	ForInstance    string                           `json:"for_instance,omitempty"`
 	FromInstance   string                           `json:"from_instance,omitempty"`
 	Schema         string                           `json:"schema,omitempty"`
-	TimeoutSeconds float64                          `json:"timeout_seconds,omitempty"`
+	TimeoutSeconds *float64                         `json:"timeout_seconds,omitempty"`
 }
 
 type response struct {

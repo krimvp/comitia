@@ -86,7 +86,7 @@ func (x *sqlStore) PutMessage(m Message) (Message, error) {
 	}
 	return m, e
 }
-func (x *sqlStore) Messages(cid string, after int64, limit int, filters ...MessageFilters) ([]Message, error) {
+func (x *sqlStore) Messages(cid, callerSessionID string, after int64, limit int, filters ...MessageFilters) ([]Message, error) {
 	f, err := messageFilters(filters)
 	if err != nil {
 		return nil, err
@@ -94,8 +94,8 @@ func (x *sqlStore) Messages(cid string, after int64, limit int, filters ...Messa
 	query := messageSelect + " WHERE m.context_id=? AND m.seq>?"
 	args := []any{cid, after}
 	if f.ForInstance != "" {
-		query += ` AND ((COALESCE(json_array_length(e.envelope,'$.recipient_instances'),0)=0 AND COALESCE(json_array_length(e.envelope,'$.recipient_session_ids'),0)=0) OR EXISTS (SELECT 1 FROM json_each(e.envelope,'$.recipient_instances') WHERE value=?))`
-		args = append(args, f.ForInstance)
+		query += ` AND ((COALESCE(json_array_length(e.envelope,'$.recipient_instances'),0)=0 AND (COALESCE(json_array_length(e.envelope,'$.recipient_session_ids'),0)=0 OR EXISTS (SELECT 1 FROM json_each(e.envelope,'$.recipient_session_ids') WHERE value=?))) OR EXISTS (SELECT 1 FROM json_each(e.envelope,'$.recipient_instances') WHERE value=?))`
+		args = append(args, callerSessionID, f.ForInstance)
 	}
 	if f.FromInstance != "" {
 		query += " AND i.instance_id=?"

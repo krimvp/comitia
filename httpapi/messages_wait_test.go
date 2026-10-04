@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -116,5 +117,45 @@ func TestHTTPFilteredReplayAndWait(t *testing.T) {
 	}
 	if _, err := client.ReplayMessages(ctx, owner.Token, c.ID, 0, 10, filter, filter); !errors.Is(err, comitia.ErrInvalid) {
 		t.Fatalf("HTTP filter arity: %v", err)
+	}
+}
+
+type httpWaitTimeoutProbe struct {
+	comitia.API
+	timeout time.Duration
+	calls   int
+}
+
+func (p *httpWaitTimeoutProbe) WaitMessages(_ context.Context, _, _ string, _ int64, timeout time.Duration, _ ...comitia.MessageFilters) ([]comitia.Message, error) {
+	p.timeout = timeout
+	p.calls++
+	return []comitia.Message{}, nil
+}
+func TestHTTPWaitTimeoutDefaultAndExplicitZero(t *testing.T) {
+	probe := new(httpWaitTimeoutProbe)
+	handler := NewHandler(probe)
+	for _, tc := range []struct {
+		name, timeoutField string
+		want               time.Duration
+	}{{"omitted", "", 30 * time.Second}, {"null", `,"timeout_seconds":null`, 30 * time.Second}, {"zero", `,"timeout_seconds":0`, 0}, {"fraction", `,"timeout_seconds":0.01`, 10 * time.Millisecond}, {"capped", `,"timeout_seconds":1000`, comitia.MaxMessageWait}} {
+		t.Run(tc.name, func(t *testing.T) {
+			request := httptest.NewRequest("POST", "/v1/messages/wait", strings.NewReader(`{"context_id":"context"`+tc.timeoutField+`}`))
+			request.Header.Set("Authorization", "Bearer caller")
+			request.Header.Set("Content-Type", "application/json")
+			response := httptest.NewRecorder()
+			handler.ServeHTTP(response, request)
+			if response.Code != 200 || probe.timeout != tc.want {
+				t.Fatalf("timeout %v, want %v; status %d: %s", probe.timeout, tc.want, response.Code, response.Body.String())
+			}
+		})
+	}
+	server := httptest.NewServer(handler)
+	defer server.Close()
+	client, err := NewClient(server.URL, server.Client())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := client.WaitMessages(context.Background(), "caller", "context", 0, 0); err != nil || probe.timeout != 0 {
+		t.Fatalf("client omitted explicit zero: %v %v", probe.timeout, err)
 	}
 }

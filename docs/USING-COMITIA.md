@@ -74,14 +74,14 @@ clients). Set the variables in the environment passed to the Comitia process.
 IDs must be 1–64 ASCII letters, digits, `.`, `_`, or `-`. Labels may contain up
 to 128 UTF-8 bytes, with no control characters. Invalid defaults, including a
 label without an ID, fail startup for commands that use instances (send,
-cursor, ack, replay, wait/watch, MCP, and task claims), even if a call supplies
+cursor, ack, watch, MCP, and task claims), even if a call supplies
 an explicit instance. Serve, bootstrap, and administrative commands ignore
 these variables. Empty variables behave as unset. Instances are self-reported routing metadata
 and confer no permissions.
 
 Explicit arguments win. An explicit send object replaces both the default ID
 and label; `--agent-instance` does not inherit the default label. An explicit
-empty cursor/ack ID selects the legacy session cursor. With a default set,
+empty cursor/ack/watch ID selects the legacy session cursor. With a default set,
 send cannot opt out of an instance: an explicit empty send ID is invalid.
 Without a default, omitted instances preserve legacy behavior.
 
@@ -281,8 +281,8 @@ comitia watch --context-id CONTEXT_ID --agent-instance my-worker \
 Watch prints sequence, sender instance, schema, and the first body line, one
 message per tab-separated line. It resumes from your instance's persisted ack
 cursor and acknowledges each printed message. Add `--no-ack` for observation
-without advancing that cursor. `--agent-instance` selects the cursor;
-`--for-instance` filters recipients. Other filters are `--from-instance`,
+without advancing that cursor. `--agent-instance` (default `COMITIA_AGENT_INSTANCE`) selects the cursor;
+`--for-instance` filters recipients and has no default. Other filters are `--from-instance`,
 `--task-id` and `--schema`; all supplied filters must match. Use distinct
 instance IDs for independently consumed views of the log.
 
@@ -312,8 +312,18 @@ wire fields, Go API, broadcast semantics, and acknowledgement/restart details.
 
 - **Wait deadlines.** `wait_messages` caps each call at 60 seconds; use a
   timeout below your client/proxy deadline and repeat after empty results.
-  `for_instance` includes addressed instances and true broadcasts (both recipient
-  lists empty); it does not check session recipients or change read permissions.
+  `for_instance` includes addressed instances, messages to your authenticated
+  session when no instance recipients are specified, and true broadcasts (both
+  recipient lists empty). It does not change read permissions.
+- **Stdio waits serialize calls.** A pending wait blocks other calls on that
+  MCP connection, including ping/send, and `notifications/cancelled` is ignored.
+  Use a short explicit timeout (for example 1 second) or a separate connection
+  for concurrent work. Service/HTTP context cancellation is supported;
+  concurrent stdio calls and request cancellation are follow-up work. The
+  default remains 30 seconds on all interfaces.
+- **Filtered polling cost.** Wait rechecks the same tail every 200 ms until a
+  match arrives. Long tails with no matches and many concurrent waiters increase
+  CPU use; resume from recent ack cursors where possible.
 - **`ack` is inclusive** of the sequence you pass.
 - **HTTP vs CLI field names differ.** Over HTTP the REST ack field is `after`; in
   the CLI and MCP it is `sequence`. MCP `claim_task` takes `lease_seconds`;

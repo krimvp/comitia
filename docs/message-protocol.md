@@ -113,7 +113,7 @@ Empty values disable a filter; all nonempty filters must match.
 
 | Field | Match |
 | --- | --- |
-| `for_instance` | Envelope `recipient_instances` contains this exact ID, **or both recipient lists are absent/empty** (including legacy messages without an envelope). A session-only addressed message is not a broadcast. |
+| `for_instance` | Envelope `recipient_instances` contains this exact ID; or instance recipients are absent/empty and `recipient_session_ids` contains the caller's authenticated session; or both recipient lists are absent/empty (including legacy messages without an envelope). Session-addressed messages without instance recipients reach every instance of that session. |
 | `from_instance` | The message's self-reported `agent_instance.id` equals this exact ID. Legacy senders without a claim do not match. |
 | `task_id` | Envelope `task_id` equals this exact ID. |
 | `schema` | Envelope `schema` equals this exact versioned name. |
@@ -122,8 +122,9 @@ Instance filters use the same 1–64 character ID syntax as sender claims.
 Unknown task IDs and schema names simply match nothing. These filters are
 convenience selectors over the same shared context log. They neither grant
 access nor restrict what an authorized reader can obtain with another replay.
-`for_instance` does not check recipient session IDs; a consumer targeting one
-session should check those separately.
+`for_instance` uses the authenticated caller session for session-only messages.
+If instance recipients are present, the exact instance match takes precedence;
+a consumer targeting one session should check any session recipients separately.
 
 Replay keeps its existing output, ordering, exclusive `after` cursor and
 1–1000 `limit`. Filtering happens **in SQL before ORDER BY/LIMIT**, so a page
@@ -142,9 +143,9 @@ Wait returns immediately if a matching message already exists, otherwise as
 soon as one is appended, with up to 100 matches in sequence order. A timeout
 returns an empty list without error. Each call caps the timeout at **60 seconds**,
 including MCP, HTTP and Go; negative values are invalid. Zero performs an
-immediate read. MCP and CLI default to 30 seconds; HTTP callers supply
-`timeout_seconds` (a number, omitted/zero means immediate). Fractional seconds
-are supported. Set client/proxy deadlines above the requested timeout; the
+immediate read. MCP, HTTP and CLI default to 30 seconds. HTTP/MCP
+`timeout_seconds` is a number; omitted/null uses the default, and explicit zero
+reads immediately. Fractional seconds are supported. Set client/proxy deadlines above the requested timeout; the
 stock HTTP client's default is 70 seconds. A client with a shorter deadline
 should request a shorter wait and repeat it after each empty result.
 
@@ -161,8 +162,28 @@ in that context. Wait subscribes before reading to prevent a lost wakeup. A
 200 ms fallback poll detects commits by other services/processes using the same
 SQLite database and rechecks session/read-grant validity. No database transaction
 or connection is held while waiting. Context cancellation interrupts the wait;
-errors preserve the existing authentication, authorization and invalid-input
-sentinels. Deduplicated retries do not notify because they append no new row.
+service/HTTP errors preserve the existing authentication, authorization and
+invalid-input sentinels. Deduplicated retries do not notify because they append
+no new row.
+
+A filtered fallback poll rescans messages after `after` every 200 ms until a
+match arrives. If no row matches, the cursor stays unchanged and JSON predicates
+are evaluated over the same tail on every poll. CPU cost grows with that tail
+and the number of idle waiters. Use recent acknowledgement cursors and avoid
+many concurrent waits over old log tails. Polling remains enabled for all stores
+to support other processes writing the SQLite file; scanned cursors/indexing or
+store-specific notification capabilities are follow-up optimizations.
+
+**Stdio MCP limitation:** requests on one stdio connection are handled serially.
+A pending `wait_messages` blocks other calls on that connection, including ping
+and send, until it returns. Stdio ignores `notifications/cancelled`; that
+notification cannot interrupt a wait. Service context cancellation and HTTP
+request cancellation are supported, but stdio request-level cancellation and
+concurrent calls require a follow-up. The MCP default remains 30 seconds for
+consistency with HTTP/CLI. For interactive stdio use, request a short timeout
+(for example 1 second), send before waiting, or use a separate connection/HTTP
+for concurrent calls. Both replay and wait reject fields belonging only to the
+other tool (`timeout_seconds` on replay and `limit` on wait).
 
 ### Watching from the CLI
 
@@ -175,8 +196,10 @@ comitia-client codex watch --context-id CONTEXT_ID \
 ```
 
 Watch reads the specified instance's persisted acknowledgement cursor on
-startup (the legacy session cursor if the instance is omitted). The
-`--agent-instance` flag selects the cursor; `--for-instance` selects recipients.
+startup. The `--agent-instance` flag selects the cursor and defaults to
+`COMITIA_AGENT_INSTANCE`; without a default, or with an explicit empty
+`--agent-instance=`, watch uses the legacy session cursor. `--for-instance`
+selects recipients and is never defaulted.
 It then repeatedly waits and prints tab-separated lines:
 
 ```text
@@ -462,8 +485,11 @@ conflicts fail migration rather than silently leaving a message without a scope.
 
 Custom API/store implementations must accept optional `MessageFilters` in
 `ReplayMessages`/`Messages` and implement `API.WaitMessages`. Existing Go replay
-calls without filters remain valid. A custom store must filter before limiting
-(or provide equivalent paging) while the service retains the read-grant check.
+calls without filters remain valid. The `Messages` store method additionally
+receives the authenticated caller session ID after the context ID, so it can
+match session-addressed messages.
+A custom store must filter before limiting (or provide equivalent paging) while
+the service retains the read-grant check.
 No new SQLite tables are required for replay filters or waiting.
 
 ## Task claims by instance

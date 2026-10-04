@@ -63,7 +63,7 @@ func TestReplayFiltersAndPaging(t *testing.T) {
 		want   []int64
 	}{
 		{"empty", MessageFilters{}, []int64{1, 2, 3, 4, 5, 6, 7, 8, 9}},
-		{"recipient", MessageFilters{ForInstance: "alice"}, []int64{1, 2, 5, 6, 7, 8, 9}},
+		{"recipient", MessageFilters{ForInstance: "alice"}, []int64{1, 2, 3, 5, 6, 7, 8, 9}},
 		{"sender exact", MessageFilters{FromInstance: "worker"}, []int64{2, 3, 4, 5, 6, 7}},
 		{"task", MessageFilters{TaskID: task.ID}, []int64{7}},
 		{"schema", MessageFilters{Schema: "comitia.discussion.v1"}, []int64{2, 3, 4, 5, 6, 7}},
@@ -268,5 +268,74 @@ func TestWaitTimeoutCancellationAndRevocation(t *testing.T) {
 	messages, err = f.svc.WaitMessages(ctx, f.admin.Token, f.context.ID, 0, 0)
 	if err != nil || len(messages) != 1 {
 		t.Fatalf("immediate wait: %v %v", messages, err)
+	}
+}
+
+func TestInstanceReplayIncludesCallerSession(t *testing.T) {
+	f := setup(t, ":memory:")
+	defer f.store.Close()
+	ctx := context.Background()
+	worker := messageWorker(t, f, "reader", f.context.ID)
+	inputs := []MessageInput{
+		{Body: "to owner session", Envelope: &MessageEnvelope{Schema: "comitia.discussion.v1", RecipientSessionIDs: []string{f.admin.Session.ID}, Payload: json.RawMessage(`{}`)}},
+		{Body: "to worker session", Envelope: &MessageEnvelope{Schema: "comitia.discussion.v1", RecipientSessionIDs: []string{worker.Session.ID}, Payload: json.RawMessage(`{}`)}},
+		{Body: "to both sessions", Envelope: &MessageEnvelope{Schema: "comitia.discussion.v1", RecipientSessionIDs: []string{f.admin.Session.ID, worker.Session.ID}, Payload: json.RawMessage(`{}`)}},
+		{Body: "to another owner instance", Envelope: &MessageEnvelope{Schema: "comitia.discussion.v1", RecipientSessionIDs: []string{f.admin.Session.ID}, RecipientInstances: []string{"other"}, Payload: json.RawMessage(`{}`)}},
+		{Body: "to reader instance", Envelope: &MessageEnvelope{Schema: "comitia.discussion.v1", RecipientInstances: []string{"reader"}, Payload: json.RawMessage(`{}`)}},
+		{Body: "later broadcast"},
+	}
+	for i, in := range inputs {
+		in.DedupeKey = fmt.Sprint(i)
+		if _, err := f.svc.AppendMessage(ctx, f.admin.Token, f.context.ID, in); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for _, tc := range []struct {
+		name, token string
+		want        []int64
+	}{{"owner", f.admin.Token, []int64{1, 3, 5, 6}}, {"worker", worker.Token, []int64{2, 3, 5, 6}}} {
+		t.Run(tc.name, func(t *testing.T) {
+			for _, instance := range []string{"reader", "another"} {
+				want := tc.want
+				if instance == "another" {
+					want = []int64{want[0], 3, 6}
+				}
+				filter := MessageFilters{ForInstance: instance}
+				var got []int64
+				var after int64
+				for {
+					page, err := f.svc.ReplayMessages(ctx, tc.token, f.context.ID, after, 1, filter)
+					if err != nil {
+						t.Fatal(err)
+					}
+					if len(page) == 0 {
+						break
+					}
+					after = page[0].Sequence
+					got = append(got, after)
+				}
+				if !reflect.DeepEqual(got, want) {
+					t.Fatalf("%s replay %v, want %v", instance, got, want)
+				}
+				messages, err := f.svc.WaitMessages(ctx, tc.token, f.context.ID, 0, time.Second, filter)
+				if err != nil {
+					t.Fatal(err)
+				}
+				got = nil
+				for _, m := range messages {
+					got = append(got, m.Sequence)
+					if err := f.svc.AckMessages(ctx, tc.token, f.context.ID, m.Sequence, instance); err != nil {
+						t.Fatal(err)
+					}
+				}
+				if !reflect.DeepEqual(got, want) {
+					t.Fatalf("%s wait/ack skipped session message: %v, want %v", instance, got, want)
+				}
+				cursor, err := f.svc.MessageCursor(ctx, tc.token, f.context.ID, instance)
+				if err != nil || cursor != 6 {
+					t.Fatalf("ack cursor: %d %v", cursor, err)
+				}
+			}
+		})
 	}
 }

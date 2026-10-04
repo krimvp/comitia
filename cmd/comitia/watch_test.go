@@ -338,3 +338,40 @@ func TestReplayAndWaitCommandFilters(t *testing.T) {
 		}
 	}
 }
+
+func TestWatchInstanceDoesNotSkipSessionAddressedMessage(t *testing.T) {
+	api, token, cid, _ := watchFixture(t)
+	ctx := context.Background()
+	participants, err := api.ListParticipants(ctx, token, cid, 10)
+	if err != nil || len(participants) != 1 {
+		t.Fatalf("participants: %v %v", participants, err)
+	}
+	inputs := []comitia.MessageInput{
+		{DedupeKey: "session", Body: "to your session", Envelope: &comitia.MessageEnvelope{Schema: "comitia.discussion.v1", RecipientSessionIDs: []string{participants[0].SessionID}, Payload: json.RawMessage(`{}`)}},
+		{DedupeKey: "broadcast", Body: "later broadcast"},
+	}
+	for _, in := range inputs {
+		if _, err := api.AppendMessage(ctx, token, cid, in); err != nil {
+			t.Fatal(err)
+		}
+	}
+	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
+	defer cancel()
+	probe := &watchAckFailureAPI{MessageAPI: api, onAck: func(sequence int64) {
+		if sequence == 2 {
+			cancel()
+		}
+	}}
+	var output bytes.Buffer
+	if err := watchMessages(ctx, probe, token, cid, "reader", time.Second, comitia.MessageFilters{ForInstance: "reader"}, true, &output); err != nil {
+		t.Fatal(err)
+	}
+	want := "1\t-\tcomitia.discussion.v1\tto your session\n2\t-\t-\tlater broadcast\n"
+	if output.String() != want {
+		t.Fatalf("watch skipped session message: %q, want %q", output.String(), want)
+	}
+	cursor, err := api.MessageCursor(context.Background(), token, cid, "reader")
+	if err != nil || cursor != 2 {
+		t.Fatalf("cursor: %d %v", cursor, err)
+	}
+}
