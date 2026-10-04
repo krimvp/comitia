@@ -65,9 +65,9 @@ code, pre { font-family: var(--mono); font-size: 0.88em; }
 
 /* header */
 .bar {
-  max-width: 1240px;
+  width: min(1240px, 100% - 2 * var(--gutter));
   margin: 0 auto;
-  padding: 20px var(--gutter);
+  padding: 20px 0;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -80,7 +80,7 @@ code, pre { font-family: var(--mono); font-size: 0.88em; }
 .bar nav a { color: var(--muted); text-decoration: none; }
 .bar nav a:hover { color: var(--ink); text-decoration: underline; }
 
-main, .foot { max-width: 1240px; margin: 0 auto; padding: 0 var(--gutter); }
+main, .foot { width: min(1240px, 100% - 2 * var(--gutter)); margin: 0 auto; }
 
 /* hero */
 .hero {
@@ -113,9 +113,16 @@ h1 {
 }
 .button:hover { text-decoration: underline; }
 
-.hero-fig { margin: 0; }
+.hero-fig { margin: 0; min-width: 0; }
 .diagram { display: block; width: 100%; height: auto; background: var(--panel); border: 1px solid var(--rule); border-radius: 4px; }
 .hero-fig figcaption { margin-top: 0.75rem; font-size: var(--s-1); color: var(--muted); max-width: 46em; }
+
+/* narrow screens get a redrawn figure rather than a shrunken one */
+.diagram-narrow { display: none; }
+@media (max-width: 560px) {
+  .diagram-wide { display: none; }
+  .diagram-narrow { display: block; }
+}
 
 /* diagram parts */
 .diagram text { fill: var(--ink); font-family: var(--sans); }
@@ -125,6 +132,11 @@ h1 {
 .diagram .t-note { font-size: 11px; fill: var(--muted); }
 .diagram .t-fig { font-size: 11px; fill: var(--rule-strong); font-style: italic; }
 .diagram .t-seq text { font-family: var(--mono); font-size: 13px; text-anchor: middle; font-variant-numeric: tabular-nums; }
+.diagram-narrow .t-name { font-size: 12px; }
+.diagram-narrow .t-id { font-size: 10.5px; }
+.diagram-narrow .t-label { font-size: 11px; }
+.diagram-narrow .t-note { font-size: 10px; }
+.diagram .t-seq-small text { font-size: 12px; }
 .diagram .t-seq-child text { font-size: 12px; fill: var(--muted); }
 .diagram .t-seq .t-seq-new { fill: var(--live); font-weight: 700; }
 .crop path { fill: none; stroke: var(--rule-strong); stroke-width: 1; }
