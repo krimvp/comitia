@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="color-scheme" content="light">
+  <meta name="color-scheme" content="light dark">
   <title>Comitia · Conversation inspector</title>
   <link rel="stylesheet" href="./style.css">
   <script type="module" src="./app.js"></script>
@@ -11,7 +11,7 @@
 <body>
   <a class="skip" href="#conversation">Skip to conversation</a>
   <header class="topbar">
-    <a class="brand" href="./" aria-label="Comitia home"><span class="brandmark" aria-hidden="true">C</span> comitia <span class="product">/ Inspector</span></a>
+    <a class="brand" href="./" aria-label="Comitia home"><svg class="brandmark" aria-hidden="true" viewBox="0 0 32 32" width="32" height="32"><g class="mark-frame"><rect x="3" y="12" width="26" height="8" rx="1"/><path d="M11.7 12v8M20.3 12v8M7 12V5M16 12V3M25 12V7"/></g><rect class="mark-accent" x="21.3" y="13" width="6.7" height="6"/><circle class="mark-accent" cx="16" cy="27" r="2"/></svg> comitia <span class="product">/ Inspector</span></a>
     <div class="top-actions"><span class="readonly">Read only</span><button id="disconnect" class="quiet" hidden>Disconnect</button></div>
   </header>
   <section id="connect-panel" class="connect-panel">

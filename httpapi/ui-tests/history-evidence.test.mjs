@@ -134,8 +134,11 @@ test('controller presence uses sidebar text tokens and readable diagram metadata
   const {elements:e}=await controller(t,()=>({messages:[message(1)]}));
   assert.match(text(e.get('instances')),/Last seen/);
   const css=await readFile(new URL('../ui/style.css',import.meta.url),'utf8');
-  const sidebar=[...css.matchAll(/\.sidebar\{([^}]+)\}/g)].at(-1)[1];
-  const token=name=>sidebar.match(new RegExp(`--${name}:(#[a-f0-9]{6})`))?.[1];
+  const root=css.slice(css.indexOf(':root'),css.indexOf('@media (prefers-color-scheme: dark)'));
+  const sidebar=[...css.matchAll(/\.sidebar\{([^}]+)\}/g)].map(m=>m[1]).join(';');
+  const tokens=block=>Object.fromEntries([...block.matchAll(/--([a-z-]+):\s*(#[a-f0-9]{6})/g)].map(m=>[m[1],m[2]]));
+  const rootTokens=tokens(root), sidebarTokens={...rootTokens,...tokens(sidebar)};
+  const token=name=>sidebarTokens[name];
   const metadata=[...css.matchAll(/\.sequence-id,\.sequence-time\{([^}]+)\}/g)].at(-1)[1];
   const lum=hex=>{
     assert.match(hex || '',/^#[a-f0-9]{6}$/);
@@ -143,9 +146,11 @@ test('controller presence uses sidebar text tokens and readable diagram metadata
     return .2126*r+.7152*g+.0722*b;
   };
   const contrast=(a,b)=>(Math.max(lum(a),lum(b))+.05)/(Math.min(lum(a),lum(b))+.05);
-  const background=css.match(/--ink:(#[a-f0-9]{6})/)[1];
+  const background=token('sidebar-bg');
   assert.ok(contrast(token('muted'),background)>=4.5);assert.ok(contrast(token('blue'),background)>=4.5);
-  assert.ok(contrast(metadata.match(/fill:(#[a-f0-9]{6})/)[1],'#f8faff')>=4.5);
+  const fill=metadata.match(/fill:([^;]+)/)[1];
+  const foreground=fill.startsWith('var(')?rootTokens[fill.slice(6,-1)]:fill;
+  assert.ok(contrast(foreground,rootTokens.panel)>=4.5);
   assert.ok(Number(metadata.match(/font-size:(\d+)px/)[1])>=12);
   await e.get('disconnect').fire('click');
 });
