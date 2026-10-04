@@ -7,8 +7,6 @@ import (
 	"fmt"
 	"net/url"
 	"path/filepath"
-	"regexp"
-	"strings"
 	"time"
 
 	"modernc.org/sqlite"
@@ -17,8 +15,11 @@ import (
 
 type SQLiteStore struct {
 	db      *sql.DB
+	readers *sql.DB
 	writers chan struct{}
 }
+
+const sqliteReaderLimit = 4
 
 func OpenSQLite(path string) (*SQLiteStore, error) {
 	if path == "" {
@@ -44,61 +45,27 @@ func OpenSQLite(path string) (*SQLiteStore, error) {
 		db.Close()
 		return nil, e
 	}
+	if path == ":memory:" {
+		// Shared-cache memory databases cannot use WAL. Keep their transactions
+		// serialized rather than introducing table-lock upgrade failures.
+		s.readers = db
+	} else {
+		readDSN := (&url.URL{Scheme: "file", Path: absPath}).String() + "?_pragma=foreign_keys(1)&_pragma=busy_timeout(10)&_pragma=query_only(1)"
+		s.readers, e = sql.Open("sqlite", readDSN)
+		if e != nil {
+			db.Close()
+			return nil, e
+		}
+		s.readers.SetMaxOpenConns(sqliteReaderLimit)
+		s.readers.SetMaxIdleConns(sqliteReaderLimit)
+	}
 	return s, nil
 }
-func (s *SQLiteStore) Close() error { return s.db.Close() }
-func (s *SQLiteStore) migrate(ctx context.Context) error {
-	// Every CLI call opens the store. Backfills take the write lock and scan
-	// whole tables, so probe lock free (WAL readers do not block) and take the
-	// write lock only when an object is missing or a backfill has rows to add,
-	// e.g. after an older binary wrote.
-	if !s.migrationPending(ctx) {
-		return nil
+func (s *SQLiteStore) Close() error {
+	if s.readers != s.db {
+		return errors.Join(s.readers.Close(), s.db.Close())
 	}
-	tx, e := s.begin(ctx, nil)
-	if e != nil {
-		return e
-	}
-	defer tx.Rollback()
-	for _, schema := range schemas {
-		if _, e = tx.ExecContext(ctx, schema); e != nil {
-			return e
-		}
-	}
-	return tx.Commit()
-}
-
-var (
-	schemas    = []string{sessionSchema, contextSchema, grantSchema, messageSchema, taskSchema, presenceSchema, contextTreeSchema, contextLifecycleSchema}
-	createStmt = regexp.MustCompile(`(?is)^CREATE\s+(?:UNIQUE\s+)?(TABLE|INDEX|TRIGGER|VIEW)\s+IF\s+NOT\s+EXISTS\s+(\w+)`)
-	insertStmt = regexp.MustCompile(`(?is)^INSERT\s+(?:OR\s+IGNORE\s+)?INTO\s+(\w+)\s+(SELECT\s.*)$`)
-)
-
-// migrationPending reports whether any schema statement would change the
-// database. A backfill is pending when its SELECT yields rows the target lacks;
-// unrecognised statements, and probe errors such as missing tables, count as
-// pending.
-func (s *SQLiteStore) migrationPending(ctx context.Context) bool {
-	for _, schema := range schemas {
-		for _, stmt := range strings.Split(schema, ";") {
-			stmt = strings.TrimSpace(stmt)
-			probe, args := "", []any(nil)
-			if m := createStmt.FindStringSubmatch(stmt); m != nil {
-				probe, args = "SELECT NOT EXISTS(SELECT 1 FROM sqlite_master WHERE type=? AND name=?)", []any{strings.ToLower(m[1]), m[2]}
-			} else if m := insertStmt.FindStringSubmatch(stmt); m != nil {
-				probe = "SELECT EXISTS(SELECT * FROM (" + m[2] + ") EXCEPT SELECT * FROM " + m[1] + ")"
-			} else if stmt != "" {
-				return true
-			} else {
-				continue
-			}
-			var pending bool
-			if e := s.db.QueryRowContext(ctx, probe, args...).Scan(&pending); e != nil || pending {
-				return true
-			}
-		}
-	}
-	return false
+	return s.db.Close()
 }
 func (s *SQLiteStore) View(ctx context.Context, fn func(ReadStore) error) error {
 	tx, e := s.begin(ctx, &sql.TxOptions{ReadOnly: true})
@@ -137,7 +104,11 @@ func (s *SQLiteStore) begin(ctx context.Context, opts *sql.TxOptions) (*sql.Tx, 
 		if err := ctx.Err(); err != nil {
 			return nil, err
 		}
-		tx, err := s.db.BeginTx(ctx, opts)
+		db := s.db
+		if opts != nil && opts.ReadOnly {
+			db = s.readers
+		}
+		tx, err := db.BeginTx(ctx, opts)
 		if err == nil {
 			if err := ctx.Err(); err != nil {
 				tx.Rollback()
