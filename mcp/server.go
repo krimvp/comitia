@@ -7,7 +7,9 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
+	"log"
 	"strings"
 	"time"
 
@@ -159,10 +161,16 @@ func (s *Server) Serve(ctx context.Context, in io.Reader, out io.Writer) error {
 			startShutdown()
 		case <-shutdown:
 			if runCtx.Err() != nil {
-				if serveErr != nil {
-					return serveErr
+				return errors.Join(serveErr, errors.New("mcp: tool calls did not stop before shutdown deadline"))
+			}
+			cancelled := 0
+			for _, c := range pending {
+				if c.ctx.Err() == nil {
+					cancelled++
 				}
-				return errors.New("mcp: tool calls did not stop before shutdown deadline")
+			}
+			if cancelled > 0 {
+				serveErr = fmt.Errorf("mcp: EOF shutdown cancelled %d tool calls", cancelled)
 			}
 			stop()
 			startShutdown()
@@ -231,7 +239,15 @@ func (s *Server) Serve(ctx context.Context, in io.Reader, out io.Writer) error {
 					callCtx, cancel := context.WithCancel(runCtx)
 					pending[key] = call{ctx: callCtx, cancel: cancel}
 					go func() {
-						completed <- completion{key: key, res: s.handle(callCtx, req)}
+						res := response{JSONRPC: "2.0", ID: req.ID, Error: &rpcError{-32603, "internal error"}}
+						defer func() {
+							if recover() != nil {
+								// Panic values can contain credentials or message bodies.
+								log.Print("mcp: recovered panic in tool call")
+							}
+							completed <- completion{key: key, res: res}
+						}()
+						res = s.handle(callCtx, req)
 					}()
 					continue
 				}

@@ -179,15 +179,20 @@ connection. A pending `wait_messages` leaves ping, tool listing and other tool
 calls responsive. Further tool calls receive JSON-RPC error `-32000` while all
 eight slots are occupied; retry after a call completes. Responses can arrive in
 any order and must be matched by request ID. Stdout contains one complete JSON
-message per line.
+message per line. Calls supplied together in a pipe can execute and complete
+out of order: for example, a replay may run before an earlier send commits.
+For dependent operations, keep stdin open and await one response before sending
+the next request.
 
 Send `notifications/cancelled` with `params.requestId` to cancel a pending tool
 call. The request context is interrupted and no response is sent for that call;
 unknown, completed or malformed cancellation notifications are ignored. A
 response already sent can race with cancellation. Clients cannot cancel
 `initialize`. On input EOF the server allows one second for calls to finish,
-then cancels remaining calls and waits up to one more second. Server context
-cancellation interrupts calls immediately, with up to one second to stop. MCP's
+then cancels remaining calls and waits up to one more second. If EOF cancels
+calls, Serve returns an error naming the count and the CLI exits nonzero, since
+those calls have no responses. Server context cancellation interrupts calls
+immediately, with up to one second to stop. MCP's
 default wait remains 30 seconds, consistent with HTTP/CLI. Both replay and wait
 reject fields belonging only to the other tool (`timeout_seconds` on replay and
 `limit` on wait).

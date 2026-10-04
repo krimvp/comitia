@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"runtime"
 	"strings"
 	"testing"
@@ -303,7 +304,18 @@ func TestStdioShutdownCancelsCalls(t *testing.T) {
 			c.send(t, `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"wait_messages","arguments":{"context_id":"wait"}}}`)
 			probeEvent(t, p.started, "wait")
 			if eof {
-				c.finish(t)
+				_ = c.in.Close()
+				select {
+				case err := <-c.done:
+					if err == nil || !strings.Contains(err.Error(), "EOF shutdown cancelled 1 tool calls") {
+						t.Fatalf("EOF shutdown: %v", err)
+					}
+				case <-time.After(3 * time.Second):
+					t.Fatal("EOF did not stop Serve")
+				}
+				for res := range c.responses {
+					t.Errorf("cancelled response: %+v", res)
+				}
 			} else {
 				c.cancel()
 				select {
@@ -454,4 +466,77 @@ func TestStdioRejectsInvalidToolCallIDs(t *testing.T) {
 		}
 	}
 	c.finish(t)
+}
+
+type panickingStdioProbe struct{ *stdioProbe }
+
+func (p *panickingStdioProbe) GetTask(ctx context.Context, credential, id string) (comitia.Task, error) {
+	if id == "panic" {
+		panic("private panic details: " + credential)
+	}
+	return p.stdioProbe.GetTask(ctx, credential, id)
+}
+
+func TestStdioToolPanicPreservesOtherCallsAndSanitizesLog(t *testing.T) {
+	var logs bytes.Buffer
+	previousWriter := log.Writer()
+	log.SetOutput(&logs)
+	defer log.SetOutput(previousWriter)
+	p := &panickingStdioProbe{newStdioProbe()}
+	p.release["wait"] = make(chan struct{})
+	p.release["ok"] = make(chan struct{})
+	close(p.release["ok"])
+	c := startStdio(t, &Server{API: p, Credential: "private-credential"})
+	c.initialize(t)
+	c.send(t, `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"wait_messages","arguments":{"context_id":"wait"}}}`)
+	probeEvent(t, p.started, "wait")
+	c.send(t, `{"jsonrpc":"2.0","id":"private-request-id","method":"tools/call","params":{"name":"get_task","arguments":{"task_id":"panic"}}}`)
+	res := c.read(t)
+	if string(res.ID) != `"private-request-id"` || res.Error == nil || res.Error.Code != -32603 || res.Error.Message != "internal error" || len(res.Result) != 0 {
+		t.Fatalf("panic response: %+v", res)
+	}
+	if !strings.Contains(logs.String(), "recovered panic in tool call") || strings.Contains(logs.String(), "private") {
+		t.Fatalf("panic log missing or exposes secrets: %q", logs.String())
+	}
+	c.send(t, `{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"get_task","arguments":{"task_id":"ok"}}}`)
+	if res := c.read(t); string(res.ID) != "2" || res.Error != nil || !strings.Contains(string(res.Result), `"isError":false`) {
+		t.Fatalf("tool after panic: %+v", res)
+	}
+	c.send(t, `{"jsonrpc":"2.0","id":3,"method":"ping"}`)
+	if res := c.read(t); string(res.ID) != "3" || res.Error != nil {
+		t.Fatalf("ping after panic: %+v", res)
+	}
+	close(p.release["wait"])
+	if res := c.read(t); string(res.ID) != "1" || res.Error != nil {
+		t.Fatalf("other in-flight call after panic: %+v", res)
+	}
+	c.finish(t)
+}
+
+func TestStdioEOFCancellationReportsCount(t *testing.T) {
+	p := newStdioProbe()
+	c := startStdio(t, &Server{API: p, Credential: "configured"})
+	c.initialize(t)
+	for i := 1; i <= 3; i++ {
+		c.send(t, fmt.Sprintf(`{"jsonrpc":"2.0","id":%d,"method":"tools/call","params":{"name":"wait_messages","arguments":{"context_id":%q}}}`, i, fmt.Sprint(i)))
+		probeEvent(t, p.started, fmt.Sprint(i))
+	}
+	c.send(t, `{"jsonrpc":"2.0","method":"notifications/cancelled","params":{"requestId":1}}`)
+	probeEvent(t, p.stopped, "1")
+	_ = c.in.Close()
+	select {
+	case err := <-c.done:
+		if err == nil || !strings.Contains(err.Error(), "EOF shutdown cancelled 2 tool calls") {
+			t.Fatalf("EOF cancellation count: %v", err)
+		}
+	case <-time.After(3 * time.Second):
+		t.Fatal("EOF did not shut down")
+	}
+	for res := range c.responses {
+		t.Errorf("cancelled call responded: %+v", res)
+	}
+	stopped := map[string]bool{<-p.stopped: true, <-p.stopped: true}
+	if !stopped["2"] || !stopped["3"] {
+		t.Fatalf("calls stopped: %v", stopped)
+	}
 }

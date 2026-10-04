@@ -324,14 +324,18 @@ wire fields, Go API, broadcast semantics, and acknowledgement/restart details.
   recipient lists empty). It does not change read permissions.
 - **Stdio concurrency and cancellation.** Up to eight tool calls run on one
   connection; pending waits leave ping, listing and other calls responsive.
-  Responses may arrive out of order: match them by ID. At capacity, further
-  tool calls receive JSON-RPC error `-32000`; retry after a call completes.
+  Calls in a pipe may execute and complete out of order: match responses by ID.
+  For dependent operations (such as send followed by replay), keep stdin open
+  and await the first response before sending the next request. At capacity,
+  further tool calls receive JSON-RPC error `-32000`; retry after a call completes.
   `notifications/cancelled` with `params.requestId` interrupts the matching
   pending call without a response. Unknown/completed IDs and malformed
   cancellation notifications are ignored; an already-sent response can race
   with cancellation. On EOF, calls get one second to finish, followed by
-  cancellation and up to one second to stop. Server context cancellation stops
-  calls immediately with up to one second to stop. The default wait remains
+  cancellation and up to one second to stop. If EOF cancels calls, the CLI exits
+  nonzero with an error naming the count of calls missing responses.
+  Server context cancellation stops calls immediately with up to one second
+  to stop. The default wait remains
   30 seconds on all interfaces.
 - **Filtered polling cost.** SQLite waits scan the existing tail once, then
   check only newly appended rows every 200 ms or after a notification. Long
