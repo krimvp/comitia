@@ -34,7 +34,9 @@ state. Automatic polling is bounded to 100 messages per tick; memory and DOM
 windows are explicitly limited and described in the interface. Metadata is
 refreshed alongside messages, including when no new messages arrive. The sidebar
 lists self-reported instances from `instances/list`, with relative last-seen times
-and expandable resume metadata. Hover over a last-seen time for its timestamp.
+and expandable resume metadata. Rows whose credential session is revoked or
+expired are marked “Session revoked or expired”. Hover over a last-seen time for
+its timestamp.
 Presence is historical activity, not proof that a process is still running.
 Switching contexts or losing read access clears the displayed instance data.
 If the presence endpoint is unavailable or returns malformed metadata, messages

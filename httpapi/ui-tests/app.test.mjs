@@ -41,7 +41,7 @@ test('inspector controller uses only read endpoints, rejects stale contexts and 
     if(path.endsWith('/contexts/get'))return ok({context:contexts.find(c=>c.ID===body.context_id)});
     if(path.endsWith('/contexts/children'))return ok({contexts:[]});
     if(path.endsWith('/participants/list'))return ok({participants:[{SessionID:'agent',Name:'<script>not executable</script>'}]});
-    if(path.endsWith('/instances/list'))return ok({instances:[{id:`${body.context_id}-worker`,label:'<b>Worker</b>',session_id:'agent',last_seen:new Date(Date.now()-120000).toISOString(),resume:{harness:'codex',pid:123}}]});
+    if(path.endsWith('/instances/list'))return ok({instances:[{id:`${body.context_id}-worker`,label:'<b>Worker</b>',session_id:'agent',active:false,last_seen:new Date(Date.now()-120000).toISOString(),resume:{harness:'codex',pid:123}}]});
     if(path.endsWith('/tasks/list'))return ok({tasks:[]});
     if(path.endsWith('/messages/replay')) {
       if(body.context_id==='a'&&body.after===2) return new Promise(resolve=>{delayed=()=>resolve(ok({messages:[msg('a','stale A result',3)]}));});
@@ -65,6 +65,7 @@ test('inspector controller uses only read endpoints, rejects stale contexts and 
     assert.match(text(elements.get('instances')),/<b>Worker<\/b> \(a-worker\)/);
     assert.match(text(elements.get('instances')),/Last seen 2m ago/);
     assert.match(text(elements.get('instances')),/codex/);
+    assert.match(text(elements.get('instances')),/Session revoked or expired/);
     assert.match(text(elements.get('instances-note')),/Self-reported/);
     assert.equal(elements.get('sequence-panel').hidden,false);
     assert.equal(elements.get('interaction-panel').hidden,true);
@@ -144,7 +145,7 @@ test('inspector renders messages when presence is unavailable and recovers indep
       if(presence==='malformed')return ok({instances:{unexpected:true}});
       if(presence==='malformed-row')return ok({instances:[null]});
       if(presence!=='ready')return {ok:false,status:Number(presence)};
-      return ok({instances:[{id:'worker',session_id:'agent',last_seen:new Date().toISOString()}]});
+      return ok({instances:[{id:'worker',session_id:'agent',active:true,last_seen:new Date().toISOString()}]});
     }
     if(path.endsWith('/messages/replay')) {
       sequence++;
@@ -174,6 +175,7 @@ test('inspector renders messages when presence is unavailable and recovers indep
     await elements.get('load-more').fire('click');
     assertAvailable();
     assert.match(text(elements.get('instances')),/worker/);
+    assert.doesNotMatch(text(elements.get('instances')),/Session revoked or expired/);
     assert.match(text(elements.get('instances-note')),/Self-reported/);
     presence='reject';
     await elements.get('load-more').fire('click');

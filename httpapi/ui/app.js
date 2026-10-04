@@ -268,6 +268,7 @@ function renderInstances() {
   $('instances').replaceChildren(...instances.map(instance => {
     const item = node('div', undefined, 'instance-item');
     item.append(node('strong', instance.label ? `${instance.label} (${instance.id})` : instance.id), node('small', `${participantName(instance.session_id)} · ${shortID(instance.session_id)}`));
+    if (instance.active === false) item.append(node('small', 'Session revoked or expired'));
     const seen = node('small', `Last seen ${relativeSeen(instance.last_seen)}`);
     seen.title = date(instance.last_seen); item.append(seen);
     if (instance.resume) {

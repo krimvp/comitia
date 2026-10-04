@@ -2,7 +2,9 @@
 
 `list_instances(context_id)` lists recorded activity for self-reported processes
 in one readable context. Each row has `id`, optional `label`, `session_id`,
-`context_id`, `last_seen` (UTC timestamp), and optional `resume` JSON object.
+`context_id`, `last_seen` (UTC timestamp), `active`, and optional `resume` JSON
+object. `active` is false when the credential session is revoked or expired; it
+does not say whether the process is running or still has a grant on the context.
 Instance IDs and labels follow the [message instance rules](message-protocol.md).
 Rows are keyed by **(authenticated session, context, instance ID)**, so the same
 instance ID in different sessions or contexts has independent metadata.
@@ -20,11 +22,19 @@ like cursor and ack. CLI replay accepts `--agent-instance ID`. Omitting the ID
 keeps legacy behavior and does not create an anonymous presence row. Heartbeats
 do not change replay filtering or acknowledgement cursors.
 
-Each heartbeat performs one upsert in a separate small Update transaction after
-the authorized operation completes. Replay and cursor keep their View transaction
-read-only. Heartbeat errors are best-effort and never fail an otherwise successful
-message or cursor call. No throttling is applied. ID-only activity preserves the
-previous label and resume data; a supplied nonempty label replaces the label.
+Heartbeats are throttled to at most once every **30 seconds per (session, context,
+instance)**. Send and ack check the stored timestamp and perform any due upsert
+inside their existing write transaction. A SQLite savepoint isolates heartbeat
+failures and rolls back their effects without undoing the message or ack. Replay
+and cursor check freshness inside their existing read-only View; recent rows
+skip the Update entirely. A missing or stale row gets a separate small Update,
+which rechecks freshness in case another caller already recorded activity.
+
+Heartbeat errors remain best-effort; explicit resume writes are unthrottled and
+return storage errors. Last seen may lag activity by up to 30 seconds. ID-only
+activity preserves the previous label and resume data; a supplied nonempty label
+replaces the label when a heartbeat is due. Use set_instance_resume to update
+metadata immediately.
 
 A process can set or replace its resume object through MCP:
 
@@ -41,7 +51,11 @@ object of at most **4096 bytes**; arrays, null, scalars, malformed JSON, and
 oversize objects return `ErrInvalid`. Extension keys and numeric values are
 preserved without float conversion. `{}` clears the object's contents. The
 write also records last seen and requires read permission on the context. It
-only writes the authenticated session's row. Explicit resume writes return
+only writes the authenticated session's row. Like acknowledgement cursors,
+presence is **read-level bookkeeping**: even a read-only or invited observer may
+create and overwrite its own instance rows and labels. It cannot overwrite a
+row belonging to a different authenticated session, and it does not gain message
+write permission. Explicit resume writes return
 storage errors, unlike opportunistic heartbeats. Do not put credentials or
 secrets in resume metadata: all authorized readers of that context can read it.
 
@@ -78,6 +92,9 @@ ReplayMessages(ctx context.Context, token, contextID string, after int64, limit 
 
 Existing replay calls without an instance remain valid. Custom API implementations
 must add `PresenceAPI` and the optional replay argument; custom stores implement
-`Instances` and `PutInstancePresence`. SQLite adds `instance_presence` without
+`Instances(contextID, now)`, `InstanceLastSeen(sessionID, contextID, instanceID)`,
+`PutInstancePresence` for explicit resume writes, and `TouchInstancePresence` for
+best-effort heartbeats. TouchInstancePresence must isolate a failed heartbeat
+from its caller's transaction. SQLite adds `instance_presence` without
 altering existing tables; earlier message history is not backfilled as activity.
 The inspector shows instances in its sidebar and refreshes them alongside messages.

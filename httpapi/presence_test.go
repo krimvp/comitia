@@ -64,12 +64,12 @@ func TestHTTPInstancePresence(t *testing.T) {
 		func() error { _, err := client.MessageCursor(ctx, owner.Token, c.ID, "worker"); return err },
 		func() error { return client.AckMessages(ctx, owner.Token, c.ID, 0, "worker") },
 	} {
-		now = now.Add(time.Second)
+		now = now.Add(31 * time.Second)
 		if err := call(); err != nil {
 			t.Fatal(err)
 		}
 		rows, err := client.ListInstances(ctx, owner.Token, c.ID)
-		if err != nil || len(rows) != 1 || rows[0].Label != "HTTP worker" || string(rows[0].Resume) != string(resume) || !rows[0].LastSeen.Equal(now) {
+		if err != nil || len(rows) != 1 || rows[0].Label != "HTTP worker" || !rows[0].Active || string(rows[0].Resume) != string(resume) || !rows[0].LastSeen.Equal(now) {
 			t.Fatalf("roundtrip: %v %v", rows, err)
 		}
 	}

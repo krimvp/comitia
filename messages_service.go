@@ -37,6 +37,7 @@ func (s *Service) AppendMessage(ctx context.Context, raw, cid string, in Message
 				return ErrConflict
 			}
 			m = old
+			s.touchInstanceIn(w, a.session.ID, cid, instance)
 			return nil
 		}
 		if !errors.Is(e, ErrNotFound) {
@@ -51,13 +52,13 @@ func (s *Service) AppendMessage(ctx context.Context, raw, cid string, in Message
 		m = Message{ID: id(), ContextID: cid, SessionID: a.session.ID, DedupeKey: in.DedupeKey, Body: in.Body, CreatedAt: s.now().UTC(), Envelope: envelope, AgentInstance: instance, AgentInstanceSelfReported: instance != nil}
 		m, e = w.PutMessage(m)
 		appended = e == nil
+		if e == nil {
+			s.touchInstanceIn(w, a.session.ID, cid, instance)
+		}
 		return e
 	})
 	if e == nil && appended {
 		s.messageNotifications.notify(cid)
-	}
-	if e == nil {
-		s.touchInstance(ctx, m.SessionID, cid, instance)
 	}
 	return m, e
 }
@@ -68,6 +69,7 @@ func (s *Service) ReplayMessages(ctx context.Context, raw, cid string, after int
 	}
 	instance := f.agentInstance()
 	var sid string
+	var heartbeat bool
 	var out []Message
 	if after < 0 {
 		return nil, Invalidf("after must be nonnegative")
@@ -82,9 +84,12 @@ func (s *Service) ReplayMessages(ctx context.Context, raw, cid string, after int
 		}
 		sid = a.session.ID
 		out, e = r.Messages(cid, a.session.ID, after, limit, f)
+		if e == nil {
+			heartbeat = s.instanceHeartbeatDue(r, sid, cid, instance)
+		}
 		return e
 	})
-	if e == nil {
+	if e == nil && heartbeat {
 		s.touchInstance(ctx, sid, cid, &AgentInstance{ID: instance})
 	}
 	return out, e
@@ -97,19 +102,17 @@ func (s *Service) AckMessages(ctx context.Context, raw, cid string, seq int64, i
 	if seq < 0 {
 		return Invalidf("sequence must be nonnegative")
 	}
-	var sid string
-	e := s.store.Update(ctx, func(w WriteStore) error {
-		a, _, e := s.require(w, raw, cid, PermissionRead)
-		if e != nil {
-			return e
+	return s.store.Update(ctx, func(w WriteStore) error {
+		a, _, err := s.require(w, raw, cid, PermissionRead)
+		if err != nil {
+			return err
 		}
-		sid = a.session.ID
-		return w.Ack(a.session.ID, cid, seq, s.now().UTC(), instance)
+		if err := w.Ack(a.session.ID, cid, seq, s.now().UTC(), instance); err != nil {
+			return err
+		}
+		s.touchInstanceIn(w, a.session.ID, cid, &AgentInstance{ID: instance})
+		return nil
 	})
-	if e == nil {
-		s.touchInstance(ctx, sid, cid, &AgentInstance{ID: instance})
-	}
-	return e
 }
 func (s *Service) MessageCursor(ctx context.Context, raw, cid string, instances ...string) (int64, error) {
 	instance, err := cursorInstance(instances)
@@ -117,6 +120,7 @@ func (s *Service) MessageCursor(ctx context.Context, raw, cid string, instances 
 		return 0, err
 	}
 	var sid string
+	var heartbeat bool
 	var cursor int64
 	e := s.store.View(ctx, func(r ReadStore) error {
 		a, _, e := s.require(r, raw, cid, PermissionRead)
@@ -125,9 +129,12 @@ func (s *Service) MessageCursor(ctx context.Context, raw, cid string, instances 
 		}
 		sid = a.session.ID
 		cursor, e = r.AckCursor(a.session.ID, cid, instance)
+		if e == nil {
+			heartbeat = s.instanceHeartbeatDue(r, sid, cid, instance)
+		}
 		return e
 	})
-	if e == nil {
+	if e == nil && heartbeat {
 		s.touchInstance(ctx, sid, cid, &AgentInstance{ID: instance})
 	}
 	return cursor, e

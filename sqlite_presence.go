@@ -1,6 +1,10 @@
 package comitia
 
-import "encoding/json"
+import (
+	"database/sql"
+	"encoding/json"
+	"time"
+)
 
 const presenceSchema = `
 CREATE TABLE IF NOT EXISTS instance_presence (
@@ -28,8 +32,29 @@ func (x *sqlStore) PutInstancePresence(p InstancePresence) error {
 	return err
 }
 
-func (x *sqlStore) Instances(cid string) ([]InstancePresence, error) {
-	rows, err := x.q.Query("SELECT session_id,context_id,instance_id,label,last_seen,COALESCE(resume,'') FROM instance_presence WHERE context_id=? ORDER BY session_id,instance_id", cid)
+func (x *sqlStore) InstanceLastSeen(sid, cid, instance string) (time.Time, error) {
+	var seen string
+	err := x.q.QueryRow("SELECT last_seen FROM instance_presence WHERE session_id=? AND context_id=? AND instance_id=?", sid, cid, instance).Scan(&seen)
+	return parse(seen), dbErr(err)
+}
+
+func (x *sqlStore) TouchInstancePresence(p InstancePresence) error {
+	if _, err := x.q.Exec("SAVEPOINT presence_heartbeat"); err != nil {
+		return err
+	}
+	err := x.PutInstancePresence(p)
+	if err != nil {
+		_, _ = x.q.Exec("ROLLBACK TO presence_heartbeat")
+	}
+	_, releaseErr := x.q.Exec("RELEASE presence_heartbeat")
+	if err != nil {
+		return err
+	}
+	return releaseErr
+}
+
+func (x *sqlStore) Instances(cid string, now time.Time) ([]InstancePresence, error) {
+	rows, err := x.q.Query("SELECT p.session_id,p.context_id,p.instance_id,p.label,p.last_seen,COALESCE(p.resume,''),s.expires_at,s.revoked_at FROM instance_presence p JOIN sessions s ON s.id=p.session_id WHERE p.context_id=? ORDER BY p.session_id,p.instance_id", cid)
 	if err != nil {
 		return nil, err
 	}
@@ -37,11 +62,13 @@ func (x *sqlStore) Instances(cid string) ([]InstancePresence, error) {
 	out := []InstancePresence{}
 	for rows.Next() {
 		var p InstancePresence
-		var seen, resume string
-		if err := rows.Scan(&p.SessionID, &p.ContextID, &p.ID, &p.Label, &seen, &resume); err != nil {
+		var seen, resume, expires string
+		var revoked sql.NullString
+		if err := rows.Scan(&p.SessionID, &p.ContextID, &p.ID, &p.Label, &seen, &resume, &expires, &revoked); err != nil {
 			return nil, err
 		}
 		p.LastSeen = parse(seen)
+		p.Active = !revoked.Valid && parse(expires).After(now)
 		if resume != "" {
 			p.Resume = json.RawMessage(resume)
 		}

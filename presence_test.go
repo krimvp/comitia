@@ -32,13 +32,13 @@ func TestInstancePresenceHeartbeatsAndResume(t *testing.T) {
 		t.Fatal(err)
 	}
 	check()
-	*f.now = f.now.Add(time.Second)
+	*f.now = f.now.Add(InstanceHeartbeatInterval)
 	if _, err := f.svc.AppendMessage(ctx, raw, cid, in); err != nil {
 		t.Fatal(err)
 	}
 	check()
 	resume := json.RawMessage(`{ "harness":"codex", "session_id":"harness-session", "cwd":"/tmp/worker", "pid":123, "extension":{"integer":9007199254740993} }`)
-	*f.now = f.now.Add(time.Second)
+	*f.now = f.now.Add(InstanceHeartbeatInterval)
 	if err := f.svc.SetInstanceResume(ctx, raw, cid, instance, resume); err != nil {
 		t.Fatal(err)
 	}
@@ -55,7 +55,7 @@ func TestInstancePresenceHeartbeatsAndResume(t *testing.T) {
 		func() error { return f.svc.AckMessages(ctx, raw, cid, m.Sequence, instance.ID) },
 	}
 	for _, call := range calls {
-		*f.now = f.now.Add(time.Second)
+		*f.now = f.now.Add(InstanceHeartbeatInterval)
 		if err := call(); err != nil {
 			t.Fatal(err)
 		}
@@ -207,6 +207,10 @@ func (w *failingPresenceWriter) PutInstancePresence(InstancePresence) error {
 	w.store.upserts++
 	return errors.New("presence write failed")
 }
+func (w *failingPresenceWriter) TouchInstancePresence(p InstancePresence) error {
+	return w.PutInstancePresence(p)
+}
+
 func TestInstancePresenceFailureDoesNotFailMessages(t *testing.T) {
 	f := setup(t, ":memory:")
 	defer f.store.Close()
@@ -267,3 +271,163 @@ func TestInstancePresenceMigrationAndPersistence(t *testing.T) {
 }
 
 func instanceFilter(id string) MessageFilters { return MessageFilters{AgentInstance: &id} }
+
+type countingPresenceStore struct {
+	Store
+	updates, heartbeats int
+}
+type countingPresenceWriter struct {
+	WriteStore
+	store *countingPresenceStore
+}
+
+func (s *countingPresenceStore) Update(ctx context.Context, fn func(WriteStore) error) error {
+	s.updates++
+	return s.Store.Update(ctx, func(w WriteStore) error { return fn(&countingPresenceWriter{w, s}) })
+}
+func (w *countingPresenceWriter) PutInstancePresence(p InstancePresence) error {
+	w.store.heartbeats++
+	return w.WriteStore.PutInstancePresence(p)
+}
+func (w *countingPresenceWriter) TouchInstancePresence(p InstancePresence) error {
+	w.store.heartbeats++
+	return w.WriteStore.TouchInstancePresence(p)
+}
+func TestPresenceHeartbeatTransactionBudget(t *testing.T) {
+	f := setup(t, ":memory:")
+	defer f.store.Close()
+	counted := &countingPresenceStore{Store: f.store}
+	f.svc.store = counted
+	ctx, raw, cid := context.Background(), f.admin.Token, f.context.ID
+	in := MessageInput{DedupeKey: "x", Body: "x", AgentInstance: &AgentInstance{ID: "worker"}}
+	if _, err := f.svc.AppendMessage(ctx, raw, cid, in); err != nil {
+		t.Fatal(err)
+	}
+	if counted.updates != 1 || counted.heartbeats != 1 {
+		t.Fatalf("send used %d updates / %d heartbeats, want 1 / 1", counted.updates, counted.heartbeats)
+	}
+	for range 10 {
+		*f.now = f.now.Add(time.Second)
+		if _, err := f.svc.ReplayMessages(ctx, raw, cid, 0, 10, instanceFilter("worker")); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := f.svc.MessageCursor(ctx, raw, cid, "worker"); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if counted.updates != 1 || counted.heartbeats != 1 {
+		t.Fatalf("fresh polls wrote: updates=%d heartbeats=%d", counted.updates, counted.heartbeats)
+	}
+	*f.now = f.now.Add(20 * time.Second)
+	if _, err := f.svc.ReplayMessages(ctx, raw, cid, 0, 10, instanceFilter("worker")); err != nil {
+		t.Fatal(err)
+	}
+	if counted.updates != 2 || counted.heartbeats != 2 {
+		t.Fatalf("interval boundary: updates=%d heartbeats=%d", counted.updates, counted.heartbeats)
+	}
+	*f.now = f.now.Add(30 * time.Second)
+	if err := f.svc.AckMessages(ctx, raw, cid, 0, "worker"); err != nil {
+		t.Fatal(err)
+	}
+	if counted.updates != 3 || counted.heartbeats != 3 {
+		t.Fatalf("ack added a transaction: updates=%d heartbeats=%d", counted.updates, counted.heartbeats)
+	}
+	*f.now = f.now.Add(30 * time.Second)
+	if _, err := f.svc.AppendMessage(ctx, raw, cid, in); err != nil {
+		t.Fatal(err)
+	}
+	if counted.updates != 4 || counted.heartbeats != 4 {
+		t.Fatalf("dedupe retry: updates=%d heartbeats=%d", counted.updates, counted.heartbeats)
+	}
+}
+
+func TestPresenceHeartbeatSavepointPreservesMessageAndAck(t *testing.T) {
+	f := setup(t, ":memory:")
+	defer f.store.Close()
+	ctx, raw, cid := context.Background(), f.admin.Token, f.context.ID
+	// FAIL preserves earlier trigger effects unless the heartbeat savepoint rolls back.
+	_, err := f.store.db.Exec(`CREATE TABLE presence_probe (value INTEGER);
+ CREATE TRIGGER reject_presence BEFORE INSERT ON instance_presence BEGIN
+ INSERT INTO presence_probe VALUES(1);
+ SELECT RAISE(FAIL,'presence unavailable'); END;`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	m, err := f.svc.AppendMessage(ctx, raw, cid, MessageInput{DedupeKey: "x", Body: "x", AgentInstance: &AgentInstance{ID: "worker"}})
+	if err != nil {
+		t.Fatalf("heartbeat failed message: %v", err)
+	}
+	if err := f.svc.AckMessages(ctx, raw, cid, m.Sequence, "worker"); err != nil {
+		t.Fatalf("heartbeat failed ack: %v", err)
+	}
+	cursor, err := f.svc.MessageCursor(ctx, raw, cid, "worker")
+	if err != nil || cursor != m.Sequence {
+		t.Fatalf("ack not committed: %d %v", cursor, err)
+	}
+	rows, err := f.svc.ReplayMessages(ctx, raw, cid, 0, 10)
+	if err != nil || len(rows) != 1 {
+		t.Fatalf("message not committed: %v %v", rows, err)
+	}
+	var effects int
+	if err := f.store.db.QueryRow("SELECT COUNT(*) FROM presence_probe").Scan(&effects); err != nil {
+		t.Fatal(err)
+	}
+	if effects != 0 {
+		t.Fatalf("heartbeat leaked %d trigger effects", effects)
+	}
+	if err := f.svc.SetInstanceResume(ctx, raw, cid, &AgentInstance{ID: "worker"}, []byte(`{}`)); err == nil {
+		t.Fatal("explicit resume suppressed storage error")
+	}
+}
+
+func TestInstancePresenceSessionActivity(t *testing.T) {
+	for _, revoked := range []bool{false, true} {
+		name := "expired"
+		if revoked {
+			name = "revoked"
+		}
+		t.Run(name, func(t *testing.T) {
+			f := setup(t, ":memory:")
+			defer f.store.Close()
+			ctx, raw, cid := context.Background(), f.admin.Token, f.context.ID
+			_, worker, _, err := f.svc.DelegateSession(ctx, raw, DelegateInput{PrincipalName: "worker", TTL: time.Hour, Grants: []DelegatedGrant{{ContextID: cid, Permissions: PermissionRead, ExpiresAt: f.now.Add(time.Hour)}}})
+			if err != nil {
+				t.Fatal(err)
+			}
+			for _, credential := range []Credential{f.admin, worker} {
+				if err := f.svc.SetInstanceResume(ctx, credential.Token, cid, &AgentInstance{ID: "same"}, []byte(`{"pid":123}`)); err != nil {
+					t.Fatal(err)
+				}
+			}
+			rows, err := f.svc.ListInstances(ctx, raw, cid)
+			if err != nil || len(rows) != 2 {
+				t.Fatalf("rows: %v %v", rows, err)
+			}
+			for _, row := range rows {
+				if !row.Active {
+					t.Fatal("live session marked inactive")
+				}
+			}
+			if revoked {
+				if err := f.svc.RevokeSession(ctx, raw, worker.Session.ID); err != nil {
+					t.Fatal(err)
+				}
+			} else {
+				*f.now = f.now.Add(time.Hour)
+			}
+			rows, err = f.svc.ListInstances(ctx, raw, cid)
+			if err != nil || len(rows) != 2 {
+				t.Fatalf("historical rows: %v %v", rows, err)
+			}
+			for _, row := range rows {
+				want := row.SessionID == f.admin.Session.ID
+				if row.Active != want {
+					t.Fatalf("%s activity: %+v", name, row)
+				}
+				if string(row.Resume) != `{"pid":123}` {
+					t.Fatal("historical resume changed")
+				}
+			}
+		})
+	}
+}

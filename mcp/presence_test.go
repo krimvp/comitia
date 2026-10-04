@@ -58,10 +58,10 @@ func TestMCPInstancePresence(t *testing.T) {
 		{"message_cursor", map[string]any{"agent_instance": "worker"}},
 		{"ack_messages", map[string]any{"agent_instance": "worker", "sequence": 0}},
 	} {
-		now = now.Add(time.Second)
+		now = now.Add(31 * time.Second)
 		call(operation.name, operation.args)
 		rows := call("list_instances", map[string]any{}).([]comitia.InstancePresence)
-		if len(rows) != 1 || rows[0].ID != "worker" || rows[0].Label != "MCP worker" || !rows[0].LastSeen.Equal(now) || rows[0].SessionID != owner.Session.ID || string(rows[0].Resume) != `{"harness":"codex","pid":123}` {
+		if len(rows) != 1 || rows[0].ID != "worker" || rows[0].Label != "MCP worker" || !rows[0].LastSeen.Equal(now) || rows[0].SessionID != owner.Session.ID || !rows[0].Active || string(rows[0].Resume) != `{"harness":"codex","pid":123}` {
 			t.Fatalf("%s: %v", operation.name, rows)
 		}
 	}
