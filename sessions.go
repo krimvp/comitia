@@ -55,6 +55,7 @@ type SessionWriteStore interface {
 	MarkBootstrapDone() error
 	PutPrincipal(Principal) error
 	PutSession(Session, string) error
+	// RevokeSessionTree durably revokes the session and all child sessions atomically.
 	RevokeSessionTree(string, time.Time) error
 }
 

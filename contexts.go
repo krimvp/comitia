@@ -48,6 +48,11 @@ type ContextReadStore interface {
 	Workspace(string) (Workspace, error)
 	Context(string) (WorkContext, error)
 	ChildContexts(string, string, int) ([]WorkContext, error)
+	// ContextArchivedAt returns the earliest explicit archive or creator-grant
+	// ancestry expiry/revocation at/before now, or nil while active. Explicit
+	// archives apply immediately. Cyclic/missing creator ancestry returns
+	// ErrInvalid/ErrNotFound. Archival is
+	// independent of other grants and does not remove read access.
 	ContextArchivedAt(string, time.Time) (*time.Time, error)
 	ChildContextCount(string) (int, error)
 }
@@ -84,22 +89,31 @@ func (s *Service) ListContexts(ctx context.Context, raw, afterID string, limit i
 			if err != nil {
 				return err
 			}
+			access, err := contextGrants(r, a.session.ID, candidates, a.now)
+			if err != nil {
+				return err
+			}
+			start := len(out)
 			for _, c := range candidates {
 				cursor = c.ID
-				if _, _, err := s.require(r, raw, c.ID, PermissionRead); err != nil {
+				if _, _, err := s.requireAuthenticated(access, a, c.ID, PermissionRead); err != nil {
 					if errors.Is(err, ErrForbidden) {
 						continue
 					}
 					return err
 				}
-				if err := s.contextMetadata(r, &c); err != nil {
-					return err
-				}
 				out = append(out, c)
 				if len(out) == limit {
-					return nil
+					break
 				}
 			}
+			if err := s.contextMetadataBatch(r, out[start:], a.now); err != nil {
+				return err
+			}
+			if len(out) == limit {
+				return nil
+			}
+
 			if len(candidates) < 100 {
 				return nil
 			}
@@ -224,20 +238,15 @@ func (s *Service) ListChildContexts(ctx context.Context, raw, parentID, afterID 
 	}
 	var out []WorkContext
 	err := s.store.View(ctx, func(r ReadStore) error {
-		if _, _, err := s.require(r, raw, parentID, PermissionRead); err != nil {
+		a, _, err := s.require(r, raw, parentID, PermissionRead)
+		if err != nil {
 			return err
 		}
-		var err error
 		out, err = r.ChildContexts(parentID, afterID, limit)
 		if err != nil {
 			return err
 		}
-		for i := range out {
-			if err := s.contextMetadata(r, &out[i]); err != nil {
-				return err
-			}
-		}
-		return nil
+		return s.contextMetadataBatch(r, out, a.now)
 	})
 	if err != nil {
 		return nil, err

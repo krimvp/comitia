@@ -24,11 +24,18 @@ type GrantAPI interface {
 	GrantContext(context.Context, string, GrantInput) (Grant, error)
 }
 type GrantReadStore interface {
+	// Grants returns only the session's own effective grants on this context at
+	// now. Every grant ancestor and each ancestor's owner/issuer must exist, be
+	// unrevoked and expire strictly after now. Missing ancestry/cycles exclude
+	// candidates; other storage errors propagate. It does not inherit parent-read
+	// access, apply context archival, or combine permissions from separate grants.
 	Grants(string, string, time.Time) ([]Grant, error)
+	// Grant returns the raw record, including expiry/revocation, or ErrNotFound.
 	Grant(string) (Grant, error)
 }
 type GrantWriteStore interface {
 	PutGrant(Grant) error
+	// RevokeGrantTree durably revokes the grant and its descendants atomically.
 	RevokeGrantTree(string, time.Time) error
 }
 

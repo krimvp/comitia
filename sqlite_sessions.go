@@ -38,6 +38,7 @@ func (x *sqlStore) Principal(id string) (Principal, error) {
 	return p, dbErr(e)
 }
 func (x *sqlStore) PutSession(s Session, h string) error {
+	x.invalidateGrantPolicy()
 	_, e := x.q.Exec("INSERT INTO sessions VALUES(?,?,?,?,?,?,?)", s.ID, s.PrincipalID, nullString(s.ParentID), h, ts(s.ExpiresAt), timeString(s.RevokedAt), ts(s.CreatedAt))
 	return e
 }
@@ -59,6 +60,7 @@ func (x *sqlStore) SessionByTokenHash(h string) (Session, error) {
 	return scanSession(x.q.QueryRow("SELECT id,principal_id,parent_id,expires_at,revoked_at,created_at FROM sessions WHERE token_hash=?", h))
 }
 func (x *sqlStore) RevokeSessionTree(root string, at time.Time) error {
+	x.invalidateGrantPolicy()
 	r, e := x.q.Exec(`WITH RECURSIVE d(id) AS (SELECT id FROM sessions WHERE id=? UNION ALL SELECT s.id FROM sessions s JOIN d ON s.parent_id=d.id) UPDATE sessions SET revoked_at=? WHERE id IN (SELECT id FROM d) AND revoked_at IS NULL`, root, ts(at))
 	if e != nil {
 		return e

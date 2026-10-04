@@ -3,6 +3,7 @@ package comitia
 import (
 	"context"
 	"fmt"
+	"time"
 )
 
 // ArchiveContext is idempotent. Administrative status permits archiving, but never grants read access.
@@ -13,7 +14,7 @@ func (s *Service) ArchiveContext(ctx context.Context, raw, contextID string) err
 			return err
 		}
 		if !a.principal.Admin {
-			if _, _, err := s.require(w, raw, contextID, PermissionGrant); err != nil {
+			if _, _, err := s.requireAuthenticated(w, a, contextID, PermissionGrant); err != nil {
 				return err
 			}
 		}
@@ -25,7 +26,10 @@ func (s *Service) ArchiveContext(ctx context.Context, raw, contextID string) err
 }
 
 func (s *Service) contextMetadata(r ReadStore, c *WorkContext) error {
-	at, err := r.ContextArchivedAt(c.ID, s.now().UTC())
+	return s.contextMetadataAt(r, c, s.now().UTC())
+}
+func (s *Service) contextMetadataAt(r ReadStore, c *WorkContext, now time.Time) error {
+	at, err := r.ContextArchivedAt(c.ID, now)
 	if err != nil {
 		return err
 	}
@@ -34,7 +38,10 @@ func (s *Service) contextMetadata(r ReadStore, c *WorkContext) error {
 }
 
 func (s *Service) contextActive(r ReadStore, contextID string) error {
-	at, err := r.ContextArchivedAt(contextID, s.now().UTC())
+	return s.contextActiveAt(r, contextID, s.now().UTC())
+}
+func (s *Service) contextActiveAt(r ReadStore, contextID string, now time.Time) error {
+	at, err := r.ContextArchivedAt(contextID, now)
 	if err != nil {
 		return err
 	}

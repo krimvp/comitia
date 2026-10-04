@@ -52,7 +52,12 @@ type Config struct {
 	MaxChildContextsPerGrant int
 }
 
-// Store supplies atomic persistence. Implementations must serialize concurrent Update calls.
+// Store supplies atomic persistence. Each View observes one consistent snapshot;
+// each Update serializes with other Updates, reads its own writes and commits
+// atomically only when its callback returns nil. Errors and panics roll back and
+// release transaction resources. Cancellation covers admission and SQL work.
+// Callback stores must not escape the callback. Authorization caches belong to
+// that transaction and must be invalidated by grant/session mutations.
 type Store interface {
 	View(context.Context, func(ReadStore) error) error
 	Update(context.Context, func(WriteStore) error) error
