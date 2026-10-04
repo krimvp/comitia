@@ -56,3 +56,45 @@ test("svg figures are labelled and decorative svg is hidden", () => {
     for (const id of ids[1].split(/\s+/)) assert.match(html, new RegExp(`id="${id}"`));
   }
 });
+
+function tokens(block) {
+  return Object.fromEntries([...block.matchAll(/--([a-z-]+):\s*(#[0-9a-f]{6})/gi)].map((m) => [m[1], m[2]]));
+}
+
+function contrast(a, b) {
+  const lum = (hex) => {
+    const [r, g, b] = [1, 3, 5].map((i) => {
+      const c = parseInt(hex.slice(i, i + 2), 16) / 255;
+      return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+    });
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+  };
+  const [hi, lo] = [lum(a), lum(b)].sort((x, y) => y - x);
+  return (hi + 0.05) / (lo + 0.05);
+}
+
+test("text colour pairs meet WCAG AA in both themes", () => {
+  const light = tokens(css.slice(css.indexOf(":root {"), css.indexOf("@media (prefers-color-scheme: dark)")));
+  const darkStart = css.indexOf("@media (prefers-color-scheme: dark)");
+  const dark = { ...light, ...tokens(css.slice(darkStart, css.indexOf("}\n}", darkStart))) };
+  const pairs = [
+    ["ink", "paper"], ["ink", "panel"], ["ink", "code-bg"], ["ink", "live-fill"],
+    ["muted", "paper"], ["muted", "panel"], ["muted", "code-bg"],
+    ["accent", "paper"], ["accent", "panel"], ["accent", "live-fill"],
+    ["live", "live-fill"], ["live", "panel"],
+  ];
+  for (const [theme, t] of [["light", light], ["dark", dark]]) {
+    for (const [fg, bg] of pairs) {
+      assert.ok(t[fg] && t[bg], `${theme}: missing --${fg} or --${bg}`);
+      const ratio = contrast(t[fg], t[bg]);
+      assert.ok(ratio >= 4.5, `${theme} --${fg} on --${bg} is ${ratio.toFixed(2)}:1`);
+    }
+  }
+  assert.match(css, /\.t-fig \{[^}]*fill: var\(--muted\)/, "fig. 1 label uses a text colour");
+});
+
+test("the home link opens the page itself", () => {
+  const home = html.match(/<a class="brand" href="([^"]*)"/);
+  assert.ok(home);
+  assert.equal(home[1], "index.html");
+});
