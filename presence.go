@@ -29,6 +29,8 @@ type PresenceAPI interface {
 type PresenceReadStore interface {
 	Instances(string, time.Time) ([]InstancePresence, error)
 	InstanceLastSeen(string, string, string) (time.Time, error)
+}
+type instanceLabelStore interface {
 	InstanceLabel(string, string, string) (string, error)
 }
 type PresenceWriteStore interface {
@@ -87,13 +89,29 @@ func (s *Service) touchInstanceIn(w WriteStore, sid, cid string, instance *Agent
 	}
 	due := s.instanceHeartbeatDue(w, sid, cid, instance.ID)
 	if !due && instance.Label != "" {
-		label, err := w.InstanceLabel(sid, cid, instance.ID)
+		label, err := s.instanceLabel(w, sid, cid, instance.ID)
 		due = err == nil && label != instance.Label
 	}
 	if !due {
 		return
 	}
 	_ = w.TouchInstancePresence(InstancePresence{ID: instance.ID, Label: instance.Label, SessionID: sid, ContextID: cid, LastSeen: s.now().UTC()})
+}
+
+func (s *Service) instanceLabel(r ReadStore, sid, cid, instance string) (string, error) {
+	if labels, ok := r.(instanceLabelStore); ok {
+		return labels.InstanceLabel(sid, cid, instance)
+	}
+	rows, err := r.Instances(cid, s.now().UTC())
+	if err != nil {
+		return "", err
+	}
+	for _, p := range rows {
+		if p.SessionID == sid && p.ID == instance {
+			return p.Label, nil
+		}
+	}
+	return "", ErrNotFound
 }
 
 func (s *Service) touchInstance(ctx context.Context, sid, cid string, instance *AgentInstance) {

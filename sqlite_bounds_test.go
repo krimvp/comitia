@@ -122,7 +122,7 @@ func TestSQLiteCallbackPanicReleasesTransaction(t *testing.T) {
 
 func TestReadPresenceBoundUnderHeldWriter(t *testing.T) {
 	for _, state := range []string{"absent", "fresh", "due"} {
-		for _, operation := range []string{"replay", "cursor", "wait-zero", "wait", "wait-match"} {
+		for _, operation := range []string{"replay", "cursor", "wait-zero", "wait"} {
 			t.Run(state+"/"+operation, func(t *testing.T) {
 				path := filepath.Join(t.TempDir(), "state.db")
 				f := setup(t, path)
@@ -158,12 +158,6 @@ func TestReadPresenceBoundUnderHeldWriter(t *testing.T) {
 						}
 					case "cursor":
 						_, err = f.svc.MessageCursor(ctx, raw, cid, "reader")
-					case "wait-match":
-						var rows []Message
-						rows, err = f.svc.WaitMessages(ctx, raw, cid, 0, 10*time.Millisecond, instanceFilter("reader"))
-						if len(rows) != 1 {
-							err = errors.New("heartbeat deadline discarded initial match")
-						}
 					default:
 						timeout := time.Duration(0)
 						if operation == "wait" {
@@ -186,6 +180,78 @@ func TestReadPresenceBoundUnderHeldWriter(t *testing.T) {
 				}
 			})
 		}
+	}
+}
+
+type overdueHeartbeatStore struct {
+	Store
+	t         *testing.T
+	writer    *SQLiteStore
+	delay     time.Duration
+	scanCtx   context.Context
+	heartbeat bool
+}
+
+func (s *overdueHeartbeatStore) View(ctx context.Context, fn func(ReadStore) error) error {
+	if s.delay > 0 {
+		timer := time.NewTimer(s.delay)
+		defer timer.Stop()
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-timer.C:
+		}
+	}
+	err := s.Store.View(ctx, fn)
+	if err == nil {
+		s.scanCtx = ctx
+	}
+	return err
+}
+
+func (s *overdueHeartbeatStore) Update(ctx context.Context, fn func(WriteStore) error) error {
+	if s.scanCtx == nil {
+		return errors.New("heartbeat before successful scan")
+	}
+	release := holdSQLiteWriter(s.t, s.writer)
+	defer release()
+	s.heartbeat = true
+	// Model optional metadata work overrunning its budget, but only after the
+	// initial scan has committed. Both the heartbeat and wait deadlines expire.
+	<-s.scanCtx.Done()
+	return s.Store.Update(ctx, fn)
+}
+
+func TestWaitInitialMatchSurvivesHeartbeatDeadline(t *testing.T) {
+	for _, delay := range []time.Duration{0, 20 * time.Millisecond} {
+		t.Run(delay.String(), func(t *testing.T) {
+			path := filepath.Join(t.TempDir(), "state.db")
+			f := setup(t, path)
+			defer f.store.Close()
+			ctx, raw, cid := context.Background(), f.admin.Token, f.context.ID
+			m, err := f.svc.AppendMessage(ctx, raw, cid, MessageInput{DedupeKey: "ready", Body: "ready"})
+			if err != nil {
+				t.Fatal(err)
+			}
+			writer, err := OpenSQLite(path)
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer writer.Close()
+			store := &overdueHeartbeatStore{Store: f.store, t: t, writer: writer, delay: delay}
+			f.svc.store = store
+			started := time.Now()
+			rows, err := f.svc.WaitMessages(ctx, raw, cid, 0, time.Second, instanceFilter("reader"))
+			if store.scanCtx == nil || !store.heartbeat || !errors.Is(store.scanCtx.Err(), context.DeadlineExceeded) {
+				t.Fatal("test did not expire the wait deadline after a successful scan")
+			}
+			if err != nil || len(rows) != 1 || rows[0].ID != m.ID {
+				t.Fatalf("heartbeat expiry discarded successful initial match: %v %v", rows, err)
+			}
+			if elapsed := time.Since(started); elapsed > 2*time.Second {
+				t.Fatalf("wait exceeded deadline bound: %v", elapsed)
+			}
+		})
 	}
 }
 

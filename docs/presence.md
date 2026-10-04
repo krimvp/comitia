@@ -108,11 +108,13 @@ the HTTP client substitutes its configured default for nil. Existing replay call
 without an instance remain valid. Custom API implementations must add
 `PresenceAPI`; custom stores implement
 `Instances(contextID, now)`, `InstanceLastSeen(sessionID, contextID, instanceID)`,
-`InstanceLabel(sessionID, contextID, instanceID)`,
 `PutInstancePresence` for explicit resume writes, and `TouchInstancePresence` for
 best-effort heartbeats. TouchInstancePresence must isolate a failed heartbeat
-from its caller's transaction. SQLite adds `instance_presence` without
-altering existing tables; earlier message history is not backfilled as activity.
+from its caller's transaction. Stores may optionally implement
+`InstanceLabel(sessionID, contextID, instanceID)` for a direct label lookup;
+otherwise the service uses `Instances` to find the existing label. SQLite adds
+`instance_presence` without altering existing tables; earlier message history
+is not backfilled as activity.
 The inspector shows instances in its sidebar and refreshes them alongside messages.
 
 ## CLI discovery
