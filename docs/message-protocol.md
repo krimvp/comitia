@@ -576,8 +576,12 @@ come from the same `Store.View` snapshot, so concurrent appends are not skipped.
 It is scan progress for the supplied filters, never proof that skipped messages
 were processed. The service retains authorization and presence checks, bounds
 returned bytes, and uses `Messages` when the capability is absent. SQLite adds
-filter and recipient side tables, maintains them atomically on append, and
-backfills older messages (including older-binary writes) on the next open.
+filter and recipient side tables. SQLite insert triggers on messages, envelopes
+and sender instances maintain them in the writer's transaction, including when
+an older CLI/binary appends while a new reader is already running. Inserting an
+envelope replaces provisional broadcast membership with its final routing;
+instance recipients retain precedence over session recipients. Startup backfills
+repair messages that predate these triggers.
 
 ## Task claims by instance
 

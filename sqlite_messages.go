@@ -25,6 +25,20 @@ INSERT INTO message_filters SELECT m.id,m.context_id,m.seq,COALESCE(json_extract
 INSERT INTO message_recipients SELECT m.id,m.context_id,m.seq,'broadcast','' FROM messages m LEFT JOIN message_envelopes e ON e.message_id=m.id WHERE COALESCE(json_array_length(e.envelope,'$.recipient_instances'),0)=0 AND COALESCE(json_array_length(e.envelope,'$.recipient_session_ids'),0)=0 AND NOT EXISTS (SELECT 1 FROM message_recipients r WHERE r.message_id=m.id AND r.kind='broadcast' AND r.recipient='');
 INSERT INTO message_recipients SELECT DISTINCT m.id,m.context_id,m.seq,'session',j.value FROM messages m JOIN message_envelopes e ON e.message_id=m.id JOIN json_each(e.envelope,'$.recipient_session_ids') j WHERE COALESCE(json_array_length(e.envelope,'$.recipient_instances'),0)=0 AND NOT EXISTS (SELECT 1 FROM message_recipients r WHERE r.message_id=m.id AND r.kind='session' AND r.recipient=j.value);
 INSERT INTO message_recipients SELECT DISTINCT m.id,m.context_id,m.seq,'instance',j.value FROM messages m JOIN message_envelopes e ON e.message_id=m.id JOIN json_each(e.envelope,'$.recipient_instances') j WHERE NOT EXISTS (SELECT 1 FROM message_recipients r WHERE r.message_id=m.id AND r.kind='instance' AND r.recipient=j.value);
+CREATE TRIGGER IF NOT EXISTS comitia_message_filter_insert AFTER INSERT ON messages BEGIN
+ INSERT INTO message_filters VALUES(NEW.id,NEW.context_id,NEW.seq,'','','');
+ INSERT INTO message_recipients VALUES(NEW.id,NEW.context_id,NEW.seq,'broadcast','');
+END;
+CREATE TRIGGER IF NOT EXISTS comitia_message_envelope_filter_insert AFTER INSERT ON message_envelopes BEGIN
+ UPDATE message_filters SET schema=COALESCE(json_extract(NEW.envelope,'$.schema'),''),task_id=COALESCE(json_extract(NEW.envelope,'$.task_id'),'') WHERE message_id=NEW.message_id;
+ DELETE FROM message_recipients WHERE message_id=NEW.message_id;
+ INSERT INTO message_recipients SELECT id,context_id,seq,'broadcast','' FROM messages WHERE id=NEW.message_id AND COALESCE(json_array_length(NEW.envelope,'$.recipient_instances'),0)=0 AND COALESCE(json_array_length(NEW.envelope,'$.recipient_session_ids'),0)=0;
+ INSERT INTO message_recipients SELECT DISTINCT m.id,m.context_id,m.seq,'session',j.value FROM messages m JOIN json_each(NEW.envelope,'$.recipient_session_ids') j WHERE m.id=NEW.message_id AND COALESCE(json_array_length(NEW.envelope,'$.recipient_instances'),0)=0;
+ INSERT INTO message_recipients SELECT DISTINCT m.id,m.context_id,m.seq,'instance',j.value FROM messages m JOIN json_each(NEW.envelope,'$.recipient_instances') j WHERE m.id=NEW.message_id;
+END;
+CREATE TRIGGER IF NOT EXISTS comitia_message_instance_filter_insert AFTER INSERT ON message_instances BEGIN
+ UPDATE message_filters SET sender=NEW.instance_id WHERE message_id=NEW.message_id;
+END;
 CREATE TABLE IF NOT EXISTS acks (session_id TEXT NOT NULL REFERENCES sessions(id), context_id TEXT NOT NULL REFERENCES contexts(id), seq INTEGER NOT NULL, updated_at TEXT NOT NULL, PRIMARY KEY(session_id,context_id));
 `
 
@@ -95,37 +109,7 @@ func (x *sqlStore) PutMessage(m Message) (Message, error) {
 		}
 		_, e = x.q.Exec("INSERT INTO message_dedupe_scopes VALUES(?,?,?,?,?)", m.ContextID, m.SessionID, instance, m.DedupeKey, m.ID)
 	}
-	if e == nil {
-		e = x.putMessageFilters(m)
-	}
 	return m, e
-}
-
-func (x *sqlStore) putMessageFilters(m Message) error {
-	schema, task, sender := "", "", ""
-	if m.Envelope != nil {
-		schema, task = m.Envelope.Schema, m.Envelope.TaskID
-	}
-	if m.AgentInstance != nil {
-		sender = m.AgentInstance.ID
-	}
-	if _, err := x.q.Exec("INSERT INTO message_filters VALUES(?,?,?,?,?,?)", m.ID, m.ContextID, m.Sequence, schema, task, sender); err != nil {
-		return err
-	}
-	kind, recipients := "broadcast", []string{""}
-	if m.Envelope != nil {
-		if len(m.Envelope.RecipientInstances) > 0 {
-			kind, recipients = "instance", m.Envelope.RecipientInstances
-		} else if len(m.Envelope.RecipientSessionIDs) > 0 {
-			kind, recipients = "session", m.Envelope.RecipientSessionIDs
-		}
-	}
-	for _, recipient := range recipients {
-		if _, err := x.q.Exec("INSERT OR IGNORE INTO message_recipients VALUES(?,?,?,?,?)", m.ID, m.ContextID, m.Sequence, kind, recipient); err != nil {
-			return err
-		}
-	}
-	return nil
 }
 
 // Seek matching projections before loading bodies or decoding envelopes.
