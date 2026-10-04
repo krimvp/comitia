@@ -4,10 +4,13 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
+	"log"
 	"net"
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -120,12 +123,31 @@ func TestMCPHTTPDelegationOptIn(t *testing.T) {
 		listed    bool
 	}{
 		{"default", "", nil, false},
-		{"flag", "", []string{"--allow-delegation"}, true},
+		{"flag", "", []string{"--allow-delegation", "--log-requests"}, true},
 		{"environment", "1", nil, true},
+		{"true", "true", nil, true},
+		{"True", "True", nil, true},
+		{"TRUE", "TRUE", nil, true},
+		{"t", "t", nil, true},
+		{"T", "T", nil, true},
+		{"False", "False", nil, false},
+		{"FALSE", "FALSE", nil, false},
+		{"f", "f", nil, false},
+		{"F", "F", nil, false},
+		{"flag-true", "false", []string{"--allow-delegation", "--log-requests"}, true},
+		{"false", "false", nil, false},
+		{"zero", "0", nil, false},
+		{"flag-false", "true", []string{"--allow-delegation=false", "--log-requests=false"}, false},
+		{"flag-over-invalid-env", "invalid", []string{"--allow-delegation=false", "--log-requests=false"}, false},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Setenv("COMITIA_CREDENTIAL", "")
 			t.Setenv("COMITIA_MCP_HTTP_ALLOW_DELEGATION", tc.env)
+			t.Setenv("COMITIA_MCP_HTTP_LOG", tc.env)
+			var logs bytes.Buffer
+			previous := log.Writer()
+			log.SetOutput(&logs)
+			defer log.SetOutput(previous)
 			l, err := net.Listen("tcp", "127.0.0.1:0")
 			if err != nil {
 				t.Fatal(err)
@@ -137,7 +159,13 @@ func TestMCPHTTPDelegationOptIn(t *testing.T) {
 			go func() {
 				done <- runServe(ctx, config{serverURL: "http://127.0.0.1:8390"}, nil, nil, "mcp-http", append([]string{"--listen", addr}, tc.args...))
 			}()
-			defer func() { cancel(); <-done }()
+			defer func() {
+				cancel()
+				<-done
+				if got := strings.Contains(logs.String(), "mcp-http"); got != tc.listed {
+					t.Errorf("request logging enabled=%v, want %v", got, tc.listed)
+				}
+			}()
 			var body []byte
 			for deadline := time.Now().Add(5 * time.Second); ; {
 				req, _ := http.NewRequest(http.MethodPost, "http://"+addr+"/mcp", bytes.NewReader([]byte(`{"jsonrpc":"2.0","id":1,"method":"tools/list"}`)))
@@ -159,5 +187,25 @@ func TestMCPHTTPDelegationOptIn(t *testing.T) {
 				t.Fatalf("delegate_session listed=%v: %s", got, body)
 			}
 		})
+	}
+}
+
+func TestMCPHTTPInvalidBooleanEnvironment(t *testing.T) {
+	for _, name := range []string{"COMITIA_MCP_HTTP_ALLOW_DELEGATION", "COMITIA_MCP_HTTP_LOG"} {
+		for _, value := range []string{"yes", "no", "2", " false ", "private-invalid-value"} {
+			t.Run(name+"/"+value, func(t *testing.T) {
+				t.Setenv("COMITIA_CREDENTIAL", "")
+				t.Setenv("COMITIA_MCP_HTTP_ALLOW_DELEGATION", "")
+				t.Setenv("COMITIA_MCP_HTTP_LOG", "")
+				t.Setenv(name, value)
+				err := runServe(context.Background(), config{serverURL: "http://localhost:8390"}, nil, nil, "mcp-http", []string{"--listen", "127.0.0.1:invalid-port"})
+				if !errors.Is(err, comitia.ErrInvalid) {
+					t.Fatalf("invalid boolean must fail before listening: %v", err)
+				}
+				if strings.Contains(err.Error(), value) {
+					t.Fatal("invalid setting value exposed")
+				}
+			})
+		}
 	}
 }

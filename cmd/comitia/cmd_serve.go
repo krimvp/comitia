@@ -3,9 +3,11 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"flag"
 	"fmt"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -46,14 +48,20 @@ func runServe(ctx context.Context, cfg config, api comitia.API, out *json.Encode
 		}
 		fs := newFlags(cmd)
 		dir := fs.String("sessions-dir", env("COMITIA_SESSIONS_DIR", ""), "private delegated credential directory (default ~/.local/share/comitia/sessions)")
-		allowDelegation := fs.Bool("allow-delegation", env("COMITIA_MCP_HTTP_ALLOW_DELEGATION", "") != "", "offer delegate_session (credential files are written on this host)")
+		allowDelegation := fs.Bool("allow-delegation", false, "offer delegate_session (credential files are written on this host)")
 		listen := fs.String("listen", env("COMITIA_MCP_HTTP_LISTEN", "127.0.0.1:8391"), "listen address")
 		origins := fs.String("allowed-origins", env("COMITIA_MCP_HTTP_ALLOWED_ORIGINS", ""), "comma-separated Origin allowlist (empty rejects any request carrying an Origin)")
 		maxBody := fs.Int64("max-body-bytes", 1<<20, "maximum request body size")
 		rate := fs.Float64("rate-per-second", 20, "per-credential request rate (0 disables)")
 		burst := fs.Int("rate-burst", 60, "per-credential burst size (0 disables)")
-		logRequests := fs.Bool("log-requests", env("COMITIA_MCP_HTTP_LOG", "") != "", "log request method, protocol header, status and duration")
+		logRequests := fs.Bool("log-requests", false, "log allowlisted HTTP method, constant route, status and duration")
 		if err := fs.Parse(args); err != nil {
+			return err
+		}
+		if err := booleanEnv(fs, "allow-delegation", "COMITIA_MCP_HTTP_ALLOW_DELEGATION", allowDelegation); err != nil {
+			return err
+		}
+		if err := booleanEnv(fs, "log-requests", "COMITIA_MCP_HTTP_LOG", logRequests); err != nil {
 			return err
 		}
 		var allow []string
@@ -73,8 +81,7 @@ func runServe(ctx context.Context, cfg config, api comitia.API, out *json.Encode
 			RateBurst:         *burst,
 			ReadHeaderTimeout: 10 * time.Second,
 		})
-		// Optional request logging. Records method, protocol header, status and
-		// duration only - never the Authorization header or message bodies.
+		// Optional request logging uses only allowlisted, non-sensitive metadata.
 		if *logRequests {
 			handler = mcp.LoggingHandler(handler)
 		}
@@ -105,4 +112,22 @@ func serveFlags(args []string) (string, int, int, error) {
 		return "", 0, 0, fmt.Errorf("%w: context limits must be positive", comitia.ErrInvalid)
 	}
 	return *listen, *depth, *count, nil
+}
+
+func booleanEnv(fs *flag.FlagSet, name, key string, value *bool) error {
+	explicit := false
+	fs.Visit(func(f *flag.Flag) {
+		if f.Name == name {
+			explicit = true
+		}
+	})
+	if explicit || os.Getenv(key) == "" {
+		return nil
+	}
+	parsed, err := strconv.ParseBool(os.Getenv(key))
+	if err != nil {
+		return fmt.Errorf("%w: %s must be a boolean", comitia.ErrInvalid, key)
+	}
+	*value = parsed
+	return nil
 }

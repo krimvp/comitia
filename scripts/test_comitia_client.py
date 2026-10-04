@@ -1,11 +1,14 @@
 import contextlib
 import datetime
 import io
+import http.server
 import json
 import os
 from pathlib import Path
 import sys
+import subprocess
 import tempfile
+import threading
 import unittest
 from unittest import mock
 import urllib.error
@@ -122,3 +125,104 @@ class SessionsTest(unittest.TestCase):
         self.assertEqual(rows[1]['status'], 'invalid')
         self.assertFalse(expired.exists())
         self.assertTrue(unreadable.exists())
+
+
+class SelectedCredentialTest(unittest.TestCase):
+    def setUp(self):
+        temp = tempfile.TemporaryDirectory()
+        self.addCleanup(temp.cleanup)
+        self.root = Path(temp.name)
+        (self.root/'credentials').mkdir()
+        self.path = self.root/'credentials/worker.json'
+        self.path.write_text(json.dumps({'server_url': 'http://selected-server',
+                                        'credential': {'Token': 'selected-secret'}}))
+        self.path.chmod(0o600)
+        (self.root/'local-context.json').write_text(json.dumps({'server_url': 'http://fallback-server'}))
+
+    def test_rejects_overrides_before_exec(self):
+        selectors = [['worker'], ['--identity=worker'], ['--credential-file', str(self.path)]]
+        for selector in selectors:
+            for name in ('server-url', 'db', 'credential', 'bootstrap-credential'):
+                for dash in ('-', '--'):
+                    for override in ([dash+name, 'override-secret'], [dash+name+'=override-secret']):
+                        with self.subTest(selector=selector, override=override), mock.patch.object(client.os, 'execve') as execute:
+                            with self.assertRaises(SystemExit) as error:
+                                client.main([*selector, *override, 'context-list'], self.root)
+                            execute.assert_not_called()
+                            self.assertNotIn('override-secret', str(error.exception))
+                            self.assertNotIn('selected-secret', str(error.exception))
+
+    def test_selected_destination_and_credential_override_environment(self):
+        with mock.patch.dict(os.environ, {'COMITIA_SERVER_URL': 'http://hostile-server',
+                                         'COMITIA_CREDENTIAL': 'hostile-secret',
+                                         'COMITIA_DB': 'hostile.db',
+                                         'COMITIA_AGENT_INSTANCE': 'worker-instance'}), \
+                mock.patch.object(client.os, 'execve') as execute:
+            args = ['context-list', '--limit', '1']
+            client.main(['worker', *args], self.root)
+            binary, argv, env = execute.call_args.args
+            self.assertEqual(argv, [binary, *args])
+            self.assertEqual(env['COMITIA_SERVER_URL'], 'http://selected-server')
+            self.assertEqual(env['COMITIA_CREDENTIAL'], 'selected-secret')
+            self.assertEqual(env['COMITIA_AGENT_INSTANCE'], 'worker-instance')
+            self.assertNotIn('COMITIA_DB', env)
+
+    def test_real_binary_sends_only_to_selected_server(self):
+        (self.root/'bin').mkdir()
+        env = {k: v for k, v in os.environ.items() if not k.startswith('COMITIA_')}
+        env.update(GOTOOLCHAIN='go1.24.13', GOFLAGS='-buildvcs=false')
+        cache, gopath = subprocess.check_output(['go', 'env', 'GOCACHE', 'GOPATH'], env=env, text=True).splitlines()
+        env.update(HOME=str(self.root), GOPATH=gopath, GOCACHE=cache,
+                   HTTP_PROXY='', HTTPS_PROXY='', ALL_PROXY='', NO_PROXY='127.0.0.1')
+        subprocess.run(['go', 'build', '-o', str(self.root/'bin/comitia'), './cmd/comitia'],
+                       cwd=Path(__file__).resolve().parent.parent, env=env,
+                       check=True, capture_output=True, timeout=120)
+
+        def capture_server():
+            requests = []
+            class Capture(http.server.BaseHTTPRequestHandler):
+                def do_POST(self):
+                    requests.append(self.headers.get('Authorization'))
+                    self.rfile.read(int(self.headers.get('Content-Length', '0')))
+                    self.send_response(200)
+                    self.end_headers()
+                    self.wfile.write(b'{"contexts":[]}')
+                def log_message(self, *args):
+                    pass
+            server = http.server.ThreadingHTTPServer(('127.0.0.1', 0), Capture)
+            thread = threading.Thread(target=server.serve_forever, daemon=True)
+            thread.start()
+            def stop():
+                server.shutdown()
+                server.server_close()
+                thread.join()
+            self.addCleanup(stop)
+            return 'http://127.0.0.1:'+str(server.server_port), requests
+
+        selected_url, selected_requests = capture_server()
+        override_url, override_requests = capture_server()
+        self.path.write_text(json.dumps({'server_url': selected_url,
+                                        'credential': {'Token': 'selected-secret'}}))
+        env.update(COMITIA_SERVER_URL=override_url, COMITIA_CREDENTIAL='inherited-secret')
+        code = """import importlib.util, pathlib, sys
+spec = importlib.util.spec_from_file_location('client', sys.argv[1])
+client = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(client)
+client.main(sys.argv[3:], pathlib.Path(sys.argv[2]))
+"""
+        command = [sys.executable, '-c', code, client.__file__, str(self.root)]
+        for selector in (['worker'], ['--identity', 'worker'], ['--credential-file', str(self.path)]):
+            for override in (['--server-url', override_url], ['--server-url='+override_url],
+                             ['-server-url', override_url], ['-server-url='+override_url]):
+                with self.subTest(selector=selector, override=override):
+                    result = subprocess.run([*command, *selector, *override, 'context-list'],
+                                            env=env, capture_output=True, text=True, timeout=10)
+                    self.assertNotEqual(result.returncode, 0)
+                    self.assertNotIn('selected-secret', result.stdout+result.stderr)
+                    self.assertEqual(override_requests, [])
+                    self.assertEqual(selected_requests, [])
+        result = subprocess.run([*command, 'worker', 'context-list'], env=env,
+                                capture_output=True, text=True, timeout=10)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(selected_requests, ['Bearer selected-secret'])
+        self.assertEqual(override_requests, [])

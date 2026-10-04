@@ -6,28 +6,24 @@ import (
 	"time"
 )
 
-// LoggingHandler wraps a handler with request logging suitable for an
-// internet-facing endpoint. It records the HTTP method, the MCP protocol
-// revision header, the MCP method, the status and the duration.
-//
-// It deliberately never records the Authorization header, the credential, or
-// message bodies - the deployment's security model requires that credentials
-// and coordination content stay out of logs.
+// LoggingHandler records only allowlisted HTTP methods, a constant route,
+// status and duration. Request URLs, headers and bodies may carry credentials
+// or coordination content and must never enter logs.
 func LoggingHandler(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
 		rec := &statusRecorder{ResponseWriter: w, status: http.StatusOK}
 		next.ServeHTTP(rec, r)
 
-		// The MCP method travels in the Mcp-Method header on modern clients; the
-		// path is the fallback identity for older ones.
-		method := r.Header.Get("Mcp-Method")
-		if method == "" {
-			method = r.URL.Path
+		method := r.Method
+		switch method {
+		case http.MethodGet, http.MethodHead, http.MethodPost, http.MethodPut,
+			http.MethodPatch, http.MethodDelete, http.MethodOptions, http.MethodConnect, http.MethodTrace:
+		default:
+			method = "other"
 		}
-		log.Printf("mcp-http %s method=%s proto=%q status=%d dur=%s remote=%s",
-			r.Method, method, r.Header.Get("MCP-Protocol-Version"),
-			rec.status, time.Since(start).Round(time.Millisecond), r.RemoteAddr)
+		log.Printf("mcp-http %s route=/mcp status=%d dur=%s",
+			method, rec.status, time.Since(start).Round(time.Millisecond))
 	})
 }
 

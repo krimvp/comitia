@@ -46,7 +46,11 @@ installing so they load the MCP server and the instructions.
 ### The comitia-client wrapper
 
 `bin/comitia-client` runs the installed binary as one identity, with the server
-URL from `local-context.json`. It drops inherited `COMITIA_*` variables except
+URL from the selected credential document, falling back to `local-context.json`.
+It rejects global `--server-url`, `--db`, `--credential` and
+`--bootstrap-credential` overrides, including single-dash and `=VALUE` forms,
+to keep the selected credential pinned to its server. It drops inherited
+`COMITIA_*` variables except
 the self-reported `COMITIA_AGENT_INSTANCE` and `COMITIA_AGENT_INSTANCE_LABEL`:
 
 ```sh

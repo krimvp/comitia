@@ -136,11 +136,21 @@ def load(path):
         raise SystemExit(f'Credential file must be owned by you with mode 0600: {path}')
     return json.loads(path.read_text())
 
+def guard_overrides(args):
+    """Selected credentials stay pinned; Go accepts one or two leading dashes."""
+    for arg in args:
+        if not arg.startswith('-') or arg == '--':
+            break
+        name = arg.split('=', 1)[0].lstrip('-')
+        if name in ('server-url', 'db', 'credential', 'bootstrap-credential'):
+            raise SystemExit('Selected credentials are pinned to their server; global overrides are not allowed')
+
 def main(argv, root=ROOT):
     if argv and argv[0] == 'sessions':
         print(json.dumps(sessions(argv[1:], root)))
         return
     path, args = select(argv, root)
+    guard_overrides(args)
     document = load(path)
     config = json.loads((root/'local-context.json').read_text())
     env = {k:v for k,v in os.environ.items() if not k.startswith('COMITIA_') or k in PASSED}
