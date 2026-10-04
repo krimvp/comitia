@@ -207,7 +207,14 @@ It then repeatedly waits and prints tab-separated lines:
 ```
 
 Missing sender instance or schema is printed as `-`. Only the first body line
-is printed. Every successful print is followed by a monotonic acknowledgement
+is printed (a trailing CR is dropped). Sender-controlled fields (sender
+instance, schema and body preview) are escaped so each message is exactly one
+physical line and cannot drive the terminal: backslash becomes `\\`, invalid
+UTF-8 bytes become `\xNN`, and every non-graphic character (C0 controls
+including TAB, CR, ESC and BEL, DEL, C1 controls, Unicode format/bidi and
+line/paragraph separators) uses its Go escape, such as `\t`, `\r`, `\a`,
+`\x1b` or `\u202e`. Raw tabs only separate fields. Use `replay` for the exact
+JSON body. Every successful print is followed by a monotonic acknowledgement
 using the same instance. `--no-ack` disables these writes while retaining the
 in-memory sequence and resuming from the persisted cursor on startup. Filtered
 watch therefore consumes a particular view of the log: use a separate instance

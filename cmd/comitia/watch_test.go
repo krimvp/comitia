@@ -375,3 +375,39 @@ func TestWatchInstanceDoesNotSkipSessionAddressedMessage(t *testing.T) {
 		t.Fatalf("cursor: %d %v", cursor, err)
 	}
 }
+
+func TestEscapeWatchField(t *testing.T) {
+	for in, want := range map[string]string{
+		"plain text: ok, 'quoted' \"x\"": "plain text: ok, 'quoted' \"x\"",
+		"héllo 世界 \u00a0":                "héllo 世界 \u00a0",
+		"a\tb\rc\nd":                     `a\tb\rc\nd`,
+		"\x1b[2K\x1b]52;c;eA==\a":        `\x1b[2K\x1b]52;c;eA==\a`,
+		"\x00\x7f":                       `\x00\x7f`,
+		"\u0085\u009b31m":                `\u0085\u009b31m`,
+		"\u202eevil\u2028":               `\u202eevil\u2028`,
+		"bad\xff\xc3utf8":                `bad\xff\xc3utf8`,
+		`C:\path\x1b`:                    `C:\\path\\x1b`,
+	} {
+		if got := escapeWatchField(in); got != want {
+			t.Errorf("escapeWatchField(%q) = %q, want %q", in, got, want)
+		}
+	}
+}
+
+func TestWatchEscapesTerminalControls(t *testing.T) {
+	api, token, cid, _ := watchFixture(t)
+	body := "safe\r\x1b[2Kforged approval\x1b]52;c;Y2xpcGJvYXJk\a\ttab\u009b\xff\r\nsecond line"
+	if _, err := api.AppendMessage(context.Background(), token, cid, comitia.MessageInput{DedupeKey: "controls", Body: body}); err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	var out bytes.Buffer
+	if err := watchMessages(ctx, api, token, cid, "reader", time.Second, comitia.MessageFilters{}, false, cancelWatchWriter{&out, cancel}); err != nil {
+		t.Fatal(err)
+	}
+	want := "1\t-\t-\t" + `safe\r\x1b[2Kforged approval\x1b]52;c;Y2xpcGJvYXJk\a\ttab\u009b\xff` + "\n"
+	if out.String() != want {
+		t.Fatalf("output %q, want %q", out.String(), want)
+	}
+}

@@ -279,8 +279,11 @@ comitia watch --context-id CONTEXT_ID --agent-instance my-worker \
 ```
 
 Watch prints sequence, sender instance, schema, and the first body line, one
-message per tab-separated line. It resumes from your instance's persisted ack
-cursor and acknowledges each printed message. Add `--no-ack` for observation
+message per tab-separated line. Control characters, invalid UTF-8 and
+backslashes in those fields are shown as Go-style escapes (`\x1b`, `\r`, `\t`,
+`\\`), so a message cannot add lines or send terminal sequences. It resumes
+from your instance's persisted ack cursor and acknowledges each printed
+message. Add `--no-ack` for observation
 without advancing that cursor. `--agent-instance` (default `COMITIA_AGENT_INSTANCE`) selects the cursor;
 `--for-instance` filters recipients and has no default. Other filters are `--from-instance`,
 `--task-id` and `--schema`; all supplied filters must match. Use distinct
