@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"time"
 
 	"github.com/krimvp/comitia"
@@ -19,7 +18,7 @@ func runSessions(ctx context.Context, cfg config, api comitia.API, out *json.Enc
 			return err
 		}
 		if cfg.bootstrapCredential == "" {
-			return errors.New("bootstrap credential is required")
+			return comitia.Invalidf("bootstrap credential is required")
 		}
 		p, c, e := api.Bootstrap(ctx, comitia.BootstrapInput{Credential: cfg.bootstrapCredential, AdminName: *name, SessionTTL: *ttl})
 		if e != nil {

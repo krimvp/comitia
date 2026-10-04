@@ -31,7 +31,7 @@ func (s *Server) callTasks(ctx context.Context, name string, raw json.RawMessage
 		if err := decode(raw, &a); err != nil {
 			return nil, err
 		}
-		if err := required(a.ContextID, a.Title); err != nil {
+		if err := required("context_id", a.ContextID, "title", a.Title); err != nil {
 			return nil, err
 		}
 		return s.API.CreateTask(ctx, s.Credential, a.ContextID, comitia.TaskInput{Title: a.Title, Body: a.Body})
@@ -45,7 +45,7 @@ func (s *Server) callTasks(ctx context.Context, name string, raw json.RawMessage
 		if err := decode(raw, &a); err != nil {
 			return nil, err
 		}
-		if err := required(a.TaskID); err != nil {
+		if err := required("task_id", a.TaskID); err != nil {
 			return nil, err
 		}
 		d, e := lease(a.LeaseSeconds, a.OpenEnded)
@@ -68,7 +68,7 @@ func (s *Server) callTasks(ctx context.Context, name string, raw json.RawMessage
 		if err := decode(raw, &a); err != nil {
 			return nil, err
 		}
-		if err := required(a.TaskID, a.ClaimToken); err != nil {
+		if err := required("task_id", a.TaskID, "claim_token", a.ClaimToken); err != nil {
 			return nil, err
 		}
 		d, e := lease(a.LeaseSeconds, a.OpenEnded)
@@ -85,7 +85,7 @@ func (s *Server) callTasks(ctx context.Context, name string, raw json.RawMessage
 		if err := decode(raw, &a); err != nil {
 			return nil, err
 		}
-		if err := required(a.TaskID, a.ClaimToken); err != nil {
+		if err := required("task_id", a.TaskID, "claim_token", a.ClaimToken); err != nil {
 			return nil, err
 		}
 		return s.API.CompleteTask(ctx, s.Credential, a.TaskID, a.ClaimToken, a.LeaseVersion)
@@ -98,7 +98,7 @@ func (s *Server) callTasks(ctx context.Context, name string, raw json.RawMessage
 		if err := decode(raw, &a); err != nil {
 			return nil, err
 		}
-		if err := required(a.TaskID); err != nil {
+		if err := required("task_id", a.TaskID); err != nil {
 			return nil, err
 		}
 		return s.API.ReleaseTask(ctx, s.Credential, a.TaskID, a.ClaimToken, a.LeaseVersion)
@@ -109,7 +109,7 @@ func (s *Server) callTasks(ctx context.Context, name string, raw json.RawMessage
 		if err := decode(raw, &a); err != nil {
 			return nil, err
 		}
-		if err := required(a.TaskID); err != nil {
+		if err := required("task_id", a.TaskID); err != nil {
 			return nil, err
 		}
 		return s.API.GetTask(ctx, s.Credential, a.TaskID)
@@ -122,7 +122,7 @@ func (s *Server) callTasks(ctx context.Context, name string, raw json.RawMessage
 		if err := decode(raw, &a); err != nil {
 			return nil, err
 		}
-		if err := required(a.ContextID); err != nil {
+		if err := required("context_id", a.ContextID); err != nil {
 			return nil, err
 		}
 		limit := 100
@@ -130,11 +130,11 @@ func (s *Server) callTasks(ctx context.Context, name string, raw json.RawMessage
 			limit = *a.Limit
 		}
 		if limit < 1 || limit > 1000 {
-			return nil, comitia.ErrInvalid
+			return nil, comitia.Invalidf("limit must be between 1 and 1000")
 		}
 		status := comitia.TaskStatus(a.Status)
 		if a.Status != "" && status != comitia.TaskPending && status != comitia.TaskLeased && status != comitia.TaskCompleted {
-			return nil, comitia.ErrInvalid
+			return nil, comitia.Invalidf("status must be pending, leased or completed")
 		}
 		return s.API.ListTasks(ctx, s.Credential, a.ContextID, status, limit)
 	default:
@@ -149,7 +149,7 @@ func openEnded() map[string]any {
 func lease(n int64, open bool) (time.Duration, error) {
 	if open {
 		if n != 0 {
-			return 0, comitia.ErrInvalid
+			return 0, comitia.Invalidf("open_ended excludes lease_seconds")
 		}
 		return comitia.OpenLease, nil
 	}

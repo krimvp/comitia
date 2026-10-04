@@ -8,8 +8,11 @@ import (
 func (s *Service) AppendMessage(ctx context.Context, raw, cid string, in MessageInput) (Message, error) {
 	var m Message
 	appended := false
-	if in.DedupeKey == "" || (in.Envelope == nil && in.Body == "") {
-		return m, ErrInvalid
+	if in.DedupeKey == "" {
+		return m, Invalidf("dedupe_key required")
+	}
+	if in.Envelope == nil && in.Body == "" {
+		return m, Invalidf("body or envelope required")
 	}
 	instance, err := normalizeAgentInstance(in.AgentInstance)
 	if err != nil {
@@ -61,8 +64,11 @@ func (s *Service) ReplayMessages(ctx context.Context, raw, cid string, after int
 		return nil, err
 	}
 	var out []Message
-	if after < 0 || limit < 1 || limit > 1000 {
-		return nil, ErrInvalid
+	if after < 0 {
+		return nil, Invalidf("after must be nonnegative")
+	}
+	if limit < 1 || limit > 1000 {
+		return nil, Invalidf("limit must be between 1 and 1000")
 	}
 	e := s.store.View(ctx, func(r ReadStore) error {
 		a, _, e := s.require(r, raw, cid, PermissionRead)
@@ -80,7 +86,7 @@ func (s *Service) AckMessages(ctx context.Context, raw, cid string, seq int64, i
 		return err
 	}
 	if seq < 0 {
-		return ErrInvalid
+		return Invalidf("sequence must be nonnegative")
 	}
 	return s.store.Update(ctx, func(w WriteStore) error {
 		a, _, e := s.require(w, raw, cid, PermissionRead)

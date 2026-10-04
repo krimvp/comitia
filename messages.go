@@ -80,10 +80,10 @@ func strictPayload(raw json.RawMessage, target any) error {
 	d := json.NewDecoder(bytes.NewReader(raw))
 	d.DisallowUnknownFields()
 	if err := d.Decode(target); err != nil {
-		return ErrInvalid
+		return InvalidJSON(err, "payload")
 	}
 	if err := d.Decode(new(any)); err != io.EOF {
-		return ErrInvalid
+		return Invalidf("payload must contain one JSON value")
 	}
 	return nil
 }
@@ -108,8 +108,11 @@ func builtinMessageSchemas() map[string]PayloadValidator {
 				Instructions       string   `json:"instructions"`
 				AcceptanceCriteria []string `json:"acceptance_criteria"`
 			}
-			if strictPayload(raw, &p) != nil || strings.TrimSpace(p.Instructions) == "" || !nonempty(p.AcceptanceCriteria) {
-				return ErrInvalid
+			if err := strictPayload(raw, &p); err != nil {
+				return err
+			}
+			if strings.TrimSpace(p.Instructions) == "" || !nonempty(p.AcceptanceCriteria) {
+				return Invalidf("instructions and acceptance_criteria required")
 			}
 			return nil
 		},
@@ -118,8 +121,11 @@ func builtinMessageSchemas() map[string]PayloadValidator {
 				ArtifactRefs []string `json:"artifact_refs"`
 				Checks       []string `json:"checks"`
 			}
-			if strictPayload(raw, &p) != nil || !nonempty(p.ArtifactRefs) || !nonempty(p.Checks) {
-				return ErrInvalid
+			if err := strictPayload(raw, &p); err != nil {
+				return err
+			}
+			if !nonempty(p.ArtifactRefs) || !nonempty(p.Checks) {
+				return Invalidf("artifact_refs and checks required")
 			}
 			return nil
 		},
@@ -129,11 +135,14 @@ func builtinMessageSchemas() map[string]PayloadValidator {
 				Summary      string   `json:"summary"`
 				EvidenceRefs []string `json:"evidence_refs,omitempty"`
 			}
-			if strictPayload(raw, &p) != nil || strings.TrimSpace(p.Summary) == "" {
-				return ErrInvalid
+			if err := strictPayload(raw, &p); err != nil {
+				return err
+			}
+			if strings.TrimSpace(p.Summary) == "" {
+				return Invalidf("summary required")
 			}
 			if p.Severity != "info" && p.Severity != "warning" && p.Severity != "error" {
-				return ErrInvalid
+				return Invalidf("severity must be info, warning or error")
 			}
 			return nil
 		},
@@ -142,8 +151,11 @@ func builtinMessageSchemas() map[string]PayloadValidator {
 				Reason string   `json:"reason"`
 				Needs  []string `json:"needs"`
 			}
-			if strictPayload(raw, &p) != nil || strings.TrimSpace(p.Reason) == "" || !nonempty(p.Needs) {
-				return ErrInvalid
+			if err := strictPayload(raw, &p); err != nil {
+				return err
+			}
+			if strings.TrimSpace(p.Reason) == "" || !nonempty(p.Needs) {
+				return Invalidf("reason and needs required")
 			}
 			return nil
 		},
@@ -152,8 +164,11 @@ func builtinMessageSchemas() map[string]PayloadValidator {
 				ArtifactRefs []string `json:"artifact_refs"`
 				Summary      string   `json:"summary"`
 			}
-			if strictPayload(raw, &p) != nil || !nonempty(p.ArtifactRefs) || strings.TrimSpace(p.Summary) == "" {
-				return ErrInvalid
+			if err := strictPayload(raw, &p); err != nil {
+				return err
+			}
+			if !nonempty(p.ArtifactRefs) || strings.TrimSpace(p.Summary) == "" {
+				return Invalidf("artifact_refs and summary required")
 			}
 			return nil
 		},
@@ -165,20 +180,23 @@ func builtinMessageSchemas() map[string]PayloadValidator {
 				ArtifactRefs []string `json:"artifact_refs,omitempty"`
 				Reason       string   `json:"reason,omitempty"`
 			}
-			if strictPayload(raw, &p) != nil || !nonempty(p.Checks) || p.ArtifactRefs != nil && !nonempty(p.ArtifactRefs) {
-				return ErrInvalid
+			if err := strictPayload(raw, &p); err != nil {
+				return err
+			}
+			if !nonempty(p.Checks) || p.ArtifactRefs != nil && !nonempty(p.ArtifactRefs) {
+				return Invalidf("checks required and artifact_refs must contain nonempty entries")
 			}
 			switch p.Status {
 			case "passed", "failed":
 				if !nonempty(p.EvidenceRefs) {
-					return ErrInvalid
+					return Invalidf("evidence_refs required for passed or failed status")
 				}
 			case "not_run":
 				if strings.TrimSpace(p.Reason) == "" {
-					return ErrInvalid
+					return Invalidf("reason required for not_run status")
 				}
 			default:
-				return ErrInvalid
+				return Invalidf("status must be passed, failed or not_run")
 			}
 			return nil
 		},
@@ -197,34 +215,37 @@ func (s *Service) normalizeEnvelope(in *MessageEnvelope, body string) (*MessageE
 	}
 	raw, err := json.Marshal(in)
 	if err != nil || len(raw) > 65536 || len(in.RecipientSessionIDs) > 64 || len(in.RecipientInstances) > 64 {
-		return nil, ErrInvalid
+		return nil, Invalidf("envelope must be valid JSON, at most 65536 bytes with at most 64 recipient_session_ids and recipient_instances")
 	}
 	var out MessageEnvelope
 	if json.Unmarshal(raw, &out) != nil {
-		return nil, ErrInvalid
+		return nil, Invalidf("envelope must be valid JSON")
 	}
 	validator, ok := s.messageSchemas[out.Schema]
 	if !ok {
-		return nil, fmt.Errorf("%w: unknown message schema", ErrInvalid)
+		return nil, Invalidf("schema must name a registered message schema")
 	}
 	var payload map[string]any
 	d := json.NewDecoder(bytes.NewReader(out.Payload))
 	d.UseNumber()
 	if d.Decode(&payload) != nil || payload == nil {
-		return nil, ErrInvalid
+		return nil, Invalidf("payload must be a JSON object")
 	}
 	if d.Decode(new(any)) != io.EOF {
-		return nil, ErrInvalid
+		return nil, Invalidf("payload must contain one JSON value")
 	}
-	if validator(out.Payload) != nil {
-		return nil, fmt.Errorf("%w: payload does not match schema", ErrInvalid)
+	if err := validator(out.Payload); err != nil {
+		if strings.HasPrefix(out.Schema, "comitia.") {
+			return nil, err
+		}
+		return nil, Invalidf("payload does not match extension schema")
 	}
 	out.Payload, err = json.Marshal(payload)
 	if err != nil {
-		return nil, ErrInvalid
+		return nil, Invalidf("payload must be valid JSON")
 	}
 	if out.Schema == "comitia.discussion.v1" && strings.TrimSpace(body) == "" {
-		return nil, ErrInvalid
+		return nil, Invalidf("body required for discussion schema")
 	}
 	switch out.Schema {
 	case "comitia.assignment.v1", "comitia.review-request.v1", "comitia.blocker.v1", EvaluationResultSchema, ExecutionEventSchema:
@@ -254,13 +275,13 @@ func (s *Service) normalizeEnvelope(in *MessageEnvelope, body string) (*MessageE
 	sort.Strings(out.RecipientSessionIDs)
 	for i, id := range out.RecipientSessionIDs {
 		if id == "" || (i > 0 && id == out.RecipientSessionIDs[i-1]) {
-			return nil, ErrInvalid
+			return nil, Invalidf("recipient_session_ids must be nonempty and unique")
 		}
 	}
 	sort.Strings(out.RecipientInstances)
 	for i, instance := range out.RecipientInstances {
 		if !validInstanceID(instance) || (i > 0 && instance == out.RecipientInstances[i-1]) {
-			return nil, ErrInvalid
+			return nil, Invalidf("recipient_instances must be valid instance IDs and unique")
 		}
 	}
 	return &out, nil
@@ -318,7 +339,7 @@ func (s *Service) validateEnvelopeReferences(r ReadStore, cid string, env *Messa
 // Names are display labels, never routing keys. IDs identify concrete sessions.
 func (s *Service) ListParticipants(ctx context.Context, token, cid string, limit int) ([]Participant, error) {
 	if limit < 1 || limit > 1000 {
-		return nil, ErrInvalid
+		return nil, Invalidf("limit must be between 1 and 1000")
 	}
 	out := []Participant{}
 	err := s.store.View(ctx, func(r ReadStore) error {
@@ -352,12 +373,15 @@ func normalizeAgentInstance(in *AgentInstance) (*AgentInstance, error) {
 	if in == nil {
 		return nil, nil
 	}
-	if !validInstanceID(in.ID) || len(in.Label) > 128 || !utf8.ValidString(in.Label) {
-		return nil, ErrInvalid
+	if !validInstanceID(in.ID) {
+		return nil, Invalidf("agent_instance.id must be 1-64 ASCII letters, digits, dot, underscore or hyphen")
+	}
+	if len(in.Label) > 128 || !utf8.ValidString(in.Label) {
+		return nil, Invalidf("agent_instance.label must be valid UTF-8 and at most 128 bytes")
 	}
 	for _, c := range in.Label {
 		if unicode.IsControl(c) {
-			return nil, ErrInvalid
+			return nil, Invalidf("agent_instance.label must not contain control characters")
 		}
 	}
 	out := *in
@@ -367,13 +391,13 @@ func normalizeAgentInstance(in *AgentInstance) (*AgentInstance, error) {
 // Omitting the instance (or supplying an empty ID) selects the legacy cursor.
 func cursorInstance(instances []string) (string, error) {
 	if len(instances) > 1 {
-		return "", ErrInvalid
+		return "", Invalidf("agent_instance accepts at most one instance")
 	}
 	if len(instances) == 0 || instances[0] == "" {
 		return "", nil
 	}
 	if !validInstanceID(instances[0]) {
-		return "", ErrInvalid
+		return "", Invalidf("agent_instance must be 1-64 ASCII letters, digits, dot, underscore or hyphen")
 	}
 	return instances[0], nil
 }

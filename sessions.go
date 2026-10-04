@@ -64,7 +64,7 @@ func (s *Service) Bootstrap(ctx context.Context, in BootstrapInput) (Principal, 
 		return p, c, ErrUnauthenticated
 	}
 	if strings.TrimSpace(in.AdminName) == "" || !validTTL(in.SessionTTL) {
-		return p, c, ErrInvalid
+		return p, c, Invalidf("admin_name required and session_ttl must be positive")
 	}
 	err := s.store.Update(ctx, func(w WriteStore) error {
 		used, e := w.BootstrapDone()
@@ -91,7 +91,7 @@ func (s *Service) Bootstrap(ctx context.Context, in BootstrapInput) (Principal, 
 func (s *Service) CreatePrincipal(ctx context.Context, raw, name string) (Principal, error) {
 	var p Principal
 	if strings.TrimSpace(name) == "" {
-		return p, ErrInvalid
+		return p, Invalidf("name required")
 	}
 	e := s.store.Update(ctx, func(w WriteStore) error {
 		if _, e := s.admin(w, raw); e != nil {
@@ -105,7 +105,7 @@ func (s *Service) CreatePrincipal(ctx context.Context, raw, name string) (Princi
 func (s *Service) MintSession(ctx context.Context, raw, principalID string, ttl time.Duration) (Credential, error) {
 	var c Credential
 	if !validTTL(ttl) {
-		return c, ErrInvalid
+		return c, Invalidf("ttl must be positive")
 	}
 	e := s.store.Update(ctx, func(w WriteStore) error {
 		if _, e := s.admin(w, raw); e != nil {
@@ -126,7 +126,7 @@ func (s *Service) DelegateSession(ctx context.Context, raw string, in DelegateIn
 	var c Credential
 	var out []Grant
 	if strings.TrimSpace(in.PrincipalName) == "" || !validTTL(in.TTL) || len(in.Grants) == 0 {
-		return p, c, nil, ErrInvalid
+		return p, c, nil, Invalidf("principal_name required, ttl must be positive and grants must not be empty")
 	}
 	e := s.store.Update(ctx, func(w WriteStore) error {
 		parent, e := s.auth(w, raw)
@@ -143,7 +143,7 @@ func (s *Service) DelegateSession(ctx context.Context, raw string, in DelegateIn
 		c = Credential{Token: tok, Session: Session{ID: id(), PrincipalID: p.ID, ParentID: parent.session.ID, ExpiresAt: expiry, CreatedAt: now}}
 		for _, req := range in.Grants {
 			if req.Permissions == 0 || req.ExpiresAt.After(expiry) || !req.ExpiresAt.After(now) {
-				return ErrInvalid
+				return Invalidf("grants permissions must be nonzero and expires_at must be within session expiry")
 			}
 			_, parents, e := s.require(w, raw, req.ContextID, PermissionGrant)
 			if e != nil {

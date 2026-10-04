@@ -11,6 +11,7 @@ import re
 import secrets
 import shutil
 import string
+import sys
 import subprocess
 try:
     import tomllib
@@ -77,7 +78,58 @@ def install_binary(root, source=None):
         subprocess.run(['go', 'build', '-o', str(staged), './cmd/comitia'], cwd=REPO, check=True)
     staged.chmod(0o700)
     os.replace(staged, binary)
+    report_stale_mcp_clients(binary)
     return binary
+
+def stale_mcp_clients(binary, proc_root=Path('/proc')):
+    """Find MCP stdio processes using an older copy of this installed binary.
+
+    Linux /proc/exe still references the old inode after atomic replacement.
+    Processes can disappear or deny access mid-scan; never inspect or report
+    their environment or full arguments (which may contain credentials).
+    """
+    if not sys.platform.startswith('linux'):
+        return []
+    try:
+        binary = Path(binary).resolve()
+        installed = binary.stat()
+        entries = list(Path(proc_root).iterdir())
+    except OSError:
+        return []
+    stale = []
+    for process in entries:
+        if not process.name.isdigit():
+            continue
+        try:
+            target = os.readlink(process/'exe').removesuffix(' (deleted)')
+            if target != str(binary):
+                continue
+            argv = (process/'cmdline').read_bytes().split(b'\0')
+            args = iter(argv[1:])
+            command = None
+            for arg in args:
+                if arg.split(b'=', 1)[0] in (b'--db', b'--server-url', b'--credential', b'--bootstrap-credential'):
+                    if b'=' not in arg:
+                        next(args, None)
+                else:
+                    command = arg
+                    break
+            if command != b'mcp':
+                continue
+            running = (process/'exe').stat()
+            identity = lambda stat: (stat.st_dev, stat.st_ino, stat.st_mtime_ns)
+            if identity(running) != identity(installed):
+                stale.append(int(process.name))
+        except (OSError, ValueError):
+            continue
+    return sorted(stale)
+
+def report_stale_mcp_clients(binary, proc_root=Path('/proc')):
+    pids = stale_mcp_clients(binary, proc_root)
+    if pids:
+        print('Running comitia mcp clients still use the old binary (PIDs: '+
+              ', '.join(map(str, pids))+'). Restart their agent sessions to load the upgrade.')
+    return pids
 
 def runner(binary, database):
     """Return run(*command, token=None) against the embedded database."""

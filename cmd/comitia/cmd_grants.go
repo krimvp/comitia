@@ -17,7 +17,7 @@ func runGrants(ctx context.Context, cfg config, api comitia.API, out *json.Encod
 			return err
 		}
 		if *id == "" {
-			return comitia.ErrInvalid
+			return comitia.Invalidf("grant-revoke requires --grant-id")
 		}
 		if err := api.RevokeGrant(ctx, needCredential(cfg), *id); err != nil {
 			return err

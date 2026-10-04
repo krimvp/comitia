@@ -13,7 +13,7 @@ func (h *handler) routeMessages(ctx context.Context, token, route string, q requ
 		out.Participants, err = h.api.ListParticipants(ctx, token, q.ContextID, q.Limit)
 	case "messages/append":
 		if q.Message == nil {
-			err = comitia.ErrInvalid
+			err = comitia.Invalidf("message required")
 			break
 		}
 		var v comitia.Message
@@ -90,7 +90,7 @@ func (q request) messageFilters() comitia.MessageFilters {
 }
 func messageReadRequest(cid string, after int64, filters []comitia.MessageFilters) (request, error) {
 	if len(filters) > 1 {
-		return request{}, comitia.ErrInvalid
+		return request{}, comitia.Invalidf("at most one filter set allowed")
 	}
 	q := request{ContextID: cid, After: after}
 	if len(filters) == 1 {
@@ -101,7 +101,7 @@ func messageReadRequest(cid string, after int64, filters []comitia.MessageFilter
 }
 func (c *Client) WaitMessages(ctx context.Context, token, cid string, after int64, timeout time.Duration, filters ...comitia.MessageFilters) ([]comitia.Message, error) {
 	if timeout < 0 {
-		return nil, comitia.ErrInvalid
+		return nil, comitia.Invalidf("timeout must be nonnegative")
 	}
 	if timeout > comitia.MaxMessageWait {
 		timeout = comitia.MaxMessageWait

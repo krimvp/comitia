@@ -27,7 +27,7 @@ func (s *Server) callContexts(ctx context.Context, name string, raw json.RawMess
 		if err := decode(raw, &a); err != nil {
 			return nil, err
 		}
-		if err := required(a.ParentContextID, a.Name); err != nil {
+		if err := required("parent_context_id", a.ParentContextID, "name", a.Name); err != nil {
 			return nil, err
 		}
 		return s.API.CreateChildContext(ctx, s.Credential, comitia.CreateChildContextInput{ParentContextID: a.ParentContextID, Name: a.Name, TaskID: a.TaskID, ParentReadable: a.ParentReadable})
@@ -51,7 +51,7 @@ func (s *Server) callContexts(ctx context.Context, name string, raw json.RawMess
 			if err := decode(raw, &a); err != nil {
 				return nil, err
 			}
-			if err := required(a.ParentContextID); err != nil {
+			if err := required("parent_context_id", a.ParentContextID); err != nil {
 				return nil, err
 			}
 		}
@@ -59,8 +59,11 @@ func (s *Server) callContexts(ctx context.Context, name string, raw json.RawMess
 		if a.Limit != nil {
 			limit = *a.Limit
 		}
-		if limit < 1 || limit > 1000 || len(a.AfterID) > 128 {
-			return nil, comitia.ErrInvalid
+		if limit < 1 || limit > 1000 {
+			return nil, comitia.Invalidf("limit must be between 1 and 1000")
+		}
+		if len(a.AfterID) > 128 {
+			return nil, comitia.Invalidf("after_id must be at most 128 bytes")
 		}
 		var contexts []comitia.WorkContext
 		var err error

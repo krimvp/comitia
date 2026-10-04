@@ -56,7 +56,7 @@ type TaskWriteStore interface {
 func (s *Service) CreateTask(ctx context.Context, raw, cid string, in TaskInput) (Task, error) {
 	var t Task
 	if in.Title == "" {
-		return t, ErrInvalid
+		return t, Invalidf("title required")
 	}
 	e := s.store.Update(ctx, func(w WriteStore) error {
 		if _, _, e := s.require(w, raw, cid, PermissionWrite); e != nil {
@@ -90,10 +90,10 @@ func (s *Service) GetTask(ctx context.Context, raw, id string) (Task, error) {
 func (s *Service) ListTasks(ctx context.Context, raw, cid string, status TaskStatus, limit int) ([]Task, error) {
 	var out []Task
 	if limit < 1 || limit > 1000 {
-		return nil, ErrInvalid
+		return nil, Invalidf("limit must be between 1 and 1000")
 	}
 	if status != "" && status != TaskPending && status != TaskLeased && status != TaskCompleted {
-		return nil, ErrInvalid
+		return nil, Invalidf("status must be pending, leased or completed")
 	}
 	e := s.store.View(ctx, func(r ReadStore) error {
 		if _, _, e := s.require(r, raw, cid, PermissionRead); e != nil {
@@ -111,7 +111,7 @@ func (s *Service) ListTasks(ctx context.Context, raw, cid string, status TaskSta
 func (s *Service) ClaimTask(ctx context.Context, raw, taskID string, lease time.Duration, instance ...AgentInstance) (TaskClaim, error) {
 	var c TaskClaim
 	if !validTTL(lease) || len(instance) > 1 {
-		return c, ErrInvalid
+		return c, Invalidf("lease must be positive and agent_instance accepts at most one instance")
 	}
 	var owner *AgentInstance
 	if len(instance) == 1 {
@@ -167,7 +167,7 @@ func (s *Service) CompleteTask(ctx context.Context, raw, taskID, claimToken stri
 func (s *Service) changeLease(ctx context.Context, raw, taskID, claimToken string, version int64, lease time.Duration, complete bool) (TaskClaim, error) {
 	var c TaskClaim
 	if !complete && !validTTL(lease) {
-		return c, ErrInvalid
+		return c, Invalidf("lease must be positive")
 	}
 	e := s.store.Update(ctx, func(w WriteStore) error {
 		t, e := w.Task(taskID)

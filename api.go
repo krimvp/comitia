@@ -32,6 +32,7 @@ const PermissionAll = PermissionRead | PermissionWrite | PermissionClaim | Permi
 
 // API is the library-first application surface. Service and remote HTTP clients implement it.
 type API interface {
+	ServerInfoAPI
 	SessionAPI
 	ContextAPI
 	GrantAPI

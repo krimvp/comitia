@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"encoding/json"
-	"errors"
 
 	"github.com/krimvp/comitia"
 )
@@ -17,7 +16,7 @@ func runContexts(ctx context.Context, cfg config, api comitia.API, out *json.Enc
 			return err
 		}
 		if *cid == "" {
-			return errors.New("context-archive requires --context-id")
+			return comitia.Invalidf("context-archive requires --context-id")
 		}
 		if err := api.ArchiveContext(ctx, needCredential(cfg), *cid); err != nil {
 			return err
@@ -63,12 +62,12 @@ func runContexts(ctx context.Context, cfg config, api comitia.API, out *json.Enc
 		var e error
 		if *parent != "" {
 			if *wid != "" {
-				return errors.New("context-create: use either --workspace-id or --parent-id")
+				return comitia.Invalidf("context-create: use either --workspace-id or --parent-id")
 			}
 			v, e = api.CreateChildContext(ctx, needCredential(cfg), comitia.CreateChildContextInput{ParentContextID: *parent, Name: *name, TaskID: *task, ParentReadable: *readable})
 		} else {
 			if *task != "" || *readable {
-				return errors.New("context-create: --task-id and --parent-readable need --parent-id")
+				return comitia.Invalidf("context-create: --task-id and --parent-readable need --parent-id")
 			}
 			v, e = api.CreateContext(ctx, needCredential(cfg), comitia.CreateContextInput{WorkspaceID: *wid, Name: *name})
 		}

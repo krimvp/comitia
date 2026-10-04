@@ -74,7 +74,7 @@ func (s *Service) GrantContext(ctx context.Context, raw string, in GrantInput) (
 			}
 		}
 		if in.Permissions == 0 || !in.ExpiresAt.After(s.now().UTC()) || in.ExpiresAt.After(target.ExpiresAt) || in.ExpiresAt.After(a.session.ExpiresAt) {
-			return ErrInvalid
+			return Invalidf("permissions must be nonzero and expires_at must be within issuer and target session expiry")
 		}
 		if a.principal.Admin {
 			if e = s.contextActive(w, in.ContextID); e != nil {

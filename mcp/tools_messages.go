@@ -42,7 +42,7 @@ func (s *Server) callMessages(ctx context.Context, name string, raw json.RawMess
 		if err := decode(raw, &a); err != nil {
 			return nil, err
 		}
-		if err := required(a.ContextID, a.DedupeKey); err != nil {
+		if err := required("context_id", a.ContextID, "dedupe_key", a.DedupeKey); err != nil {
 			return nil, err
 		}
 		return s.API.AppendMessage(ctx, s.Credential, a.ContextID, comitia.MessageInput{DedupeKey: a.DedupeKey, Body: a.Body, Envelope: a.Envelope, AgentInstance: s.InstanceDefaults.Message(a.AgentInstance)})
@@ -54,7 +54,7 @@ func (s *Server) callMessages(ctx context.Context, name string, raw json.RawMess
 		if err := decode(raw, &a); err != nil {
 			return nil, err
 		}
-		if err := required(a.ContextID); err != nil {
+		if err := required("context_id", a.ContextID); err != nil {
 			return nil, err
 		}
 		limit := 100
@@ -62,7 +62,7 @@ func (s *Server) callMessages(ctx context.Context, name string, raw json.RawMess
 			limit = *a.Limit
 		}
 		if limit < 1 || limit > 1000 {
-			return nil, comitia.ErrInvalid
+			return nil, comitia.Invalidf("limit must be between 1 and 1000")
 		}
 		return s.API.ListParticipants(ctx, s.Credential, a.ContextID, limit)
 	case "replay_messages":
@@ -75,7 +75,7 @@ func (s *Server) callMessages(ctx context.Context, name string, raw json.RawMess
 		if err := decode(raw, &a); err != nil {
 			return nil, err
 		}
-		if err := required(a.ContextID); err != nil {
+		if err := required("context_id", a.ContextID); err != nil {
 			return nil, err
 		}
 		if a.Limit == 0 {
@@ -92,7 +92,7 @@ func (s *Server) callMessages(ctx context.Context, name string, raw json.RawMess
 		if err := decode(raw, &a); err != nil {
 			return nil, err
 		}
-		if err := required(a.ContextID); err != nil {
+		if err := required("context_id", a.ContextID); err != nil {
 			return nil, err
 		}
 		timeout := 30 * time.Second
@@ -113,7 +113,7 @@ func (s *Server) callMessages(ctx context.Context, name string, raw json.RawMess
 		if err := decode(raw, &a); err != nil {
 			return nil, err
 		}
-		if err := required(a.ContextID); err != nil {
+		if err := required("context_id", a.ContextID); err != nil {
 			return nil, err
 		}
 		instance, err := instanceID(s.InstanceDefaults, a.AgentInstance)
@@ -132,7 +132,7 @@ func (s *Server) callMessages(ctx context.Context, name string, raw json.RawMess
 		if err := decode(raw, &a); err != nil {
 			return nil, err
 		}
-		if err := required(a.ContextID); err != nil {
+		if err := required("context_id", a.ContextID); err != nil {
 			return nil, err
 		}
 		instance, err := instanceID(s.InstanceDefaults, a.AgentInstance)

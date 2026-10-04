@@ -36,6 +36,7 @@ func main() {
 
 // commandGroups runs a command by domain; a group returns errUnknownCommand for commands it does not serve.
 var commandGroups = []func(context.Context, config, comitia.API, *json.Encoder, string, []string) error{
+	runServerInfo,
 	runSessions,
 	runContexts,
 	runMessages,
@@ -123,7 +124,7 @@ func newFlags(name string) *flag.FlagSet {
 	return f
 }
 func usage() error {
-	return errors.New("usage: comitia [--db PATH | --server-url URL] [--credential TOKEN] <bootstrap|workspace-create|context-create|context-list|context-children|reference-add|delegate|revoke|participants|send|replay|wait|watch|ack|cursor|task-create|task-get|task-list|task-claim|task-renew|task-complete|task-release|serve|mcp|mcp-http|context-archive|grant|grant-revoke> [flags]")
+	return errors.New("usage: comitia [--db PATH | --server-url URL] [--credential TOKEN] <server-info|bootstrap|workspace-create|context-create|context-list|context-children|reference-add|delegate|revoke|participants|send|replay|wait|watch|ack|cursor|task-create|task-get|task-list|task-claim|task-renew|task-complete|task-release|serve|mcp|mcp-http|context-archive|grant|grant-revoke> [flags]")
 }
 
 func parsePermissions(s string) (comitia.Permission, error) {
@@ -145,7 +146,7 @@ func parsePermissions(s string) (comitia.Permission, error) {
 		case "all":
 			p |= comitia.PermissionAll
 		default:
-			return 0, fmt.Errorf("unknown permission %q", v)
+			return 0, comitia.Invalidf("permissions must be read, write, claim, grant, admin, create or all")
 		}
 	}
 	return p, nil

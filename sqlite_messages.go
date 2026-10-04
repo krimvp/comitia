@@ -131,7 +131,7 @@ func (x *sqlStore) Ack(sid, cid string, seq int64, at time.Time, instance string
 		return e
 	}
 	if seq > max {
-		return ErrInvalid
+		return Invalidf("sequence must not exceed the latest message sequence")
 	}
 	if instance != "" {
 		_, e := x.q.Exec(`INSERT INTO instance_acks VALUES(?,?,?,?,?) ON CONFLICT(session_id,context_id,instance_id) DO UPDATE SET seq=MAX(seq,excluded.seq),updated_at=excluded.updated_at`, sid, cid, instance, seq, ts(at))

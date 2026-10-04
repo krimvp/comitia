@@ -2,7 +2,6 @@ package comitia
 
 import (
 	"context"
-	"fmt"
 	"math"
 	"sync"
 	"time"
@@ -12,14 +11,17 @@ const MaxMessageWait = 60 * time.Second
 
 func messageFilters(filters []MessageFilters) (MessageFilters, error) {
 	if len(filters) > 1 {
-		return MessageFilters{}, ErrInvalid
+		return MessageFilters{}, Invalidf("at most one filter set allowed")
 	}
 	var f MessageFilters
 	if len(filters) == 1 {
 		f = filters[0]
 	}
-	if f.ForInstance != "" && !validInstanceID(f.ForInstance) || f.FromInstance != "" && !validInstanceID(f.FromInstance) {
-		return f, fmt.Errorf("%w: invalid instance filter", ErrInvalid)
+	if f.ForInstance != "" && !validInstanceID(f.ForInstance) {
+		return f, Invalidf("for_instance must be 1-64 letters, digits, '.', '_' or '-'")
+	}
+	if f.FromInstance != "" && !validInstanceID(f.FromInstance) {
+		return f, Invalidf("from_instance must be 1-64 letters, digits, '.', '_' or '-'")
 	}
 	return f, nil
 }
@@ -27,7 +29,7 @@ func messageFilters(filters []MessageFilters) (MessageFilters, error) {
 // MessageWaitTimeout converts wire seconds without overflowing a duration.
 func MessageWaitTimeout(seconds float64) (time.Duration, error) {
 	if seconds < 0 || math.IsNaN(seconds) || math.IsInf(seconds, 0) {
-		return 0, fmt.Errorf("%w: invalid wait timeout", ErrInvalid)
+		return 0, Invalidf("timeout_seconds must be a finite nonnegative number")
 	}
 	if seconds >= MaxMessageWait.Seconds() {
 		return MaxMessageWait, nil
@@ -84,7 +86,7 @@ func (n *messageNotifications) notify(cid string) {
 // Each read rechecks authorization; no transaction remains open while waiting.
 func (s *Service) WaitMessages(ctx context.Context, raw, cid string, after int64, timeout time.Duration, filters ...MessageFilters) ([]Message, error) {
 	if timeout < 0 {
-		return nil, ErrInvalid
+		return nil, Invalidf("timeout must be nonnegative")
 	}
 	if timeout > MaxMessageWait {
 		timeout = MaxMessageWait

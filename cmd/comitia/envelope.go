@@ -22,19 +22,19 @@ func readEnvelope(path string) (*comitia.MessageEnvelope, error) {
 		return nil, err
 	}
 	if len(raw) > 65536 {
-		return nil, comitia.ErrInvalid
+		return nil, comitia.Invalidf("envelope must be at most 65536 bytes")
 	}
 	d := json.NewDecoder(bytes.NewReader(raw))
 	d.DisallowUnknownFields()
 	var env *comitia.MessageEnvelope
 	if err = d.Decode(&env); err != nil {
-		return nil, err
+		return nil, comitia.InvalidJSON(err, "envelope")
 	}
 	if env == nil {
-		return nil, comitia.ErrInvalid
+		return nil, comitia.Invalidf("envelope must contain one JSON object")
 	}
 	if d.Decode(new(any)) != io.EOF {
-		return nil, comitia.ErrInvalid
+		return nil, comitia.Invalidf("envelope must contain one JSON value")
 	}
 	return env, nil
 }
