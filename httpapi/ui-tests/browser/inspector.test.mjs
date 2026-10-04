@@ -49,7 +49,7 @@ before(async () => {
       let input='';for await(const chunk of req) input+=chunk;
       const body=JSON.parse(input), path=req.url.split('/').at(-1);
       if(expired) {res.writeHead(403).end();return;}
-      const data=path==='get'?{context}:path==='children'?{contexts:[]}:req.url.includes('/contexts/')?{contexts:[context]}:req.url.includes('/participants/')?{participants:participantsAvailable?[{SessionID:'worker',Name:'Worker'},{SessionID:'reviewer',Name:'Reviewer'}]:[]}:req.url.includes('/tasks/')?{tasks:tasksAvailable?[{ID:'task',Title:taskTitle,Status:'pending',ContextID:context.ID}]:[]}:req.url.includes('/instances/')?{instances:[{id:'worker',session_id:'worker',last_seen:new Date().toISOString(),resume}]}:{messages:liveMessages.filter(m=>m.Sequence>body.after).slice(0,body.limit || 100)};
+      const data=path==='get'?{context}:path==='children'?{contexts:[]}:req.url.includes('/contexts/')?{contexts:[context]}:req.url.includes('/participants/')?{participants:participantsAvailable?[{SessionID:'worker',Name:'Worker'},{SessionID:'reviewer',Name:'Reviewer'}]:[]}:req.url.includes('/tasks/')?{tasks:tasksAvailable?[{ID:'task',Title:taskTitle,Status:'pending',ContextID:context.ID}]:[]}:req.url.includes('/instances/')?{instances:[{id:'worker',session_id:'worker',active:true,last_seen:new Date().toISOString(),resume}]}:{messages:liveMessages.filter(m=>m.Sequence>body.after).slice(0,body.limit || 100)};
       res.setHeader('Content-Type','application/json');res.end(JSON.stringify(data));
     } catch(error) {res.writeHead(500).end(error.message);}
   });
@@ -65,6 +65,7 @@ after(async()=>{
 async function pageFor(t,width=1440,options={}) {
   const count=options.messageCount || messages.length;
   liveMessages=Array.from({length:count},(_,i)=>({...messages[i%messages.length],ID:`m${i+1}`,Sequence:i+1}));
+  if(options.transform)liveMessages=liveMessages.map(options.transform);
   if(count>200)liveMessages.at(-1).envelope={...liveMessages.at(-1).envelope,reply_to:'m1'};
   tasksAvailable=options.tasksAvailable!==false;participantsAvailable=options.participantsAvailable!==false;taskTitle='Pending task';resume={harness:'codex',checkpoint:'ready'};expired=false;
   const page=await browser.newPage({viewport:{width,height:844}});
@@ -255,4 +256,102 @@ for(const direction of ['parent','reply']) for(const close of ['Return','Escape'
   const box=await page.locator(`#message-${current} .message-select`).boundingBox();
   assert.ok(box.y<844&&box.y+box.height>0,'Returned message control must be in the viewport');
   assert.ok(await page.locator('.message-card').count()<=200);
+});
+
+
+browserTest('full history keeps 5,000 messages, revisits its boundary and jumps to a sequence',async t=>{
+  const page=await pageFor(t,1440,{messageCount:5001});await page.locator('#pause').click();await page.locator('.sequence-route-list summary').click();
+  // Load through the real controller, 100 at a time; never inject UI state.
+  await page.evaluate(async()=>{
+    for(let count=200;count<=5000;count+=100) {
+      document.getElementById('load-more').click();
+      await new Promise(resolve=>{const check=()=>document.getElementById('message-count').textContent.includes(`${count} loaded`) && !document.getElementById('load-more').disabled ? resolve() : setTimeout(check,10);check();});
+    }
+  });
+  assert.equal(await page.locator('.message-card').count(),200);
+  await page.locator('#next-window').click();await page.waitForFunction(()=>document.getElementById('message-count').textContent.includes('1 loaded'));
+  assert.match(await page.locator('#sequence-routes').innerText(),/#5001/);
+  await page.locator('#previous-window').click();await page.waitForFunction(()=>document.getElementById('message-count').textContent.includes('100 loaded'));
+  await page.locator('#pause').click();
+  assert.match(await page.locator('#history-note').innerText(),/after #0/);
+  await page.locator('#next-window').click();await page.waitForFunction(()=>document.getElementById('message-count').textContent.includes('1 loaded'));
+  assert.match(await page.locator('#sequence-routes').innerText(),/#5001/);
+  await page.locator('#jump-sequence').fill('4500');await page.locator('#jump-history button').click();
+  await page.waitForFunction(()=>document.getElementById('history-note').textContent.includes('after #4499'));
+  await page.locator('#show-timeline').click();
+  assert.equal(await page.locator('.message-card').first().getAttribute('id'),'message-m4500');
+  assert.ok(await page.locator('.message-card').count()<=200);
+});
+
+browserTest('narrow flow opens on the newest route, pins lane labels and supports Follow latest',async t=>{
+  const page=await pageFor(t,390);await page.locator('#pause').click();await page.locator('.sequence-route-list summary').click();
+  assert.match(await page.locator('#sequence-routes').innerText(),/#72/);
+  assert.equal(await page.locator('.sequence-route').count(),1);
+  const canvas=page.locator('#sequence-canvas'),labels=page.locator('.sequence-labels');
+  const before=await labels.boundingBox();
+  await canvas.evaluate(e=>e.scrollLeft=120);
+  assert.ok(await canvas.evaluate(e=>e.scrollLeft)>0);
+  const after=await labels.boundingBox();assert.ok(Math.abs(after.x-before.x)<1,'Lane names scrolled away');
+  await page.locator('#sequence-previous-arrows').click();
+  assert.match(await page.locator('#sequence-routes').innerText(),/#71/);
+  liveMessages.push({...messages[0],ID:'m73',Sequence:73,SessionID:'zz-new-worker',CreatedAt:new Date(1700000073000).toISOString()});
+  await page.locator('#load-more').click();await page.waitForFunction(()=>document.getElementById('message-count').textContent.includes('73 loaded'));
+  assert.match(await page.locator('#sequence-routes').innerText(),/#71/);
+  await page.locator('#sequence-follow').click();
+  assert.match(await page.locator('#sequence-routes').innerText(),/#73/);
+  assert.equal(await page.locator('#sequence-follow').getAttribute('aria-pressed'),'true');
+  assert.equal(await canvas.evaluate(e=>e.scrollLeft),0);
+  assert.ok(await page.locator('.sequence-message').count()<=36);
+});
+
+browserTest('payload-only blockers and both recipient lists are readable as safe text everywhere',async t=>{
+  const reason='<img src=x onerror="window.injected=true"> Needs review';
+  const page=await pageFor(t,1440,{messageCount:4,transform:(m,i)=>({...m,Body:'',envelope:i===0?{schema:'comitia.blocker.v1',recipient_instances:['instance-only'],payload:{reason,needs:['review']}}:i===1?{schema:'comitia.verification-result.v1',recipient_session_ids:['reviewer'],recipient_instances:['review-worker'],payload:{status:'not_run',reason:'Missing fixtures'}}:i===2?{schema:'extension.unknown.v1',payload:{summary:'Hidden extension preview'}}:{schema:'comitia.finding.v1',payload:{severity:'warning',summary:'Shared finding'}}})});
+  await page.locator('#pause').click();await page.locator('.sequence-route-list summary').click();
+  while(await page.locator('#sequence-previous-arrows').isEnabled())await page.locator('#sequence-previous-arrows').click();
+  assert.match(await page.locator('#sequence-routes').innerText(),/Needs review/);
+  await page.locator('#show-timeline').click();
+  const first=page.locator('.message-card').first();
+  assert.match(await first.innerText(),/Needs review/);assert.match(await first.innerText(),/Instances \(self-reported\): instance-only/);assert.doesNotMatch(await first.innerText(),/Everyone/i);
+  assert.match(await page.locator('.message-card').nth(1).innerText(),/not_run · Missing fixtures/);
+  assert.match(await page.locator('.message-card').nth(1).innerText(),/Sessions: Reviewer.*Instances \(self-reported\): review-worker/);
+  assert.doesNotMatch(await page.locator('.message-card').nth(2).innerText(),/Hidden extension preview/);
+  assert.match(await page.locator('.message-card').nth(3).innerText(),/Everyone in this context/);
+  await first.locator('.message-select').click();
+  assert.match(await page.locator('#details').innerText(),/Needs review/);assert.doesNotMatch(await page.locator('#details').innerText(),/Everyone/);
+  assert.match(await page.locator('#details pre').innerText(),/comitia.blocker.v1/);
+  assert.equal(await page.locator('#workspace img').count(),0);
+  assert.equal(await page.evaluate(()=>window.injected),undefined);
+});
+
+browserTest('active sidebar presence and diagram metadata meet readable contrast and type sizes',async t=>{
+  const page=await pageFor(t);await page.locator('#pause').click();
+  const styles=await page.evaluate(()=>{
+    const get=selector=>{const element=document.querySelector(selector),s=getComputedStyle(element);return {color:s.color,fill:s.fill,size:parseFloat(s.fontSize)};};
+    return {sidebar:getComputedStyle(document.querySelector('.sidebar')).backgroundColor,presence:get('.instance-item small'),resume:get('.instance-item summary'),sequence:get('.sequence-id'),time:get('.sequence-time')};
+  });
+  const lum=color=>{
+    const rgb=color.match(/[\d.]+/g).slice(0,3).map(Number).map(v=>{v/=255;return v<=.04045?v/12.92:((v+.055)/1.055)**2.4;});
+    return .2126*rgb[0]+.7152*rgb[1]+.0722*rgb[2];
+  };
+  const contrast=(a,b)=>{const x=lum(a),y=lum(b);return (Math.max(x,y)+.05)/(Math.min(x,y)+.05);};
+  assert.ok(contrast(styles.presence.color,styles.sidebar)>=4.5);
+  assert.ok(contrast(styles.resume.color,styles.sidebar)>=4.5);
+  assert.ok(contrast(styles.sequence.fill,'rgb(248, 250, 255)')>=4.5);
+  assert.ok(contrast(styles.time.fill,'rgb(248, 250, 255)')>=4.5);
+  assert.ok(styles.presence.size>=13);assert.ok(styles.sequence.size>=12);assert.ok(styles.time.size>=12);
+  await page.locator('#show-map').click();
+  const map=await page.locator('.node-id').first().evaluate(e=>({fill:getComputedStyle(e).fill,size:parseFloat(getComputedStyle(e).fontSize)}));
+  assert.ok(contrast(map.fill,'rgb(246, 248, 252)')>=4.5);assert.ok(map.size>=12);
+});
+
+browserTest('recipient-only instance routes never show Everyone in cards or details',async t=>{
+  const page=await pageFor(t,1440,{messageCount:3,transform:(m,i)=>({...m,envelope:i===0?{recipient_instances:['instance-only']}:i===1?{recipient_session_ids:['reviewer'],recipient_instances:['review-worker']}:{recipient_session_ids:[],recipient_instances:[]}})});
+  await page.locator('#pause').click();await page.locator('#show-timeline').click();
+  const first=page.locator('.message-card').first();
+  assert.doesNotMatch(await first.innerText(),/everyone/i);assert.match(await first.innerText(),/Instances \(self-reported\): instance-only/);
+  assert.match(await page.locator('.message-card').nth(1).innerText(),/Sessions: Reviewer.*Instances \(self-reported\): review-worker/);
+  assert.match(await page.locator('.message-card').nth(2).innerText(),/Everyone in this context/);
+  await first.locator('.message-select').click();
+  assert.doesNotMatch(await page.locator('#details').innerText(),/Everyone/);assert.match(await page.locator('#details').innerText(),/instance-only/);
 });

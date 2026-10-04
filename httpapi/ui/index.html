@@ -56,7 +56,7 @@
       <div class="timeline-toolbar"><span id="message-count">0 messages loaded</span><button id="clear-filters" class="text-button">Clear filters</button><button id="clear-thread" class="text-button" hidden>Show entire conversation</button></div>
       <p id="timeline-error" class="error" role="alert"></p>
       <section id="sequence-panel" class="sequence-panel" aria-label="Agent messages over time">
-        <label class="sequence-spacing">Spacing <select id="sequence-spacing"><option value="order">Event order · evenly spaced</option><option value="time">Send time · proportional</option></select></label>
+        <div class="sequence-spacing"><button id="sequence-follow" class="text-button" aria-pressed="true">Follow latest</button><label>Spacing <select id="sequence-spacing"><option value="order">Event order · evenly spaced</option><option value="time">Send time · proportional</option></select></label></div>
         <div class="sequence-heading"><div><h2>Messages over time</h2><p id="sequence-summary" class="hint"></p></div><label class="sequence-zoom">Time range<select id="sequence-span"><option value="0">Loaded range</option><option value="60000">1 minute</option><option value="300000">5 minutes</option><option value="3600000">1 hour</option></select></label></div>
         <div class="sequence-navigation"><button id="sequence-earlier" class="text-button">← Earlier time</button><span id="sequence-range"></span><button id="sequence-later" class="text-button">Later time →</button></div>
         <div id="sequence-canvas" class="sequence-canvas" tabindex="0" aria-label="Scrollable message flow diagram"></div>
@@ -67,7 +67,7 @@
         <p id="sequence-note" class="sequence-legend"></p>
       </section>
       <div id="messages" class="messages"></div>
-      <div class="timeline-footer"><div class="page-controls"><button id="older-matches" class="text-button" hidden>← Earlier matches</button><button id="newer-matches" class="text-button" hidden>Later matches →</button></div><button id="load-more" class="secondary" hidden>Load next messages</button><button id="next-window" class="secondary" hidden>Continue to next window</button><p id="history-note" class="hint">Filters apply to loaded messages. Browsing does not acknowledge agent messages.</p></div>
+      <div class="timeline-footer"><div class="page-controls"><button id="older-matches" class="text-button" hidden>← Earlier matches</button><button id="newer-matches" class="text-button" hidden>Later matches →</button></div><button id="load-more" class="secondary" hidden>Load next messages</button><button id="previous-window" class="secondary" hidden>Previous window</button><button id="next-window" class="secondary" hidden>Continue to next window</button><form id="jump-history" class="history-jump"><label>Jump to sequence <input id="jump-sequence" type="number" min="1" max="9007199254740991" step="1" required placeholder="1"></label><button class="secondary" type="submit">Jump</button></form><p id="history-note" class="hint">Filters apply to loaded messages. Browsing does not acknowledge agent messages.</p></div>
     </main>
     <aside id="details-home" class="inspector" aria-label="Message details"><div class="section-heading"><h2>Message details</h2><span class="eyebrow">INSPECT</span></div><div id="details" class="details"><div class="empty-details"><span class="detail-symbol" aria-hidden="true">↗</span><h3>Look a little closer</h3><p>Select a message to see its recipients, task, replies, and structured payload.</p></div></div></aside>
   </div>

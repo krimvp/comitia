@@ -166,3 +166,52 @@ export function taskStatus(message, tasks = [], contexts = []) {
     links: strings(payload.links),
   };
 }
+
+// Keep cursor history, never old message arrays. Sequence jump remains available
+// after the oldest of these bounded bookmarks is discarded.
+export const HISTORY_LIMIT = 128;
+export class HistoryWindows {
+  frames = [{after:0, end:null}];
+  index = 0;
+  get current() { return this.frames[this.index]; }
+  reset(after = 0) { this.frames = [{after, end:null}]; this.index = 0; }
+  next(after) {
+    if (this.index + 1 < this.frames.length) return this.frames[++this.index];
+    this.current.end = after;
+    this.frames.push({after, end:null});
+    if (this.frames.length > HISTORY_LIMIT) this.frames.shift();
+    this.index = this.frames.length - 1;
+    return this.current;
+  }
+  previous() {
+    if (this.index > 0) return this.frames[--this.index];
+    // No bookmark before a direct jump or an evicted boundary: restart history.
+    const end = this.current.after;
+    this.reset(); this.current.end = end;
+    return this.current;
+  }
+}
+
+export function recipientLabel(envelope = {}, sessionLabel = id => id) {
+  const sessions = (envelope.recipient_session_ids || []).map(sessionLabel);
+  const instances = envelope.recipient_instances || [];
+  if (!sessions.length && !instances.length) return 'Everyone in this context';
+  return [sessions.length ? `Sessions: ${sessions.join(', ')}` : '', instances.length ? `Instances (self-reported): ${instances.join(', ')}` : ''].filter(Boolean).join(' · ');
+}
+
+// A local formatter seam for future schema descriptors. Only known schema fields
+// become previews; raw envelopes remain available for unknown extensions.
+const previewFields = new Map([
+  ['comitia.assignment.v1', ['instructions']],
+  ['comitia.finding.v1', ['severity', 'summary']],
+  ['comitia.blocker.v1', ['reason']],
+  ['comitia.work-submitted.v1', ['summary']],
+  ['comitia.verification-result.v1', ['status', 'reason']],
+  ['comitia.task-status.v1', ['state', 'summary']],
+]);
+export function messagePreview(message) {
+  if (typeof message.Body === 'string' && message.Body.trim()) return message.Body;
+  const envelope = message.envelope || {}, payload = envelope.payload || {};
+  const parts = (previewFields.get(envelope.schema) || []).map(field => typeof payload[field] === 'string' ? payload[field].trim() : '').filter(Boolean);
+  return parts.join(' · ') || 'Structured message';
+}
