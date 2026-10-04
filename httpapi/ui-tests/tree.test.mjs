@@ -1,3 +1,4 @@
+import {Element} from './dom-fixture.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
@@ -36,18 +37,6 @@ test('task board groups task-status reports per task with the linked child',()=>
   assert.equal(board[3].childContextID, 'elsewhere');
 });
 
-class Element {
-  constructor(tag='div') {this.tag=tag;this.children=[];this.events={};this.dataset={};this.value='';this.hidden=false;this.textContent='';}
-  append(...children) {this.children.push(...children);}
-  replaceChildren(...children) {this.children=children;}
-  add(child) {this.children.push(child);}
-  addEventListener(event, fn) {this.events[event]=fn;}
-  setAttribute(name,value) {this[name]=value;}
-  focus() {}
-  scrollIntoView() {}
-  querySelector() {return this.children.find(c=>c.tag==='button');}
-  async fire(event) {return this.events[event]?.({preventDefault(){}});}
-}
 const text = element => [element.textContent,...element.children.map(text)].join(' ');
 const find = (element, pattern) => element.tag==='button' && pattern.test(text(element)) ? element : element.children.map(c=>find(c,pattern)).find(Boolean);
 
@@ -87,7 +76,7 @@ test('inspector shows the context tree, never requests locked children and marks
     const rows=elements.get('contexts').children;
     assert.deepEqual(rows.map(r=>[r.title,r.dataset.depth,r.tag]),[['epic','0','button'],['child-a','1','button'],['child-b','1','button'],['child-c','1','div'],['old','0','button']]);
     const lockedRow=rows[3];
-    assert.equal(lockedRow.textContent,'<img src=x onerror=bad()>');
+    assert.equal(lockedRow.firstChild.nodeValue,'<img src=x onerror=bad()>');
     assert.match(text(lockedRow),/Locked · metadata only/);assert.match(text(lockedRow),/Task: Locked task/);assert.match(text(lockedRow),/Created by Coordinator/);
     assert.equal(lockedRow['aria-disabled'],'true');assert.deepEqual(lockedRow.events,{});
     assert.match(text(rows[1]),/Task: Child contexts/);
@@ -118,7 +107,7 @@ test('inspector shows the context tree, never requests locked children and marks
     assert.match(text(elements.get('messages')),/Inside issue-6/);
     assert.equal(board.hidden,true);
     assert.equal(elements.get('contexts').children[1]['aria-current'],'page');
-    assert.notEqual(elements.get('contexts').children[0],firstRow);
+    assert.equal(elements.get('contexts').children[0],firstRow);
 
     await elements.get('contexts').children[2].fire('click');
     assert.equal(elements.get('context-title').textContent,'issue-7');

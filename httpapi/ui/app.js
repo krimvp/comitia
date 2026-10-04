@@ -1,3 +1,4 @@
+import {on, renderChildren} from './dom.mjs';
 import {relativeSeen} from './presence.mjs';
 import {ConversationState, PAGE_SIZE, WINDOW_LIMIT, shortID, messageType, typeLabel, filterMessages, interactionGraph, BROADCAST, parseActor, senderActor, recipientActors, instanceClaims, taskStatus, stateLabel} from './model.mjs';
 import {renderInteractionMap} from './graph.mjs';
@@ -25,6 +26,7 @@ let children = new Map(), truncated = new Set(), taskTitles = new Map();
 const CHILD_PAGE = 1000, CHILD_LIMIT = 5000;
 let participants = [], tasks = [], instances = [], selected = '', thread = '', paused = false, busy = false, windowStart = 0, displayStart = null, route = null, connectionPage = 0;
 let instancesUnavailable = false;
+let detailReturn = null, detailScroll = 0;
 let view = 'sequence', sequenceOptions = {}, sequenceFilterKey = '', sequenceCurrent;
 
 function node(tag, text, className) {
@@ -35,13 +37,14 @@ function node(tag, text, className) {
 }
 function button(text, action, className = 'text-button') {
   const element = node('button', text, className);
-  element.type = 'button'; element.addEventListener('click', action);
+  element.type = 'button'; on(element, 'click', action);
+  if (text) element.dataset.key = text;
   return element;
 }
 function empty(target, title, description) {
   const box = node('div', undefined, 'empty');
   box.append(node('h3', title), node('p', description));
-  target.replaceChildren(box);
+  renderChildren(target, box);
 }
 function date(value) {
   const d = new Date(value);
@@ -86,6 +89,7 @@ function instanceLabel(message) {
 }
 
 function disconnect(message = '', forget = true) {
+  closeDetails(false); $('selection-status').textContent = '';
   if (forget) rememberCredential('');
   connection++; controller.abort(); controller = new AbortController(); clearTimeout(timer);
   token = ''; state.reset(); displayStart = null; contexts = []; contextsAfter = ''; contextsBusy = false; children = new Map(); truncated = new Set(); taskTitles = new Map();
@@ -108,9 +112,9 @@ function fail(error, generation, target = 'timeline-error') {
 }
 function options(id, entries, placeholder) {
   const select = $(id), current = select.value;
-  select.replaceChildren(new Option(placeholder, ''));
-  for (const [value, text] of entries) select.add(new Option(text, value));
-  if (current && !entries.some(([value]) => value === current)) select.add(new Option(shortID(current), current));
+  const choices = [[ '', placeholder ], ...entries];
+  if (current && !entries.some(([value]) => value === current)) choices.push([current, shortID(current)]);
+  renderChildren(select, ...choices.map(([value, text]) => {const option = new Option(text, value); option.dataset.key = `option:${value}`; return option;}));
   select.value = current;
 }
 function refreshFilters() {
@@ -191,6 +195,7 @@ async function loadContexts(refresh = false) {
   } finally { if (conn === connection) contextsBusy = false; }
 }
 function clearContext() {
+  closeDetails(false); $('selection-status').textContent = '';
   sequenceOptions = {}; sequenceFilterKey = '';
   controller.abort(); controller = new AbortController(); clearTimeout(timer); state.reset();
   participants = []; tasks = []; instances = []; instancesUnavailable = false; selected = ''; thread = ''; route = null; connectionPage = 0; busy = false;
@@ -202,6 +207,7 @@ function clearContext() {
   renderTasks(); renderInstances(); renderMessages(); renderDetails(); renderBoard();
 }
 async function openContext(id, after = 0) {
+  closeDetails(false); $('selection-status').textContent = '';
   sequenceOptions = {}; sequenceFilterKey = '';
   controller.abort(); controller = new AbortController(); clearTimeout(timer);
   const generation = state.reset(id, after); windowStart = after; displayStart = null;
@@ -265,14 +271,15 @@ async function loadInstances(cid) {
 }
 function renderInstances() {
   $('instance-count').textContent = instances.length;
-  $('instances').replaceChildren(...instances.map(instance => {
+  renderChildren($('instances'), ...instances.map(instance => {
     const item = node('div', undefined, 'instance-item');
+    item.dataset.key = JSON.stringify([instance.session_id, instance.id]);
     item.append(node('strong', instance.label ? `${instance.label} (${instance.id})` : instance.id), node('small', `${participantName(instance.session_id)} · ${shortID(instance.session_id)}`));
     if (instance.active === false) item.append(node('small', 'Session revoked or expired'));
     const seen = node('small', `Last seen ${relativeSeen(instance.last_seen)}`);
     seen.title = date(instance.last_seen); item.append(seen);
     if (instance.resume) {
-      const details = node('details');
+      const details = node('details'); details.dataset.key = 'resume';
       details.append(node('summary', 'Resume metadata'), node('pre', JSON.stringify(instance.resume, null, 2)));
       item.append(details);
     }
@@ -296,9 +303,10 @@ function renderMap() {
   $('clear-route').hidden=!route&&!current.agent;
   const edges=[...graph.edges].sort((a,b)=>b.count-a.count||a.source.localeCompare(b.source)||a.target.localeCompare(b.target));
   connectionPage=Math.min(connectionPage,Math.max(0,Math.ceil(edges.length/12)-1));
-  $('connections').replaceChildren(...edges.slice(connectionPage*12,connectionPage*12+12).map(edge=>{
+  renderChildren($('connections'), ...edges.slice(connectionPage*12,connectionPage*12+12).map(edge=>{
     const item=button('',()=>selectRoute(edge.source,edge.target),'connection-item');
     item.append(node('span',`${agentLabel(edge.source)} → ${edge.target===BROADCAST?'Everyone':agentLabel(edge.target)}`),node('strong',edge.count));
+    item.dataset.key=JSON.stringify([edge.source,edge.target]);
     item.setAttribute('aria-pressed',String(route?.from===edge.source&&route?.to===edge.target));
     return item;
   }));
@@ -312,8 +320,9 @@ function selectRoute(from,to) {
 function renderTasks() {
   $('task-count').textContent = tasks.length;
   $('tasks-note').textContent = !tasks.length ? 'No tasks in this context.' : tasks.length === 1000 ? 'First 1,000 tasks. Other referenced tasks can be opened from messages.' : '';
-  $('tasks').replaceChildren(...tasks.map(task => {
+  renderChildren($('tasks'), ...tasks.map(task => {
     const item = button('', () => { $('task-filter').value = task.ID; displayStart = null; renderTasks(); renderMessages(); }, `task-item${$('task-filter').value === task.ID ? ' active' : ''}`);
+    item.dataset.key = task.ID;
     item.append(node('span', task.Status === 'completed' ? '✓' : task.Status === 'leased' ? '◷' : '□', `task-marker ${task.Status}`), node('span', task.Title));
     return item;
   }));
@@ -322,22 +331,49 @@ function clearFilters() {
   $('search').value = ''; for (const id of ['agent-filter','type-filter','task-filter']) $(id).value = '';
   thread = ''; route = null; displayStart = null; renderTasks(); renderMessages();
 }
-function selectMessage(id) {
-  selected = id; renderMessages(); renderDetails();
+function closeDetails(restore = true) {
+  const dialog = $('details-dialog');
+  if (!dialog.open) return;
+  dialog.close(); $('details-home').append($('details'));
+  if (restore) {
+    const target = detailReturn?.isConnected ? detailReturn : $('conversation');
+    target.focus({preventScroll:true}); window.scrollTo(0, detailScroll);
+  }
+  detailReturn = null;
+}
+function showDetails(source = document.activeElement) {
+  $('selection-status').textContent = `Message #${state.messages.find(m => m.ID === selected)?.Sequence} selected. Details available.`;
+  if (!(window.innerWidth <= 960) || !selected) return;
+  const dialog = $('details-dialog');
+  if (!dialog.open) {
+    detailReturn = source; detailScroll = window.scrollY;
+    $('dialog-details').append($('details')); dialog.showModal();
+  }
+  $('details-heading').textContent = `Message #${state.messages.find(m => m.ID === selected)?.Sequence} details`;
+  $('details-heading').focus({preventScroll:true});
+}
+function selectMessage(id, source) {
+  selected = id; renderMessages(); renderDetails(); showDetails(source);
 }
 function jumpMessage(id) {
   if (!state.messages.some(m => m.ID === id)) return;
   clearFilters(); selected = id; sequenceOptions.seekMessage=id; displayStart = Math.floor(state.messages.findIndex(m => m.ID === id) / 200) * 200; renderMessages(); renderDetails();
   const card = document.getElementById(`message-${id}`);
+  if (window.innerWidth <= 960) {showDetails(); return;}
   card?.scrollIntoView({block:'center', behavior:'smooth'});
   card?.querySelector('button')?.focus({preventScroll:true});
+}
+function engaged(id) {
+  const target = $(id);
+  return target.contains(document.activeElement) || ($('details-dialog').open && target.contains(detailReturn));
 }
 function renderMessages() {
   renderMap();
   const filtered = filterMessages(state.messages, filters());
   renderFlow(filtered);
   // Keep DOM work bounded while every loaded message remains searchable.
-  const start = Math.min(displayStart ?? Math.max(0, filtered.length - 200), Math.max(0, filtered.length - 1));
+  const previous = engaged('messages') ? filtered.findIndex(m => `message-${m.ID}` === $('messages').children[0]?.id) : -1;
+  const start = Math.min(displayStart ?? (previous >= 0 ? previous : Math.max(0, filtered.length - 200)), Math.max(0, filtered.length - 1));
   const visible = filtered.slice(start, start + 200);
   $('older-matches').hidden = view==='sequence' || start === 0;
   $('newer-matches').hidden = view==='sequence' || start + visible.length >= filtered.length;
@@ -347,13 +383,13 @@ function renderMessages() {
   if (!state.contextID) { empty($('messages'),'Choose a work context','Conversations you can read will appear here.'); return; }
   if (!filtered.length) { empty($('messages'), state.messages.length ? 'No matching messages' : 'No messages loaded', state.messages.length ? 'Try another filter or load more of the conversation.' : 'New agent messages will appear here as they arrive.'); return; }
   const byID = new Map(state.messages.map(m => [m.ID,m])), known = readable();
-  $('messages').replaceChildren(...visible.map(message => {
+  renderChildren($('messages'), ...visible.map(message => {
     const envelope = message.envelope || {}, type = messageType(message);
     const card = node('article', undefined, `message-card${selected === message.ID ? ' selected' : ''}`); card.id = `message-${message.ID}`;
     let depth = 0, ancestor = message, seen = new Set();
     while (thread && ancestor.envelope?.reply_to && byID.has(ancestor.envelope.reply_to) && depth < 3 && !seen.has(ancestor.ID)) {seen.add(ancestor.ID);depth++;ancestor=byID.get(ancestor.envelope.reply_to);}
     card.dataset.depth = depth;
-    const main = button('', () => selectMessage(message.ID), 'message-select'); main.setAttribute('aria-label', `Inspect message ${message.Sequence} from ${agentLabel(message.SessionID)}${instanceLabel(message)}`);
+    const main = button('', event => selectMessage(message.ID, event.currentTarget), 'message-select'); main.setAttribute('aria-label', `Inspect message ${message.Sequence} from ${agentLabel(message.SessionID)}${instanceLabel(message)}`);
     const top = node('div', undefined, 'message-top');
     top.append(node('span', participantName(message.SessionID).slice(0,2).toUpperCase(), 'avatar'));
     const sender = node('span', participantName(message.SessionID) + instanceLabel(message), 'sender'); sender.append(node('span', ` · ${shortID(message.SessionID)}`, 'session-short'));
@@ -366,7 +402,7 @@ function renderMessages() {
     if (envelope.recipient_instances?.length) main.append(node('p', `Recipient instances (self-reported): ${envelope.recipient_instances.join(', ')}`, 'message-routing'));
     const actions = node('div', undefined, 'message-actions');
     if (envelope.reply_to) actions.append(byID.has(envelope.reply_to) ? button(`Reply to #${byID.get(envelope.reply_to).Sequence}`, () => jumpMessage(envelope.reply_to)) : node('span', `Reply to ${shortID(envelope.reply_to)} · outside loaded window`));
-    actions.append(button('View thread', () => { thread = message.ID; selected = message.ID; displayStart = 0; renderMessages(); renderDetails(); }));
+    actions.append(button('View thread', event => { thread = message.ID; selected = message.ID; displayStart = 0; renderMessages(); renderDetails(); showDetails(event.currentTarget); }));
     if (envelope.task_id) actions.append(button(tasks.find(t => t.ID === envelope.task_id)?.Title || `Task ${shortID(envelope.task_id)}`, () => {$('task-filter').value = envelope.task_id;displayStart=null;renderTasks();renderMessages();}));
     if (status?.childContext) actions.append(button(`Child context ${status.childContext.Name}`, () => openContext(status.childContext.ID)));
     actions.append(node('span', `#${message.Sequence}`, 'sequence')); card.append(actions);
@@ -386,10 +422,10 @@ function renderTaskStatus(target, status) {
   if (status.blockers.length) target.append(node('h3','Blockers'), ...status.blockers.map(b => node('p', b)));
 }
 function renderDetails() {
-  const target = $('details'), message = state.messages.find(m => m.ID === selected);
-  if (!message) {target.replaceChildren(node('div', 'Select a message to inspect its recipients, task, replies, and structured payload.', 'empty-details'));return;}
+  const target = node('div'), message = state.messages.find(m => m.ID === selected);
+  if (!message) {renderChildren($('details'), node('div', 'Select a message to inspect its recipients, task, replies, and structured payload.', 'empty-details'));return;}
   const envelope = message.envelope || {};
-  target.replaceChildren(node('span', typeLabel(messageType(message)), 'badge'), node('h3', `Message #${message.Sequence}`), node('p',message.Body || 'Structured message'));
+  target.append(node('span', typeLabel(messageType(message)), 'badge'), node('h3', `Message #${message.Sequence}`), node('p',message.Body || 'Structured message'));
   const dl = node('dl');
   for (const [key,value] of [['Message ID',message.ID],['Sender',`${participantName(message.SessionID)}\n${message.SessionID}`],['Created',date(message.CreatedAt)],['Recipients',envelope.recipient_session_ids?.map(id=>`${participantName(id)} · ${id}`).join('\n') || 'Everyone in this context'],['Context',message.ContextID]]) dl.append(node('dt',key),node('dd',value));
   target.append(dl);
@@ -425,6 +461,7 @@ function renderDetails() {
       else target.append(node('span',ref,'reference'));
     }
   } else target.append(node('p','Plain-text message · no structured envelope.', 'hint'));
+  renderChildren($('details'), ...target.childNodes);
 }
 async function connect(value) {
   if (!value) return;
@@ -436,6 +473,8 @@ async function connect(value) {
   if (conn === connection && !contexts.length) renderMessages();
   $('connect').disabled = false;
 }
+$('return-message').addEventListener('click',()=>closeDetails());
+$('details-dialog').addEventListener('cancel',event=>{event.preventDefault();closeDetails();});
 $('connect-form').addEventListener('submit', event => {
   event.preventDefault(); return connect($('credential').value.trim());
 });
@@ -475,10 +514,13 @@ $('next-connections').addEventListener('click',()=>{connectionPage++;renderMap()
 function renderFlow(filtered) {
   const key=JSON.stringify([state.contextID,windowStart,filters()]);
   if(key!==sequenceFilterKey) {sequenceOptions={};sequenceFilterKey=key;}
-  sequenceCurrent=sequenceLayout(filtered,participants,{...sequenceOptions,span:Number($('sequence-span').value),spacing:$('sequence-spacing').value || 'order'});
+  // Keep the page being inspected visible as new messages advance the latest page.
+  const followRoutes=sequenceOptions.arrowPage==null, followTime=sequenceOptions.start==null;
+  const inspecting=sequenceCurrent && (engaged('sequence-canvas') || engaged('sequence-routes'));
+  sequenceCurrent=sequenceLayout(filtered,participants,{...sequenceOptions,...(inspecting?{arrowPage:sequenceCurrent.arrowPage,start:sequenceCurrent.from}:{}),span:Number($('sequence-span').value),spacing:$('sequence-spacing').value || 'order'});
   // Stay on the newest routes/time while viewing them, so polling follows new messages.
   const latestRoutes=(sequenceCurrent.arrowPage+1)*ARROW_LIMIT>=sequenceCurrent.routeCount;
-  sequenceOptions={...sequenceOptions,lanePage:sequenceCurrent.lanePage,arrowPage:latestRoutes?null:sequenceCurrent.arrowPage,start:sequenceCurrent.to>=sequenceCurrent.max?null:sequenceCurrent.from,seekMessage:''};
+  sequenceOptions={...sequenceOptions,lanePage:sequenceCurrent.lanePage,arrowPage:followRoutes||latestRoutes?null:sequenceCurrent.arrowPage,start:followTime||sequenceCurrent.to>=sequenceCurrent.max?null:sequenceCurrent.from,seekMessage:''};
   const flow=sequenceCurrent;
   renderSequence($('sequence-canvas'),flow,{selected,messages:state.messages,onSelect:selectMessage});
   $('sequence-summary').textContent=`${flow.lanes.filter(l=>l.id!==BROADCAST).length} agents · ${flow.inRange} messages in time range · ${filtered.length} matching loaded messages`;
@@ -489,8 +531,9 @@ function renderFlow(filtered) {
   $('sequence-previous-lanes').disabled=flow.lanePage===0;
   $('sequence-next-lanes').disabled=(flow.lanePage+1)*LANE_LIMIT>=flow.lanes.length;
   const routeName=id=>id===BROADCAST?'Everyone':agentLabel(id);
-  $('sequence-routes').replaceChildren(...flow.routes.map(item=>{
-    const control=button('',()=>selectMessage(item.message.ID),'sequence-route');
+  renderChildren($('sequence-routes'), ...flow.routes.map(item=>{
+    const control=button('',event=>selectMessage(item.message.ID,event.currentTarget),'sequence-route');
+    control.dataset.key=JSON.stringify([item.message.ID,item.target]);
     control.setAttribute('aria-pressed',String(selected===item.message.ID));
     control.append(node('span',`#${item.message.Sequence} · ${timeLabel(item.time)}`,'sequence-route-time'),node('span',`${routeName(item.source)}${instanceLabel(item.message)} → ${routeName(item.target)}${item.message.envelope?.recipient_instances?.length ? ` · instances: ${item.message.envelope.recipient_instances.join(", ")} (self-reported)` : ""}`),node('span',item.message.Body || 'Structured message','sequence-route-preview'));
     return control;
@@ -506,5 +549,5 @@ for(const [id,change] of [['sequence-earlier',-1],['sequence-later',1]]) $(id).a
 for(const [id,change] of [['sequence-previous-lanes',-1],['sequence-next-lanes',1]]) $(id).addEventListener('click',()=>{sequenceOptions.lanePage=(sequenceOptions.lanePage||0)+change;sequenceOptions.arrowPage=null;renderMessages();});
 for(const [id,change] of [['sequence-previous-arrows',-1],['sequence-next-arrows',1]]) $(id).addEventListener('click',()=>{if(!sequenceCurrent)return;sequenceOptions.arrowPage=sequenceCurrent.arrowPage+change;renderMessages();});
 setView('sequence');
-window.addEventListener('resize',()=>{if(view==='sequence'&&state.contextID)renderFlow(filterMessages(state.messages,filters()));});
+window.addEventListener('resize',()=>{if(window.innerWidth>960)closeDetails();if(view==='sequence'&&state.contextID)renderFlow(filterMessages(state.messages,filters()));});
 await connect(savedCredential());

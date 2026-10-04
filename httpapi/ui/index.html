@@ -66,7 +66,12 @@
       <div id="messages" class="messages"></div>
       <div class="timeline-footer"><div class="page-controls"><button id="older-matches" class="text-button" hidden>← Earlier matches</button><button id="newer-matches" class="text-button" hidden>Later matches →</button></div><button id="load-more" class="secondary" hidden>Load next messages</button><button id="next-window" class="secondary" hidden>Continue to next window</button><p id="history-note" class="hint">Filters apply to loaded messages. Browsing does not acknowledge agent messages.</p></div>
     </main>
-    <aside class="inspector" aria-label="Message details"><div class="section-heading"><h2>Message details</h2><span class="eyebrow">INSPECT</span></div><div id="details" class="details"><div class="empty-details"><span class="detail-symbol" aria-hidden="true">↗</span><h3>Look a little closer</h3><p>Select a message to see its recipients, task, replies, and structured payload.</p></div></div></aside>
+    <aside id="details-home" class="inspector" aria-label="Message details"><div class="section-heading"><h2>Message details</h2><span class="eyebrow">INSPECT</span></div><div id="details" class="details"><div class="empty-details"><span class="detail-symbol" aria-hidden="true">↗</span><h3>Look a little closer</h3><p>Select a message to see its recipients, task, replies, and structured payload.</p></div></div></aside>
   </div>
+  <p id="selection-status" class="sr-only" role="status" aria-live="polite" aria-atomic="true"></p>
+  <dialog id="details-dialog" class="details-dialog" aria-labelledby="details-heading">
+    <div class="section-heading"><h2 id="details-heading" tabindex="-1">Message details</h2><button id="return-message" class="secondary" type="button">Return to message</button></div>
+    <div id="dialog-details"></div>
+  </dialog>
 </body>
 </html>

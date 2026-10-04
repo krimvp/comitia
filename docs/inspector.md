@@ -36,7 +36,8 @@ refreshed alongside messages, including when no new messages arrive. The sidebar
 lists self-reported instances from `instances/list`, with relative last-seen times
 and expandable resume metadata. Rows whose credential session is revoked or
 expired are marked “Session revoked or expired”. Hover over a last-seen time for
-its timestamp.
+its timestamp. Refresh updates stable rows in place, keeping expanded resume
+metadata, keyboard focus, and scroll position while those items remain displayed.
 Presence is historical activity, not proof that a process is still running.
 Switching contexts or losing read access clears the displayed instance data.
 If the presence endpoint is unavailable or returns malformed metadata, messages
@@ -62,8 +63,8 @@ On a context with children or `comitia.task-status.v1` reports, a "Task progress
 section lists each task with its latest loaded report, the number of loaded
 reports and its child context: a link when readable, a locked note otherwise.
 Selecting a task filters the conversation to it. Reports are read from the
-loaded message window only. Polling rebuilds the tree and task progress only
-when their content changes, so keyboard focus stays put between updates.
+loaded message window only. Polling updates the tree and task progress only
+when their content changes, retaining the same keyed controls for keyboard focus.
 
 ## Agent timeline
 
@@ -106,7 +107,27 @@ revocation, credential expiry, HTTP client parity, and static asset restrictions
 Node's built-in tests cover stale generations, deduplication, replay cursors,
 filter combinations, nested reply membership, the context tree, locked children
 (never requested) and archived markers. Existing race, crash recovery,
-and multi-process checks continue to run in CI. No frontend packages are needed.
+and multi-process checks continue to run in CI. No frontend packages are needed
+to build or use the inspector. A separate CI job uses pinned Playwright/Chromium
+to check actual keyboard selection, three-second polling, disclosure and scroll
+preservation, changed metadata/replies, and mobile/tablet modal focus and return.
+The browser suite serves the embedded assets when `COMITIA_BINARY` is supplied;
+its read-only API fixtures are deterministic.
+
+To run the browser suite locally:
+
+```sh
+npm ci --prefix httpapi/ui-tests/browser
+httpapi/ui-tests/browser/node_modules/.bin/playwright install chromium
+GOTOOLCHAIN=go1.24.13 GOFLAGS=-buildvcs=false go build -o /tmp/comitia-inspector ./cmd/comitia
+COMITIA_BROWSER_REQUIRED=1 COMITIA_BINARY=/tmp/comitia-inspector node --test httpapi/ui-tests/browser/*.test.mjs
+```
+
+Without Playwright/Chromium the browser suite skips cleanly; set
+`COMITIA_BROWSER_REQUIRED=1` to require it. `COMITIA_PLAYWRIGHT_MODULE` and
+`COMITIA_CHROMIUM` can point to an existing module and browser executable.
+The embedded test server uses a temporary home/database and is stopped after
+the tests.
 
 ## Using the inspector
 
@@ -125,7 +146,14 @@ reply threads and inspect structured payloads and evidence references. Task
 status comes from the task API, separately from agents' reported results.
 Messages update by polling every three seconds. Pause stops automatic polling;
 manual refresh remains available. Browsing never acknowledges messages or changes
-task state.
+task state. While a message or route control has focus (or its mobile details
+are open), polling keeps that displayed page available as new messages arrive.
+Selection on desktop keeps focus on the message or route control;
+a polite status announcement identifies the selected message. On screens up to
+960px wide, selection opens details in a modal dialog near the viewport, with
+focus on its title. Use **Return to message** or Escape to restore focus and page
+position to the originating control. Resizing to a desktop layout returns the
+same details to the side panel. Losing access closes the dialog and clears data.
 
 Credentials are kept in the tab's session storage so refreshing reconnects
 automatically. Disconnecting or losing authorization clears the saved credential;

@@ -1,3 +1,4 @@
+import {on, renderChildren} from './dom.mjs';
 import {BROADCAST,shortID,senderActor,recipientActors} from './model.mjs';
 const NS='http://www.w3.org/2000/svg';
 const palette=['#5372de','#9570cc','#168b87','#c77635','#ce6080','#558742'];
@@ -13,8 +14,8 @@ function svg(tag,attrs={},text) {
 }
 function actionable(el,label,action) {
   el.setAttribute('role','button');el.setAttribute('tabindex','0');el.setAttribute('aria-label',label);
-  el.addEventListener('click',action);
-  el.addEventListener('keydown',event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();action();}});
+  on(el,'click',action);
+  on(el,'keydown',event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();action();}});
 }
 // Instance nodes lead with the self-reported claim, then the owning session's name.
 const nodeLabel=node=>node.instance?`${node.instance} (self-reported, ${node.name}${node.session?` ${shortID(node.session)}`:''})`:node.id===BROADCAST?node.name:`${node.name} ${shortID(node.id)}`;
@@ -76,7 +77,7 @@ export function renderInteractionMap(container,graph,{agent='',route=null,select
     const related=!agent||edge.source===agent||edge.target===agent;
     const active=route?selectedRoute:messageRoute||Boolean(agent&&related);
     const faded=Boolean(route&&!selectedRoute)||!related;
-    const group=svg('g',{'class':`map-edge${active?' active':''}${faded?' faded':''}`});
+    const group=svg('g',{'data-key':JSON.stringify([edge.source,edge.target]),'class':`map-edge${active?' active':''}${faded?' faded':''}`});
     const from=byID.get(edge.source),to=byID.get(edge.target);
     const labelText=`${nodeLabel(from)} to ${nodeLabel(to)}: ${edge.count} messages`;
     group.append(svg('title',{},labelText),svg('path',{d,'class':'edge-hit'}),svg('path',{d,'class':'edge-line','stroke-width':Math.min(4,1.2+Math.log2(edge.count+1)*.65),'marker-end':`url(#arrow-${active?'active':'normal'})`}),svg('rect',{x:label.x-16,y:label.y-12,width:32,height:24,rx:12,'class':'edge-count-bg'}),svg('text',{x:label.x,y:label.y+4,'text-anchor':'middle','class':'edge-count'},edge.count));
@@ -92,6 +93,6 @@ export function renderInteractionMap(container,graph,{agent='',route=null,select
     actionable(group,isBroadcast?`Show ${node.received} broadcast messages`:`Show messages involving ${nodeLabel(node)}`,()=>isBroadcast?onRoute?.('',BROADCAST):onAgent?.(node.id));canvas.append(group);
   }
   if(!nodes.length) canvas.append(svg('text',{x:width/2,y:height/2,'text-anchor':'middle','class':'map-empty'},'Interactions appear as agent messages arrive.'));
-  container.replaceChildren(canvas);
+  renderChildren(container, canvas);
   return {shown:nodes.length,total,drawnEdges:drawnEdges.length};
 }
