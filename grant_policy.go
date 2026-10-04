@@ -43,7 +43,8 @@ func mergeLifetime(a, b grantLifetime) grantLifetime {
 		a.end = b.end
 	}
 	a.revoked = a.revoked || b.revoked
-	if b.err != nil {
+	// Backend failures take precedence over missing or invalid ancestry.
+	if b.err != nil && (a.err == nil || errors.Is(a.err, ErrNotFound) || errors.Is(a.err, ErrInvalid)) {
 		a.err = b.err
 	}
 	return a

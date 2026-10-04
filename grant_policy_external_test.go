@@ -81,3 +81,42 @@ func TestExternalGrantPolicyRejectsBrokenAncestry(t *testing.T) {
 		})
 	}
 }
+
+type mixedPolicyLookup struct {
+	policyLookup
+	failures map[string]error
+}
+
+func (r mixedPolicyLookup) Session(id string) (comitia.Session, error) {
+	if err := r.failures[id]; err != nil {
+		return comitia.Session{}, err
+	}
+	return r.policyLookup.Session(id)
+}
+
+func TestExternalGrantPolicyPreservesMixedLookupErrors(t *testing.T) {
+	now := time.Date(2026, 1, 2, 3, 4, 5, 0, time.UTC)
+	failure := errors.New("backend unavailable")
+	for _, invalid := range []error{comitia.ErrNotFound, comitia.ErrInvalid} {
+		for _, failedID := range []string{"owner", "issuer"} {
+			t.Run(invalid.Error()+"/"+failedID, func(t *testing.T) {
+				otherID := "owner"
+				if failedID == otherID {
+					otherID = "issuer"
+				}
+				lookup := mixedPolicyLookup{failures: map[string]error{failedID: failure, otherID: invalid}}
+				g := comitia.Grant{ID: "grant", SessionID: "owner", IssuerSessionID: "issuer", ExpiresAt: now.Add(time.Hour)}
+				policy := comitia.NewGrantEvaluator(lookup)
+				for i := 0; i < 2; i++ {
+					ok, err := policy.Effective(g, now)
+					if ok || !errors.Is(err, failure) {
+						t.Errorf("Effective: ok=%t err=%v; want backend failure", ok, err)
+					}
+					if _, err := policy.End(g.ID); !errors.Is(err, failure) {
+						t.Errorf("End: err=%v; want backend failure", err)
+					}
+				}
+			})
+		}
+	}
+}

@@ -11,7 +11,8 @@ import (
 )
 
 // Grants checks effective grants, creator-derived archival and transaction
-// visibility/rollback. open must return a fresh, empty Store for each subtest.
+// visibility/rollback, including durable grant/session descendant revocation.
+// open must return a fresh, empty Store for each subtest.
 // The suite closes each Store. It does not cover message/task/presence semantics.
 func Grants(t *testing.T, open func(*testing.T) comitia.Store) {
 	t.Helper()
@@ -185,6 +186,123 @@ func Grants(t *testing.T, open func(*testing.T) comitia.Store) {
 			}
 		})
 	}
+	for _, kind := range []string{"grant", "session"} {
+		t.Run(kind+" durable descendants", func(t *testing.T) {
+			st := open(t)
+			t.Cleanup(func() { st.Close() })
+			records := initial()
+			if kind == "session" {
+				records.sessions[2].ParentID = "issuer"
+			}
+			records.sessions = append(records.sessions, comitia.Session{ID: "grandchild", PrincipalID: "principal", ParentID: "owner", ExpiresAt: now.Add(3 * time.Hour), CreatedAt: now})
+			seed(t, st, records)
+			if err := st.Update(context.Background(), func(w comitia.WriteStore) error {
+				g := records.leaf
+				g.ID = "grandleaf"
+				g.ParentGrantID = "leaf"
+				if err := w.PutGrant(g); err != nil {
+					return err
+				}
+				for _, sid := range []string{"owner", "grandchild"} {
+					independent := comitia.Grant{ID: "independent-" + sid, SessionID: sid, IssuerSessionID: "ancestor", ContextID: "parent", Permissions: comitia.PermissionRead, ExpiresAt: now.Add(time.Hour), CreatedAt: now}
+					if err := w.PutGrant(independent); err != nil {
+						return err
+					}
+				}
+				return nil
+			}); err != nil {
+				t.Fatal(err)
+			}
+			verify := func(r comitia.ReadStore, revoked bool) {
+				t.Helper()
+				var stamps []*time.Time
+				if kind == "grant" {
+					for _, id := range []string{"root", "leaf", "grandleaf"} {
+						g, err := r.Grant(id)
+						if err != nil {
+							t.Fatal(err)
+						}
+						stamps = append(stamps, g.RevokedAt)
+					}
+					g, err := r.Grant("independent-owner")
+					if err != nil {
+						t.Fatal(err)
+					}
+					if g.RevokedAt != nil {
+						t.Fatal("unrelated grant revoked")
+					}
+				} else {
+					for _, id := range []string{"issuer", "owner", "grandchild"} {
+						ss, err := r.Session(id)
+						if err != nil {
+							t.Fatal(err)
+						}
+						stamps = append(stamps, ss.RevokedAt)
+					}
+					ss, err := r.Session("ancestor")
+					if err != nil {
+						t.Fatal(err)
+					}
+					if ss.RevokedAt != nil {
+						t.Fatal("unrelated session revoked")
+					}
+				}
+				for i, at := range stamps {
+					if revoked && (at == nil || !at.Equal(now)) || !revoked && at != nil {
+						t.Errorf("%s tree row %d: revoked_at=%v; revoked=%t", kind, i, at, revoked)
+					}
+				}
+				for _, sid := range []string{"owner", "grandchild"} {
+					gs, err := r.Grants(sid, "parent", now)
+					if err != nil {
+						t.Fatal(err)
+					}
+					want := 1
+					if kind == "session" && revoked {
+						want = 0
+					}
+					if len(gs) != want {
+						t.Errorf("%s independent grant: got %d, want %d", sid, len(gs), want)
+					}
+				}
+			}
+			mutate := func(w comitia.WriteStore) error {
+				if kind == "grant" {
+					return w.RevokeGrantTree("root", now)
+				}
+				return w.RevokeSessionTree("issuer", now)
+			}
+			rollback := errors.New("rollback descendants")
+			err := st.Update(context.Background(), func(w comitia.WriteStore) error {
+				verify(w, false)
+				if err := mutate(w); err != nil {
+					return err
+				}
+				verify(w, true)
+				return rollback
+			})
+			if !errors.Is(err, rollback) {
+				t.Fatalf("rollback=%v", err)
+			}
+			if err := st.View(context.Background(), func(r comitia.ReadStore) error { verify(r, false); return nil }); err != nil {
+				t.Fatal(err)
+			}
+			if err := st.Update(context.Background(), func(w comitia.WriteStore) error {
+				verify(w, false)
+				if err := mutate(w); err != nil {
+					return err
+				}
+				verify(w, true)
+				return nil
+			}); err != nil {
+				t.Fatal(err)
+			}
+			if err := st.View(context.Background(), func(r comitia.ReadStore) error { verify(r, true); return nil }); err != nil {
+				t.Fatal(err)
+			}
+		})
+	}
+
 	t.Run("cycle rejected by both policies", func(t *testing.T) {
 		st := open(t)
 		t.Cleanup(func() { st.Close() })
