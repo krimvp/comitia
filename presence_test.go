@@ -321,6 +321,9 @@ func TestPresenceHeartbeatTransactionBudget(t *testing.T) {
 		if _, err := f.svc.MessageCursor(ctx, raw, cid, "worker"); err != nil {
 			t.Fatal(err)
 		}
+		if _, err := f.svc.WaitMessages(ctx, raw, cid, 1, 0, instanceFilter("worker")); err != nil {
+			t.Fatal(err)
+		}
 	}
 	if counted.updates != 1 || counted.heartbeats != 1 {
 		t.Fatalf("fresh polls wrote: updates=%d heartbeats=%d", counted.updates, counted.heartbeats)
@@ -333,17 +336,24 @@ func TestPresenceHeartbeatTransactionBudget(t *testing.T) {
 		t.Fatalf("interval boundary: updates=%d heartbeats=%d", counted.updates, counted.heartbeats)
 	}
 	*f.now = f.now.Add(30 * time.Second)
-	if err := f.svc.AckMessages(ctx, raw, cid, 0, "worker"); err != nil {
+	if _, err := f.svc.WaitMessages(ctx, raw, cid, 1, 0, instanceFilter("worker")); err != nil {
 		t.Fatal(err)
 	}
 	if counted.updates != 3 || counted.heartbeats != 3 {
+		t.Fatalf("stale wait: updates=%d heartbeats=%d", counted.updates, counted.heartbeats)
+	}
+	*f.now = f.now.Add(30 * time.Second)
+	if err := f.svc.AckMessages(ctx, raw, cid, 0, "worker"); err != nil {
+		t.Fatal(err)
+	}
+	if counted.updates != 4 || counted.heartbeats != 4 {
 		t.Fatalf("ack added a transaction: updates=%d heartbeats=%d", counted.updates, counted.heartbeats)
 	}
 	*f.now = f.now.Add(30 * time.Second)
 	if _, err := f.svc.AppendMessage(ctx, raw, cid, in); err != nil {
 		t.Fatal(err)
 	}
-	if counted.updates != 4 || counted.heartbeats != 4 {
+	if counted.updates != 5 || counted.heartbeats != 5 {
 		t.Fatalf("dedupe retry: updates=%d heartbeats=%d", counted.updates, counted.heartbeats)
 	}
 }

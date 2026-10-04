@@ -103,6 +103,9 @@ func (s *Service) scanWaitMessages(ctx context.Context, raw, cid string, after i
 	if after < 0 {
 		return nil, after, Invalidf("after must be nonnegative")
 	}
+	instance := f.agentInstance()
+	var sid string
+	var heartbeat bool
 	var out []Message
 	scanned := after
 	err = s.store.View(ctx, func(r ReadStore) error {
@@ -110,13 +113,21 @@ func (s *Service) scanWaitMessages(ctx context.Context, raw, cid string, after i
 		if e != nil {
 			return e
 		}
+		sid = a.session.ID
 		if scan, ok := r.(messageScanStore); ok {
 			out, scanned, e = scan.messagesScanned(cid, a.session.ID, after, 100, f)
 		} else {
 			out, e = r.Messages(cid, a.session.ID, after, 100, f)
 		}
+		if e == nil {
+			heartbeat = s.instanceHeartbeatDue(r, sid, cid, instance)
+		}
 		return e
 	})
+	// Waits record presence exactly like replay: after a successful read, throttled.
+	if err == nil && heartbeat {
+		s.touchInstance(ctx, sid, cid, &AgentInstance{ID: instance})
+	}
 	return out, scanned, err
 }
 
