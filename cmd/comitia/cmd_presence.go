@@ -17,6 +17,9 @@ func runPresence(ctx context.Context, cfg config, api comitia.API, out *json.Enc
 		if err := fs.Parse(args); err != nil {
 			return err
 		}
+		if cfg.parseOnly {
+			return nil
+		}
 		v, err := api.ListInstances(ctx, needCredential(cfg), *cid)
 		if err != nil {
 			return err
@@ -30,6 +33,9 @@ func runPresence(ctx context.Context, cfg config, api comitia.API, out *json.Enc
 		file := fs.String("resume-file", "", "resume metadata JSON object file (at most 4096 bytes)")
 		if err := fs.Parse(args); err != nil {
 			return err
+		}
+		if cfg.parseOnly {
+			return nil
 		}
 		if *file == "" {
 			return comitia.Invalidf("resume-file required")

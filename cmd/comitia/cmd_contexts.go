@@ -15,6 +15,9 @@ func runContexts(ctx context.Context, cfg config, api comitia.API, out *json.Enc
 		if err := fs.Parse(args); err != nil {
 			return err
 		}
+		if cfg.parseOnly {
+			return nil
+		}
 		if *cid == "" {
 			return comitia.Invalidf("context-get requires --context-id")
 		}
@@ -29,6 +32,9 @@ func runContexts(ctx context.Context, cfg config, api comitia.API, out *json.Enc
 		if err := fs.Parse(args); err != nil {
 			return err
 		}
+		if cfg.parseOnly {
+			return nil
+		}
 		if *cid == "" {
 			return comitia.Invalidf("context-archive requires --context-id")
 		}
@@ -42,6 +48,9 @@ func runContexts(ctx context.Context, cfg config, api comitia.API, out *json.Enc
 		if err := fs.Parse(args); err != nil {
 			return err
 		}
+		if cfg.parseOnly {
+			return nil
+		}
 		v, e := api.CreateWorkspace(ctx, needCredential(cfg), *name)
 		if e != nil {
 			return e
@@ -53,6 +62,9 @@ func runContexts(ctx context.Context, cfg config, api comitia.API, out *json.Enc
 		limit := fs.Int("limit", 100, "maximum contexts (1-1000)")
 		if err := fs.Parse(args); err != nil {
 			return err
+		}
+		if cfg.parseOnly {
+			return nil
 		}
 		v, e := api.ListContexts(ctx, needCredential(cfg), *after, *limit)
 		if e != nil {
@@ -71,6 +83,9 @@ func runContexts(ctx context.Context, cfg config, api comitia.API, out *json.Enc
 		readable := fs.Bool("parent-readable", false, "let sessions with read on the parent read the child")
 		if err := fs.Parse(args); err != nil {
 			return err
+		}
+		if cfg.parseOnly {
+			return nil
 		}
 		var v comitia.WorkContext
 		var e error
@@ -97,6 +112,9 @@ func runContexts(ctx context.Context, cfg config, api comitia.API, out *json.Enc
 		if err := fs.Parse(args); err != nil {
 			return err
 		}
+		if cfg.parseOnly {
+			return nil
+		}
 		v, e := api.ListChildContexts(ctx, needCredential(cfg), *parent, *after, *limit)
 		if e != nil {
 			return e
@@ -112,6 +130,9 @@ func runContexts(ctx context.Context, cfg config, api comitia.API, out *json.Enc
 		uri := fs.String("uri", "", "reference URI")
 		if err := fs.Parse(args); err != nil {
 			return err
+		}
+		if cfg.parseOnly {
+			return nil
 		}
 		v, e := api.AddReference(ctx, needCredential(cfg), comitia.AddReferenceInput{ContextID: *cid, Kind: *kind, URI: *uri})
 		if e != nil {

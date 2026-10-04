@@ -18,6 +18,9 @@ func runTasks(ctx context.Context, cfg config, api comitia.API, out *json.Encode
 		if err := fs.Parse(args); err != nil {
 			return err
 		}
+		if cfg.parseOnly {
+			return nil
+		}
 		v, e := api.CreateTask(ctx, needCredential(cfg), *cid, comitia.TaskInput{Title: *title, Body: *body})
 		if e != nil {
 			return e
@@ -28,6 +31,9 @@ func runTasks(ctx context.Context, cfg config, api comitia.API, out *json.Encode
 		tid := fs.String("task-id", "", "task ID")
 		if err := fs.Parse(args); err != nil {
 			return err
+		}
+		if cfg.parseOnly {
+			return nil
 		}
 		if *tid == "" {
 			return comitia.Invalidf("task-id is required")
@@ -44,6 +50,9 @@ func runTasks(ctx context.Context, cfg config, api comitia.API, out *json.Encode
 		limit := fs.Int("limit", 100, "maximum tasks (1-1000)")
 		if err := fs.Parse(args); err != nil {
 			return err
+		}
+		if cfg.parseOnly {
+			return nil
 		}
 		if *cid == "" {
 			return comitia.Invalidf("context-id is required")
@@ -73,6 +82,9 @@ func runTasks(ctx context.Context, cfg config, api comitia.API, out *json.Encode
 		if err := fs.Parse(args); err != nil {
 			return err
 		}
+		if cfg.parseOnly {
+			return nil
+		}
 		owner := cfg.instances.Message(nil)
 		if flagProvided(fs, "agent-instance") {
 			owner = &comitia.AgentInstance{ID: *instanceID, Label: *instanceLabel}
@@ -101,6 +113,9 @@ func runTasks(ctx context.Context, cfg config, api comitia.API, out *json.Encode
 		if err := fs.Parse(args); err != nil {
 			return err
 		}
+		if cfg.parseOnly {
+			return nil
+		}
 		v, e := api.RenewClaim(ctx, needCredential(cfg), *tid, *token, *ver, openLease(*lease, *openEnded))
 		if e != nil {
 			return e
@@ -114,6 +129,9 @@ func runTasks(ctx context.Context, cfg config, api comitia.API, out *json.Encode
 		if err := fs.Parse(args); err != nil {
 			return err
 		}
+		if cfg.parseOnly {
+			return nil
+		}
 		v, e := api.CompleteTask(ctx, needCredential(cfg), *tid, *token, *ver)
 		if e != nil {
 			return e
@@ -126,6 +144,9 @@ func runTasks(ctx context.Context, cfg config, api comitia.API, out *json.Encode
 		ver := fs.Int64("lease-version", 0, "lease version")
 		if err := fs.Parse(args); err != nil {
 			return err
+		}
+		if cfg.parseOnly {
+			return nil
 		}
 		if *tid == "" {
 			return comitia.Invalidf("task-id is required")

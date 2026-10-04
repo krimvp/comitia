@@ -5,6 +5,7 @@ the installers and their tests never depend on the caller's real home.
 """
 import datetime
 import contextlib
+import copy
 import fcntl
 import functools
 import json
@@ -13,12 +14,14 @@ from pathlib import Path
 import re
 import secrets
 import shutil
+import socket
 import string
 import sys
 import subprocess
 import tempfile
 import threading
 import urllib.request
+import urllib.parse
 try:
     import tomllib
 except ImportError:  # Python < 3.11 edits without the final parse check.
@@ -80,6 +83,33 @@ def expand(path, home):
     if path == '~' or path.startswith('~/'):
         return Path(home)/path[2:]
     return Path(path)
+
+def saved_port(root, key='server_url'):
+    for name in ('service.json', 'local-context.json'):
+        path = root/name
+        if path.exists():
+            url = json.loads(path.read_text()).get(key)
+            if url:
+                port = urllib.parse.urlsplit(url).port
+                if port is None or not 1024 <= port <= 65535:
+                    raise ValueError(f'Invalid saved {key} in {path}')
+                return port
+    return None
+
+def installation_port(root, port, default, key='server_url'):
+    port = port if port is not None else saved_port(root, key) or default
+    if not 1024 <= port <= 65535:
+        raise ValueError('Choose a port between 1024 and 65535.')
+    return port
+
+def preflight_port(port, owned=False):
+    if owned:
+        return
+    with socket.socket() as probe:
+        try:
+            probe.bind(('127.0.0.1', port))
+        except OSError as error:
+            raise RuntimeError(f'Port {port} is already occupied. Choose another port.') from error
 
 def private_json(path, value):
     fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
@@ -545,6 +575,133 @@ def allow_listed(approval, home, backups):
         values.append(approval['value'])
     write_text(path, json.dumps(document, indent=2)+'\n', backups)
 
+def lookup(document, key):
+    for part in key.split('.'):
+        if not isinstance(document, dict) or part not in document:
+            return None
+        document = document[part]
+    return document
+
+def harness_entry(name, spec, root):
+    entry = {'command': str(root/'bin/comitia-client'), 'args': [name, 'mcp']}
+    approval = spec.get('approval') or {}
+    if approval.get('format') == 'entry':
+        entry[approval['key']] = approval['value']
+    return entry
+
+def remember_approval(root, approval, home):
+    """Record only installer-added approvals; preexisting user approvals stay owned by the user."""
+    path = root/'managed-harnesses.json'
+    managed = json_document(path)
+    values = lookup(json_document(expand(approval['file'], home)), approval['key']) or []
+    if approval['value'] not in values and approval not in managed.setdefault('approvals', []):
+        managed['approvals'].append(approval)
+        write_text(path, json.dumps(managed, indent=2)+'\n', mode=0o600)
+
+def remember_harness(root, name, spec):
+    path = root/'managed-harnesses.json'
+    managed = json_document(path)
+    entry = {'name': name, 'spec': spec}
+    if entry not in managed.setdefault('harnesses', []):
+        managed['harnesses'].append(entry)
+        write_text(path, json.dumps(managed, indent=2)+'\n', mode=0o600)
+
+def remove_toml_entry(text, table, entry):
+    if tomllib is None:
+        raise RuntimeError('Selective TOML uninstall requires Python 3.11 or newer.')
+    document = tomllib.loads(text)
+    current = lookup(document, table)
+    if not isinstance(current, dict) or any(current.get(k) != entry[k] for k in ('command', 'args')):
+        return text
+    remove = {k for k, v in entry.items() if current.get(k) == v}
+    expected = copy.deepcopy(document)
+    remaining = lookup(expected, table)
+    for key in remove:
+        del remaining[key]
+    parent, _, name = table.rpartition('.')
+    if not remaining:
+        (lookup(expected, parent) if parent else expected).pop(name)
+    header = re.compile(r'^\s*\[\s*'+r'\s*\.\s*'.join(map(re.escape, table.split('.')))+r'\s*\]\s*(#.*)?$')
+    lines = list(toml_lines(text))
+    start = next((i for i, (line, outside) in enumerate(lines) if outside and header.match(line)), None)
+    if start is None:
+        return text  # Inline/quoted tables were not written by the installer.
+    end = next((i for i in range(start+1, len(lines)) if lines[i][1] and lines[i][0].lstrip().startswith('[')), len(lines))
+    kept, dropping = [], False
+    assignment = re.compile(r'''^\s*([A-Za-z0-9_-]+|'[^']*'|"(?:[^"\\]|\\.)*")\s*=''')
+    for line, outside in lines[start+1:end]:
+        if outside:
+            key = assignment.match(line)
+            # Let TOML decode quoted/escaped keys instead of comparing source spellings.
+            dropping = bool(key and next(iter(tomllib.loads(key[1]+' = 0'))) in remove)
+        if not dropping:
+            kept.append(line)
+    prefix = [line for line, _ in lines[:start]]
+    if current.keys()-remove:
+        prefix.append(lines[start][0])
+    result = ''.join(prefix+kept+[line for line, _ in lines[end:]])
+    parsed = tomllib.loads(result)
+    if not remaining and parent and lookup(parsed, parent) is None:
+        # Removing the only child must not erase its unrelated parent table.
+        result = ''.join(prefix+[f'[{parent}]\n']+kept+[line for line, _ in lines[end:]])
+        parsed = tomllib.loads(result)
+    if parsed != expected:
+        raise ValueError(f'Refusing to remove [{table}]: result would change unrelated TOML or retain managed fields')
+    return result
+
+@locked_installation(0)
+def remove_harnesses(root, home):
+    """Remove matching managed fields/blocks, retaining changed entries and user settings."""
+    registry = root/'harnesses.json'
+    retained = []
+    manifest = root/'managed-harnesses.json'
+    managed = json_document(manifest)
+    entries = managed.get('harnesses', [])
+    for name, spec in json_document(registry).items():
+        entry = {'name': name, 'spec': spec}
+        if entry not in entries:
+            entries.append(entry)
+    for recorded in entries:
+        name, spec = recorded['name'], recorded['spec']
+        entry, mcp = harness_entry(name, spec, root), spec['mcp']
+        path = expand(mcp['file'], home)
+        if path.exists():
+            if mcp['format'] == 'toml':
+                text = path.read_text()
+                updated = remove_toml_entry(text, f'{mcp.get("key", "mcp_servers")}.{SERVER}', entry)
+                write_text(path, updated, root/'backups')
+                if updated == text and lookup(tomllib.loads(text), f'{mcp.get("key", "mcp_servers")}.{SERVER}'):
+                    retained.append(str(path))
+            else:
+                document = json_document(path)
+                servers = lookup(document, mcp.get('key', 'mcpServers'))
+                current = servers.get(SERVER) if isinstance(servers, dict) else None
+                if isinstance(current, dict) and all(current.get(k) == entry[k] for k in ('command', 'args')):
+                    for k, v in {'type': 'stdio', **entry}.items():
+                        if current.get(k) == v:
+                            current.pop(k)
+                    if not current:
+                        servers.pop(SERVER)
+                    write_text(path, json.dumps(document, indent=2)+'\n', root/'backups')
+                elif current:
+                    retained.append(str(path))
+        instructions = expand(spec['instructions'], home)
+        if instructions.exists():
+            text = instructions.read_text()
+            updated = BLOCK.sub(lambda m: '' if str(root/'local-context.json') in m[0] else m[0], text)
+            write_text(instructions, updated, root/'backups')
+    for approval in managed.get('approvals', []):
+        config = expand(approval['file'], home)
+        if config.exists():
+            document = json_document(config)
+            values = lookup(document, approval['key'])
+            if isinstance(values, list) and approval['value'] in values:
+                values.remove(approval['value'])
+                write_text(config, json.dumps(document, indent=2)+'\n', root/'backups')
+    if manifest.exists():
+        write_text(manifest, json.dumps({'harnesses': [], 'approvals': []}, indent=2)+'\n', mode=0o600)
+    return retained
+
 def render_instructions(name, spec, local, root):
     template = string.Template((LOCAL/'instructions.md').read_text())
     return template.substitute(identity=name, display=spec.get('display', name), context_id=local['context_id'],
@@ -576,12 +733,14 @@ def add_harness(name, spec, root, home, run, permissions='read,write,claim,grant
         session = run('delegate', '--name', name, '--ttl', ttl, '--context-id', local['context_id'],
                       '--permissions', permissions, '--grant-ttl', ttl, token=token(owner))
         private_json(credential, session)
-    entry = {'command': str(root/'bin/comitia-client'), 'args': [name, 'mcp']}
+    entry = harness_entry(name, spec, root)
     approval = spec.get('approval') or {}
-    if approval.get('format') == 'entry':
-        entry[approval['key']] = approval['value']
+    # Track ownership before editing files, including interrupted registrations
+    # and previous config locations when a harness is reconfigured.
+    remember_harness(root, name, spec)
     register_mcp(spec['mcp'], entry, home, backups)
     if approval.get('format') == 'list':
+        remember_approval(root, approval, home)
         allow_listed(approval, home, backups)
     path = expand(spec['instructions'], home)
     text = path.read_text() if path.exists() else ''

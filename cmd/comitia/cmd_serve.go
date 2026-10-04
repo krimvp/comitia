@@ -19,12 +19,15 @@ import (
 func runServe(ctx context.Context, cfg config, api comitia.API, out *json.Encoder, cmd string, args []string) error {
 	switch cmd {
 	case "serve":
-		if cfg.serverURL != "" {
-			return comitia.Invalidf("serve requires embedded SQLite")
-		}
 		listen, _, _, err := serveFlags(args)
 		if err != nil {
 			return err
+		}
+		if cfg.parseOnly {
+			return nil
+		}
+		if cfg.serverURL != "" {
+			return comitia.Invalidf("serve requires embedded SQLite")
 		}
 		return http.ListenAndServe(listen, httpapi.NewHandler(api))
 	case "mcp":
@@ -34,18 +37,15 @@ func runServe(ctx context.Context, cfg config, api comitia.API, out *json.Encode
 		if err := fs.Parse(args); err != nil {
 			return err
 		}
+		if cfg.parseOnly {
+			return nil
+		}
 		return (&mcp.Server{API: api, Credential: needCredential(cfg), SessionsDir: *dir, ServerURL: *credentialURL, InstanceDefaults: cfg.instances}).Serve(ctx, os.Stdin, os.Stdout)
 	case "mcp-http":
 		// Streamable HTTP transport for remote MCP clients. Unlike serve, this
 		// adapter must run against a remote Comitia daemon: it authenticates each
 		// caller with an Authorization header rather than a fixed process
 		// credential, so it cannot use embedded SQLite.
-		if cfg.serverURL == "" {
-			return comitia.Invalidf("mcp-http requires --server-url (or COMITIA_SERVER_URL)")
-		}
-		if cfg.credential != "" || os.Getenv("COMITIA_CREDENTIAL") != "" {
-			return comitia.Invalidf("mcp-http takes credentials per request; unset COMITIA_CREDENTIAL")
-		}
 		fs := newFlags(cmd)
 		dir := fs.String("sessions-dir", env("COMITIA_SESSIONS_DIR", ""), "private delegated credential directory (default ~/.local/share/comitia/sessions)")
 		allowDelegation := fs.Bool("allow-delegation", false, "offer delegate_session (credential files are written on this host)")
@@ -57,6 +57,15 @@ func runServe(ctx context.Context, cfg config, api comitia.API, out *json.Encode
 		logRequests := fs.Bool("log-requests", false, "log allowlisted HTTP method, constant route, status and duration")
 		if err := fs.Parse(args); err != nil {
 			return err
+		}
+		if cfg.parseOnly {
+			return nil
+		}
+		if cfg.serverURL == "" {
+			return comitia.Invalidf("mcp-http requires --server-url (or COMITIA_SERVER_URL)")
+		}
+		if cfg.credential != "" || os.Getenv("COMITIA_CREDENTIAL") != "" {
+			return comitia.Invalidf("mcp-http takes credentials per request; unset COMITIA_CREDENTIAL")
 		}
 		if err := booleanEnv(fs, "allow-delegation", "COMITIA_MCP_HTTP_ALLOW_DELEGATION", allowDelegation); err != nil {
 			return err

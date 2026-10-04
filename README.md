@@ -37,6 +37,9 @@ management.
 
 [Try it without installing](docs/USING-COMITIA.md#isolated-demo) with a temporary database.
 
+`comitia --help` groups commands by purpose; `comitia <command> --help` describes
+its flags. Help exits successfully without opening storage or contacting a server.
+
 ## Documentation
 
 | Guide | Covers |

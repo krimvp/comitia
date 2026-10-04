@@ -19,6 +19,7 @@ type config struct {
 	db, serverURL, credential, bootstrapCredential string
 	instances                                      comitia.InstanceDefaults
 	maxContextDepth, maxChildContextsPerGrant      int
+	parseOnly                                      bool
 }
 
 func env(key, fallback string) string {
@@ -58,7 +59,14 @@ func run(ctx context.Context, args []string) error {
 	// sourced from the environment.
 	global.StringVar(&cfg.credential, "credential", "", "bearer credential (or COMITIA_CREDENTIAL)")
 	global.StringVar(&cfg.bootstrapCredential, "bootstrap-credential", "", "one-time local credential (or COMITIA_BOOTSTRAP_CREDENTIAL)")
+	global.Usage = func() {
+		fmt.Fprint(global.Output(), commandUsage)
+		global.PrintDefaults()
+	}
 	if err := global.Parse(args); err != nil {
+		if errors.Is(err, flag.ErrHelp) {
+			return nil
+		}
 		return err
 	}
 	if cfg.credential == "" {
@@ -69,9 +77,20 @@ func run(ctx context.Context, args []string) error {
 	}
 	rest := global.Args()
 	if len(rest) == 0 {
-		return usage()
+		global.Usage()
+		return errors.New("command required")
 	}
 	cmd, args := rest[0], rest[1:]
+	// Ask the same command handlers to parse flags only. Help and
+	// parsing errors must finish before storage, network or runtime validation.
+	parseCfg := cfg
+	parseCfg.parseOnly = true
+	if err := dispatch(ctx, parseCfg, nil, nil, cmd, args); err != nil {
+		if errors.Is(err, flag.ErrHelp) {
+			return nil
+		}
+		return err
+	}
 	if usesInstanceDefaults(cmd) {
 		instances, err := comitia.InstanceDefaultsFromEnv()
 		if err != nil {
@@ -95,6 +114,10 @@ func run(ctx context.Context, args []string) error {
 	}
 	defer closeFn()
 	out := json.NewEncoder(os.Stdout)
+	return dispatch(ctx, cfg, api, out, cmd, args)
+}
+
+func dispatch(ctx context.Context, cfg config, api comitia.API, out *json.Encoder, cmd string, args []string) error {
 	for _, group := range commandGroups {
 		if err := group(ctx, cfg, api, out, cmd, args); err != errUnknownCommand {
 			return err
@@ -125,9 +148,50 @@ func newFlags(name string) *flag.FlagSet {
 	f.SetOutput(os.Stderr)
 	return f
 }
-func usage() error {
-	return errors.New("usage: comitia [--db PATH | --server-url URL] [--credential TOKEN] <server-info|bootstrap|workspace-create|context-create|context-list|context-get|context-children|reference-add|delegate|revoke|participants|instances|instance-resume|send|replay|wait|watch|ack|cursor|task-create|task-get|task-list|task-claim|task-renew|task-complete|task-release|serve|mcp|mcp-http|context-archive|grant|grant-revoke|credential-check> [flags]")
-}
+
+const commandUsage = `Usage: comitia [global flags] <command> [flags]
+Use comitia <command> --help for command flags.
+
+Sessions and access:
+  bootstrap         create the first local owner
+  delegate          create a scoped child session
+  revoke            revoke a session and descendants
+  grant             grant context permissions to a session
+  grant-revoke      revoke a grant
+  credential-check  check effective context permissions
+Contexts:
+  workspace-create  create a workspace
+  context-create    create a top-level or child context
+  context-list      list visible contexts
+  context-get       get one context
+  context-children  list immediate child contexts
+  context-archive   archive a context
+  reference-add     attach a reference to a context
+Messages and presence:
+  send              append a deduplicated message
+  replay            read messages after a sequence
+  wait              wait for matching messages
+  watch             print and acknowledge arriving messages
+  ack, cursor       save or read an acknowledgement cursor
+  participants      list sessions with context access
+  instances         list recorded process activity
+  instance-resume   save process resume metadata
+Tasks:
+  task-create       create shared work
+  task-get          get one task
+  task-list         list tasks in a context
+  task-claim        claim a pending task
+  task-renew        renew a claim
+  task-complete     complete a claimed task
+  task-release      release a claim
+Services:
+  serve             run the SQLite HTTP daemon
+  mcp               run an MCP stdio adapter
+  mcp-http          run a remote MCP HTTP adapter
+  server-info       inspect version and feature support
+
+Global flags:
+`
 
 func parsePermissions(s string) (comitia.Permission, error) {
 	var p comitia.Permission
