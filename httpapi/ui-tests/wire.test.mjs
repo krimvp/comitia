@@ -14,3 +14,12 @@ test('inspector accepts canonical and legacy records without changing opaque pay
   assert.deepEqual(normalizeResponse(legacy),legacy);
   for (const old of [{}, {messages:null}, {messages:[]}]) assert.deepEqual(normalizeResponse(old),old);
 });
+
+test('inspector discovery pages accept canonical and legacy records', () => {
+  const result = normalizeResponse({task_page:{tasks:[{id:'t', title:'Task'}], next_after:'cursor', has_more:true}, participant_page:{participants:[{session_id:'s', name:'Agent'}], next_after:'s', has_more:false}});
+  assert.equal(result.task_page.tasks[0].ID,'t'); assert.equal(result.task_page.tasks[0].Title,'Task');
+  assert.equal(result.task_page.next_after,'cursor'); assert.equal(result.task_page.has_more,true);
+  assert.equal(result.participant_page.participants[0].SessionID,'s'); assert.equal(result.participant_page.next_after,'s');
+  const legacy = {task_page:{tasks:[{ID:'t',Title:'Task'}], next_after:'cursor', has_more:false}, participant_page:{participants:[{SessionID:'s'}], next_after:'s', has_more:false}};
+  assert.deepEqual(normalizeResponse(legacy),legacy);
+});

@@ -25,5 +25,11 @@ export function normalizeResponse(value) {
   if (result.page && Array.isArray(result.page.messages)) {
     result.page = {...result.page, messages:result.page.messages.map(record)};
   }
+  if (result.task_page && Array.isArray(result.task_page.tasks)) {
+    result.task_page = {...result.task_page, tasks:result.task_page.tasks.map(record)};
+  }
+  if (result.participant_page && Array.isArray(result.participant_page.participants)) {
+    result.participant_page = {...result.participant_page, participants:result.participant_page.participants.map(record)};
+  }
   return result;
 }

@@ -147,6 +147,34 @@ func TestV1UpgradeOrderCompatibility(t *testing.T) {
 						t.Fatalf("filtered scan wait=%v: %+v %v", wait, page, err)
 					}
 				}
+				// Plain discovery lists work in every order. New Clients page against
+				// old union Handlers, which ignore the paging members and omit the page.
+				tasks, err := client.ListTasks(ctx, owner.Token, parent.ID, "", 100)
+				if err != nil || len(tasks) != 2 {
+					t.Fatalf("tasks: %+v %v", tasks, err)
+				}
+				participants, err := client.ListParticipants(ctx, owner.Token, parent.ID, 100)
+				if err != nil || len(participants) != 2 {
+					t.Fatalf("participants: %+v %v", participants, err)
+				}
+				if newClient {
+					first, err := comitia.ListTaskPage(ctx, client, owner.Token, parent.ID, "", "", 1)
+					if err != nil || len(first.Tasks) != 1 || !first.HasMore || first.Tasks[0].LeaseTokenHash != "" {
+						t.Fatalf("task page: %+v %v", first, err)
+					}
+					rest, err := comitia.ListTaskPage(ctx, client, owner.Token, parent.ID, "", first.NextAfter, 1)
+					if err != nil || len(rest.Tasks) != 1 || rest.HasMore || rest.Tasks[0].ID == first.Tasks[0].ID {
+						t.Fatalf("task continuation: %+v %v", rest, err)
+					}
+					people, err := comitia.ListParticipantPage(ctx, client, owner.Token, parent.ID, "", 1)
+					if err != nil || len(people.Participants) != 1 || !people.HasMore {
+						t.Fatalf("participant page: %+v %v", people, err)
+					}
+					more, err := comitia.ListParticipantPage(ctx, client, owner.Token, parent.ID, people.NextAfter, 1)
+					if err != nil || len(more.Participants) != 1 || more.HasMore || more.Participants[0].SessionID == people.Participants[0].SessionID {
+						t.Fatalf("participant continuation: %+v %v", more, err)
+					}
+				}
 				_, helper, grants, err := client.DelegateSession(ctx, owner.Token, comitia.DelegateInput{PrincipalName: "helper", TTL: 2 * time.Hour, Grants: []comitia.DelegatedGrant{{ContextID: parent.ID, Permissions: comitia.PermissionRead, ExpiresAt: now.Add(time.Hour)}, {ContextID: child.ID, Permissions: comitia.PermissionRead, ExpiresAt: now.Add(30 * time.Minute)}}})
 				if err != nil || len(grants) != 2 || helper.Token == "" || helper.Session.ParentID != owner.Session.ID || !helper.Session.ExpiresAt.Equal(now.Add(2*time.Hour)) {
 					t.Fatalf("delegate metadata lost: %+v %v", helper.Session, err)
