@@ -382,3 +382,53 @@ error class, generated request ID, duration and build revision. Match the public
 error's `request_id` (also `X-Request-ID` over HTTP) to the service log. Do not
 retry a write blindly after a timeout: check the resource state or reuse the same
 message dedupe key because the outcome can be uncertain.
+
+### Credential expiry and rotation
+
+Repair validates the saved expiry and authenticates the installed owner and
+existing harness/viewer credentials against the database. Expired or revoked
+sessions, broken grant ancestry, and lost read access cause an actionable error;
+a successful reinstall no longer leaves expired clients installed. Repair keeps
+the database and credentials. Linux `INSTALLATION.txt` records the owner expiry.
+
+Rotate before that expiry, with the installed daemon running:
+
+```sh
+# Linux
+python3 scripts/install_linux_service.py rotate-credentials
+# macOS
+python3 scripts/install_macos_service.py --rotate-credentials
+```
+
+Rotation uses the existing REST mint endpoint to create an independent session
+for the admin principal, rather than a child of the expiring owner. The new
+owner issues its own root grants for the shared context and contexts readable by
+the source admin. It then creates fresh sessions and grants for installed local
+harnesses and the viewer, preserving their recorded local permissions. The new
+owner lasts one year plus one hour; harness sessions last up to one year, with
+root grants lasting longer than harness grants. This changes session IDs: restart
+agent sessions and, on macOS, the viewer service after rotation. Child sessions
+created for individual tasks retain their original ancestry and must be migrated
+separately; credentials with non-local grants require manual rotation.
+
+Every replacement is staged privately and checked against the installation's
+database before publishing. Original files are backed up under a private
+`backups/credentials-*` directory; each file is replaced atomically. If publishing
+is interrupted, credentials already replaced remain usable and rotation can be
+rerun. Old sessions remain active until expiry by default. When other clients and
+task sessions are ready to migrate, include `--revoke-old` on that rotation to
+revoke the sessions replaced by that invocation and their descendants. This is
+immediate; clients that still use those credentials lose access. Originals from
+earlier rotations can be revoked separately through the admin API using the
+session IDs in their backups. A failure during optional revocation occurs after
+the new credentials have been published.
+
+If the installed owner has already expired or been revoked, both commands accept
+`--owner-credential /absolute/path/to/another-active-admin.json`. That credential
+must belong to an active admin in the same installation. A live admin can also
+replace expired harnesses through rotation. If **all admin sessions have expired**,
+the API has no recovery path: preserve the database and restore a consistent
+backup that still has a live admin credential. Reinstall cannot rebootstrap an
+existing database; deleting it would discard the stored conversations and tasks.
+Restoring a backup does not reset elapsed expiry: its admin must still be
+unexpired at the time of recovery.

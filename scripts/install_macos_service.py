@@ -18,6 +18,9 @@ parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument('--binary', type=Path, help='Use an already built Comitia binary')
 parser.add_argument('--port', type=int, default=8080)
 parser.add_argument('--viewer-port', type=int, default=4174)
+parser.add_argument('--rotate-credentials', action='store_true', help='Replace owner and local harness/viewer credentials before expiry')
+parser.add_argument('--owner-credential', type=Path, help='Another active admin credential for rotation')
+parser.add_argument('--revoke-old', action='store_true', help='Revoke old sessions and descendants after rotation')
 args = parser.parse_args()
 if sys.platform != 'darwin':
     parser.error('This installer requires macOS.')
@@ -25,6 +28,13 @@ if args.port == args.viewer_port or any(not 1024 <= p <= 65535 for p in (args.po
     parser.error('Choose distinct ports between 1024 and 65535.')
 repo = Path(__file__).resolve().parent.parent
 root = Path.home() / 'Library/Application Support/Comitia'
+if args.rotate_credentials:
+    archive = local.rotate_credentials(root, local.runner(root/'bin/comitia', root/'data/comitia.db'),
+                                       args.owner_credential, args.revoke_old)
+    print(f'Rotated local credentials. Originals: {archive}. Restart agent sessions and the viewer service.')
+    sys.exit(0)
+if args.owner_credential or args.revoke_old:
+    parser.error('--owner-credential and --revoke-old require --rotate-credentials')
 launch_dir = Path.home() / 'Library/LaunchAgents'
 labels = ('com.comitia.server', 'com.comitia.viewer')
 domain = f'gui/{os.getuid()}'
@@ -44,6 +54,9 @@ database = root/'data/comitia.db'
 binary = local.install_binary(root, args.binary)
 run = local.runner(binary, database)
 context = local.bootstrap(run, root, database)
+local.validate_install(run, root, context['context_id'])
+context['server_url'] = f'http://127.0.0.1:{args.port}'
+local.write_text(root/'local-context.json', json.dumps(context, indent=2)+'\n', mode=0o600)
 owner = root/'credentials/owner.json'
 if not (root/'credentials/viewer.json').exists():
     observer = run('delegate', '--name', 'World viewer', '--ttl', local.child_ttl(owner, datetime.timedelta(hours=744)),
@@ -95,4 +108,5 @@ print(f'Agent world: http://127.0.0.1:{args.viewer_port}')
 print('Automatic local sign-in enabled; the credential remains server-side.')
 print(f'Manual observer credential: {root / "credentials/viewer.json"}')
 print(f'Data: {database}')
+print(f'Owner expiry: {local.expires_at(owner).isoformat()}; rotate before expiry with --rotate-credentials.')
 print('Both services start at login and restart automatically after exit.')

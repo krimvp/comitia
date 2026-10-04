@@ -48,6 +48,8 @@ API and inspector: {local_context['server_url']}/ui/
 Shared context: {local_context['context_id']}
 Data: {root/'data/comitia.db'}
 Credentials: {root/'credentials'}/ (private; expires after one year)
+Owner expiry: {local.expires_at(root/'credentials/owner.json').isoformat()}
+Rotate before expiry: scripts/install_linux_service.py rotate-credentials
 Harnesses: {root/'harnesses.json'} (add one: scripts/install_linux_service.py add-harness NAME ...)
 Client commands: {client} {examples[0]} context-list
                  {client} --identity {examples[-1]} replay --context-id {local_context['context_id']}
@@ -95,6 +97,7 @@ def install(root, home, port=8390, names=None, binary=None, service=systemctl, l
     # A reinstall never bootstraps or replaces an existing database or credential;
     # it resumes an interrupted first run.
     context = local.bootstrap(run, root, database)
+    local.validate_install(run, root, context['context_id'])
     path = root/'local-context.json'
     context['server_url'] = f'http://127.0.0.1:{port}'
     local.write_text(path, json.dumps(context, indent=2)+'\n', mode=0o600)
@@ -161,6 +164,9 @@ def parser():
                      help='Auto-approval value appended to the JSON list at dotted KEY in FILE')
     add.add_argument('--no-approval', action='store_true', help='Do not configure auto-approval')
     add.add_argument('--permissions', default='read,write,claim,grant')
+    rotate = commands.add_parser('rotate-credentials', help='Replace owner and local harness credentials before expiry')
+    rotate.add_argument('--owner-credential', type=Path, help='Another active admin credential if the installed owner is unusable')
+    rotate.add_argument('--revoke-old', action='store_true', help='Revoke old sessions and their descendants after publishing replacements')
     return parser
 
 def main(argv):
@@ -181,6 +187,12 @@ def main(argv):
         return context
     if not (root/'local-context.json').exists():
         raise SystemExit(f'No installation in {root}; run the installer first.')
+    if args.command == 'rotate-credentials':
+        archive = local.rotate_credentials(root, local.runner(root/'bin/comitia', root/'data/comitia.db'),
+                                           args.owner_credential, args.revoke_old)
+        print(f'Rotated local credentials. Originals: {archive}. Restart agent sessions. '
+              'Old sessions remain valid until expiry unless --revoke-old was used.')
+        return
     spec = harness_spec(args, local.harnesses(root))
     run = local.runner(root/'bin/comitia', root/'data/comitia.db')
     local.add_harness(args.name, spec, root, home, run, args.permissions)
