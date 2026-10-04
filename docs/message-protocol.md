@@ -147,8 +147,11 @@ returns an empty list without error. Each call caps the timeout at **60 seconds*
 including MCP, HTTP and Go; negative values are invalid. Zero performs an
 immediate read. MCP, HTTP and CLI default to 30 seconds. HTTP/MCP
 `timeout_seconds` is a number; omitted/null uses the default, and explicit zero
-reads immediately. Fractional seconds are supported. Set client/proxy deadlines above the requested timeout; the
-stock HTTP client's default is 70 seconds. A client with a shorter deadline
+performs one initial authorized read immediately. Positive timeouts apply to
+scan admission, SQL queries and optional presence writes as well as waiting;
+matches already read survive an optional heartbeat timeout. Caller cancellation
+returns an error. Fractional seconds are supported. Set client/proxy deadlines
+above the requested timeout; the stock HTTP client's default is 70 seconds. A client with a shorter deadline
 should request a shorter wait and repeat it after each empty result.
 
 ```json

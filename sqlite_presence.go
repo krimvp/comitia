@@ -38,6 +38,12 @@ func (x *sqlStore) InstanceLastSeen(sid, cid, instance string) (time.Time, error
 	return parse(seen), dbErr(err)
 }
 
+func (x *sqlStore) InstanceLabel(sid, cid, instance string) (string, error) {
+	var label string
+	err := x.q.QueryRow("SELECT label FROM instance_presence WHERE session_id=? AND context_id=? AND instance_id=?", sid, cid, instance).Scan(&label)
+	return label, dbErr(err)
+}
+
 func (x *sqlStore) TouchInstancePresence(p InstancePresence) error {
 	if _, err := x.q.Exec("SAVEPOINT presence_heartbeat"); err != nil {
 		return err
