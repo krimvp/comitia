@@ -88,9 +88,6 @@ type MessageWriteStore interface {
 }
 
 func strictPayload(raw json.RawMessage, target any) error {
-	if err := exactPayloadFields(raw, reflect.TypeOf(target)); err != nil {
-		return err
-	}
 	d := json.NewDecoder(bytes.NewReader(raw))
 	d.DisallowUnknownFields()
 	if err := d.Decode(target); err != nil {
@@ -102,64 +99,106 @@ func strictPayload(raw json.RawMessage, target any) error {
 	return nil
 }
 
-// encoding/json otherwise accepts case-insensitive struct field aliases. Inspect
-// object keys before decoding so persisted payloads use their declared names.
-func exactPayloadFields(raw json.RawMessage, target reflect.Type) error {
-	if target == nil {
-		return nil
+// Append validation inspects every member before encoding/json can merge duplicate
+// objects or accept case-insensitive field aliases. Historical readers use strictPayload.
+func strictAppendPayload(raw json.RawMessage, target any) error {
+	if err := exactPayloadFields(raw, reflect.TypeOf(target)); err != nil {
+		return err
 	}
-	for target.Kind() == reflect.Pointer {
+	return strictPayload(raw, target)
+}
+
+func appendPayloadValidator(target any, validator PayloadValidator) PayloadValidator {
+	return func(raw json.RawMessage) error {
+		if err := exactPayloadFields(raw, reflect.TypeOf(target)); err != nil {
+			return err
+		}
+		return validator(raw)
+	}
+}
+
+func exactPayloadFields(raw json.RawMessage, target reflect.Type) error {
+	d := json.NewDecoder(bytes.NewReader(raw))
+	d.UseNumber()
+	if err := scanPayloadValue(d, target); err != nil {
+		return err
+	}
+	if _, err := d.Token(); err != io.EOF {
+		return Invalidf("payload must contain one JSON value")
+	}
+	return nil
+}
+
+func scanPayloadValue(d *json.Decoder, target reflect.Type) error {
+	for target != nil && target.Kind() == reflect.Pointer {
 		target = target.Elem()
 	}
-	switch target.Kind() {
-	case reflect.Struct:
-		var object map[string]json.RawMessage
-		if err := json.Unmarshal(raw, &object); err != nil {
-			return InvalidJSON(err, "payload")
+	token, err := d.Token()
+	if err != nil {
+		return InvalidJSON(err, "payload")
+	}
+	switch token {
+	case json.Delim('{'):
+		var fields map[string]reflect.Type
+		if target != nil && target.Kind() == reflect.Struct {
+			fields = make(map[string]reflect.Type, target.NumField())
+			for i := 0; i < target.NumField(); i++ {
+				field := target.Field(i)
+				if field.PkgPath != "" {
+					continue
+				}
+				name, _, _ := strings.Cut(field.Tag.Get("json"), ",")
+				if name == "-" {
+					continue
+				}
+				if name == "" {
+					name = field.Name
+				}
+				fields[name] = field.Type
+			}
 		}
-		fields := make(map[string]reflect.Type, target.NumField())
-		for i := 0; i < target.NumField(); i++ {
-			field := target.Field(i)
-			if field.PkgPath != "" {
-				continue
+		seen := make(map[string]bool)
+		for d.More() {
+			token, err := d.Token()
+			if err != nil {
+				return InvalidJSON(err, "payload")
 			}
-			name, _, _ := strings.Cut(field.Tag.Get("json"), ",")
-			if name == "-" {
-				continue
-			}
-			if name == "" {
-				name = field.Name
-			}
-			fields[name] = field.Type
-		}
-		for key, value := range object {
-			field, ok := fields[key]
+			key, ok := token.(string)
 			if !ok {
-				return Invalidf("payload: unknown field %q; keys are case-sensitive", key)
+				return Invalidf("payload object key must be a string")
 			}
-			if err := exactPayloadFields(value, field); err != nil {
+			if seen[key] {
+				return Invalidf("payload: duplicate key %q", key)
+			}
+			seen[key] = true
+			var child reflect.Type
+			if fields != nil {
+				child, ok = fields[key]
+				if !ok {
+					return Invalidf("payload: unknown field %q; keys are case-sensitive", key)
+				}
+			} else if target != nil && target.Kind() == reflect.Map {
+				child = target.Elem()
+			}
+			if err := scanPayloadValue(d, child); err != nil {
 				return err
 			}
 		}
-	case reflect.Slice, reflect.Array:
-		var values []json.RawMessage
-		if err := json.Unmarshal(raw, &values); err != nil {
+		if _, err := d.Token(); err != nil {
 			return InvalidJSON(err, "payload")
 		}
-		for _, value := range values {
-			if err := exactPayloadFields(value, target.Elem()); err != nil {
+	case json.Delim('['):
+		var child reflect.Type
+		if target != nil && (target.Kind() == reflect.Slice || target.Kind() == reflect.Array) {
+			child = target.Elem()
+		}
+		for d.More() {
+			if err := scanPayloadValue(d, child); err != nil {
 				return err
 			}
 		}
-	case reflect.Map:
-		var values map[string]json.RawMessage
-		if err := json.Unmarshal(raw, &values); err != nil {
+		if _, err := d.Token(); err != nil {
 			return InvalidJSON(err, "payload")
-		}
-		for _, value := range values {
-			if err := exactPayloadFields(value, target.Elem()); err != nil {
-				return err
-			}
 		}
 	}
 	return nil
@@ -179,13 +218,13 @@ func nonempty(values []string) bool {
 
 func builtinMessageSchemas() map[string]PayloadValidator {
 	return map[string]PayloadValidator{
-		"comitia.discussion.v1": func(raw json.RawMessage) error { return strictPayload(raw, &struct{}{}) },
+		"comitia.discussion.v1": func(raw json.RawMessage) error { return strictAppendPayload(raw, &struct{}{}) },
 		"comitia.assignment.v1": func(raw json.RawMessage) error {
 			var p struct {
 				Instructions       string   `json:"instructions"`
 				AcceptanceCriteria []string `json:"acceptance_criteria"`
 			}
-			if err := strictPayload(raw, &p); err != nil {
+			if err := strictAppendPayload(raw, &p); err != nil {
 				return err
 			}
 			if strings.TrimSpace(p.Instructions) == "" || !nonempty(p.AcceptanceCriteria) {
@@ -198,7 +237,7 @@ func builtinMessageSchemas() map[string]PayloadValidator {
 				ArtifactRefs []string `json:"artifact_refs"`
 				Checks       []string `json:"checks"`
 			}
-			if err := strictPayload(raw, &p); err != nil {
+			if err := strictAppendPayload(raw, &p); err != nil {
 				return err
 			}
 			if !nonempty(p.ArtifactRefs) || !nonempty(p.Checks) {
@@ -212,7 +251,7 @@ func builtinMessageSchemas() map[string]PayloadValidator {
 				Summary      string   `json:"summary"`
 				EvidenceRefs []string `json:"evidence_refs,omitempty"`
 			}
-			if err := strictPayload(raw, &p); err != nil {
+			if err := strictAppendPayload(raw, &p); err != nil {
 				return err
 			}
 			if strings.TrimSpace(p.Summary) == "" {
@@ -228,7 +267,7 @@ func builtinMessageSchemas() map[string]PayloadValidator {
 				Reason string   `json:"reason"`
 				Needs  []string `json:"needs"`
 			}
-			if err := strictPayload(raw, &p); err != nil {
+			if err := strictAppendPayload(raw, &p); err != nil {
 				return err
 			}
 			if strings.TrimSpace(p.Reason) == "" || !nonempty(p.Needs) {
@@ -241,7 +280,7 @@ func builtinMessageSchemas() map[string]PayloadValidator {
 				ArtifactRefs []string `json:"artifact_refs"`
 				Summary      string   `json:"summary"`
 			}
-			if err := strictPayload(raw, &p); err != nil {
+			if err := strictAppendPayload(raw, &p); err != nil {
 				return err
 			}
 			if !nonempty(p.ArtifactRefs) || strings.TrimSpace(p.Summary) == "" {
@@ -257,7 +296,7 @@ func builtinMessageSchemas() map[string]PayloadValidator {
 				ArtifactRefs []string `json:"artifact_refs,omitempty"`
 				Reason       string   `json:"reason,omitempty"`
 			}
-			if err := strictPayload(raw, &p); err != nil {
+			if err := strictAppendPayload(raw, &p); err != nil {
 				return err
 			}
 			if !nonempty(p.Checks) || p.ArtifactRefs != nil && !nonempty(p.ArtifactRefs) {
@@ -277,10 +316,10 @@ func builtinMessageSchemas() map[string]PayloadValidator {
 			}
 			return nil
 		},
-		EvaluationResultSchema: validEvaluationResult,
-		ExecutionEventSchema:   validExecutionEvent,
-		TaskStatusSchema:       validTaskStatus,
-		ApprovalSchema:         validApproval,
+		EvaluationResultSchema: appendPayloadValidator(&EvaluationResultPayload{}, validEvaluationResult),
+		ExecutionEventSchema:   appendPayloadValidator(&executionEventPayload{}, validExecutionEvent),
+		TaskStatusSchema:       appendPayloadValidator(&TaskStatusPayload{}, validTaskStatus),
+		ApprovalSchema:         appendPayloadValidator(&ApprovalPayload{}, validApproval),
 	}
 }
 

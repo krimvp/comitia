@@ -406,7 +406,10 @@ require nonempty `evidence_refs`; not-run results require a nonblank `reason`.
 Payload keys are case-sensitive; mis-cased keys are rejected since PR #89
 (issue #64), including nested fields such as evaluation `grader.id` and
 `criteria[].name`. This deliberately tightens validation of new appends;
-previously stored messages are neither rewritten nor revalidated during replay.
+duplicate keys at every object level are also rejected for built-in appends.
+Previously stored messages are neither rewritten nor revalidated during replay.
+Evaluation parsers and reports retain historical case-insensitive decoding and
+duplicate-field merging, with their existing semantic validation.
 Unknown built-in payload fields are rejected. References are nonempty strings,
 not artifacts fetched or verified by Comitia.
 
@@ -597,8 +600,9 @@ extension discovery. Built-ins under `comitia.` cannot be replaced. Custom schem
 receive the common recipient, context, reference, size and deduplication checks.
 Payload validators must be safe for concurrent calls; they should be pure and
 must return an error for invalid data. Custom validators retain their own key
-matching rules. Validators that use the internal `strictPayload` helper inherit
-its exact-case field checks; dictionary keys remain caller data. Registration is
+matching rules, including those using the historical `strictPayload` decoder.
+The canonical-key and duplicate-key append checks apply only to built-ins;
+dictionary keys remain caller data. Registration is
 trusted application code, not an API that agents can use to weaken validation. The stock binary registers
 the built-ins only.
 

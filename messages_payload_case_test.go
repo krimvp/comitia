@@ -120,7 +120,7 @@ func TestStrictPayloadExactFields(t *testing.T) {
 		`{"item":{"name":"a"},"items":[{"name":"b"}],"dictionary":{"MixedCase":"value"}}`,
 		`{"item":null,"items":null,"dictionary":null,"optional":null}`,
 	} {
-		if err := strictPayload(json.RawMessage(raw), &payload{}); err != nil {
+		if err := strictAppendPayload(json.RawMessage(raw), &payload{}); err != nil {
 			t.Fatalf("canonical/null payload: %s: %v", raw, err)
 		}
 	}
@@ -129,7 +129,7 @@ func TestStrictPayloadExactFields(t *testing.T) {
 		`{"OPTIONAL":null}`, `{"optional":"canonical","Optional":"alias"}`,
 		`{"item":{"name":"canonical","Name":"alias"}}`,
 	} {
-		if err := strictPayload(json.RawMessage(raw), &payload{}); !errors.Is(err, ErrInvalid) {
+		if err := strictAppendPayload(json.RawMessage(raw), &payload{}); !errors.Is(err, ErrInvalid) {
 			t.Fatalf("mis-cased payload: %s: %v", raw, err)
 		}
 	}
@@ -182,11 +182,7 @@ func TestExtensionPayloadCaseRules(t *testing.T) {
 	for _, schema := range []string{"project.custom.v1", "project.strict.v1"} {
 		for _, raw := range []string{`{"value":1}`, `{"Value":1}`} {
 			message, err := svc.AppendMessage(context.Background(), f.admin.Token, f.context.ID, MessageInput{DedupeKey: schema + raw, Envelope: &MessageEnvelope{Schema: schema, Payload: json.RawMessage(raw)}})
-			if schema == "project.strict.v1" && strings.Contains(raw, "Value") {
-				if !errors.Is(err, ErrInvalid) {
-					t.Fatalf("strict extension alias accepted: %v", err)
-				}
-			} else if err != nil || !bytes.Equal(message.Envelope.Payload, []byte(raw)) {
+			if err != nil || !bytes.Equal(message.Envelope.Payload, []byte(raw)) {
 				t.Fatalf("extension behavior changed: %+v %v", message, err)
 			}
 		}
