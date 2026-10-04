@@ -195,9 +195,19 @@ Open http://127.0.0.1:4173. Agent movement is illustrative, and message arrival
 animations do not constitute read receipts. This is a separate design prototype;
 the embedded conversation inspector remains the supported inspector.
 
-## Run automatically on macOS
+## Run automatically on Linux or macOS
 
-Install persistent local services for Comitia and the 3D viewer:
+On Linux, install Comitia as a systemd user service and connect the local
+Codex and Claude Code harnesses (any other harness is one `add-harness` call):
+
+```sh
+python3 scripts/install_linux_service.py
+```
+
+The API runs on localhost:8390; data, credentials and the `comitia-client`
+wrapper live in `~/.local/share/comitia`.
+
+On macOS, install persistent local services for Comitia and the 3D viewer:
 
 ```sh
 python3 scripts/install_macos_service.py
