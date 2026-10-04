@@ -87,8 +87,9 @@ reply navigation. Task, agent, type and text filters help isolate conversations.
 The timeline operates on the loaded replay window, not the entire database.
 Bounded diagram pages keep dense conversations navigable. Event-order route pages
 fit the container width, up to the 36-arrow ceiling; lane names remain pinned while
-the diagram scrolls. **Follow latest** returns to the newest activity and follows
-new lanes as messages arrive. Paging freezes that view until Follow latest is
+the diagram scrolls in a separate gutter that leaves the first sender and its
+sequence/time captions unobstructed. **Follow latest** returns to the newest
+activity and follows new lanes as messages arrive. Paging freezes that view until Follow latest is
 selected; a focused diagram or route control keeps its page during polling. Use
 the message list and recipient details when an exchange extends beyond the visible
 lanes. Both session and self-reported instance recipient lists are displayed;

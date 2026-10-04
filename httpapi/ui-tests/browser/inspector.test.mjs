@@ -68,7 +68,7 @@ async function pageFor(t,width=1440,options={}) {
   if(options.transform)liveMessages=liveMessages.map(options.transform);
   if(count>200)liveMessages.at(-1).envelope={...liveMessages.at(-1).envelope,reply_to:'m1'};
   tasksAvailable=options.tasksAvailable!==false;participantsAvailable=options.participantsAvailable!==false;taskTitle='Pending task';resume={harness:'codex',checkpoint:'ready'};expired=false;
-  const page=await browser.newPage({viewport:{width,height:844}});
+  const page=await browser.newPage({viewport:{width,height:844},colorScheme:options.colorScheme || 'light'});
   t.after(()=>page.close());
   const errors=[];page.on('pageerror',e=>errors.push(e.message));t.after(()=>assert.deepEqual(errors,[]));
   await page.goto(`${base}/ui/`);
@@ -355,3 +355,37 @@ browserTest('recipient-only instance routes never show Everyone in cards or deta
   await first.locator('.message-select').click();
   assert.doesNotMatch(await page.locator('#details').innerText(),/Everyone/);assert.match(await page.locator('#details').innerText(),/instance-only/);
 });
+
+
+// Reviewer R1 reproduction: the sticky gutter must not paint over the first
+// occurrence or its centered metadata, including the leftmost time-axis tick.
+for(const width of [390,1440]) for(const colorScheme of ['light','dark']) {
+  browserTest(`first route clears pinned labels at ${width}px in ${colorScheme} theme`,async t=>{
+    const page=await pageFor(t,width,{colorScheme});await page.locator('#pause').click();
+    assert.equal(await page.evaluate(()=>matchMedia('(prefers-color-scheme: dark)').matches),colorScheme==='dark');
+    const assertClear=async spacing=>{
+      assert.equal(await page.locator('#sequence-canvas').evaluate(e=>e.scrollLeft),0);
+      const bounds=await page.evaluate(spacing=>{
+        const rect=e=>{const r=e.getBoundingClientRect();return {x:r.x,y:r.y,right:r.right,bottom:r.bottom,width:r.width,height:r.height};};
+        return {
+          labels:rect(document.querySelector('.sequence-labels')),
+          circle:rect(document.querySelector('.sequence-occurrence')),
+          time:rect(document.querySelector(`.sequence-${spacing} > .sequence-time`)),
+          ...(spacing==='ordered'?{caption:rect(document.querySelector('.sequence-ordered > .sequence-name'))}:{})
+        };
+      },spacing);
+      for(const [name,box] of Object.entries(bounds)) {
+        if(name==='labels')continue;
+        assert.ok(box.width>0 && box.height>0,`${name} has no visible bounds`);
+        assert.ok(box.x>=bounds.labels.right,`${name} is hidden under pinned labels: ${JSON.stringify(bounds)}`);
+      }
+    };
+    await assertClear('ordered');
+    await page.locator('#sequence-previous-arrows').click();
+    await page.locator('#sequence-canvas').evaluate(e=>e.scrollLeft=80);
+    await page.locator('#sequence-follow').click();await assertClear('ordered');
+    await page.locator('#sequence-spacing').selectOption('time');await assertClear('timed');
+    await page.locator('#sequence-canvas').evaluate(e=>e.scrollLeft=80);
+    await page.locator('#sequence-follow').click();await assertClear('timed');
+  });
+}
