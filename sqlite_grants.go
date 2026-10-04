@@ -28,6 +28,7 @@ func scanGrant(row interface{ Scan(...any) error }) (Grant, error) {
 func (x *sqlStore) grant(id string) (Grant, error) {
 	return scanGrant(x.q.QueryRow("SELECT id,session_id,context_id,parent_grant_id,issuer_session_id,permissions,expires_at,revoked_at,created_at FROM grants WHERE id=?", id))
 }
+func (x *sqlStore) Grant(id string) (Grant, error) { return x.grant(id) }
 func (x *sqlStore) Grants(sid, cid string, now time.Time) ([]Grant, error) {
 	rows, e := x.q.Query("SELECT id,session_id,context_id,parent_grant_id,issuer_session_id,permissions,expires_at,revoked_at,created_at FROM grants WHERE session_id=? AND context_id=?", sid, cid)
 	if e != nil {

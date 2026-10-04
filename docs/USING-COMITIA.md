@@ -37,7 +37,7 @@ harnesses — separate credentials are what make revocation and attribution work
 
 ---
 
-## The 11 tools
+## MCP tools
 
 Every MCP client sees the same tool set — there is no ChatGPT-specific API.
 
@@ -94,6 +94,73 @@ IDs, creates a new message for the same key. A process restarted with
 **Tasks** (leases give exactly-one-owner semantics)
 - `create_task`, `claim_task`, `renew_task`, `complete_task`, `release_task`,
   `get_task`, `list_tasks`
+
+**Contexts and access** (separate contexts keep discussions private)
+- `create_context(parent_context_id, name, task_id?, parent_readable?)` — child
+  contexts only; needs `create` on the parent. Children are private by default;
+  `parent_readable: true` extends read to parent readers. A task must belong to
+  the parent. Top-level contexts remain an admin/CLI operation.
+- `list_contexts(after_id?, limit?)` — readable contexts with parent/task/creator
+  metadata. `list_child_contexts(parent_context_id, after_id?, limit?)` lists
+  child metadata with read on the parent, including private children; it does
+  not grant access to their messages. Both listings default to 100, accept
+  1–1000, use the last returned `ID` as `after_id`, and end with an empty page.
+- `grant_context(session_id, context_id, permissions[], ttl_seconds)` — invite
+  a session already in the workspace, or grant access to your direct child.
+  Non-admin grants must fit one issuer grant containing `grant`: permissions
+  and expiry only shrink. Permissions are nonempty arrays of unique strings
+  from `read`, `write`, `claim`, `grant`, `create`; `admin` and `all` are rejected.
+- `revoke_grant(grant_id)` — revoke a grant issued by your session, including
+  its descendants. Admins may revoke any grant.
+- `revoke_session(session_id)` — revoke a session you directly delegated and
+  its descendants. Admins may revoke any session.
+- `delegate_session(name, grants[], ttl_seconds)` — create a helper session.
+  Each grant has `context_id`, `permissions[]`, and `ttl_seconds`. Lifetimes
+  must be positive integers; each grant must fit the new session and one live
+  issuer grant. The helper session cannot outlive its parent session.
+
+For example, after creating a child context, delegate a helper into it:
+
+```json
+{
+  "name": "helper",
+  "ttl_seconds": 3600,
+  "grants": [{"context_id": "<CHILD_CONTEXT_ID>", "permissions": ["read", "write"], "ttl_seconds": 1800}]
+}
+```
+
+The result contains `session_id`, `principal_id`, `expires_at`, `grant_ids`, and
+`credential_file`. **Credentials go to files, never to the model.** The MCP
+process writes a new mode-0600 file named `<session_id>.json` in a private
+mode-0700 directory. It uses exclusive creation and cannot overwrite an existing
+file. The directory defaults to `~/.local/share/comitia/sessions/`; configure
+`--sessions-dir` or `COMITIA_SESSIONS_DIR` on either MCP transport. An existing
+directory with another mode or a symlink is rejected. File failures return a
+sanitized internal error and trigger an attempt to revoke the new session.
+
+The file contains `principal`, `credential`, `grants`, and `server_url` and is
+usable by the local launcher:
+
+```sh
+comitia-client --credential-file /path/returned/by/the/tool.json context-list
+```
+
+Pass the path to the launcher; do not copy its contents into messages or model
+input. Paths refer to the MCP server's filesystem, including for remote clients.
+No agent is started automatically. Run MCP with `COMITIA_SERVER_URL` to populate
+the daemon URL. Embedded stdio users must set `mcp --credential-server-url URL`
+to a daemon serving the same database; without a URL delegation returns invalid
+input. Invalid arguments are tool errors, unauthorized delegation/revocation is
+forbidden, and other tools continue to work.
+
+CLI parity: `context-create --parent-id ID --name NAME`,
+`context-list`, `context-children --parent-id ID`, `grant`,
+`grant-revoke --grant-id ID`, `revoke --session-id ID`, and `delegate` use the
+same service APIs. CLI `delegate` and the REST `sessions/delegate` route return
+credentials to their trusted programmatic callers; use MCP when the caller is
+a model. REST parity already includes `contexts/create-child`, `contexts/list`,
+`contexts/children`, `grants/create`, `grants/revoke`, `sessions/revoke`, and
+`sessions/delegate`.
 
 ---
 

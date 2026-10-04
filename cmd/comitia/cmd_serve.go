@@ -27,10 +27,13 @@ func runServe(ctx context.Context, cfg config, api comitia.API, out *json.Encode
 		}
 		return http.ListenAndServe(listen, httpapi.NewHandler(api))
 	case "mcp":
-		if err := newFlags(cmd).Parse(args); err != nil {
+		fs := newFlags(cmd)
+		dir := fs.String("sessions-dir", env("COMITIA_SESSIONS_DIR", ""), "private delegated credential directory (default ~/.local/share/comitia/sessions)")
+		credentialURL := fs.String("credential-server-url", cfg.serverURL, "daemon URL stored in delegated credentials (required for embedded delegation)")
+		if err := fs.Parse(args); err != nil {
 			return err
 		}
-		return (&mcp.Server{API: api, Credential: needCredential(cfg), InstanceDefaults: cfg.instances}).Serve(ctx, os.Stdin, os.Stdout)
+		return (&mcp.Server{API: api, Credential: needCredential(cfg), SessionsDir: *dir, ServerURL: *credentialURL, InstanceDefaults: cfg.instances}).Serve(ctx, os.Stdin, os.Stdout)
 	case "mcp-http":
 		// Streamable HTTP transport for remote MCP clients. Unlike serve, this
 		// adapter must run against a remote Comitia daemon: it authenticates each
@@ -43,6 +46,7 @@ func runServe(ctx context.Context, cfg config, api comitia.API, out *json.Encode
 			return errors.New("mcp-http takes credentials per request; unset COMITIA_CREDENTIAL")
 		}
 		fs := newFlags(cmd)
+		dir := fs.String("sessions-dir", env("COMITIA_SESSIONS_DIR", ""), "private delegated credential directory (default ~/.local/share/comitia/sessions)")
 		listen := fs.String("listen", env("COMITIA_MCP_HTTP_LISTEN", "127.0.0.1:8391"), "listen address")
 		origins := fs.String("allowed-origins", env("COMITIA_MCP_HTTP_ALLOWED_ORIGINS", ""), "comma-separated Origin allowlist (empty rejects any request carrying an Origin)")
 		maxBody := fs.Int64("max-body-bytes", 1<<20, "maximum request body size")
@@ -59,6 +63,8 @@ func runServe(ctx context.Context, cfg config, api comitia.API, out *json.Encode
 			}
 		}
 		handler := mcp.NewHTTPHandler(api, mcp.HTTPConfig{
+			SessionsDir:       *dir,
+			ServerURL:         cfg.serverURL,
 			AllowedOrigins:    allow,
 			InstanceDefaults:  cfg.instances,
 			MaxBody:           *maxBody,

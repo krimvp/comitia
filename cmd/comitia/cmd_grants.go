@@ -10,6 +10,20 @@ import (
 )
 
 func runGrants(ctx context.Context, cfg config, api comitia.API, out *json.Encoder, cmd string, args []string) error {
+	if cmd == "grant-revoke" {
+		fs := newFlags(cmd)
+		id := fs.String("grant-id", "", "grant ID issued by this session (or any grant for admins)")
+		if err := fs.Parse(args); err != nil {
+			return err
+		}
+		if *id == "" {
+			return comitia.ErrInvalid
+		}
+		if err := api.RevokeGrant(ctx, needCredential(cfg), *id); err != nil {
+			return err
+		}
+		return out.Encode(map[string]bool{"ok": true})
+	}
 	if cmd != "grant" {
 		return errUnknownCommand
 	}

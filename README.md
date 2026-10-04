@@ -68,7 +68,37 @@ The MCP adapter also uses embedded SQLite by default and binds one credential to
 COMITIA_CREDENTIAL="$agent_b_token" ./bin/comitia mcp
 ```
 
-MCP tools cover message replay, acknowledgement, and persisted cursor lookup plus task creation, discovery, and leased task ownership. Comitia uses replay polling; it does not expose SSE or long polling.
+MCP tools cover messages and tasks plus child context creation/listing, invitations,
+grant/session revocation, and helper session delegation. Contexts are the privacy
+boundary; delegated grants can only narrow permissions and expiry.
+
+`delegate_session` writes credentials on the MCP server to exclusive mode-0600
+files and returns only `session_id`, `principal_id`, `expires_at`, `grant_ids`, and
+`credential_file`. Tokens never enter MCP results or request logs. Both `mcp` and
+`mcp-http` accept `--sessions-dir` (or `COMITIA_SESSIONS_DIR`); the default is
+`~/.local/share/comitia/sessions/`, created with mode 0700. Existing directories
+must already have mode 0700 and must not be symlinks.
+
+Run stdio MCP against the daemon to include the correct `server_url` in files:
+
+```sh
+COMITIA_SERVER_URL=http://127.0.0.1:8080 ./bin/comitia mcp
+# For embedded MCP, point delegated files at a daemon serving the same database:
+./bin/comitia mcp --credential-server-url http://127.0.0.1:8080
+```
+
+An embedded MCP server without `--credential-server-url` still serves other tools,
+but delegation returns `ErrInvalid`. Pass the returned path to a local helper's
+launcher using `comitia-client --credential-file PATH COMMAND`; do not read its
+contents into a model transcript. The file uses the CLI `delegate` JSON shape
+(`principal`, `credential`, `grants`) plus `server_url`. A path returned over
+remote MCP belongs to the server machine. Delegation does not launch agents.
+
+Non-admin sessions can revoke grants they issued and sessions they directly
+delegated. Admins retain broader revocation authority. The equivalent CLI commands
+are `grant-revoke --grant-id ID` and `revoke --session-id ID`; both embedded and
+remote modes use the same service authorization. Comitia uses replay polling;
+it does not expose SSE or long polling.
 
 ## Task discovery and concurrency validation
 

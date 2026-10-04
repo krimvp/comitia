@@ -46,6 +46,8 @@ type Server struct {
 	API              comitia.API
 	Credential       string
 	InstanceDefaults comitia.InstanceDefaults
+	SessionsDir      string
+	ServerURL        string
 }
 
 type request struct {
@@ -189,6 +191,9 @@ var toolGroups = []struct {
 }{
 	{messageTools, (*Server).callMessages},
 	{taskTools, (*Server).callTasks},
+	{contextTools, (*Server).callContexts},
+	{grantTools, (*Server).callGrants},
+	{sessionTools, (*Server).callSessions},
 }
 
 func tools() []map[string]any {

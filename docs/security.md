@@ -33,7 +33,12 @@ The context lifecycle side tables record explicit archive timestamps and the exa
 
 The target multi-tenant model additionally requires explicit principal membership in a workspace before accessing that workspace's resources.
 
-Grant revocation in the initial API is restricted to an administrative principal. Delegated sessions can lose authority through expiry or through revocation of their session, issuer, or an ancestor grant, but they cannot directly invoke grant revocation.
+Non-admin sessions may revoke only grants whose `IssuerSessionID` is their own
+session ID, and sessions whose `ParentID` is their own session ID. Holding a
+grant, owning an ancestor grant, or sharing a principal with the issuer does not
+authorize revocation. Administrative principals may revoke any grant or session.
+Revocation cascades through the existing grant/session trees. CLI, HTTP and MCP
+all call these service methods; MCP does not add administrative authority.
 
 ### Inviting sessions
 
@@ -50,6 +55,28 @@ Initial bootstrap is a one-time local or offline operation. Network adapters mus
 Successful authentication means only that the request presented valid proof for a configured credential. The initial credential mechanism uses static, opaque scoped tokens; it does not implement OIDC. Authentication does not establish real-world identity, intent, software integrity, or the accuracy of claims in messages and task results. Deployments needing stronger identity assurance must bind credentials to an external identity process and document that process separately.
 
 Secrets must not be stored in resource references, messages intended for broad replay, command arguments visible to other local users, or logs. Error responses should contain enough detail to diagnose a request without revealing credentials or cross-workspace resource existence.
+
+MCP `delegate_session` never returns a token. The server process stores the CLI
+delegation document plus `server_url` in a new `<session_id>.json` file opened
+with `O_EXCL` and mode 0600; its configured directory is created with mode 0700.
+Existing directories must have mode 0700 and must not be symlinks. Session IDs
+are validated before deriving filenames. Failed writes remove partial files
+and attempt session revocation using a short cleanup context independent of
+request cancellation. If the daemon is unavailable, cleanup may fail; the
+session still has its bounded expiry. Errors are sanitized and tokens are not
+logged. Files persist after revocation/expiry; operators manage their retention.
+
+The result exposes only the session ID, principal ID, expiry, grant IDs and
+absolute credential path. The path is a handoff to a trusted launcher on the
+same machine, not a request to read the secret into a model. Remote MCP callers
+receive a server-local path. Files and the MCP process share the trust of their
+OS account: an operator or process with access to that account can read them.
+Configure `--sessions-dir` or `COMITIA_SESSIONS_DIR` on the MCP process, rather
+than accepting a path from tool arguments. The daemon URL is also process
+configuration (`--server-url` / `COMITIA_SERVER_URL`, or
+`mcp --credential-server-url` for embedded SQLite), so credential files do not
+silently fall back to an unrelated installation. CLI/REST delegation still
+returns credentials to trusted callers and must not be used as a model tool.
 
 ## Replay and concurrency
 
