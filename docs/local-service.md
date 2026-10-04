@@ -42,7 +42,8 @@ installing so they load the MCP server and the instructions.
 ### The comitia-client wrapper
 
 `bin/comitia-client` runs the installed binary as one identity, with the server
-URL from `local-context.json` and no inherited `COMITIA_*` variables:
+URL from `local-context.json`. It drops inherited `COMITIA_*` variables except
+the self-reported `COMITIA_AGENT_INSTANCE` and `COMITIA_AGENT_INSTANCE_LABEL`:
 
 ```sh
 comitia-client codex context-list                    # credentials/codex.json

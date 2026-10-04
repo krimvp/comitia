@@ -243,11 +243,12 @@ class WrapperTest(Base):
                         "print(json.dumps({'args': sys.argv[1:], 'env': {k: v for k, v in os.environ.items() if k.startswith('COMITIA_')}}))\n")
         echo.chmod(0o700)
 
-    def client(self, *args):
-        return subprocess.run([sys.executable, str(self.root/'bin/comitia-client'), *args], capture_output=True, text=True)
+    def client(self, *args, env=None):
+        return subprocess.run([sys.executable, str(self.root/'bin/comitia-client'), *args], capture_output=True, text=True,
+                              env={**os.environ, **(env or {})})
 
-    def ok(self, *args):
-        result = self.client(*args)
+    def ok(self, *args, env=None):
+        result = self.client(*args, env=env)
         self.assertEqual(result.returncode, 0, result.stderr)
         return json.loads(result.stdout)
 
@@ -258,6 +259,12 @@ class WrapperTest(Base):
                 out = self.ok(*selector, 'replay', '--context-id', 'c1')
                 self.assertEqual(out, {'args': ['replay', '--context-id', 'c1'], 'env': expected})
         self.assertEqual(self.ok('claude', 'mcp')['env']['COMITIA_CREDENTIAL'], 'tok-claude')
+
+    def test_instance_variables_pass_through(self):
+        out = self.ok('codex', 'mcp', env={'COMITIA_AGENT_INSTANCE': 'codex-repo-task', 'COMITIA_AGENT_INSTANCE_LABEL': 'Task',
+                                           'COMITIA_SERVER_URL': 'http://evil', 'COMITIA_DB': 'x.db'})
+        self.assertEqual(out['env'], {'COMITIA_SERVER_URL': 'http://127.0.0.1:8390', 'COMITIA_CREDENTIAL': 'tok-codex',
+                                      'COMITIA_AGENT_INSTANCE': 'codex-repo-task', 'COMITIA_AGENT_INSTANCE_LABEL': 'Task'})
 
     def test_credential_file(self):
         path = Path(self.tmp.name)/'delegated.json'

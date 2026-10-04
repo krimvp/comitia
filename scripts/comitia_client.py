@@ -16,6 +16,8 @@ import sys
 
 ROOT = Path(__file__).resolve().parent.parent
 NAME = re.compile(r'^[a-z0-9][a-z0-9_-]{0,63}$')
+# Self-reported instance routing passes through; credentials and endpoints never do.
+PASSED = ('COMITIA_AGENT_INSTANCE', 'COMITIA_AGENT_INSTANCE_LABEL')
 USAGE = 'Usage: comitia-client (NAME | --identity NAME | --credential-file PATH) COMMAND [FLAGS]'
 
 def option(args, flag):
@@ -56,7 +58,7 @@ def main(argv, root=ROOT):
     path, args = select(argv, root)
     document = load(path)
     config = json.loads((root/'local-context.json').read_text())
-    env = {k:v for k,v in os.environ.items() if not k.startswith('COMITIA_')}
+    env = {k:v for k,v in os.environ.items() if not k.startswith('COMITIA_') or k in PASSED}
     env.update(COMITIA_SERVER_URL=document.get('server_url') or config['server_url'],
                COMITIA_CREDENTIAL=document.get('credential', document)['Token'])
     binary = str(root/'bin/comitia')
