@@ -49,7 +49,7 @@ func TestServerInfoAndValidationHTTP(t *testing.T) {
 	for _, tc := range []struct{ path, body, detail string }{
 		{"tasks/create", `{"token":"secret-value"}`, `unknown field "token"`},
 		{"tasks/create", `{}`, "task required"},
-		{"tasks/create", `{"task":{"Title":false}}`, "Title must have type string"},
+		{"tasks/create", `{"task":{"Title":false}}`, "title must have type string"},
 		{"tasks/create", `{} {}`, "multiple JSON values"},
 	} {
 		r := httptest.NewRequest(http.MethodPost, "/v1/"+tc.path, strings.NewReader(tc.body))

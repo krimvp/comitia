@@ -2,68 +2,71 @@ package httpapi
 
 import (
 	"context"
-	"time"
-
 	"github.com/krimvp/comitia"
+	"time"
 )
 
-func (h *handler) routeSessions(ctx context.Context, token, route string, q request, out *response) (found bool, err error) {
-	switch route {
-	case "principals/create":
-		var v comitia.Principal
-		v, err = h.api.CreatePrincipal(ctx, token, q.Name)
-		out.Principal = &v
-	case "sessions/mint":
-		var v comitia.Credential
-		v, err = h.api.MintSession(ctx, token, q.PrincipalID, q.TTL)
-		out.Credential = &v
-	case "sessions/delegate":
-		if q.Delegate == nil {
-			err = comitia.Invalidf("delegate required")
-			break
-		}
-		var p comitia.Principal
-		var c comitia.Credential
-		var g []comitia.Grant
-		p, c, g, err = h.api.DelegateSession(ctx, token, *q.Delegate)
-		out.Principal = &p
-		out.Credential = &c
-		out.Grants = g
-	case "sessions/revoke":
-		err = h.api.RevokeSession(ctx, token, q.SessionID)
-	default:
-		return false, nil
+func (h *handler) sessionRoutes() map[string]endpoint {
+	return map[string]endpoint{
+		"principals/create": typedEndpoint(func(ctx context.Context, token string, q nameRequest) (principalResult, error) {
+			v, err := h.api.CreatePrincipal(ctx, token, q.Name)
+			return principalResult{ptr(principalDTO(v))}, err
+		}),
+		"sessions/mint": typedEndpoint(func(ctx context.Context, token string, q mintRequest) (credentialResult, error) {
+			ttl, err := durationSeconds(q.TTLSeconds, q.TTL, 0, false)
+			if err != nil {
+				return credentialResult{}, err
+			}
+			v, err := h.api.MintSession(ctx, token, q.PrincipalID, ttl)
+			return credentialResult{ptr(wireCredential(v))}, err
+		}),
+		"sessions/delegate": typedEndpoint(func(ctx context.Context, token string, q delegateRequest) (delegateResult, error) {
+			if q.Delegate == nil {
+				return delegateResult{}, comitia.Invalidf("delegate required")
+			}
+			d := q.Delegate
+			ttl, err := durationSeconds(d.TTLSeconds, d.TTL, 0, false)
+			if err != nil {
+				return delegateResult{}, err
+			}
+			input := comitia.DelegateInput{PrincipalName: d.PrincipalName, TTL: ttl, Grants: mapSlice(d.Grants, func(g delegatedGrantInput) comitia.DelegatedGrant { return comitia.DelegatedGrant(g) })}
+			p, c, grants, err := h.api.DelegateSession(ctx, token, input)
+			return delegateResult{ptr(principalDTO(p)), ptr(wireCredential(c)), mapSlice(grants, func(g comitia.Grant) grantDTO { return grantDTO(g) })}, err
+		}),
+		"sessions/revoke": typedEndpoint(func(ctx context.Context, token string, q revokeSessionRequest) (emptyResult, error) {
+			return emptyResult{}, h.api.RevokeSession(ctx, token, q.SessionID)
+		}),
 	}
-	return true, err
 }
 
 func (c *Client) Bootstrap(context.Context, comitia.BootstrapInput) (comitia.Principal, comitia.Credential, error) {
 	return comitia.Principal{}, comitia.Credential{}, ErrBootstrapOffline
 }
-func (c *Client) CreatePrincipal(x context.Context, t, n string) (comitia.Principal, error) {
-	var o response
-	e := c.call(x, t, "principals/create", request{Name: n}, &o)
-	if o.Principal == nil {
-		return comitia.Principal{}, missing(e)
+func (c *Client) CreatePrincipal(ctx context.Context, token, name string) (comitia.Principal, error) {
+	var out principalResult
+	err := c.call(ctx, token, "principals/create", nameRequest{Name: name}, &out)
+	if err = requiredResult(err, out.Principal); err != nil {
+		return comitia.Principal{}, err
 	}
-	return *o.Principal, e
+	return comitia.Principal(*out.Principal), nil
 }
-func (c *Client) MintSession(x context.Context, t, p string, d time.Duration) (comitia.Credential, error) {
-	var o response
-	e := c.call(x, t, "sessions/mint", request{PrincipalID: p, TTL: d}, &o)
-	if o.Credential == nil {
-		return comitia.Credential{}, missing(e)
+func (c *Client) MintSession(ctx context.Context, token, principal string, ttl time.Duration) (comitia.Credential, error) {
+	var out credentialResult
+	err := c.call(ctx, token, "sessions/mint", mintRequest{PrincipalID: principal, TTL: ptr(ttl)}, &out)
+	if err = requiredResult(err, out.Credential); err != nil {
+		return comitia.Credential{}, err
 	}
-	return *o.Credential, e
+	return out.Credential.core(), nil
 }
-func (c *Client) DelegateSession(x context.Context, t string, i comitia.DelegateInput) (comitia.Principal, comitia.Credential, []comitia.Grant, error) {
-	var o response
-	e := c.call(x, t, "sessions/delegate", request{Delegate: &i}, &o)
-	if o.Principal == nil || o.Credential == nil {
-		return comitia.Principal{}, comitia.Credential{}, nil, missing(e)
+func (c *Client) DelegateSession(ctx context.Context, token string, input comitia.DelegateInput) (comitia.Principal, comitia.Credential, []comitia.Grant, error) {
+	d := delegateInput{PrincipalName: input.PrincipalName, TTL: ptr(input.TTL), Grants: mapSlice(input.Grants, func(g comitia.DelegatedGrant) delegatedGrantInput { return delegatedGrantInput(g) })}
+	var out delegateResult
+	err := c.call(ctx, token, "sessions/delegate", delegateRequest{&d}, &out)
+	if err = requiredResult(err, out.Principal, out.Credential); err != nil {
+		return comitia.Principal{}, comitia.Credential{}, nil, err
 	}
-	return *o.Principal, *o.Credential, o.Grants, e
+	return comitia.Principal(*out.Principal), out.Credential.core(), mapSlice(out.Grants, func(g grantDTO) comitia.Grant { return comitia.Grant(g) }), nil
 }
-func (c *Client) RevokeSession(x context.Context, t, id string) error {
-	return c.call(x, t, "sessions/revoke", request{SessionID: id}, &response{})
+func (c *Client) RevokeSession(ctx context.Context, token, id string) error {
+	return c.call(ctx, token, "sessions/revoke", revokeSessionRequest{id}, &emptyResult{})
 }

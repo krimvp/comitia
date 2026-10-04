@@ -96,7 +96,7 @@ func TestHTTPClientResponseBoundaries(t *testing.T) {
 		name, body string
 		want       string
 	}{
-		{"exact_response_cap", `{}` + strings.Repeat(" ", maxResponseBody-2), ""},
+		{"exact_response_cap", `{"messages":[]}` + strings.Repeat(" ", maxResponseBody-len(`{"messages":[]}`)), ""},
 		{"larger_than_request", `{"messages":[{"Body":"` + strings.Repeat("x", maxRequestBody) + `"}]}`, ""},
 		{"oversize", `{"messages":[{"Body":"` + strings.Repeat("x", maxResponseBody) + `"}]}`, "oversize"},
 		{"oversize_after_valid_json", `{}` + strings.Repeat(" ", maxResponseBody), "oversize"},
@@ -110,7 +110,9 @@ func TestHTTPClientResponseBoundaries(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			err = client.call(context.Background(), "token", "messages/replay", request{}, &response{})
+			err = client.call(context.Background(), "token", "messages/replay", emptyRequest{}, &struct {
+				Messages []comitia.Message `json:"messages"`
+			}{})
 			if tc.want == "" {
 				if err != nil {
 					t.Fatal(err)
@@ -130,7 +132,7 @@ func TestHTTPClientResponseBoundaries(t *testing.T) {
 
 func TestHTTPClientRequestBudget(t *testing.T) {
 	calls := 0
-	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { calls++; json.NewEncoder(w).Encode(response{}) }))
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { calls++; json.NewEncoder(w).Encode(emptyResult{}) }))
 	defer ts.Close()
 	client, err := NewClientWithInstanceDefaults(ts.URL, ts.Client(), comitia.InstanceDefaults{})
 	if err != nil {
@@ -141,8 +143,67 @@ func TestHTTPClientRequestBudget(t *testing.T) {
 		t.Fatalf("request not rejected locally: calls=%d err=%v", calls, err)
 	}
 	// Exactly the request cap is accepted; the next encoded byte is rejected.
-	err = client.call(context.Background(), "token", "messages/replay", request{Name: strings.Repeat("x", maxRequestBody-len(`{"name":""}`))}, &response{})
+	err = client.call(context.Background(), "token", "messages/replay", nameRequest{Name: strings.Repeat("x", maxRequestBody-len(`{"name":""}`))}, &emptyResult{})
 	if err != nil || calls != 1 {
 		t.Fatalf("exact request cap: calls=%d err=%v", calls, err)
+	}
+}
+
+func TestCanonicalMessageBytesBoundBothReadShapes(t *testing.T) {
+	svc, client, owner, c, _ := administrationServer(t)
+	ctx := context.Background()
+	var messages []comitia.Message
+	for _, key := range []string{"first", "second"} {
+		m, err := client.AppendMessage(ctx, owner.Token, c.ID, comitia.MessageInput{DedupeKey: key, Body: "small"})
+		if err != nil {
+			t.Fatal(err)
+		}
+		messages = append(messages, m)
+	}
+	legacy, err := json.Marshal(messages)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Canonical field names are longer than the old Go names. A budget that
+	// fits two old records must still bound the actual HTTP array.
+	budget := len(legacy)
+	for _, page := range []bool{false, true} {
+		for _, wait := range []bool{false, true} {
+			path := "messages/replay"
+			body := fmt.Sprintf(`{"context_id":%q,"max_bytes":%d,"page":%t}`, c.ID, budget, page)
+			if wait {
+				path = "messages/wait"
+				body = fmt.Sprintf(`{"context_id":%q,"max_bytes":%d,"page":%t,"timeout_seconds":0}`, c.ID, budget, page)
+			}
+			r := httptest.NewRequest("POST", "/v1/"+path, strings.NewReader(body))
+			r.Header.Set("Content-Type", "application/json")
+			r.Header.Set(wireHeader, canonicalWire)
+			r.Header.Set("Authorization", "Bearer "+owner.Token)
+			w := httptest.NewRecorder()
+			NewHandler(svc).ServeHTTP(w, r)
+			var result struct {
+				Messages json.RawMessage `json:"messages"`
+				Page     struct {
+					Messages       json.RawMessage `json:"messages"`
+					NextAfter      int64           `json:"next_after"`
+					ScannedThrough int64           `json:"scanned_through"`
+					HasMore        bool            `json:"has_more"`
+				} `json:"page"`
+			}
+			if err := json.Unmarshal(w.Body.Bytes(), &result); err != nil {
+				t.Fatal(err)
+			}
+			array := result.Messages
+			if page {
+				array = result.Page.Messages
+			}
+			if w.Code != 200 || len(array) > budget {
+				t.Fatalf("page=%v wait=%v budget=%d actual=%d status=%d", page, wait, budget, len(array), w.Code)
+			}
+			// A trimmed page must not report scan progress past undelivered matches.
+			if page && (result.Page.NextAfter != 1 || result.Page.ScannedThrough != 1 || !result.Page.HasMore) {
+				t.Fatalf("page continuation: %+v", result.Page)
+			}
+		}
 	}
 }

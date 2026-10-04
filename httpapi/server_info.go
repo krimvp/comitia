@@ -2,42 +2,38 @@ package httpapi
 
 import (
 	"context"
-
 	"github.com/krimvp/comitia"
 )
 
-func (h *handler) routeServerInfo(ctx context.Context, token, route string, _ request, out *response) (bool, error) {
-	if route == "storage_status" {
-		api, ok := h.api.(comitia.StorageStatusAPI)
-		if !ok {
-			return true, comitia.ErrNotFound
-		}
-		status, err := api.StorageStatus(ctx, token)
-		out.StorageStatus = &status
-		return true, err
+func (h *handler) infoRoutes() map[string]endpoint {
+	return map[string]endpoint{
+		"server_info": typedEndpoint(func(ctx context.Context, token string, _ emptyRequest) (serverInfoResult, error) {
+			v, err := h.api.ServerInfo(ctx, token)
+			return serverInfoResult{&v}, err
+		}),
+		"storage_status": typedEndpoint(func(ctx context.Context, token string, _ emptyRequest) (storageStatusResult, error) {
+			api, ok := h.api.(comitia.StorageStatusAPI)
+			if !ok {
+				return storageStatusResult{}, comitia.ErrNotFound
+			}
+			v, err := api.StorageStatus(ctx, token)
+			return storageStatusResult{&v}, err
+		}),
 	}
-	if route != "server_info" {
-		return false, nil
-	}
-	info, err := h.api.ServerInfo(ctx, token)
-	out.ServerInfo = &info
-	return true, err
 }
-
 func (c *Client) ServerInfo(ctx context.Context, token string) (comitia.ServerInfo, error) {
-	var out response
-	err := c.call(ctx, token, "server_info", request{}, &out)
-	if out.ServerInfo == nil {
-		return comitia.ServerInfo{}, missing(err)
+	var out serverInfoResult
+	err := c.call(ctx, token, "server_info", emptyRequest{}, &out)
+	if err = requiredResult(err, out.ServerInfo); err != nil {
+		return comitia.ServerInfo{}, err
 	}
-	return *out.ServerInfo, err
+	return *out.ServerInfo, nil
 }
-
 func (c *Client) StorageStatus(ctx context.Context, token string) (comitia.StorageStatus, error) {
-	var out response
-	err := c.call(ctx, token, "storage_status", request{}, &out)
-	if out.StorageStatus == nil {
-		return comitia.StorageStatus{}, missing(err)
+	var out storageStatusResult
+	err := c.call(ctx, token, "storage_status", emptyRequest{}, &out)
+	if err = requiredResult(err, out.StorageStatus); err != nil {
+		return comitia.StorageStatus{}, err
 	}
-	return *out.StorageStatus, err
+	return *out.StorageStatus, nil
 }

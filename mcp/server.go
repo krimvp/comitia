@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"reflect"
 	"strings"
 	"time"
 
@@ -460,8 +461,20 @@ var errUnknownTool = errors.New("unknown tool")
 func (s *Server) call(ctx context.Context, name string, raw json.RawMessage) (any, error) {
 	for _, g := range toolGroups {
 		if v, err := g.call(s, ctx, name, raw); err != errUnknownTool {
-			return v, err
+			return collectionResult(v), err
 		}
 	}
 	return nil, comitia.Invalidf("unknown tool")
+}
+
+func collectionResult(v any) any {
+	if compact, ok := v.(compactResult); ok {
+		compact.value = collectionResult(compact.value)
+		return compact
+	}
+	value := reflect.ValueOf(v)
+	if value.IsValid() && value.Kind() == reflect.Slice && value.IsNil() {
+		return reflect.MakeSlice(value.Type(), 0, 0).Interface()
+	}
+	return v
 }

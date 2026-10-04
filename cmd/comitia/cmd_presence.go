@@ -21,7 +21,7 @@ func runPresence(ctx context.Context, cfg config, api comitia.API, out *json.Enc
 		if err != nil {
 			return err
 		}
-		return out.Encode(v)
+		return out.Encode(nonNilList(v))
 	case "instance-resume":
 		fs := newFlags(cmd)
 		cid := fs.String("context-id", "", "context ID")

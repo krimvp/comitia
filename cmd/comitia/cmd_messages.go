@@ -45,7 +45,7 @@ func runMessages(ctx context.Context, cfg config, api comitia.API, out *json.Enc
 		if e != nil {
 			return e
 		}
-		return out.Encode(v)
+		return out.Encode(nonNilList(v))
 	case "replay", "wait", "watch":
 		fs := newFlags(cmd)
 		cid := fs.String("context-id", "", "context ID")
@@ -77,7 +77,7 @@ func runMessages(ctx context.Context, cfg config, api comitia.API, out *json.Enc
 			if e != nil {
 				return e
 			}
-			return out.Encode(v)
+			return out.Encode(nonNilList(v))
 		}
 		timeout, e := comitia.MessageWaitTimeout(*timeoutSeconds)
 		if e != nil {
@@ -99,7 +99,7 @@ func runMessages(ctx context.Context, cfg config, api comitia.API, out *json.Enc
 		if e != nil {
 			return e
 		}
-		return out.Encode(v)
+		return out.Encode(nonNilList(v))
 	case "ack":
 		fs := newFlags(cmd)
 		cid := fs.String("context-id", "", "context ID")
