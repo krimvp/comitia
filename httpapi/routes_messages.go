@@ -20,14 +20,26 @@ func (h *handler) routeMessages(ctx context.Context, token, route string, q requ
 		v, err = h.api.AppendMessage(ctx, token, q.ContextID, *q.Message)
 		out.Message = &v
 	case "messages/replay":
-		out.Messages, err = h.api.ReplayMessages(ctx, token, q.ContextID, q.After, q.Limit, q.messageFilters())
+		if q.Page {
+			var page comitia.MessagePage
+			page, err = comitia.ReplayMessagePage(ctx, h.api, token, q.ContextID, q.After, q.Limit, q.messageFilters())
+			out.Page = &page
+		} else {
+			out.Messages, err = h.api.ReplayMessages(ctx, token, q.ContextID, q.After, q.Limit, q.messageFilters())
+		}
 	case "messages/wait":
 		timeout := 30 * time.Second
 		if q.TimeoutSeconds != nil {
 			timeout, err = comitia.MessageWaitTimeout(*q.TimeoutSeconds)
 		}
 		if err == nil {
-			out.Messages, err = h.api.WaitMessages(ctx, token, q.ContextID, q.After, timeout, q.messageFilters())
+			if q.Page {
+				var page comitia.MessagePage
+				page, err = comitia.WaitMessagePage(ctx, h.api, token, q.ContextID, q.After, timeout, q.messageFilters())
+				out.Page = &page
+			} else {
+				out.Messages, err = h.api.WaitMessages(ctx, token, q.ContextID, q.After, timeout, q.messageFilters())
+			}
 		}
 	case "messages/ack":
 		err = h.api.AckMessages(ctx, token, q.ContextID, q.After, q.AgentInstance)
@@ -86,7 +98,7 @@ func (c *Client) ListParticipants(ctx context.Context, token, cid string, limit 
 }
 
 func (q request) messageFilters() comitia.MessageFilters {
-	f := comitia.MessageFilters{ForInstance: q.ForInstance, FromInstance: q.FromInstance, TaskID: q.TaskID, Schema: q.Schema}
+	f := comitia.MessageFilters{MaxBytes: q.MaxBytes, ForInstance: q.ForInstance, FromInstance: q.FromInstance, TaskID: q.TaskID, Schema: q.Schema}
 	if q.AgentInstance != "" {
 		f.AgentInstance = &q.AgentInstance
 	}
@@ -102,6 +114,7 @@ func (c *Client) messageReadRequest(cid string, after int64, filters []comitia.M
 	var instances []string
 	if len(filters) == 1 {
 		f := filters[0]
+		q.MaxBytes = f.MaxBytes
 		q.ForInstance, q.FromInstance, q.TaskID, q.Schema = f.ForInstance, f.FromInstance, f.TaskID, f.Schema
 		if f.AgentInstance != nil {
 			instances = []string{*f.AgentInstance}
@@ -130,4 +143,38 @@ func (c *Client) WaitMessages(ctx context.Context, token, cid string, after int6
 		out.Messages = []comitia.Message{}
 	}
 	return out.Messages, err
+}
+
+func (c *Client) ReplayMessagesPage(ctx context.Context, token, cid string, after int64, limit int, filters ...comitia.MessageFilters) (comitia.MessagePage, error) {
+	q, err := c.messageReadRequest(cid, after, filters)
+	if err != nil {
+		return comitia.MessagePage{}, err
+	}
+	q.Limit, q.Page = limit, true
+	var out response
+	err = c.call(ctx, token, "messages/replay", q, &out)
+	if out.Page == nil {
+		return comitia.MessagePage{}, missing(err)
+	}
+	return *out.Page, err
+}
+func (c *Client) WaitMessagesPage(ctx context.Context, token, cid string, after int64, timeout time.Duration, filters ...comitia.MessageFilters) (comitia.MessagePage, error) {
+	if timeout < 0 {
+		return comitia.MessagePage{}, comitia.Invalidf("timeout must be nonnegative")
+	}
+	if timeout > comitia.MaxMessageWait {
+		timeout = comitia.MaxMessageWait
+	}
+	q, err := c.messageReadRequest(cid, after, filters)
+	if err != nil {
+		return comitia.MessagePage{}, err
+	}
+	seconds := timeout.Seconds()
+	q.TimeoutSeconds, q.Page = &seconds, true
+	var out response
+	err = c.call(ctx, token, "messages/wait", q, &out)
+	if out.Page == nil {
+		return comitia.MessagePage{}, missing(err)
+	}
+	return *out.Page, err
 }

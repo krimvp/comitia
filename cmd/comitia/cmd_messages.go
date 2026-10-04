@@ -55,12 +55,24 @@ func runMessages(ctx context.Context, cfg config, api comitia.API, out *json.Enc
 		defaultID, _ := cfg.instances.ID()
 		instance := fs.String("agent-instance", defaultID, "self-reported instance ID for presence and the watch cursor (defaults to COMITIA_AGENT_INSTANCE)")
 		noAck := fs.Bool("no-ack", false, "do not acknowledge printed watch messages")
+		page := fs.Bool("page", false, "return messages, next_after and has_more")
 		filters := messageFilterFlags(fs)
+		fs.IntVar(&filters.MaxBytes, "max-bytes", 0, "encoded messages-array byte budget (default 1048576, max 4194304; first message intact)")
 		if err := fs.Parse(args); err != nil {
 			return err
 		}
 		filters.AgentInstance = instance
+		if cmd == "watch" && *page {
+			return comitia.Invalidf("--page is supported by replay and wait")
+		}
 		if cmd == "replay" {
+			if *page {
+				v, e := comitia.ReplayMessagePage(ctx, api, needCredential(cfg), *cid, *after, *limit, *filters)
+				if e != nil {
+					return e
+				}
+				return out.Encode(v)
+			}
 			v, e := api.ReplayMessages(ctx, needCredential(cfg), *cid, *after, *limit, *filters)
 			if e != nil {
 				return e
@@ -75,6 +87,13 @@ func runMessages(ctx context.Context, cfg config, api comitia.API, out *json.Enc
 			ctx, stop := signal.NotifyContext(ctx, os.Interrupt, syscall.SIGTERM)
 			defer stop()
 			return watchMessages(ctx, api, needCredential(cfg), *cid, *instance, timeout, *filters, !*noAck, os.Stdout)
+		}
+		if *page {
+			v, e := comitia.WaitMessagePage(ctx, api, needCredential(cfg), *cid, *after, timeout, *filters)
+			if e != nil {
+				return e
+			}
+			return out.Encode(v)
 		}
 		v, e := api.WaitMessages(ctx, needCredential(cfg), *cid, *after, timeout, *filters)
 		if e != nil {

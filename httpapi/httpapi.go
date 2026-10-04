@@ -16,7 +16,10 @@ import (
 	"github.com/krimvp/comitia"
 )
 
-const maxBody = 1 << 20
+const maxRequestBody = 1 << 20
+const maxResponseBody = 16 << 20
+
+var ErrResponseTooLarge = errors.New("remote response exceeds 16777216-byte limit; retry message reads with a smaller max_bytes or limit")
 
 var ErrBootstrapOffline = errors.New("bootstrap is available only to embedded clients")
 
@@ -39,6 +42,8 @@ func NewHandlerWithDiagnostics(api comitia.API, hook comitia.DiagnosticHook) htt
 }
 
 type request struct {
+	MaxBytes      int                         `json:"max_bytes,omitempty"`
+	Page          bool                        `json:"page,omitempty"`
 	AgentInstance string                      `json:"agent_instance,omitempty"`
 	AfterID       string                      `json:"after_id,omitempty"`
 	Name          string                      `json:"name,omitempty"`
@@ -71,6 +76,7 @@ type request struct {
 }
 
 type response struct {
+	Page         *comitia.MessagePage  `json:"page,omitempty"`
 	ServerInfo   *comitia.ServerInfo   `json:"server_info,omitempty"`
 	Contexts     []comitia.WorkContext `json:"contexts,omitempty"`
 	Participants []comitia.Participant `json:"participants,omitempty"`
@@ -126,7 +132,7 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		writeError(w, fmt.Errorf("%w: Content-Type must be application/json", comitia.ErrInvalid), 0)
 		return
 	}
-	r.Body = http.MaxBytesReader(w, r.Body, maxBody)
+	r.Body = http.MaxBytesReader(w, r.Body, maxRequestBody)
 	var q request
 	d := json.NewDecoder(r.Body)
 	d.DisallowUnknownFields()
@@ -257,6 +263,9 @@ func (c *Client) call(ctx context.Context, token, path string, in request, out *
 	if err != nil {
 		return err
 	}
+	if len(b) > maxRequestBody {
+		return comitia.Invalidf("request exceeds %d-byte limit", maxRequestBody)
+	}
 	u := *c.base
 	u.Path = strings.TrimRight(u.Path, "/") + "/v1/" + path
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, u.String(), bytes.NewReader(b))
@@ -270,16 +279,26 @@ func (c *Client) call(ctx context.Context, token, path string, in request, out *
 		return err
 	}
 	defer resp.Body.Close()
-	lr := io.LimitReader(resp.Body, maxBody+1)
+	b, err = io.ReadAll(io.LimitReader(resp.Body, maxResponseBody+1))
+	if err != nil {
+		return fmt.Errorf("read response: %w", err)
+	}
+	if len(b) > maxResponseBody {
+		return ErrResponseTooLarge
+	}
+	d := json.NewDecoder(bytes.NewReader(b))
 	if resp.StatusCode/100 != 2 {
 		var e errorResponse
-		if json.NewDecoder(lr).Decode(&e) != nil {
-			return fmt.Errorf("http status %d", resp.StatusCode)
+		if d.Decode(&e) != nil || ensureEOF(d) != nil {
+			return fmt.Errorf("http status %d: malformed error response", resp.StatusCode)
 		}
 		return &comitia.OperationalError{Info: e, Cause: decodeError(e.Code, e.Message)}
 	}
-	if err = json.NewDecoder(lr).Decode(out); err != nil {
+	if err = d.Decode(out); err != nil {
 		return fmt.Errorf("decode response: %w", err)
+	}
+	if err = ensureEOF(d); err != nil {
+		return fmt.Errorf("decode response: trailing data: %w", err)
 	}
 	return nil
 }

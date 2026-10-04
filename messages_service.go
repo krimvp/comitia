@@ -92,6 +92,9 @@ func (s *Service) ReplayMessages(ctx context.Context, raw, cid string, after int
 	if e == nil && heartbeat {
 		s.touchInstance(ctx, sid, cid, &AgentInstance{ID: instance})
 	}
+	if e == nil {
+		out, e = boundMessages(out, f.MaxBytes)
+	}
 	return out, e
 }
 func (s *Service) AckMessages(ctx context.Context, raw, cid string, seq int64, instances ...string) error {

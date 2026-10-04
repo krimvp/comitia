@@ -17,6 +17,9 @@ func messageFilters(filters []MessageFilters) (MessageFilters, error) {
 	if len(filters) == 1 {
 		f = filters[0]
 	}
+	if f.MaxBytes < 0 || f.MaxBytes > MaxMessageBytes {
+		return f, Invalidf("max_bytes must be between 0 and %d", MaxMessageBytes)
+	}
 	if f.ForInstance != "" && !validInstanceID(f.ForInstance) {
 		return f, Invalidf("for_instance must be 1-64 letters, digits, '.', '_' or '-'")
 	}
@@ -127,6 +130,9 @@ func (s *Service) scanWaitMessages(ctx context.Context, raw, cid string, after i
 	// Waits record presence exactly like replay: after a successful read, throttled.
 	if err == nil && heartbeat {
 		s.touchInstance(ctx, sid, cid, &AgentInstance{ID: instance})
+	}
+	if err == nil {
+		out, err = boundMessages(out, f.MaxBytes)
 	}
 	return out, scanned, err
 }

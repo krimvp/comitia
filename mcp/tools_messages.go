@@ -3,6 +3,7 @@ package mcp
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"time"
 
 	"github.com/krimvp/comitia"
@@ -21,6 +22,9 @@ func messageTools() []map[string]any {
 
 func messageReadProperties(wait bool) map[string]any {
 	p := map[string]any{"context_id": str("Context ID"), "after": integer("Exclusive sequence cursor"), "for_instance": str("Recipient instance, caller session with no instance recipients, or broadcast"), "from_instance": str("Self-reported sender instance"), "task_id": str("Envelope task ID"), "schema": str("Exact envelope schema ID"), "agent_instance": str("Optional self-reported instance ID for presence; defaults to COMITIA_AGENT_INSTANCE")}
+	p["max_bytes"] = integer("Encoded messages-array byte budget (default 1048576, max 4194304); first message always returned intact")
+	p["page"] = map[string]any{"type": "boolean", "description": "Return messages, next_after and has_more instead of the legacy array"}
+	p["compact"] = map[string]any{"type": "boolean", "description": "Short text summary; full result remains in structuredContent"}
 	if wait {
 		p["timeout_seconds"] = map[string]any{"type": "number", "description": "Timeout seconds (default 30, capped at 60; zero reads immediately)"}
 	} else {
@@ -68,6 +72,8 @@ func (s *Server) callMessages(ctx context.Context, name string, raw json.RawMess
 	case "replay_messages":
 		var a struct {
 			comitia.MessageFilters
+			Page      bool   `json:"page"`
+			Compact   bool   `json:"compact"`
 			ContextID string `json:"context_id"`
 			After     int64  `json:"after"`
 			Limit     int    `json:"limit"`
@@ -85,10 +91,18 @@ func (s *Server) callMessages(ctx context.Context, name string, raw json.RawMess
 		if err != nil {
 			return nil, err
 		}
-		return s.API.ReplayMessages(ctx, s.Credential, a.ContextID, a.After, a.Limit, filters)
+		var value any
+		if a.Page {
+			value, err = comitia.ReplayMessagePage(ctx, s.API, s.Credential, a.ContextID, a.After, a.Limit, filters)
+		} else {
+			value, err = s.API.ReplayMessages(ctx, s.Credential, a.ContextID, a.After, a.Limit, filters)
+		}
+		return messageResult(value, a.Compact), err
 	case "wait_messages":
 		var a struct {
 			comitia.MessageFilters
+			Page           bool     `json:"page"`
+			Compact        bool     `json:"compact"`
 			ContextID      string   `json:"context_id"`
 			After          int64    `json:"after"`
 			TimeoutSeconds *float64 `json:"timeout_seconds"`
@@ -111,7 +125,13 @@ func (s *Server) callMessages(ctx context.Context, name string, raw json.RawMess
 		if err != nil {
 			return nil, err
 		}
-		return s.API.WaitMessages(ctx, s.Credential, a.ContextID, a.After, timeout, filters)
+		var value any
+		if a.Page {
+			value, err = comitia.WaitMessagePage(ctx, s.API, s.Credential, a.ContextID, a.After, timeout, filters)
+		} else {
+			value, err = s.API.WaitMessages(ctx, s.Credential, a.ContextID, a.After, timeout, filters)
+		}
+		return messageResult(value, a.Compact), err
 	case "ack_messages":
 		var a struct {
 			ContextID     string  `json:"context_id"`
@@ -158,4 +178,30 @@ func (s *Server) callMessages(ctx context.Context, name string, raw json.RawMess
 	default:
 		return nil, errUnknownTool
 	}
+}
+
+type compactResult struct {
+	value any
+	text  string
+}
+
+func messageResult(value any, compact bool) any {
+	if !compact {
+		return value
+	}
+	var count int
+	var after int64
+	var text string
+	switch v := value.(type) {
+	case comitia.MessagePage:
+		count, after = len(v.Messages), v.NextAfter
+		text = fmt.Sprintf("%d messages; next_after=%d; has_more=%t. Full result in structuredContent.", count, after, v.HasMore)
+	case []comitia.Message:
+		count = len(v)
+		if count > 0 {
+			after = v[count-1].Sequence
+		}
+		text = fmt.Sprintf("%d messages; last_sequence=%d. Full result in structuredContent.", count, after)
+	}
+	return compactResult{value: value, text: text}
 }
