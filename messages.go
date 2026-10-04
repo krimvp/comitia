@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"reflect"
 	"sort"
 	"strings"
 	"time"
@@ -87,6 +88,9 @@ type MessageWriteStore interface {
 }
 
 func strictPayload(raw json.RawMessage, target any) error {
+	if err := exactPayloadFields(raw, reflect.TypeOf(target)); err != nil {
+		return err
+	}
 	d := json.NewDecoder(bytes.NewReader(raw))
 	d.DisallowUnknownFields()
 	if err := d.Decode(target); err != nil {
@@ -94,6 +98,69 @@ func strictPayload(raw json.RawMessage, target any) error {
 	}
 	if err := d.Decode(new(any)); err != io.EOF {
 		return Invalidf("payload must contain one JSON value")
+	}
+	return nil
+}
+
+// encoding/json otherwise accepts case-insensitive struct field aliases. Inspect
+// object keys before decoding so persisted payloads use their declared names.
+func exactPayloadFields(raw json.RawMessage, target reflect.Type) error {
+	if target == nil {
+		return nil
+	}
+	for target.Kind() == reflect.Pointer {
+		target = target.Elem()
+	}
+	switch target.Kind() {
+	case reflect.Struct:
+		var object map[string]json.RawMessage
+		if err := json.Unmarshal(raw, &object); err != nil {
+			return InvalidJSON(err, "payload")
+		}
+		fields := make(map[string]reflect.Type, target.NumField())
+		for i := 0; i < target.NumField(); i++ {
+			field := target.Field(i)
+			if field.PkgPath != "" {
+				continue
+			}
+			name, _, _ := strings.Cut(field.Tag.Get("json"), ",")
+			if name == "-" {
+				continue
+			}
+			if name == "" {
+				name = field.Name
+			}
+			fields[name] = field.Type
+		}
+		for key, value := range object {
+			field, ok := fields[key]
+			if !ok {
+				return Invalidf("payload: unknown field %q; keys are case-sensitive", key)
+			}
+			if err := exactPayloadFields(value, field); err != nil {
+				return err
+			}
+		}
+	case reflect.Slice, reflect.Array:
+		var values []json.RawMessage
+		if err := json.Unmarshal(raw, &values); err != nil {
+			return InvalidJSON(err, "payload")
+		}
+		for _, value := range values {
+			if err := exactPayloadFields(value, target.Elem()); err != nil {
+				return err
+			}
+		}
+	case reflect.Map:
+		var values map[string]json.RawMessage
+		if err := json.Unmarshal(raw, &values); err != nil {
+			return InvalidJSON(err, "payload")
+		}
+		for _, value := range values {
+			if err := exactPayloadFields(value, target.Elem()); err != nil {
+				return err
+			}
+		}
 	}
 	return nil
 }

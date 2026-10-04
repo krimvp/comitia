@@ -403,6 +403,10 @@ the version; discovery reflects the running service's registry.
 
 Verification status is `passed`, `failed`, or `not_run`. Passed/failed results
 require nonempty `evidence_refs`; not-run results require a nonblank `reason`.
+Payload keys are case-sensitive; mis-cased keys are rejected since PR #89
+(issue #64), including nested fields such as evaluation `grader.id` and
+`criteria[].name`. This deliberately tightens validation of new appends;
+previously stored messages are neither rewritten nor revalidated during replay.
 Unknown built-in payload fields are rejected. References are nonempty strings,
 not artifacts fetched or verified by Comitia.
 
@@ -592,8 +596,10 @@ cannot be reverse-engineered into field contracts. Supply descriptors for comple
 extension discovery. Built-ins under `comitia.` cannot be replaced. Custom schemas still
 receive the common recipient, context, reference, size and deduplication checks.
 Payload validators must be safe for concurrent calls; they should be pure and
-must return an error for invalid data. Registration is trusted application code,
-not an API that agents can use to weaken validation. The stock binary registers
+must return an error for invalid data. Custom validators retain their own key
+matching rules. Validators that use the internal `strictPayload` helper inherit
+its exact-case field checks; dictionary keys remain caller data. Registration is
+trusted application code, not an API that agents can use to weaken validation. The stock binary registers
 the built-ins only.
 
 SQLite adds a `message_envelopes` side table atomically updated with the original

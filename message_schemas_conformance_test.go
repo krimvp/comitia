@@ -63,7 +63,20 @@ func TestMessageSchemaPayloadConformance(t *testing.T) {
 					t.Fatal(err)
 				}
 				t.Run(fmt.Sprintf("example-%d", i), func(t *testing.T) { check(t, example.Envelope.Payload) })
+				for _, sample := range payloadCaseVariants(example.Envelope.Payload) {
+					t.Run(fmt.Sprintf("example-%d/mis-cased/%s", i, sample.path), func(t *testing.T) { check(t, sample.raw) })
+				}
 				for field := range properties {
+					// Optional aliases still must be rejected when their value is null.
+					t.Run(fmt.Sprintf("example-%d/mis-cased-optional/%s", i, field), func(t *testing.T) {
+						candidate := make(map[string]json.RawMessage, len(base)+1)
+						for key, raw := range base {
+							candidate[key] = raw
+						}
+						candidate[strings.ToUpper(field)] = json.RawMessage("null")
+						raw, _ := json.Marshal(candidate)
+						check(t, raw)
+					})
 					for _, value := range []string{"absent", "null", `""`, `" \t\n"`, `"\u00a0"`, `"\u2003"`, `"value"`, `[]`, `[null]`, `[""]`, `["value"]`, `{}`, `true`, `-1`, `0`, `1`, `1.5`} {
 						t.Run(fmt.Sprintf("example-%d/%s/%s", i, field, value), func(t *testing.T) {
 							candidate := make(map[string]json.RawMessage, len(base))
