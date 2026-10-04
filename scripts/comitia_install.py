@@ -12,13 +12,19 @@ import secrets
 import shutil
 import string
 import subprocess
+try:
+    import tomllib
+except ImportError:  # Python < 3.11 edits without the final parse check.
+    tomllib = None
 
 REPO = Path(__file__).resolve().parent.parent
 LOCAL = REPO/'scripts/local'
 NAME = re.compile(r'^[a-z0-9][a-z0-9_-]{0,63}$')
 BLOCK = re.compile(r'<!-- comitia-local:start(?: v\d+)? -->.*?<!-- comitia-local:end -->\n?', re.S)
 TOML_KEY = re.compile(r'^\s*([A-Za-z0-9_-]+)\s*=')
-ONE_YEAR = '8760h'
+ONE_YEAR = datetime.timedelta(hours=8760)
+# Children must expire before their parent; the owner outlives a full-year child by this margin.
+MARGIN = datetime.timedelta(hours=1)
 SERVER = 'comitia'
 
 def expand(path, home):
@@ -78,8 +84,10 @@ def runner(binary, database):
     # Exclude inherited credentials and server routing from local administration.
     base = {k:v for k,v in os.environ.items() if not k.startswith('COMITIA_')}
     base['COMITIA_DB'] = str(database)
-    def run(*command, token=None, bootstrap=None):
+    def run(*command, token=None, bootstrap=None, database=None):
         env = dict(base)
+        if database:
+            env['COMITIA_DB'] = str(database)
         if token:
             env['COMITIA_CREDENTIAL'] = token
         if bootstrap:
@@ -90,17 +98,56 @@ def runner(binary, database):
         return json.loads(result.stdout)
     return run
 
+def duration(delta):
+    return f'{int(delta.total_seconds())}s'
+
+def expires_at(path):
+    """Return the session expiry recorded in a credential file."""
+    value = json.loads(Path(path).read_text())['credential']['Session']['ExpiresAt']
+    # Go writes RFC 3339 with up to nanoseconds; fromisoformat takes microseconds.
+    value = re.sub(r'(\.\d{6})\d+', r'\1', value).replace('Z', '+00:00')
+    return datetime.datetime.fromisoformat(value)
+
+def child_ttl(owner, limit=ONE_YEAR):
+    """Return a delegate --ttl that ends at least MARGIN before the owner session does."""
+    left = expires_at(owner) - datetime.datetime.now(datetime.timezone.utc) - MARGIN
+    if left <= datetime.timedelta(minutes=1):
+        raise RuntimeError(f'The owner credential {owner} expires at {expires_at(owner)}; renew it before adding harnesses.')
+    return duration(min(limit, left))
+
 def bootstrap(run, root, database):
-    """Create the owner, workspace and shared context once; return their IDs or None."""
-    if database.exists():
-        return None
-    owner = run('bootstrap', '--name', 'Local owner', '--ttl', ONE_YEAR, bootstrap=secrets.token_urlsafe(32))
-    private_json(root/'credentials/owner.json', owner)
-    owner_token = owner['credential']['Token']
-    workspace = run('workspace-create', '--name', 'Local workspace', token=owner_token)
-    context = run('context-create', '--workspace-id', workspace['ID'], '--name', 'Local agents', token=owner_token)
-    database.chmod(0o600)
-    return {'workspace_id': workspace['ID'], 'context_id': context['ID']}
+    """Create the owner, workspace and shared context; resume an interrupted run.
+
+    Each step is persisted before the next one: the owner bootstraps a staged
+    database that moves into place only after owner.json is written, and
+    local-context.json records the workspace before the context exists.
+    """
+    owner = root/'credentials/owner.json'
+    staged = database.with_name(database.name+'.init')
+    sidecars = ('', '-wal', '-shm')
+    if not database.exists():
+        if not owner.exists():
+            for suffix in sidecars:
+                Path(f'{staged}{suffix}').unlink(missing_ok=True)
+            document = run('bootstrap', '--name', 'Local owner', '--ttl', duration(ONE_YEAR+MARGIN),
+                           bootstrap=secrets.token_urlsafe(32), database=staged)
+            private_json(owner, document)
+        if not staged.exists():
+            raise RuntimeError(f'{owner} exists without its database {database}; restore the database or remove both.')
+        for suffix in sidecars:
+            if Path(f'{staged}{suffix}').exists():
+                os.replace(f'{staged}{suffix}', f'{database}{suffix}')
+        database.chmod(0o600)
+    path = root/'local-context.json'
+    state = json.loads(path.read_text()) if path.exists() else {}
+    if 'workspace_id' not in state:
+        state['workspace_id'] = run('workspace-create', '--name', 'Local workspace', token=token(owner))['ID']
+        write_text(path, json.dumps(state, indent=2)+'\n', mode=0o600)
+    if 'context_id' not in state:
+        state['context_id'] = run('context-create', '--workspace-id', state['workspace_id'], '--name', 'Local agents',
+                                  token=token(owner))['ID']
+        write_text(path, json.dumps(state, indent=2)+'\n', mode=0o600)
+    return state
 
 # Harnesses are data: built-in entries in scripts/local/harnesses.json, plus
 # the ones registered with add-harness in <root>/harnesses.json.
@@ -142,21 +189,72 @@ def toml_value(value):
         return '['+', '.join(toml_value(v) for v in value)+']'
     raise ValueError(f'Unsupported TOML value {value!r}')
 
+def toml_lines(text):
+    """Yield (line, outside) where outside means the line does not continue a multi-line value."""
+    depth, quote = 0, None
+    for line in text.splitlines(keepends=True):
+        outside = depth == 0 and quote is None
+        i = 0
+        while i < len(line):
+            if quote:
+                if line.startswith(quote, i):
+                    quote, i = None, i+len(quote)
+                    continue
+                if line[i] == '\\' and quote in ('"', '"""'):
+                    i += 2
+                    continue
+                if line[i] == '\n' and len(quote) == 1:
+                    quote = None
+                i += 1
+                continue
+            if line[i] == '#':
+                break
+            for opening in ('"""', "'''", '"', "'"):
+                if line.startswith(opening, i):
+                    quote, i = opening, i+len(opening)
+                    break
+            else:
+                depth += {'[': 1, '{': 1, ']': -1, '}': -1}.get(line[i], 0)
+                i += 1
+        yield line, outside
+
 def set_toml_table(text, table, entry):
-    """Set entry's keys in [table], keeping its other single-line keys and all other tables."""
-    header = f'[{table}]'
-    lines = text.splitlines(keepends=True)
-    start = next((i for i, line in enumerate(lines) if line.strip() == header), None)
+    """Set entry's keys in [table], keeping its other keys, comments and all other tables."""
+    header = re.compile(r'^\s*\[\s*'+r'\s*\.\s*'.join(map(re.escape, table.split('.')))+r'\s*\]\s*(#.*)?$')
+    lines = list(toml_lines(text))
+    start = next((i for i, (line, outside) in enumerate(lines) if outside and header.match(line)), None)
     body = [f'{k} = {toml_value(v)}\n' for k, v in entry.items()]
     if start is None:
         prefix = text if not text or text.endswith('\n') else text+'\n'
-        return prefix+('\n' if prefix else '')+header+'\n'+''.join(body)
-    end = next((i for i in range(start+1, len(lines)) if lines[i].lstrip().startswith('[')), len(lines))
-    kept = [line for line in lines[start+1:end] if not (TOML_KEY.match(line) and TOML_KEY.match(line).group(1) in entry)]
-    while kept and not kept[-1].strip():
-        kept.pop()
-    tail = ['\n'] if end < len(lines) else []
-    return ''.join(lines[:start+1]+body+kept+tail+lines[end:])
+        result = prefix+('\n' if prefix else '')+f'[{table}]\n'+''.join(body)
+    else:
+        end = next((i for i in range(start+1, len(lines)) if lines[i][1] and lines[i][0].lstrip().startswith('[')),
+                   len(lines))
+        kept, dropping = [], False
+        for line, outside in lines[start+1:end]:
+            if outside:
+                key = TOML_KEY.match(line)
+                dropping = bool(key and key.group(1) in entry)
+            if not dropping:
+                kept.append(line)
+        while kept and not kept[-1].strip():
+            kept.pop()
+        tail = ['\n'] if end < len(lines) else []
+        result = ''.join([line for line, _ in lines[:start+1]]+body+kept+tail+[line for line, _ in lines[end:]])
+    if tomllib:
+        try:
+            tomllib.loads(text)
+        except tomllib.TOMLDecodeError as error:
+            raise ValueError(f'Refusing to edit a file that is not valid TOML: {error}')
+        try:
+            value = tomllib.loads(result)
+            for part in table.split('.'):
+                value = value[part]
+        except (tomllib.TOMLDecodeError, KeyError, TypeError) as error:
+            raise ValueError(f'Refusing to write invalid TOML for [{table}]: {error}')
+        if any(value.get(k) != v for k, v in entry.items()):
+            raise ValueError(f'Refusing to write [{table}]: the edited table does not hold the new entry')
+    return result
 
 def json_document(path):
     return json.loads(path.read_text() or '{}') if path.exists() else {}
@@ -212,8 +310,10 @@ def add_harness(name, spec, root, home, run, permissions='read,write,claim,grant
     local = json.loads((root/'local-context.json').read_text())
     credential = root/'credentials'/f'{name}.json'
     if not credential.exists():
-        session = run('delegate', '--name', name, '--ttl', ONE_YEAR, '--context-id', local['context_id'],
-                      '--permissions', permissions, '--grant-ttl', ONE_YEAR, token=token(root/'credentials/owner.json'))
+        owner = root/'credentials/owner.json'
+        ttl = child_ttl(owner)
+        session = run('delegate', '--name', name, '--ttl', ttl, '--context-id', local['context_id'],
+                      '--permissions', permissions, '--grant-ttl', ttl, token=token(owner))
         private_json(credential, session)
     entry = {'command': str(root/'bin/comitia-client'), 'args': [name, 'mcp']}
     approval = spec.get('approval') or {}

@@ -1,23 +1,34 @@
 """Installer and wrapper tests against a temporary HOME and a fake Comitia binary."""
 import json
+import contextlib
+import datetime
+import io
 import os
 from pathlib import Path
+import runpy
+import shutil
+import socket
 import stat
 import subprocess
 import sys
 import tempfile
 import textwrap
+import time
+import tomllib
 import unittest
+from unittest import mock
+import urllib.request
 
 SCRIPTS = Path(__file__).resolve().parent
 sys.path.insert(0, str(SCRIPTS))
 import comitia_install as local  # noqa: E402
 import install_linux_service as installer  # noqa: E402
 
-# Records each call and answers the administrative commands the installer uses.
+# Records each call and answers the administrative commands the installer uses,
+# enforcing like the real service that a child session ends before its parent.
 FAKE = textwrap.dedent(f"""\
     #!{sys.executable}
-    import json, os, pathlib, sys
+    import datetime, json, os, pathlib, re, sys
     args = sys.argv[1:]
     log = pathlib.Path(os.environ['FAKE_LOG'])
     with log.open('a') as stream:
@@ -25,10 +36,21 @@ FAKE = textwrap.dedent(f"""\
             'server': os.environ.get('COMITIA_SERVER_URL'), 'credential': os.environ.get('COMITIA_CREDENTIAL'),
             'leaked': os.environ.get('COMITIA_LEAK')}}) + '\\n')
     command = args[0]
+    if command == os.environ.get('FAKE_FAIL'):
+        sys.exit('injected failure')
+    def flag(name):
+        return args[args.index(name) + 1]
+    def ttl(name):
+        value, unit = re.fullmatch(r'(\\d+)([hs])', flag(name)).groups()
+        return datetime.timedelta(**{{'hours' if unit == 'h' else 'seconds': int(value)}})
+    now = datetime.datetime.now(datetime.timezone.utc)
+    db = pathlib.Path(os.environ['COMITIA_DB'])
     if command == 'bootstrap':
-        assert os.environ['COMITIA_BOOTSTRAP_CREDENTIAL']
-        pathlib.Path(os.environ['COMITIA_DB']).write_text('db')
-        out = {{'principal': {{'ID': 'p-owner'}}, 'credential': {{'Token': 'owner-token', 'Session': {{'ID': 's-owner'}}}}}}
+        assert os.environ['COMITIA_BOOTSTRAP_CREDENTIAL'] and not db.exists()
+        expires = now + ttl('--ttl')
+        db.write_text(json.dumps({{'owner_expires': expires.isoformat()}}))
+        out = {{'principal': {{'ID': 'p-owner'}}, 'credential': {{'Token': 'owner-token',
+               'Session': {{'ID': 's-owner', 'ExpiresAt': expires.isoformat().replace('+00:00', '123Z')}}}}}}
     elif command in ('workspace-create', 'context-create', 'delegate') and os.environ.get('COMITIA_CREDENTIAL') != 'owner-token':
         sys.exit('forbidden')
     elif command == 'workspace-create':
@@ -36,8 +58,12 @@ FAKE = textwrap.dedent(f"""\
     elif command == 'context-create':
         out = {{'ID': 'c1'}}
     elif command == 'delegate':
-        name = args[args.index('--name') + 1]
-        out = {{'principal': {{'ID': 'p-' + name}}, 'credential': {{'Token': 'tok-' + name, 'Session': {{'ID': 's-' + name}}}}, 'grants': []}}
+        owner = datetime.datetime.fromisoformat(json.loads(db.read_text())['owner_expires'])
+        if now + ttl('--ttl') > owner or ttl('--grant-ttl') > ttl('--ttl'):
+            sys.exit('{{"error":"forbidden"}}')
+        name = flag('--name')
+        out = {{'principal': {{'ID': 'p-' + name}}, 'credential': {{'Token': 'tok-' + name,
+               'Session': {{'ID': 's-' + name, 'ExpiresAt': (now + ttl('--ttl')).isoformat()}}}}, 'grants': []}}
     else:
         out = {{'args': args}}
     print(json.dumps(out))
@@ -94,10 +120,14 @@ class InstallTest(Base):
         calls = self.calls()
         self.assertEqual([c['args'][0] for c in calls], ['bootstrap', 'workspace-create', 'context-create', 'delegate', 'delegate'])
         self.assertTrue(all(c['leaked'] is None and c['server'] is None for c in calls))
-        self.assertTrue(all(c['db'] == str(self.root/'data/comitia.db') for c in calls))
+        self.assertEqual(calls[0]['db'], str(self.root/'data/comitia.db.init'))
+        self.assertTrue(all(c['db'] == str(self.root/'data/comitia.db') for c in calls[1:]))
+        self.assertFalse((self.root/'data/comitia.db.init').exists())
         delegate = calls[3]['args']
         self.assertEqual(delegate[delegate.index('--context-id')+1], 'c1')
-        self.assertEqual(delegate[delegate.index('--ttl')+1], '8760h')
+        ttl = int(delegate[delegate.index('--ttl')+1].rstrip('s'))
+        self.assertTrue(8759*3600 < ttl <= 8760*3600, ttl)
+        self.assertEqual(delegate[delegate.index('--grant-ttl')+1], f'{ttl}s')
 
         unit = (self.home/'.config/systemd/user/comitia.service').read_text()
         self.assertIn(f'ExecStart={self.root}/bin/comitia --db {self.root}/data/comitia.db serve --listen 127.0.0.1:8390', unit)
@@ -225,6 +255,191 @@ class AddHarnessTest(Base):
         self.install(names=[])
         self.add('codex', '--no-approval')
         self.assertNotIn('default_tools_approval_mode', (self.home/'.codex/config.toml').read_text())
+
+class LifetimeTest(Base):
+    def owner_expires_in(self, delta):
+        path = self.root/'credentials/owner.json'
+        document = json.loads(path.read_text())
+        expires = datetime.datetime.now(datetime.timezone.utc)+delta
+        document['credential']['Session']['ExpiresAt'] = expires.isoformat()
+        path.chmod(0o600)
+        path.write_text(json.dumps(document))
+        (self.root/'data/comitia.db').write_text(json.dumps({'owner_expires': expires.isoformat()}))
+
+    def test_children_are_bounded_by_the_remaining_owner_lifetime(self):
+        self.install(names=[])
+        self.owner_expires_in(datetime.timedelta(days=100))
+        run = local.runner(self.root/'bin/comitia', self.root/'data/comitia.db')
+        local.add_harness('codex', local.harnesses(self.root)['codex'], self.root, self.home, run)
+        delegate = self.calls()[-1]['args']
+        ttl = int(delegate[delegate.index('--ttl')+1].rstrip('s'))
+        self.assertTrue(100*86400-3700 < ttl <= 100*86400-3600, ttl)
+
+    def test_nearly_expired_owner_is_reported(self):
+        self.install(names=[])
+        self.owner_expires_in(datetime.timedelta(minutes=30))
+        run = local.runner(self.root/'bin/comitia', self.root/'data/comitia.db')
+        with self.assertRaisesRegex(RuntimeError, 'renew it'):
+            local.add_harness('codex', local.harnesses(self.root)['codex'], self.root, self.home, run)
+        self.assertFalse((self.root/'credentials/codex.json').exists())
+
+class ResumeTest(Base):
+    def fail(self, command):
+        os.environ['FAKE_FAIL'] = command
+        self.addCleanup(os.environ.pop, 'FAKE_FAIL', None)
+        with self.assertRaisesRegex(RuntimeError, f'{command} failed'):
+            self.install()
+        os.environ.pop('FAKE_FAIL')
+
+    def test_rerun_resumes_after_each_failed_step(self):
+        for step in ('bootstrap', 'workspace-create', 'context-create', 'delegate'):
+            with self.subTest(step=step):
+                shutil.rmtree(self.root, ignore_errors=True)
+                self.log.unlink(missing_ok=True)
+                self.fail(step)
+                context = self.install()
+                self.assertEqual((context['workspace_id'], context['context_id']), ('w1', 'c1'))
+                commands = [c['args'][0] for c in self.calls()]
+                self.assertEqual(commands.count('bootstrap'), 1 if step != 'bootstrap' else 2)
+                self.assertEqual(commands.count('workspace-create'), 1 if step != 'workspace-create' else 2)
+                self.assertEqual(local.token(self.root/'credentials/codex.json'), 'tok-codex')
+
+    def test_rerun_finishes_moving_the_bootstrapped_database(self):
+        real = os.replace
+        def interrupted(src, dst):
+            if str(src).endswith('.init'):
+                raise OSError('interrupted')
+            return real(src, dst)
+        with mock.patch.object(local.os, 'replace', interrupted), self.assertRaises(OSError):
+            self.install()
+        self.assertTrue((self.root/'credentials/owner.json').exists())
+        self.assertFalse((self.root/'data/comitia.db').exists())
+        self.install()
+        self.assertEqual([c['args'][0] for c in self.calls()].count('bootstrap'), 1)
+        self.assertTrue((self.root/'data/comitia.db').exists())
+
+    def test_owner_without_database_is_refused(self):
+        self.install(names=[])
+        (self.root/'data/comitia.db').unlink()
+        with self.assertRaisesRegex(RuntimeError, 'exists without its database'):
+            self.install()
+
+class TomlTest(unittest.TestCase):
+    entry = {'command': '/x/comitia-client', 'args': ['codex', 'mcp'], 'default_tools_approval_mode': 'approve'}
+
+    def edit(self, text):
+        result = local.set_toml_table(text, 'mcp_servers.comitia', self.entry)
+        return result, tomllib.loads(result)
+
+    def test_multiline_values_and_header_forms(self):
+        cases = {
+            'multiline array': '[mcp_servers.comitia]\ncommand = "old"\nargs = [\n  "codex",\n  "mcp",\n]\n'
+                               'env = {A = "1"}\n\n[mcp_servers.other]\ncommand = "keep"\n',
+            'header comment': '[mcp_servers.comitia] # local server\ncommand = "old"\nargs = ["codex", "mcp"]\n'
+                              'env = {A = "1"}\n\n[mcp_servers.other]\ncommand = "keep"\n',
+            'spaced header': '[ mcp_servers . comitia ]\nargs = [\n  ["nested"],\n]\nenv = {A = "1"}\n'
+                             '[mcp_servers.other]\ncommand = "keep"\n',
+            'multiline string': '[mcp_servers.comitia]\ncommand = """\n[not.a.table]\n"""\nenv = {A = "1"}\n'
+                                '[mcp_servers.other]\ncommand = "keep"\n',
+            'commented header': '# [mcp_servers.comitia]\n[mcp_servers.comitia]\ncommand = \'old\'\nenv = {A = "1"}\n'
+                                '[mcp_servers.other]\ncommand = "keep"\n',
+        }
+        for label, text in cases.items():
+            with self.subTest(label):
+                result, parsed = self.edit(text)
+                self.assertEqual(parsed['mcp_servers']['comitia'], {**self.entry, 'env': {'A': '1'}})
+                self.assertEqual(parsed['mcp_servers']['other'], {'command': 'keep'})
+                self.assertEqual(self.edit(result)[0], result)
+
+    def test_appends_after_unrelated_tables(self):
+        result, parsed = self.edit('model = "x"\n# [mcp_servers.comitia]\n[features]\nshell = true')
+        self.assertEqual(parsed, {'model': 'x', 'features': {'shell': True}, 'mcp_servers': {'comitia': self.entry}})
+
+    def test_refuses_invalid_input_and_output(self):
+        with self.assertRaisesRegex(ValueError, 'not valid TOML'):
+            self.edit('[mcp_servers.comitia\n')
+        with self.assertRaisesRegex(ValueError, 'invalid TOML'):
+            self.edit('[mcp_servers]\ncomitia = {command = "x"}\n')
+
+    def test_register_leaves_the_file_alone_when_refused(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp)/'config.toml'
+            path.write_text('[mcp_servers]\ncomitia = {command = "x"}\n')
+            with self.assertRaises(ValueError):
+                local.register_mcp({'file': str(path), 'format': 'toml'}, self.entry, tmp, None)
+            self.assertEqual(path.read_text(), '[mcp_servers]\ncomitia = {command = "x"}\n')
+
+class MacOSInstallerTest(Base):
+    def test_installer_runs_with_mocked_launchd(self):
+        real = subprocess.run
+        launchd = []
+        def run(command, *args, **kwargs):
+            if command[0] in ('launchctl', 'plutil'):
+                launchd.append(command)
+                return subprocess.CompletedProcess(command, 0, '', '')
+            return real(command, *args, **kwargs)
+        argv = ['install_macos_service.py', '--binary', str(self.fake)]
+        with mock.patch.object(sys, 'platform', 'darwin'), mock.patch.object(sys, 'argv', argv), \
+                mock.patch.object(subprocess, 'run', run), mock.patch.object(Path, 'home', lambda: self.home), \
+                contextlib.redirect_stdout(io.StringIO()):
+            runpy.run_path(str(SCRIPTS/'install_macos_service.py'), run_name='__main__')
+        root = self.home/'Library/Application Support/Comitia'
+        self.assertEqual(json.loads((root/'local-context.json').read_text()), {'workspace_id': 'w1', 'context_id': 'c1'})
+        self.assertEqual(local.token(root/'credentials/viewer.json'), 'tok-World viewer')
+        plist = (self.home/'Library/LaunchAgents/com.comitia.server.plist').read_bytes()
+        self.assertIn(str(root/'bin/comitia').encode(), plist)
+        self.assertIn(['launchctl', 'bootstrap', f'gui/{os.getuid()}', str(self.home/'Library/LaunchAgents/com.comitia.server.plist')], launchd)
+
+def free_port():
+    with socket.socket() as probe:
+        probe.bind(('127.0.0.1', 0))
+        return probe.getsockname()[1]
+
+@unittest.skipUnless(shutil.which('go'), 'go is not installed')
+class RealBinaryTest(Base):
+    """Install, add a harness and call through the wrapper with the real binary."""
+    @classmethod
+    def setUpClass(cls):
+        cls.build = tempfile.TemporaryDirectory()
+        cls.binary = Path(cls.build.name)/'comitia'
+        env = {**os.environ, 'GOFLAGS': '-buildvcs=false'}
+        result = subprocess.run(['go', 'build', '-o', str(cls.binary), './cmd/comitia'], cwd=SCRIPTS.parent, env=env,
+                                capture_output=True, text=True)
+        if result.returncode:
+            cls.build.cleanup()
+            raise unittest.SkipTest(f'go build failed: {result.stderr.strip()}')
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.build.cleanup()
+
+    def test_install_add_harness_and_wrapper(self):
+        port = free_port()
+        installer.install(self.root, self.home, port=port, binary=self.binary, service=None, check_port=False)
+        installer.install(self.root, self.home, port=port, binary=self.binary, service=None, check_port=False)
+        args = installer.parser().parse_args(['add-harness', 'myagent', '--instructions', str(self.home/'.myagent/AGENTS.md'),
+                                              '--mcp-config', str(self.home/'.myagent/mcp.json')])
+        spec = installer.harness_spec(args, local.harnesses(self.root))
+        local.add_harness('myagent', spec, self.root, self.home,
+                          local.runner(self.root/'bin/comitia', self.root/'data/comitia.db'))
+        context = json.loads((self.root/'local-context.json').read_text())
+        env = {k: v for k, v in os.environ.items() if not k.startswith('COMITIA_')}
+        server = subprocess.Popen([str(self.root/'bin/comitia'), '--db', str(self.root/'data/comitia.db'), 'serve',
+                                   '--listen', f'127.0.0.1:{port}'], env=env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        self.addCleanup(server.wait)
+        self.addCleanup(server.terminate)
+        for _ in range(100):
+            try:
+                urllib.request.urlopen(f'http://127.0.0.1:{port}/ui/', timeout=1)
+                break
+            except OSError:
+                time.sleep(0.1)
+        for identity in ('codex', 'claude', 'myagent'):
+            with self.subTest(identity=identity):
+                result = subprocess.run([sys.executable, str(self.root/'bin/comitia-client'), '--identity', identity,
+                                         'context-list'], capture_output=True, text=True, env=env)
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertEqual([c['ID'] for c in json.loads(result.stdout)], [context['context_id']])
 
 class BlockTest(unittest.TestCase):
     def test_place_block(self):

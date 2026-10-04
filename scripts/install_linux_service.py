@@ -92,10 +92,10 @@ def install(root, home, port=8390, names=None, binary=None, service=systemctl, l
         directory.chmod(0o700)
     database = root/'data/comitia.db'
     run = local.runner(local.install_binary(root, binary), database)
-    created = local.bootstrap(run, root, database)
-    # A reinstall never bootstraps or replaces an existing database or credential.
+    # A reinstall never bootstraps or replaces an existing database or credential;
+    # it resumes an interrupted first run.
+    context = local.bootstrap(run, root, database)
     path = root/'local-context.json'
-    context = created or json.loads(path.read_text())
     context['server_url'] = f'http://127.0.0.1:{port}'
     local.write_text(path, json.dumps(context, indent=2)+'\n', mode=0o600)
     client = root/'bin/comitia-client'

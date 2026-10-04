@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Install Comitia and its world viewer as per-user macOS launchd services."""
 import argparse
+import datetime
 import json
 import os
 from pathlib import Path
@@ -40,13 +41,15 @@ for directory in (root, root/'bin', root/'data', root/'credentials', root/'logs'
     if directory != launch_dir:
         directory.chmod(0o700)
 database = root/'data/comitia.db'
-run = local.runner(local.install_binary(root, args.binary), database)
-created = local.bootstrap(run, root, database)
-if created:
-    observer = run('delegate', '--name', 'World viewer', '--ttl', '744h', '--context-id', created['context_id'],
-                   '--permissions', 'read', '--grant-ttl', '720h', token=local.token(root/'credentials/owner.json'))
+binary = local.install_binary(root, args.binary)
+run = local.runner(binary, database)
+context = local.bootstrap(run, root, database)
+owner = root/'credentials/owner.json'
+if not (root/'credentials/viewer.json').exists():
+    observer = run('delegate', '--name', 'World viewer', '--ttl', local.child_ttl(owner, datetime.timedelta(hours=744)),
+                   '--context-id', context['context_id'], '--permissions', 'read',
+                   '--grant-ttl', local.child_ttl(owner, datetime.timedelta(hours=720)), token=local.token(owner))
     local.private_json(root/'credentials/viewer.json', observer)
-    local.private_json(root/'local-context.json', created)
 # A reinstall never bootstraps or replaces an existing database or credential.
 viewer = root/'viewer'
 shutil.copytree(repo/'httpapi/ui/world-prototype', viewer, dirs_exist_ok=True,

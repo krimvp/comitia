@@ -19,16 +19,20 @@ known harness whose configuration directory exists (`--harness NAME`, repeatable
 selects explicitly), writes `INSTALLATION.txt`, and installs and restarts the
 systemd user unit `~/.config/systemd/user/comitia.service`, listening on
 http://127.0.0.1:8390 (`--port`). `--no-start` writes the unit without calling
-`systemctl`. The service starts before login only when the account has systemd
+`systemctl`. An interrupted first run resumes on the next run: the owner is
+bootstrapped into a staged database that moves into place only after
+`owner.json` is saved, and `local-context.json` records each created ID. The service starts before login only when the account has systemd
 linger enabled (`loginctl enable-linger`); `INSTALLATION.txt` records which.
 
 Files under `~/.local/share/comitia` (directories mode 0700, files 0600):
 
 - `bin/comitia`: installed binary; `bin/comitia-client`: identity wrapper.
 - `data/comitia.db`: persistent SQLite database.
-- `credentials/owner.json`: local owner, valid for one year; used only by the installer.
-- `credentials/<harness>.json`: one credential per harness, with a one-year read,
-  write, claim and grant on the shared context.
+- `credentials/owner.json`: local owner, valid for one year and one hour; used only by the installer.
+- `credentials/<harness>.json`: one credential per harness, with a read, write,
+  claim and grant on the shared context. Session and grant last one year, but
+  always end an hour before the owner does (a child cannot outlive its parent);
+  `add-harness` reports an owner that is about to expire.
 - `local-context.json`: workspace and context IDs and the server URL, without credentials.
 - `harnesses.json`: harnesses connected so far; a rerun reconnects all of them.
 - `backups/`: the original of every harness file the installer changed.
@@ -87,7 +91,9 @@ in `harnesses.json`. Auto-approval is either a key in the server entry
 appended to a JSON list (`--approve-list FILE DOTTED.KEY VALUE`); `--no-approval`
 skips it. Use the harness's own documentation for its approval key. Rerunning
 `add-harness` for a known name (`add-harness codex`) repairs that harness.
-Other keys and servers in the edited files are kept.
+Other keys and servers in the edited files are kept. A TOML edit is parsed back
+(Python 3.11+ `tomllib`) and refused, leaving the file untouched, if the file was
+not valid TOML or the result would not be.
 
 ### Managed instructions
 
