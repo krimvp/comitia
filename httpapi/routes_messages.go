@@ -2,6 +2,7 @@ package httpapi
 
 import (
 	"context"
+	"time"
 
 	"github.com/krimvp/comitia"
 )
@@ -19,7 +20,13 @@ func (h *handler) routeMessages(ctx context.Context, token, route string, q requ
 		v, err = h.api.AppendMessage(ctx, token, q.ContextID, *q.Message)
 		out.Message = &v
 	case "messages/replay":
-		out.Messages, err = h.api.ReplayMessages(ctx, token, q.ContextID, q.After, q.Limit)
+		out.Messages, err = h.api.ReplayMessages(ctx, token, q.ContextID, q.After, q.Limit, q.messageFilters())
+	case "messages/wait":
+		var timeout time.Duration
+		timeout, err = comitia.MessageWaitTimeout(q.TimeoutSeconds)
+		if err == nil {
+			out.Messages, err = h.api.WaitMessages(ctx, token, q.ContextID, q.After, timeout, q.messageFilters())
+		}
 	case "messages/ack":
 		err = h.api.AckMessages(ctx, token, q.ContextID, q.After, q.AgentInstance)
 	case "messages/cursor":
@@ -41,9 +48,14 @@ func (c *Client) AppendMessage(x context.Context, t, id string, i comitia.Messag
 	}
 	return *o.Message, e
 }
-func (c *Client) ReplayMessages(x context.Context, t, id string, a int64, l int) ([]comitia.Message, error) {
+func (c *Client) ReplayMessages(x context.Context, t, id string, a int64, l int, filters ...comitia.MessageFilters) ([]comitia.Message, error) {
+	q, err := messageReadRequest(id, a, filters)
+	if err != nil {
+		return nil, err
+	}
+	q.Limit = l
 	var o response
-	e := c.call(x, t, "messages/replay", request{ContextID: id, After: a, Limit: l}, &o)
+	e := c.call(x, t, "messages/replay", q, &o)
 	return o.Messages, e
 }
 func (c *Client) AckMessages(x context.Context, t, id string, s int64, instances ...string) error {
@@ -69,4 +81,38 @@ func (c *Client) ListParticipants(ctx context.Context, token, cid string, limit 
 	var out response
 	err := c.call(ctx, token, "participants/list", request{ContextID: cid, Limit: limit}, &out)
 	return out.Participants, err
+}
+
+func (q request) messageFilters() comitia.MessageFilters {
+	return comitia.MessageFilters{ForInstance: q.ForInstance, FromInstance: q.FromInstance, TaskID: q.TaskID, Schema: q.Schema}
+}
+func messageReadRequest(cid string, after int64, filters []comitia.MessageFilters) (request, error) {
+	if len(filters) > 1 {
+		return request{}, comitia.ErrInvalid
+	}
+	q := request{ContextID: cid, After: after}
+	if len(filters) == 1 {
+		f := filters[0]
+		q.ForInstance, q.FromInstance, q.TaskID, q.Schema = f.ForInstance, f.FromInstance, f.TaskID, f.Schema
+	}
+	return q, nil
+}
+func (c *Client) WaitMessages(ctx context.Context, token, cid string, after int64, timeout time.Duration, filters ...comitia.MessageFilters) ([]comitia.Message, error) {
+	if timeout < 0 {
+		return nil, comitia.ErrInvalid
+	}
+	if timeout > comitia.MaxMessageWait {
+		timeout = comitia.MaxMessageWait
+	}
+	q, err := messageReadRequest(cid, after, filters)
+	if err != nil {
+		return nil, err
+	}
+	q.TimeoutSeconds = timeout.Seconds()
+	var out response
+	err = c.call(ctx, token, "messages/wait", q, &out)
+	if err == nil && out.Messages == nil {
+		out.Messages = []comitia.Message{}
+	}
+	return out.Messages, err
 }

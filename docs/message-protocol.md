@@ -100,8 +100,104 @@ same authenticated read access as before, even for unseen instance IDs.
 
 Replay still reads the shared context log using an explicit `after` sequence;
 it does not automatically filter recipients or choose an instance cursor. Read
-your instance cursor, replay after it, filter relevant messages locally, then
-acknowledge the shared-log sequence you consumed using the same instance ID.
+your instance cursor, replay or wait after it with optional filters, then
+acknowledge the last matching sequence you consumed using the same instance ID.
+Session recipient checks can still be applied locally when needed.
+
+## Filtered replay and waiting
+
+MCP `replay_messages` and `wait_messages`, HTTP POST `/v1/messages/replay` and
+`/v1/messages/wait`, and CLI `replay`, `wait`, and `watch` accept these optional
+filters. Wire fields are top-level; CLI flags replace underscores with hyphens.
+Empty values disable a filter; all nonempty filters must match.
+
+| Field | Match |
+| --- | --- |
+| `for_instance` | Envelope `recipient_instances` contains this exact ID, **or both recipient lists are absent/empty** (including legacy messages without an envelope). A session-only addressed message is not a broadcast. |
+| `from_instance` | The message's self-reported `agent_instance.id` equals this exact ID. Legacy senders without a claim do not match. |
+| `task_id` | Envelope `task_id` equals this exact ID. |
+| `schema` | Envelope `schema` equals this exact versioned name. |
+
+Instance filters use the same 1–64 character ID syntax as sender claims.
+Unknown task IDs and schema names simply match nothing. These filters are
+convenience selectors over the same shared context log. They neither grant
+access nor restrict what an authorized reader can obtain with another replay.
+`for_instance` does not check recipient session IDs; a consumer targeting one
+session should check those separately.
+
+Replay keeps its existing output, ordering, exclusive `after` cursor and
+1–1000 `limit`. Filtering happens **in SQL before ORDER BY/LIMIT**, so a page
+contains up to `limit` matching messages regardless of skipped sequences.
+Advance `after` to the last returned message's `Sequence`; an empty result means
+there are currently no later matches. Skipped sequences need no separate scan
+cursor. Unfiltered replay, including empty-result serialization, is unchanged.
+
+```go
+filters := comitia.MessageFilters{ForInstance: "issue-3-worker"}
+messages, err := svc.ReplayMessages(ctx, credential, contextID, after, 100, filters)
+messages, err = svc.WaitMessages(ctx, credential, contextID, after, 30*time.Second, filters)
+```
+
+Wait returns immediately if a matching message already exists, otherwise as
+soon as one is appended, with up to 100 matches in sequence order. A timeout
+returns an empty list without error. Each call caps the timeout at **60 seconds**,
+including MCP, HTTP and Go; negative values are invalid. Zero performs an
+immediate read. MCP and CLI default to 30 seconds; HTTP callers supply
+`timeout_seconds` (a number, omitted/zero means immediate). Fractional seconds
+are supported. Set client/proxy deadlines above the requested timeout; the
+stock HTTP client's default is 70 seconds. A client with a shorter deadline
+should request a shorter wait and repeat it after each empty result.
+
+```json
+{"context_id":"CONTEXT_ID","after":42,"timeout_seconds":30,"for_instance":"issue-3-worker","schema":"comitia.discussion.v1"}
+```
+
+HTTP uses the usual `messages` response field; it is omitted for an empty
+result, matching replay's response convention. The Go HTTP client normalizes
+empty waits to an empty slice. MCP and CLI `wait` return an empty JSON array.
+
+Append broadcasts an in-process notification **after commit** to every waiter
+in that context. Wait subscribes before reading to prevent a lost wakeup. A
+200 ms fallback poll detects commits by other services/processes using the same
+SQLite database and rechecks session/read-grant validity. No database transaction
+or connection is held while waiting. Context cancellation interrupts the wait;
+errors preserve the existing authentication, authorization and invalid-input
+sentinels. Deduplicated retries do not notify because they append no new row.
+
+### Watching from the CLI
+
+```sh
+comitia watch --context-id CONTEXT_ID --agent-instance issue-3-worker \
+  --for-instance issue-3-worker --schema comitia.discussion.v1
+# Through the installed wrapper:
+comitia-client codex watch --context-id CONTEXT_ID \
+  --agent-instance issue-3-worker --for-instance issue-3-worker
+```
+
+Watch reads the specified instance's persisted acknowledgement cursor on
+startup (the legacy session cursor if the instance is omitted). The
+`--agent-instance` flag selects the cursor; `--for-instance` selects recipients.
+It then repeatedly waits and prints tab-separated lines:
+
+```text
+43	issue-3-reviewer	comitia.discussion.v1	First line of the message body
+```
+
+Missing sender instance or schema is printed as `-`. Only the first body line
+is printed. Every successful print is followed by a monotonic acknowledgement
+using the same instance. `--no-ack` disables these writes while retaining the
+in-memory sequence and resuming from the persisted cursor on startup. Filtered
+watch therefore consumes a particular view of the log: use a separate instance
+cursor for a different view if you need to revisit skipped messages.
+
+`--timeout-seconds` defaults to 30, caps at 60, and must be positive for watch.
+Watch always starts from the persisted cursor; `--after` is for replay/wait.
+Connection/server failures retry with backoff from 250 ms to 5 seconds. The
+in-memory sequence survives reconnects; failed acknowledgements are retried
+before reading more, without reprinting the same line. Authentication,
+authorization and invalid-input errors end watch. Ctrl-C/SIGTERM cancels it.
+If the watch process itself dies after printing but before acknowledgement,
+that line can appear again when it restarts; delivery remains at least once.
 
 ## Envelope contract
 
@@ -363,6 +459,12 @@ uses an opaque storage key; upgraded readers expose the natural key from the
 scope table. Older binaries cannot reproduce instance-scoped dedupe for these
 colliding keys and may expose the opaque key or reject the retry. Backfill
 conflicts fail migration rather than silently leaving a message without a scope.
+
+Custom API/store implementations must accept optional `MessageFilters` in
+`ReplayMessages`/`Messages` and implement `API.WaitMessages`. Existing Go replay
+calls without filters remain valid. A custom store must filter before limiting
+(or provide equivalent paging) while the service retains the read-grant check.
+No new SQLite tables are required for replay filters or waiting.
 
 ## Task claims by instance
 

@@ -4,6 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"flag"
+	"os"
+	"os/signal"
+	"syscall"
 
 	"github.com/krimvp/comitia"
 )
@@ -51,15 +54,35 @@ func runMessages(ctx context.Context, cfg config, api comitia.API, out *json.Enc
 			return e
 		}
 		return out.Encode(v)
-	case "replay":
+	case "replay", "wait", "watch":
 		fs := newFlags(cmd)
 		cid := fs.String("context-id", "", "context ID")
 		after := fs.Int64("after", 0, "exclusive sequence cursor")
-		limit := fs.Int("limit", 100, "maximum messages")
+		limit := fs.Int("limit", 100, "maximum matching messages for replay")
+		timeoutSeconds := fs.Float64("timeout-seconds", 30, "wait timeout seconds (capped at 60)")
+		instance := fs.String("agent-instance", "", "self-reported instance ID for watch cursor")
+		noAck := fs.Bool("no-ack", false, "do not acknowledge printed watch messages")
+		filters := messageFilterFlags(fs)
 		if err := fs.Parse(args); err != nil {
 			return err
 		}
-		v, e := api.ReplayMessages(ctx, needCredential(cfg), *cid, *after, *limit)
+		if cmd == "replay" {
+			v, e := api.ReplayMessages(ctx, needCredential(cfg), *cid, *after, *limit, *filters)
+			if e != nil {
+				return e
+			}
+			return out.Encode(v)
+		}
+		timeout, e := comitia.MessageWaitTimeout(*timeoutSeconds)
+		if e != nil {
+			return e
+		}
+		if cmd == "watch" {
+			ctx, stop := signal.NotifyContext(ctx, os.Interrupt, syscall.SIGTERM)
+			defer stop()
+			return watchMessages(ctx, api, needCredential(cfg), *cid, *instance, timeout, *filters, !*noAck, os.Stdout)
+		}
+		v, e := api.WaitMessages(ctx, needCredential(cfg), *cid, *after, timeout, *filters)
 		if e != nil {
 			return e
 		}
@@ -103,4 +126,13 @@ func flagProvided(fs *flag.FlagSet, name string) bool {
 		}
 	})
 	return provided
+}
+
+func messageFilterFlags(fs *flag.FlagSet) *comitia.MessageFilters {
+	f := new(comitia.MessageFilters)
+	fs.StringVar(&f.ForInstance, "for-instance", "", "recipient instance or broadcast with no recipients")
+	fs.StringVar(&f.FromInstance, "from-instance", "", "self-reported sender instance")
+	fs.StringVar(&f.TaskID, "task-id", "", "envelope task ID")
+	fs.StringVar(&f.Schema, "schema", "", "exact envelope schema ID")
+	return f
 }

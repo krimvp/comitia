@@ -40,6 +40,16 @@ type MessageEnvelope struct {
 	ReplyTo             string          `json:"reply_to,omitempty"`
 	Payload             json.RawMessage `json:"payload"`
 }
+
+// MessageFilters narrow replay within the same context read permission.
+// Nonempty fields are combined with AND; routing metadata is self-reported.
+type MessageFilters struct {
+	ForInstance  string `json:"for_instance,omitempty"`
+	FromInstance string `json:"from_instance,omitempty"`
+	TaskID       string `json:"task_id,omitempty"`
+	Schema       string `json:"schema,omitempty"`
+}
+
 type PayloadValidator func(json.RawMessage) error
 type Participant struct {
 	SessionID, PrincipalID, Name string
@@ -49,16 +59,17 @@ type Participant struct {
 type MessageAPI interface {
 	ListParticipants(context.Context, string, string, int) ([]Participant, error)
 	AppendMessage(context.Context, string, string, MessageInput) (Message, error)
-	ReplayMessages(context.Context, string, string, int64, int) ([]Message, error)
+	ReplayMessages(context.Context, string, string, int64, int, ...MessageFilters) ([]Message, error)
 	AckMessages(context.Context, string, string, int64, ...string) error
 	MessageCursor(context.Context, string, string, ...string) (int64, error)
+	WaitMessages(context.Context, string, string, int64, time.Duration, ...MessageFilters) ([]Message, error)
 }
 type MessageReadStore interface {
 	Message(string) (Message, error)
 	Participants(string, time.Time, int) ([]Participant, error)
 	MessageByDedupe(string, string, string, ...string) (Message, error)
 	AckCursor(string, string, string) (int64, error)
-	Messages(string, int64, int) ([]Message, error)
+	Messages(string, int64, int, ...MessageFilters) ([]Message, error)
 }
 type MessageWriteStore interface {
 	PutMessage(Message) (Message, error)
