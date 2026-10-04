@@ -29,6 +29,11 @@ func OpenSQLite(path string) (*SQLiteStore, error) {
 	if e != nil {
 		return nil, e
 	}
+	if path != ":memory:" {
+		if e := privateSQLiteFiles(absPath); e != nil {
+			return nil, e
+		}
+	}
 	// Short busy waits let admission check cancellation between attempts.
 	// begin retains the overall contention budget for separate CLI processes.
 	dsn := (&url.URL{Scheme: "file", Path: absPath}).String() + "?_pragma=foreign_keys(1)&_pragma=busy_timeout(10)&_pragma=journal_mode(WAL)&_txlock=immediate"

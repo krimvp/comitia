@@ -6,7 +6,9 @@ import json
 import os
 from pathlib import Path
 import plistlib
+import secrets
 import shutil
+import shlex
 import socket
 import subprocess
 import sys
@@ -64,6 +66,11 @@ with local.installation_lock(root):
                        '--context-id', context['context_id'], '--permissions', 'read',
                        '--grant-ttl', local.child_ttl(owner, datetime.timedelta(hours=720)), token=local.token(owner))
         local.private_json(root/'credentials/viewer.json', observer)
+    launcher_key = root/'credentials/viewer-launch-key'
+    if not launcher_key.exists():
+        descriptor = os.open(launcher_key, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
+        with os.fdopen(descriptor, 'w') as stream:
+            stream.write(secrets.token_urlsafe(32) + '\n')
     # A reinstall never bootstraps or replaces an existing database or credential.
     viewer = root/'viewer'
     shutil.copytree(repo/'httpapi/ui/world-prototype', viewer, dirs_exist_ok=True,
@@ -87,9 +94,19 @@ with local.installation_lock(root):
     service_config.write_text(json.dumps({'server_url':f'http://127.0.0.1:{args.port}',
                                           'viewer_url':f'http://127.0.0.1:{args.viewer_port}'}, indent=2)+'\n')
     service_config.chmod(0o600)
+    viewer_launcher = root/'bin/comitia-viewer'
+    viewer_launcher.write_text('#!/bin/sh\nexec /usr/bin/python3 ' + shlex.quote(str(viewer/'launch.py')) + '\n')
+    viewer_launcher.chmod(0o700)
+    link = local_bin/'comitia-viewer'
+    if link.is_symlink() and link.resolve() == viewer_launcher:
+        pass
+    elif link.exists() or link.is_symlink():
+        raise RuntimeError(f'Refusing to replace an unrelated command: {link}')
+    else:
+        link.symlink_to(viewer_launcher)
     configs = [
         {'Label': labels[0], 'ProgramArguments': [str(binary), '--db', str(database), 'serve', '--listen', f'127.0.0.1:{args.port}']},
-        {'Label': labels[1], 'ProgramArguments': ['/usr/bin/python3', str(viewer/'serve.py'), '--port', str(args.viewer_port), '--upstream', f'http://127.0.0.1:{args.port}', '--credential-file', str(root/'credentials/owner.json')]}
+        {'Label': labels[1], 'ProgramArguments': ['/usr/bin/python3', str(viewer/'serve.py'), '--port', str(args.viewer_port), '--upstream', f'http://127.0.0.1:{args.port}', '--credential-file', str(root/'credentials/viewer.json'), '--launch-key-file', str(launcher_key)]}
     ]
     for config in configs:
         label = config['Label']
@@ -106,7 +123,7 @@ with local.installation_lock(root):
         subprocess.run(['launchctl', 'bootstrap', domain, str(path)], check=True)
     print(f'Comitia server: http://127.0.0.1:{args.port}')
     print(f'Agent world: http://127.0.0.1:{args.viewer_port}')
-    print('Automatic local sign-in enabled; the credential remains server-side.')
+    print('Open with comitia-viewer; launcher authentication keeps the read-only credential server-side.')
     print(f'Manual observer credential: {root / "credentials/viewer.json"}')
     print(f'Data: {database}')
     print(f'Owner expiry: {local.expires_at(owner).isoformat()}; rotate before expiry with --rotate-credentials.')

@@ -2,6 +2,7 @@ package comitia
 
 import (
 	"context"
+	"errors"
 	"time"
 )
 
@@ -39,6 +40,9 @@ func (s *Service) RevokeGrant(ctx context.Context, raw, grantID string) error {
 		}
 		if !a.principal.Admin {
 			g, e := w.Grant(grantID)
+			if errors.Is(e, ErrNotFound) {
+				return ErrForbidden
+			}
 			if e != nil {
 				return e
 			}
@@ -56,11 +60,32 @@ func (s *Service) GrantContext(ctx context.Context, raw string, in GrantInput) (
 		if e != nil {
 			return e
 		}
+		var parents []Grant
+		if !a.principal.Admin {
+			var err error
+			parents, err = w.Grants(a.session.ID, in.ContextID, s.now().UTC())
+			if err != nil {
+				return err
+			}
+			allowed := false
+			for _, p := range parents {
+				allowed = allowed || p.Permissions&PermissionGrant != 0
+			}
+			if !allowed {
+				return ErrForbidden
+			}
+		}
 		wc, e := w.Context(in.ContextID)
 		if e != nil {
+			if !a.principal.Admin && errors.Is(e, ErrNotFound) {
+				return ErrForbidden
+			}
 			return e
 		}
 		target, e := w.Session(in.SessionID)
+		if !a.principal.Admin && errors.Is(e, ErrNotFound) {
+			return ErrForbidden
+		}
 		if e != nil {
 			return e
 		}
@@ -82,10 +107,6 @@ func (s *Service) GrantContext(ctx context.Context, raw string, in GrantInput) (
 			}
 			g = Grant{ID: id(), SessionID: in.SessionID, ContextID: in.ContextID, IssuerSessionID: a.session.ID, Permissions: in.Permissions, ExpiresAt: in.ExpiresAt, CreatedAt: s.now().UTC()}
 			return w.PutGrant(g)
-		}
-		parents, e := w.Grants(a.session.ID, in.ContextID, s.now().UTC())
-		if e != nil {
-			return e
 		}
 		var source *Grant
 		for i := range parents {

@@ -3,6 +3,7 @@ package comitia
 import (
 	"context"
 	"crypto/subtle"
+	"errors"
 	"strings"
 	"time"
 )
@@ -187,6 +188,9 @@ func (s *Service) RevokeSession(ctx context.Context, raw, target string) error {
 			return e
 		}
 		t, e := w.Session(target)
+		if !a.principal.Admin && errors.Is(e, ErrNotFound) {
+			return ErrForbidden
+		}
 		if e != nil {
 			return e
 		}

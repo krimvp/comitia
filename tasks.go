@@ -71,7 +71,7 @@ func (s *Service) CreateTask(ctx context.Context, raw, cid string, in TaskInput)
 func (s *Service) GetTask(ctx context.Context, raw, id string) (Task, error) {
 	var t Task
 	e := s.store.View(ctx, func(r ReadStore) error {
-		found, e := r.Task(id)
+		found, e := s.privateTask(r, raw, id)
 		if e != nil {
 			return e
 		}
@@ -121,7 +121,7 @@ func (s *Service) ClaimTask(ctx context.Context, raw, taskID string, lease time.
 		}
 	}
 	e := s.store.Update(ctx, func(w WriteStore) error {
-		t, e := w.Task(taskID)
+		t, e := s.privateTask(w, raw, taskID)
 		if e != nil {
 			return e
 		}
@@ -170,7 +170,7 @@ func (s *Service) changeLease(ctx context.Context, raw, taskID, claimToken strin
 		return c, Invalidf("lease must be positive")
 	}
 	e := s.store.Update(ctx, func(w WriteStore) error {
-		t, e := w.Task(taskID)
+		t, e := s.privateTask(w, raw, taskID)
 		if e != nil {
 			return e
 		}
@@ -241,7 +241,7 @@ func leaseExpiry(now time.Time, lease time.Duration, holder Session) time.Time {
 func (s *Service) ReleaseTask(ctx context.Context, raw, taskID, claimToken string, version int64) (Task, error) {
 	var t Task
 	e := s.store.Update(ctx, func(w WriteStore) error {
-		found, e := w.Task(taskID)
+		found, e := s.privateTask(w, raw, taskID)
 		if e != nil {
 			return e
 		}
@@ -273,4 +273,17 @@ func (s *Service) ReleaseTask(ctx context.Context, raw, taskID, claimToken strin
 		return Task{}, e
 	}
 	return t, nil
+}
+
+// Authenticate before consulting private IDs. Missing and unreadable tasks have
+// the same public result, even for administrators without context access.
+func (s *Service) privateTask(r ReadStore, raw, taskID string) (Task, error) {
+	if _, err := s.auth(r, raw); err != nil {
+		return Task{}, err
+	}
+	t, err := r.Task(taskID)
+	if errors.Is(err, ErrNotFound) {
+		return Task{}, ErrForbidden
+	}
+	return t, err
 }
