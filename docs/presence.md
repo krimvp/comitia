@@ -15,12 +15,15 @@ check. Old rows remain available after their session expires or is revoked;
 `list_participants` continues to list current readable credential sessions.
 Comitia does not launch or resume processes using this metadata.
 
-Successful `send_message`, `replay_messages`, `message_cursor`, and `ack_messages`
-calls that name an instance update its last seen, including send retries and
-empty replay results. Replay accepts an optional **ID string** `agent_instance`,
-like cursor and ack. CLI replay accepts `--agent-instance ID`. Omitting the ID
-keeps legacy behavior and does not create an anonymous presence row. Heartbeats
-do not change replay filtering or acknowledgement cursors.
+Successful `send_message`, `replay_messages`, `wait_messages`, `message_cursor`,
+and `ack_messages` calls that name an instance update its last seen, including
+send retries and empty replay or timed-out wait results. Replay and wait accept
+an optional **ID string** `agent_instance`, like cursor and ack; CLI `replay`,
+`wait`, and `watch` accept `--agent-instance ID`, and `watch` records activity
+through its waits and acks. When the argument is omitted, MCP, the CLI and the
+HTTP client use `COMITIA_AGENT_INSTANCE` like send, cursor and ack; an explicit
+empty ID records no activity. Without an instance no anonymous presence row is
+created. Heartbeats do not change replay filtering or acknowledgement cursors.
 
 Heartbeats are throttled to at most once every **30 seconds per (session, context,
 instance)**. Send and ack check the stored timestamp and perform any due upsert
@@ -36,7 +39,9 @@ activity preserves the previous label and resume data; a supplied nonempty label
 replaces the label when a heartbeat is due. Use set_instance_resume to update
 metadata immediately.
 
-A process can set or replace its resume object through MCP:
+A process can set or replace its resume object through MCP (an omitted
+`agent_instance` defaults to `COMITIA_AGENT_INSTANCE` /
+`COMITIA_AGENT_INSTANCE_LABEL`, as for `send_message`):
 
 ```json
 {
@@ -75,6 +80,7 @@ HTTP uses authenticated POST requests with `Content-Type: application/json`:
 | `/v1/instances/list` | `{"context_id":"CONTEXT_ID"}` |
 | `/v1/instances/resume` | `{"context_id":"CONTEXT_ID","instance":{"id":"worker"},"resume":{"pid":123}}` |
 | `/v1/messages/replay` | `{"context_id":"CONTEXT_ID","agent_instance":"worker","after":0,"limit":100}` |
+| `/v1/messages/wait` | `{"context_id":"CONTEXT_ID","agent_instance":"worker","after":0,"timeout_seconds":30}` |
 
 HTTP uses `instance` for the resume instance object because its existing
 `agent_instance` request field holds a cursor/replay ID string. List responses
@@ -87,11 +93,15 @@ Go service and HTTP client methods:
 ```go
 ListInstances(ctx context.Context, token, contextID string) ([]comitia.InstancePresence, error)
 SetInstanceResume(ctx context.Context, token, contextID string, instance *comitia.AgentInstance, resume json.RawMessage) error
-ReplayMessages(ctx context.Context, token, contextID string, after int64, limit int, instance ...string) ([]comitia.Message, error)
+ReplayMessages(ctx context.Context, token, contextID string, after int64, limit int, filters ...comitia.MessageFilters) ([]comitia.Message, error)
+WaitMessages(ctx context.Context, token, contextID string, after int64, timeout time.Duration, filters ...comitia.MessageFilters) ([]comitia.Message, error)
 ```
 
-Existing replay calls without an instance remain valid. Custom API implementations
-must add `PresenceAPI` and the optional replay argument; custom stores implement
+Reads name the caller's instance with `MessageFilters.AgentInstance` (a `*string`);
+it never narrows the results. The service records no activity for nil or empty;
+the HTTP client substitutes its configured default for nil. Existing replay calls
+without an instance remain valid. Custom API implementations must add
+`PresenceAPI`; custom stores implement
 `Instances(contextID, now)`, `InstanceLastSeen(sessionID, contextID, instanceID)`,
 `PutInstancePresence` for explicit resume writes, and `TouchInstancePresence` for
 best-effort heartbeats. TouchInstancePresence must isolate a failed heartbeat

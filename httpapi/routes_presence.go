@@ -29,5 +29,5 @@ func (c *Client) ListInstances(ctx context.Context, token, cid string) ([]comiti
 	return out.Instances, err
 }
 func (c *Client) SetInstanceResume(ctx context.Context, token, cid string, instance *comitia.AgentInstance, resume json.RawMessage) error {
-	return c.call(ctx, token, "instances/resume", request{ContextID: cid, Instance: instance, Resume: resume}, &response{})
+	return c.call(ctx, token, "instances/resume", request{ContextID: cid, Instance: c.InstanceDefaults.Message(instance), Resume: resume}, &response{})
 }

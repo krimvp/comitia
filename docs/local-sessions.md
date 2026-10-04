@@ -62,8 +62,8 @@ comitia-local --session-file PATH send --context-id CONTEXT_ID \
   --dedupe-key started --body ready
 ```
 
-The CLI and `comitia mcp` default send/claim metadata and cursor/ack/watch scope to this
-instance. Explicit instance arguments override it. IDs are 1–64 ASCII letters,
+The CLI and `comitia mcp` default send/claim metadata, cursor/ack/watch scope and
+replay/wait/resume [presence](presence.md) to this instance. Explicit instance arguments override it. IDs are 1–64 ASCII letters,
 digits, dots, underscores, or hyphens; labels are at most 128 UTF-8 bytes without
 control characters. An invalid value or a label without an ID is a startup
 error for instance-aware commands; serve, bootstrap, and administrative commands

@@ -28,15 +28,7 @@ func runMessages(ctx context.Context, cfg config, api comitia.API, out *json.Enc
 		if e != nil {
 			return e
 		}
-		instance := cfg.instances.Message(nil)
-		if flagProvided(fs, "agent-instance") {
-			instance = &comitia.AgentInstance{ID: *instanceID, Label: *instanceLabel}
-		} else if flagProvided(fs, "agent-instance-label") {
-			if instance == nil {
-				instance = &comitia.AgentInstance{}
-			}
-			instance.Label = *instanceLabel
-		}
+		instance := messageInstance(cfg, fs, *instanceID, *instanceLabel)
 		v, e := api.AppendMessage(ctx, needCredential(cfg), *cid, comitia.MessageInput{DedupeKey: *key, Body: *body, Envelope: envelope, AgentInstance: instance})
 		if e != nil {
 			return e
@@ -60,20 +52,15 @@ func runMessages(ctx context.Context, cfg config, api comitia.API, out *json.Enc
 		after := fs.Int64("after", 0, "exclusive sequence cursor")
 		limit := fs.Int("limit", 100, "maximum matching messages for replay")
 		timeoutSeconds := fs.Float64("timeout-seconds", 30, "wait timeout seconds (capped at 60)")
-		defaultID := ""
-		if cmd == "watch" {
-			defaultID, _ = cfg.instances.ID()
-		}
-		instance := fs.String("agent-instance", defaultID, "self-reported instance ID for replay presence or watch cursor (watch defaults to COMITIA_AGENT_INSTANCE)")
+		defaultID, _ := cfg.instances.ID()
+		instance := fs.String("agent-instance", defaultID, "self-reported instance ID for presence and the watch cursor (defaults to COMITIA_AGENT_INSTANCE)")
 		noAck := fs.Bool("no-ack", false, "do not acknowledge printed watch messages")
 		filters := messageFilterFlags(fs)
 		if err := fs.Parse(args); err != nil {
 			return err
 		}
+		filters.AgentInstance = instance
 		if cmd == "replay" {
-			if *instance != "" {
-				filters.AgentInstance = instance
-			}
 			v, e := api.ReplayMessages(ctx, needCredential(cfg), *cid, *after, *limit, *filters)
 			if e != nil {
 				return e
@@ -133,6 +120,21 @@ func flagProvided(fs *flag.FlagSet, name string) bool {
 		}
 	})
 	return provided
+}
+
+// messageInstance applies explicit flags over COMITIA_AGENT_INSTANCE defaults;
+// a label flag alone relabels the default instance.
+func messageInstance(cfg config, fs *flag.FlagSet, id, label string) *comitia.AgentInstance {
+	instance := cfg.instances.Message(nil)
+	if flagProvided(fs, "agent-instance") {
+		instance = &comitia.AgentInstance{ID: id, Label: label}
+	} else if flagProvided(fs, "agent-instance-label") {
+		if instance == nil {
+			instance = &comitia.AgentInstance{}
+		}
+		instance.Label = label
+	}
+	return instance
 }
 
 func messageFilterFlags(fs *flag.FlagSet) *comitia.MessageFilters {

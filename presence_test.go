@@ -51,6 +51,13 @@ func TestInstancePresenceHeartbeatsAndResume(t *testing.T) {
 			}
 			return err
 		},
+		func() error {
+			rows, err := f.svc.WaitMessages(ctx, raw, cid, m.Sequence, 0, instanceFilter(instance.ID))
+			if len(rows) != 0 {
+				t.Fatal("expected empty wait")
+			}
+			return err
+		},
 		func() error { _, err := f.svc.MessageCursor(ctx, raw, cid, instance.ID); return err },
 		func() error { return f.svc.AckMessages(ctx, raw, cid, m.Sequence, instance.ID) },
 	}

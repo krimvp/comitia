@@ -119,6 +119,8 @@ Empty values disable a filter; all nonempty filters must match.
 | `schema` | Envelope `schema` equals this exact versioned name. |
 
 Instance filters use the same 1–64 character ID syntax as sender claims.
+`agent_instance` (an ID string, defaulting to `COMITIA_AGENT_INSTANCE`) is not a
+filter: it names the reader for [instance presence](presence.md).
 Unknown task IDs and schema names simply match nothing. These filters are
 convenience selectors over the same shared context log. They neither grant
 access nor restrict what an authorized reader can obtain with another replay.
@@ -273,7 +275,8 @@ recipients. The sender must still be authorized to write.
 
 With an environment default configured, send cannot opt out of an instance:
 an explicit empty send ID is invalid. Cursor/ack accept an explicit empty ID
-(`agent_instance: ""` or `--agent-instance ""`) to select the legacy cursor.
+(`agent_instance: ""` or `--agent-instance ""`) to select the legacy cursor;
+on replay/wait it records no presence activity.
 
 New messages validate all task/reply references and recipients in the same
 transaction as insertion. Revoked/expired sessions, names used as IDs,

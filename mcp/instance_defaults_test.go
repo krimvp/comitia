@@ -16,6 +16,31 @@ type instanceAPI struct {
 	acks     []string
 	cursors  []string
 	claims   []comitia.AgentInstance
+	reads    []string
+	resumes  []comitia.AgentInstance
+}
+
+func (a *instanceAPI) read(filters []comitia.MessageFilters) {
+	instance := "<nil>"
+	if filters[0].AgentInstance != nil {
+		instance = *filters[0].AgentInstance
+	}
+	a.reads = append(a.reads, instance)
+}
+
+func (a *instanceAPI) ReplayMessages(_ context.Context, _, _ string, _ int64, _ int, filters ...comitia.MessageFilters) ([]comitia.Message, error) {
+	a.read(filters)
+	return []comitia.Message{}, nil
+}
+
+func (a *instanceAPI) WaitMessages(_ context.Context, _, _ string, _ int64, _ time.Duration, filters ...comitia.MessageFilters) ([]comitia.Message, error) {
+	a.read(filters)
+	return []comitia.Message{}, nil
+}
+
+func (a *instanceAPI) SetInstanceResume(_ context.Context, _, _ string, instance *comitia.AgentInstance, _ json.RawMessage) error {
+	a.resumes = append(a.resumes, *instance)
+	return nil
 }
 
 func (a *instanceAPI) AppendMessage(_ context.Context, _, _ string, in comitia.MessageInput) (comitia.Message, error) {
@@ -57,6 +82,13 @@ func TestMCPInstanceDefaultsOnBothTransports(t *testing.T) {
 		`{"jsonrpc":"2.0","id":9,"method":"tools/call","params":{"name":"claim_task","arguments":{"task_id":"t"}}}`,
 		`{"jsonrpc":"2.0","id":10,"method":"tools/call","params":{"name":"claim_task","arguments":{"task_id":"t","agent_instance":{"id":"explicit"}}}}`,
 		`{"jsonrpc":"2.0","id":11,"method":"tools/call","params":{"name":"claim_task","arguments":{"task_id":"t","agent_instance":null}}}`,
+		`{"jsonrpc":"2.0","id":9,"method":"tools/call","params":{"name":"replay_messages","arguments":{"context_id":"c"}}}`,
+		`{"jsonrpc":"2.0","id":10,"method":"tools/call","params":{"name":"replay_messages","arguments":{"context_id":"c","agent_instance":"explicit"}}}`,
+		`{"jsonrpc":"2.0","id":11,"method":"tools/call","params":{"name":"replay_messages","arguments":{"context_id":"c","agent_instance":""}}}`,
+		`{"jsonrpc":"2.0","id":12,"method":"tools/call","params":{"name":"wait_messages","arguments":{"context_id":"c","timeout_seconds":0}}}`,
+		`{"jsonrpc":"2.0","id":13,"method":"tools/call","params":{"name":"wait_messages","arguments":{"context_id":"c","timeout_seconds":0,"agent_instance":""}}}`,
+		`{"jsonrpc":"2.0","id":14,"method":"tools/call","params":{"name":"set_instance_resume","arguments":{"context_id":"c","resume":{}}}}`,
+		`{"jsonrpc":"2.0","id":15,"method":"tools/call","params":{"name":"set_instance_resume","arguments":{"context_id":"c","resume":{},"agent_instance":{"id":"explicit"}}}}`,
 	}
 	for _, transport := range []string{"stdio", "http"} {
 		t.Run(transport, func(t *testing.T) {
@@ -96,12 +128,18 @@ func TestMCPInstanceDefaultsOnBothTransports(t *testing.T) {
 			if strings.Join(api.acks, ",") != "worker,explicit," || strings.Join(api.cursors, ",") != "worker,explicit," {
 				t.Fatalf("cursor defaults: ack=%v cursor=%v", api.acks, api.cursors)
 			}
+			if strings.Join(api.reads, ",") != "worker,explicit,<nil>,worker,<nil>" {
+				t.Fatalf("presence read defaults: %v", api.reads)
+			}
+			if len(api.resumes) != 2 || api.resumes[0] != (comitia.AgentInstance{ID: "worker", Label: "Worker"}) || api.resumes[1] != (comitia.AgentInstance{ID: "explicit"}) {
+				t.Fatalf("resume defaults: %v", api.resumes)
+			}
 		})
 	}
 }
 
 func TestInstanceToolDescriptions(t *testing.T) {
-	for _, name := range []string{"send_message", "claim_task", "ack_messages", "message_cursor"} {
+	for _, name := range []string{"send_message", "claim_task", "ack_messages", "message_cursor", "replay_messages", "wait_messages", "set_instance_resume"} {
 		found := false
 		for _, tool := range tools() {
 			if tool["name"] == name {

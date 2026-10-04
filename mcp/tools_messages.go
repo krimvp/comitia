@@ -20,7 +20,7 @@ func messageTools() []map[string]any {
 }
 
 func messageReadProperties(wait bool) map[string]any {
-	p := map[string]any{"context_id": str("Context ID"), "after": integer("Exclusive sequence cursor"), "for_instance": str("Recipient instance, caller session with no instance recipients, or broadcast"), "from_instance": str("Self-reported sender instance"), "task_id": str("Envelope task ID"), "schema": str("Exact envelope schema ID"), "agent_instance": str("Optional self-reported instance ID for presence")}
+	p := map[string]any{"context_id": str("Context ID"), "after": integer("Exclusive sequence cursor"), "for_instance": str("Recipient instance, caller session with no instance recipients, or broadcast"), "from_instance": str("Self-reported sender instance"), "task_id": str("Envelope task ID"), "schema": str("Exact envelope schema ID"), "agent_instance": str("Optional self-reported instance ID for presence; defaults to COMITIA_AGENT_INSTANCE")}
 	if wait {
 		p["timeout_seconds"] = map[string]any{"type": "number", "description": "Timeout seconds (default 30, capped at 60; zero reads immediately)"}
 	} else {
@@ -81,7 +81,11 @@ func (s *Server) callMessages(ctx context.Context, name string, raw json.RawMess
 		if a.Limit == 0 {
 			a.Limit = 100
 		}
-		return s.API.ReplayMessages(ctx, s.Credential, a.ContextID, a.After, a.Limit, a.MessageFilters)
+		filters, err := presenceFilters(s.InstanceDefaults, a.MessageFilters)
+		if err != nil {
+			return nil, err
+		}
+		return s.API.ReplayMessages(ctx, s.Credential, a.ContextID, a.After, a.Limit, filters)
 	case "wait_messages":
 		var a struct {
 			comitia.MessageFilters
@@ -103,7 +107,11 @@ func (s *Server) callMessages(ctx context.Context, name string, raw json.RawMess
 				return nil, err
 			}
 		}
-		return s.API.WaitMessages(ctx, s.Credential, a.ContextID, a.After, timeout, a.MessageFilters)
+		filters, err := presenceFilters(s.InstanceDefaults, a.MessageFilters)
+		if err != nil {
+			return nil, err
+		}
+		return s.API.WaitMessages(ctx, s.Credential, a.ContextID, a.After, timeout, filters)
 	case "ack_messages":
 		var a struct {
 			ContextID     string  `json:"context_id"`

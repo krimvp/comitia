@@ -10,14 +10,6 @@ import (
 	"github.com/krimvp/comitia"
 )
 
-// Shared by send and resume so configured defaults can be resolved in one place.
-func instanceMetadata(id, label string) *comitia.AgentInstance {
-	if id == "" && label == "" {
-		return nil
-	}
-	return &comitia.AgentInstance{ID: id, Label: label}
-}
-
 func runPresence(ctx context.Context, cfg config, api comitia.API, out *json.Encoder, cmd string, args []string) error {
 	switch cmd {
 	case "instances":
@@ -34,8 +26,8 @@ func runPresence(ctx context.Context, cfg config, api comitia.API, out *json.Enc
 	case "instance-resume":
 		fs := newFlags(cmd)
 		cid := fs.String("context-id", "", "context ID")
-		instance := fs.String("agent-instance", "", "self-reported instance ID")
-		label := fs.String("agent-instance-label", "", "optional self-reported instance label")
+		instance := fs.String("agent-instance", "", "self-reported instance ID (defaults to COMITIA_AGENT_INSTANCE)")
+		label := fs.String("agent-instance-label", "", "optional self-reported instance label (defaults to COMITIA_AGENT_INSTANCE_LABEL)")
 		file := fs.String("resume-file", "", "resume metadata JSON object file (at most 4096 bytes)")
 		if err := fs.Parse(args); err != nil {
 			return err
@@ -55,7 +47,7 @@ func runPresence(ctx context.Context, cfg config, api comitia.API, out *json.Enc
 		if len(raw) > comitia.MaxInstanceResumeBytes || !json.Valid(raw) {
 			return fmt.Errorf("%w: invalid resume JSON or size", comitia.ErrInvalid)
 		}
-		if err := api.SetInstanceResume(ctx, needCredential(cfg), *cid, instanceMetadata(*instance, *label), raw); err != nil {
+		if err := api.SetInstanceResume(ctx, needCredential(cfg), *cid, messageInstance(cfg, fs, *instance, *label), raw); err != nil {
 			return err
 		}
 		return out.Encode(map[string]bool{"ok": true})

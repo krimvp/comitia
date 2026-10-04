@@ -139,6 +139,21 @@ func TestRemoteInstanceDefaults(t *testing.T) {
 	}
 	if _, err := legacy.ClaimTask(ctx, owner.Token, task.ID, time.Minute, comitia.AgentInstance{}); !errors.Is(err, comitia.ErrInvalid) {
 		t.Fatalf("empty legacy claim: %v", err)
+	presence, err := svc.CreateContext(ctx, owner.Token, comitia.CreateContextInput{WorkspaceID: w.ID, Name: "presence"})
+	legacy := ""
+	if _, err := worker.ReplayMessages(ctx, owner.Token, presence.ID, 0, 10, comitia.MessageFilters{AgentInstance: &legacy}); err != nil {
+	if _, err := worker.WaitMessages(ctx, owner.Token, presence.ID, 0, 0, comitia.MessageFilters{AgentInstance: &legacy}); err != nil {
+	if rows, err := svc.ListInstances(ctx, owner.Token, presence.ID); err != nil || len(rows) != 0 {
+		t.Fatalf("explicit empty instance recorded presence: %v %v", rows, err)
+	if _, err := worker.ReplayMessages(ctx, owner.Token, presence.ID, 0, 10); err != nil {
+	if _, err := reviewer.WaitMessages(ctx, owner.Token, presence.ID, 0, 0, comitia.MessageFilters{}); err != nil {
+	if err := worker.SetInstanceResume(ctx, owner.Token, presence.ID, nil, []byte(`{"pid":1}`)); err != nil {
+	rows, err := svc.ListInstances(ctx, owner.Token, presence.ID)
+	if err != nil || len(rows) != 2 {
+		t.Fatalf("default presence: %v %v", rows, err)
+	for _, row := range rows {
+		if row.ID == "worker" && (row.Label != "Worker" || string(row.Resume) != `{"pid":1}`) || row.ID != "worker" && row.ID != "reviewer" {
+			t.Fatalf("default presence row: %+v", row)
 	}
 }
 
