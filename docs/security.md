@@ -78,6 +78,19 @@ a remote caller cannot read a server-local credential file, so delegation over
 HTTP only makes sense when a launcher on the server host consumes the files.
 Stdio `mcp` always offers it.
 
+`COMITIA_MCP_HTTP_ALLOW_DELEGATION` and `COMITIA_MCP_HTTP_LOG` default to
+false when unset or empty. Accepted true values are `1`, `t`, `T`, `true`,
+`TRUE`, `True`; accepted false values are `0`, `f`, `F`, `false`, `FALSE`,
+`False`. Other values fail startup. Explicit `--allow-delegation` and
+`--log-requests` flags take precedence over their respective environment
+variables, even invalid ones; use `=false` to disable either feature.
+
+Optional `mcp-http --log-requests` logging records only an allowlisted HTTP
+verb (unknown verbs become `other`), the constant `/mcp` route, status and
+duration. Request paths, query strings, headers (including protocol and MCP
+method headers), remote addresses and bodies are excluded because they can
+contain credentials or private coordination content.
+
 Grant expiries are computed on the MCP host clock, the session expiry on the
 daemon clock. With a remote daemon whose clock is behind the MCP host, a grant
 TTL equal to the session TTL can exceed the session and is rejected with
