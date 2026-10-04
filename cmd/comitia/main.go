@@ -17,6 +17,7 @@ import (
 type config struct {
 	db, serverURL, credential, bootstrapCredential string
 	instances                                      comitia.InstanceDefaults
+	maxContextDepth, maxChildContextsPerGrant      int
 }
 
 func env(key, fallback string) string {
@@ -78,6 +79,13 @@ func run(ctx context.Context, args []string) error {
 	if cmd == "bootstrap" && cfg.serverURL != "" {
 		return errors.New("bootstrap is available only with embedded SQLite")
 	}
+	if cmd == "serve" {
+		_, depth, count, err := serveFlags(args)
+		if err != nil {
+			return err
+		}
+		cfg.maxContextDepth, cfg.maxChildContextsPerGrant = depth, count
+	}
 	api, closeFn, err := open(cfg)
 	if err != nil {
 		return err
@@ -101,7 +109,7 @@ func open(cfg config) (comitia.API, func(), error) {
 	if e != nil {
 		return nil, func() {}, e
 	}
-	svc, e := comitia.New(comitia.Config{Store: store, BootstrapCredential: cfg.bootstrapCredential})
+	svc, e := comitia.New(comitia.Config{Store: store, BootstrapCredential: cfg.bootstrapCredential, MaxContextDepth: cfg.maxContextDepth, MaxChildContextsPerGrant: cfg.maxChildContextsPerGrant})
 	if e != nil {
 		store.Close()
 		return nil, func() {}, e
@@ -115,7 +123,7 @@ func newFlags(name string) *flag.FlagSet {
 	return f
 }
 func usage() error {
-	return errors.New("usage: comitia [--db PATH | --server-url URL] [--credential TOKEN] <bootstrap|workspace-create|context-create|context-list|context-children|reference-add|delegate|revoke|participants|send|replay|ack|cursor|task-create|task-get|task-list|task-claim|task-renew|task-complete|task-release|serve|mcp|mcp-http|grant> [flags]")
+	return errors.New("usage: comitia [--db PATH | --server-url URL] [--credential TOKEN] <bootstrap|workspace-create|context-create|context-list|context-children|reference-add|delegate|revoke|participants|send|replay|ack|cursor|task-create|task-get|task-list|task-claim|task-renew|task-complete|task-release|serve|mcp|mcp-http|context-archive|grant> [flags]")
 }
 
 func parsePermissions(s string) (comitia.Permission, error) {

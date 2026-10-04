@@ -171,7 +171,43 @@ get the full creator set on the child. Only administrators create top-level cont
 `--workspace-id`. `create` is part of `all`; delegate it explicitly with
 `--permissions read,write,create`. Grants stored as `all` before `create`
 existed do not include it. Nothing is relayed between contexts automatically.
-Custom `ReadStore` implementations must also provide
+
+Top-level contexts have depth **0**. The default maximum depth is **3** (three
+child levels), and each creating grant can create at most **20** children.
+Archived children still count toward that grant's lifetime quota. Configure the
+server with `comitia serve --max-context-depth 3 --max-child-contexts-per-grant 20`,
+or set `Config.MaxContextDepth` and `Config.MaxChildContextsPerGrant` in embedded
+applications. Config zero values use the defaults; negative values and
+nonpositive serve flags are invalid. Limits are checked atomically at creation;
+reducing them does not remove existing contexts or prevent reading deeper trees.
+
+A holder of `grant` on a context, or an administrator, can archive it:
+
+```sh
+./bin/comitia context-archive --context-id "$context_id"
+```
+
+The library method is `ArchiveContext(ctx, credential, contextID)` and the HTTP
+route is `POST /v1/contexts/archive` with `{"context_id":"..."}`. Archiving is
+idempotent and preserves its original timestamp. Archived contexts reject
+messages, task creation/claim/renewal/completion, references, grants (including
+delegated grants), and new children with `ErrInvalid` / HTTP 400 and a clear
+reason. Context metadata exposes `Archived` and nullable `ArchivedAt` through
+get, list, and child listing. Replay, task reads, listing, and reader acknowledgement
+cursors keep working for sessions that still have access. Administrator status
+alone does not grant read access, even after archiving.
+
+A child also counts as archived as soon as its **original creator grant** becomes
+ineffective, whether that grant or a parent grant is revoked/expired, or a grant
+owner/issuer session is revoked/expired. This state is computed on access, so no
+background job is needed; `ArchivedAt` is the first time access ended. Another
+grant to the creator does not extend that original lifetime. Independently
+granted members can still read; members whose access hangs off the creator's
+revoked/expired grant lose access as usual. Explicitly archiving a parent does
+not archive its children or revoke existing grants. Archival cannot be undone.
+
+Custom stores must also implement the context lifecycle methods on
+`ContextReadStore` and `ContextWriteStore`, in addition to
 `ChildContexts(parentID, afterID, limit)`.
 
 Filters and thread links cover loaded history, not an implicit global search.

@@ -149,6 +149,9 @@ func (s *Service) DelegateSession(ctx context.Context, raw string, in DelegateIn
 			if e != nil {
 				return e
 			}
+			if e = s.contextActive(w, req.ContextID); e != nil {
+				return e
+			}
 			var source *Grant
 			for i := range parents {
 				g := &parents[i]

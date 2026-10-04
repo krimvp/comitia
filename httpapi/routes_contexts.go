@@ -44,6 +44,8 @@ func (h *handler) routeContexts(ctx context.Context, token, route string, q requ
 		var v comitia.Reference
 		v, err = h.api.AddReference(ctx, token, *q.Reference)
 		out.Reference = &v
+	case "contexts/archive":
+		err = h.api.ArchiveContext(ctx, token, q.ContextID)
 	default:
 		return false, nil
 	}
@@ -99,4 +101,8 @@ func (c *Client) ListContexts(ctx context.Context, token, afterID string, limit 
 	var out response
 	err := c.call(ctx, token, "contexts/list", request{AfterID: afterID, Limit: limit}, &out)
 	return out.Contexts, err
+}
+
+func (c *Client) ArchiveContext(ctx context.Context, token, contextID string) error {
+	return c.call(ctx, token, "contexts/archive", request{ContextID: contextID}, &response{})
 }

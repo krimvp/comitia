@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"os"
 	"strings"
@@ -20,12 +21,11 @@ func runServe(ctx context.Context, cfg config, api comitia.API, out *json.Encode
 		if cfg.serverURL != "" {
 			return errors.New("serve requires embedded SQLite")
 		}
-		fs := newFlags(cmd)
-		listen := fs.String("listen", env("COMITIA_LISTEN", "127.0.0.1:8080"), "listen address")
-		if err := fs.Parse(args); err != nil {
+		listen, _, _, err := serveFlags(args)
+		if err != nil {
 			return err
 		}
-		return http.ListenAndServe(*listen, httpapi.NewHandler(api))
+		return http.ListenAndServe(listen, httpapi.NewHandler(api))
 	case "mcp":
 		if err := newFlags(cmd).Parse(args); err != nil {
 			return err
@@ -84,4 +84,18 @@ func runServe(ctx context.Context, cfg config, api comitia.API, out *json.Encode
 	default:
 		return errUnknownCommand
 	}
+}
+
+func serveFlags(args []string) (string, int, int, error) {
+	fs := newFlags("serve")
+	listen := fs.String("listen", env("COMITIA_LISTEN", "127.0.0.1:8080"), "listen address")
+	depth := fs.Int("max-context-depth", 3, "maximum child nesting depth (top-level is 0)")
+	count := fs.Int("max-child-contexts-per-grant", 20, "maximum children created by each grant (including archived children)")
+	if err := fs.Parse(args); err != nil {
+		return "", 0, 0, err
+	}
+	if *depth < 1 || *count < 1 {
+		return "", 0, 0, fmt.Errorf("%w: context limits must be positive", comitia.ErrInvalid)
+	}
+	return *listen, *depth, *count, nil
 }
