@@ -289,3 +289,78 @@ func TestContextParentsMigration(t *testing.T) {
 		t.Fatalf("existing context: %+v %v", got, err)
 	}
 }
+
+func TestParentReadableChains(t *testing.T) {
+	f := setup(t, ":memory:")
+	defer f.store.Close()
+	ctx := context.Background()
+	coord, _ := delegate(t, f, f.admin.Token, "coord", f.context.ID, PermissionRead|PermissionCreate, time.Hour)
+	member, _ := delegate(t, f, f.admin.Token, "member", f.context.ID, PermissionRead, time.Hour)
+	create := func(parent string, readable bool) WorkContext {
+		t.Helper()
+		c, err := f.svc.CreateChildContext(ctx, coord.Token, CreateChildContextInput{ParentContextID: parent, Name: "c", ParentReadable: readable})
+		if err != nil {
+			t.Fatal(err)
+		}
+		return c
+	}
+	underReadable := create(create(f.context.ID, true).ID, true)
+	underPrivate := create(create(f.context.ID, false).ID, true)
+	if _, err := f.svc.ReplayMessages(ctx, member.Token, underReadable.ID, 0, 10); err != nil {
+		t.Fatalf("readable chain: %v", err)
+	}
+	if _, err := f.svc.ReplayMessages(ctx, member.Token, underPrivate.ID, 0, 10); !errors.Is(err, ErrForbidden) {
+		t.Fatalf("chain through private child: %v", err)
+	}
+}
+
+func TestRevokingCreatorSessionCascadesToChild(t *testing.T) {
+	f := setup(t, ":memory:")
+	defer f.store.Close()
+	ctx := context.Background()
+	coord, _ := delegate(t, f, f.admin.Token, "coord", f.context.ID, PermissionRead|PermissionCreate, time.Hour)
+	child, err := f.svc.CreateChildContext(ctx, coord.Token, CreateChildContextInput{ParentContextID: f.context.ID, Name: "c"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	helper, _ := delegate(t, f, coord.Token, "helper", child.ID, PermissionRead|PermissionWrite, 30*time.Minute)
+	if err := f.svc.RevokeSession(ctx, f.admin.Token, coord.Session.ID); err != nil {
+		t.Fatal(err)
+	}
+	for name, tok := range map[string]string{"coord": coord.Token, "helper": helper.Token} {
+		if _, err := f.svc.ReplayMessages(ctx, tok, child.ID, 0, 10); !errors.Is(err, ErrUnauthenticated) {
+			t.Fatalf("%s after session revoke: %v", name, err)
+		}
+	}
+}
+
+// Read through a parent_readable child allows a session's own cursor, but it is not a direct grant, so the session
+// cannot be addressed as a recipient in the child.
+func TestParentReadableCursorButNotRecipient(t *testing.T) {
+	f := setup(t, ":memory:")
+	defer f.store.Close()
+	ctx := context.Background()
+	coord, _ := delegate(t, f, f.admin.Token, "coord", f.context.ID, PermissionRead|PermissionCreate, time.Hour)
+	member, _ := delegate(t, f, f.admin.Token, "member", f.context.ID, PermissionRead, time.Hour)
+	child, err := f.svc.CreateChildContext(ctx, coord.Token, CreateChildContextInput{ParentContextID: f.context.ID, Name: "c", ParentReadable: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := f.svc.AppendMessage(ctx, coord.Token, child.ID, MessageInput{DedupeKey: "k", Body: "x"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := f.svc.AckMessages(ctx, member.Token, child.ID, 1); err != nil {
+		t.Fatal(err)
+	}
+	if cur, err := f.svc.MessageCursor(ctx, member.Token, child.ID); err != nil || cur != 1 {
+		t.Fatalf("cursor: %d %v", cur, err)
+	}
+	direct := &MessageEnvelope{Schema: "comitia.discussion.v1", Payload: []byte(`{}`), RecipientSessionIDs: []string{coord.Session.ID}}
+	if _, err := f.svc.AppendMessage(ctx, coord.Token, child.ID, MessageInput{DedupeKey: "d", Body: "x", Envelope: direct}); err != nil {
+		t.Fatalf("direct recipient: %v", err)
+	}
+	env := &MessageEnvelope{Schema: "comitia.discussion.v1", Payload: []byte(`{}`), RecipientSessionIDs: []string{member.Session.ID}}
+	if _, err := f.svc.AppendMessage(ctx, coord.Token, child.ID, MessageInput{DedupeKey: "r", Body: "x", Envelope: env}); !errors.Is(err, ErrForbidden) {
+		t.Fatalf("recipient via parent read: %v", err)
+	}
+}

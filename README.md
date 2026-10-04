@@ -155,7 +155,12 @@ delegates' access to the child. Children are private by default: members with
 `read` on the parent see only metadata (ID, name, creator session, `TaskID`) via
 `context-children` or `POST /v1/contexts/children`, and need their own grant to
 read messages or tasks. Pass `--parent-readable` to let parent readers also read
-(never write) the child. Only administrators create top-level contexts with
+(never write) the child; such readers can ack and keep their own cursor, but
+cannot be addressed in `recipient_session_ids`, which needs a direct grant on
+the child. Children readable only through the parent appear in
+`context-children`, not in `context-list`. The creator's child permissions do
+not depend on its parent permissions: `read,create` on the parent is enough to
+get the full creator set on the child. Only administrators create top-level contexts with
 `--workspace-id`. `create` is part of `all`; delegate it explicitly with
 `--permissions read,write,create`. Grants stored as `all` before `create`
 existed do not include it. Nothing is relayed between contexts automatically.
