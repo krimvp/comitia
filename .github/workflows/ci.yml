@@ -32,11 +32,11 @@ jobs:
       - run: go test -race ./...
 
       - name: Repeat race and crash recovery checks
-        run: go test -race -count=10 -run 'TestCrashRecovery|TestSecurity' .
+        run: go test -race -count=10 -run 'TestCrashRecovery|TestSecurity|TestSQLite' .
       - name: Build Linux binary
         run: CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath -o dist/comitia ./cmd/comitia
-      - name: Multi-process stress
-        run: python3 scripts/stress_agents.py --binary "$PWD/dist/comitia" --workers 12 --messages 100 > dist/stress.json
+      - name: Multi-process stress (3 runs)
+        run: for run in 1 2 3; do python3 scripts/stress_agents.py --binary "$PWD/dist/comitia" --workers 12 --messages 100 >> dist/stress.json || exit 1; done
       - uses: actions/upload-artifact@v4
         with:
           name: comitia-linux-amd64
