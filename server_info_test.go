@@ -26,7 +26,7 @@ func TestServerInfoSessionAndFeatures(t *testing.T) {
 	if err != nil || info.Version == "" || info.ProtocolVersion != ProtocolVersion {
 		t.Fatalf("info=%+v err=%v", info, err)
 	}
-	want := []string{"agent_instances", "default_agent_instance", "child_contexts", "invites", "context_archive", "task_status", "approvals", "instance_claims", "replay_filters", "wait_messages", "context_tools", "grant_tools", "delegated_sessions"}
+	want := []string{"agent_instances", "default_agent_instance", "child_contexts", "invites", "context_archive", "task_status", "approvals", "instance_claims", "replay_filters", "wait_messages", "context_tools", "grant_tools", "delegated_sessions", "presence"}
 	for _, feature := range want {
 		if !slices.Contains(info.Features, feature) {
 			t.Fatalf("missing feature %q: %v", feature, info.Features)

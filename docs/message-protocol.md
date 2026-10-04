@@ -565,7 +565,9 @@ The feature table is maintained in `server_info.go` and currently lists
 `context_archive`, `task_status`, `approvals`, `instance_claims`,
 `replay_filters`, `wait_messages`, `context_tools` (`create_context`,
 `list_contexts`, `list_child_contexts`), `grant_tools` (`grant_context`,
-`revoke_grant`) and `delegated_sessions` (`delegate_session`, `revoke_session`).
+`revoke_grant`), `delegated_sessions` (`delegate_session`, `revoke_session`) and
+`presence` (`list_instances`, `set_instance_resume`, read heartbeats; see
+[instance presence](presence.md)).
 A remote `mcp-http` adapter offers `delegate_session` only with
 `--allow-delegation`, so check the tool schema as well. Optional functionality must
 be gated on both its advertised feature and the running MCP tool schema. For

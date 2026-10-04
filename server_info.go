@@ -46,6 +46,7 @@ var serverFeatures = []string{
 	"context_tools",
 	"grant_tools",
 	"delegated_sessions",
+	"presence",
 }
 
 func (s *Service) ServerInfo(ctx context.Context, raw string) (ServerInfo, error) {

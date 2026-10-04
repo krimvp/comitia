@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"time"
 )
 
@@ -55,11 +54,11 @@ func (s *Service) SetInstanceResume(ctx context.Context, raw, cid string, in *Ag
 		return err
 	}
 	if instance == nil {
-		return fmt.Errorf("%w: agent_instance required", ErrInvalid)
+		return Invalidf("agent_instance required")
 	}
 	var object map[string]json.RawMessage
 	if len(resume) > MaxInstanceResumeBytes || json.Unmarshal(resume, &object) != nil || object == nil {
-		return fmt.Errorf("%w: resume must be a JSON object of at most %d bytes", ErrInvalid, MaxInstanceResumeBytes)
+		return Invalidf("resume must be a JSON object of at most %d bytes", MaxInstanceResumeBytes)
 	}
 	return s.store.Update(ctx, func(w WriteStore) error {
 		a, _, err := s.require(w, raw, cid, PermissionRead)

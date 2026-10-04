@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"io"
 	"os"
 
@@ -33,7 +32,7 @@ func runPresence(ctx context.Context, cfg config, api comitia.API, out *json.Enc
 			return err
 		}
 		if *file == "" {
-			return fmt.Errorf("%w: resume-file required", comitia.ErrInvalid)
+			return comitia.Invalidf("resume-file required")
 		}
 		input, err := os.Open(*file)
 		if err != nil {
@@ -45,7 +44,7 @@ func runPresence(ctx context.Context, cfg config, api comitia.API, out *json.Enc
 			return err
 		}
 		if len(raw) > comitia.MaxInstanceResumeBytes || !json.Valid(raw) {
-			return fmt.Errorf("%w: invalid resume JSON or size", comitia.ErrInvalid)
+			return comitia.Invalidf("resume-file must contain valid JSON of at most %d bytes", comitia.MaxInstanceResumeBytes)
 		}
 		if err := api.SetInstanceResume(ctx, needCredential(cfg), *cid, messageInstance(cfg, fs, *instance, *label), raw); err != nil {
 			return err

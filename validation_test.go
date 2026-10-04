@@ -26,6 +26,17 @@ func TestValidationDetails(t *testing.T) {
 		{"title", "title required", func() error { _, err := f.svc.CreateTask(ctx, f.admin.Token, f.context.ID, TaskInput{}); return err }},
 		{"limit", "limit", func() error { _, err := f.svc.ListTasks(ctx, f.admin.Token, f.context.ID, "", 0); return err }},
 		{"instance", "agent_instance.id", func() error { _, err := normalizeAgentInstance(&AgentInstance{ID: "secret value"}); return err }},
+		{"resume instance", "agent_instance required", func() error {
+			return f.svc.SetInstanceResume(ctx, f.admin.Token, f.context.ID, nil, json.RawMessage(`{}`))
+		}},
+		{"resume object", "resume must be a JSON object", func() error {
+			return f.svc.SetInstanceResume(ctx, f.admin.Token, f.context.ID, &AgentInstance{ID: "worker"}, json.RawMessage(`["secret value"]`))
+		}},
+		{"presence instance", "agent_instance must be", func() error {
+			id := "secret value"
+			_, err := f.svc.ReplayMessages(ctx, f.admin.Token, f.context.ID, 0, 10, MessageFilters{AgentInstance: &id})
+			return err
+		}},
 		{"unknown payload field", `unknown field "token"`, func() error {
 			return validTaskStatus(json.RawMessage(`{"state":"done","summary":"ready","token":"secret value"}`))
 		}},
