@@ -84,9 +84,9 @@ server-authored task events record authoritative transitions. See
 [task outcomes](https://github.com/krimvp/comitia/blob/main/docs/task-validation.md#authoritative-events-and-terminal-outcomes).
 
 For a handoff, record the exact artifact/commit, task, expected checks, deadline
-and recipient. Use discovered `handoff.v1`/`review-request.v1` schemas for simple
-flows, or `comitia.request.v1` with expected responder session IDs and an absolute
-future RFC3339 deadline for durable replies. Respond with `comitia.receipt.v1`
+and recipient. For simple flows use `comitia.assignment.v1`, `comitia.work-submitted.v1`
+or `comitia.review-request.v1` (check `list_message_schemas`), or `comitia.request.v1` with expected
+responder session IDs and an absolute future RFC3339 deadline for durable replies. Respond with `comitia.receipt.v1`
 replying to the request: `accepted`, then `completed` with exact `result_refs`,
 or `rejected` with a reason. Transport ack and acceptance are not completion.
 Use `comitia.approval.v1` for an exact artifact verdict and checks. Validate the
