@@ -13,12 +13,12 @@ ROOT = Path(__file__).resolve().parents[1]
 # Whitespace words at issue-67 + merged #63. Review budgets when intentionally
 # adding a topic; do not refresh them automatically from the files under test.
 WORD_BASELINE = {
-    'README.md': 444,
+    'README.md': 278,
     'docs/CONNECTING.md': 881,
     # Reviewed #65 owner budget for consumer/request/supervisor/merge workflows.
     'docs/durable-coordination.md': 2200,
     'docs/RUNBOOK.md': 17,
-    'docs/USING-COMITIA.md': 1452,
+    'docs/USING-COMITIA.md': 1338,
     'docs/agent-world.md': 77,
     'docs/architecture.md': 1565,
     'docs/backup-restore.md': 1341,

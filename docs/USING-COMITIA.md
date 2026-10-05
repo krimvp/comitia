@@ -2,6 +2,21 @@
 
 Comitia stores a durable shared message log and a task board with leases.
 Agents run elsewhere; Comitia neither launches them nor synchronizes files.
+Start by asking your agent to follow the [Comitia skill](../skills/comitia/SKILL.md):
+
+```text
+Set up Comitia from https://github.com/krimvp/comitia: follow skills/comitia/SKILL.md.
+```
+
+The skill covers [setup](../skills/comitia/references/setup.md),
+[coordination](../skills/comitia/references/coordinate.md), and
+[orchestration](../skills/comitia/references/orchestrate.md). After setup, ask:
+
+> Use Comitia to hand this review to Codex and wait for its verdict.
+
+> Orchestrate issues #12-#15 through Comitia: one Codex worker per issue, a reviewer for each, merge when CI is green.
+
+The walkthroughs below are manual reference for the same coordination primitives.
 
 ## First handoff
 
@@ -101,42 +116,22 @@ comitia watch --context-id CONTEXT_ID --agent-instance my-worker \
   --for-instance my-worker --schema comitia.discussion.v1
 ```
 
-Watch prints sequence, sender instance, schema, and the first body line, one
-message per tab-separated line. Control characters, invalid UTF-8 and
-backslashes in those fields are shown as Go-style escapes (`\x1b`, `\r`, `\t`,
-`\\`), so a message cannot add lines or send terminal sequences. It resumes
-from your instance's persisted ack cursor and acknowledges each printed
-message. Add `--no-ack` for observation
-without advancing that cursor. `--agent-instance` (default `COMITIA_AGENT_INSTANCE`) selects the cursor;
-`--for-instance` filters recipients and has no default. Other filters are `--from-instance`,
-`--task-id` and `--schema`; all supplied filters must match. Use distinct
-instance IDs for independently consumed views of the log.
+Watch prints one escaped, tab-separated line per message and acknowledges each
+printed message using your instance's cursor. Add `--no-ack` to observe without
+advancing it. `--agent-instance` defaults to `COMITIA_AGENT_INSTANCE`;
+`--for-instance` filters recipients and has no default. Keep separate instance
+IDs for independent consumers. Watch reconnects after server restarts and exits
+on Ctrl-C; credential or permission errors end it.
 
-Watch reconnects with bounded backoff after a server restart, retains its
-position, and exits on Ctrl-C. Credential/permission errors end the command.
 For one batch, use `comitia wait --context-id CONTEXT_ID --after N
---timeout-seconds 30 --for-instance my-worker` (all on one command line), or
-`comitia replay` with the same filters and `--limit`. Replay filtering happens
-before the page limit; advance `after` to the last returned sequence.
-Both reads also apply a 1 MiB encoded messages-array budget; set `--max-bytes`
-(up to 4194304, zero uses the default) to adjust it. One message can exceed the
-soft budget and is returned intact. `replay --page` and `wait --page` return
-`{messages, next_after, scanned_through, has_more}`. `next_after` is the last
-returned sequence; `scanned_through` also advances through skipped nonmatches,
-including empty filtered pages. After handling returned messages, pass
-`scanned_through` as the next `--after` with exactly the same filters; changing
-filters requires an appropriate earlier cursor. `has_more` is advisory; new
-messages can arrive later.
-Process each page before acknowledging. Watch accepts `--max-bytes` and
-continues automatically.
+--timeout-seconds 30 --for-instance my-worker` on one command line, or
+`comitia replay` with the same filters and `--limit`. Handle messages before
+acknowledging them. Watch's print-then-ack cursor is separate from a
+[business consumer's durable cursor](durable-coordination.md#process-then-acknowledge).
 
-In MCP, use `max_bytes` and `page: true` for the same behaviour. Add
-`compact: true` to replay/wait to receive a short text summary with the full
-result in `structuredContent.result`; default text still contains the full
-result. Confirm these fields appear in your loaded tool schema first.
-
-See [Message protocol](message-protocol.md#filtered-replay-and-waiting) for the
-wire fields, Go API, broadcast semantics, and acknowledgement/restart details.
+See [Message protocol](message-protocol.md#filtered-replay-and-waiting) for
+filters, byte budgets, page cursors, MCP compact results, and restart semantics.
+`comitia --help` groups commands; `comitia <command> --help` describes flags.
 
 
 ## Isolated demo
