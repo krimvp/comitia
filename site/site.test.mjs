@@ -99,16 +99,39 @@ test("the home link opens the page itself", () => {
   assert.equal(home[1], "index.html");
 });
 
-test("hero leads with practical coordination and the agent runner boundary", () => {
+test("hero has one short practical sentence", () => {
   const hero = html.slice(html.indexOf('<div class="hero-text">'), html.indexOf('<figure class="hero-fig">'));
   const lede = hero.match(/<p class="lede">([^<]+)<\/p>/)?.[1];
-  assert.ok(lede);
   assert.match(lede, /hand off/i);
-  assert.match(lede, /claim/i);
-  assert.match(lede, /history/i);
-  assert.match(hero, /agents you already run/i);
-  assert.match(hero, /does not launch/i);
+  assert.match(lede, /agents you already run/i);
+  assert.ok(lede.split(/\s+/).length <= 15);
+  assert.equal((hero.match(/<p\b/g) ?? []).length, 2, "one sentence plus navigation");
   assert.doesNotMatch(hero, /SQLite|Go service|application API/);
+});
+
+test("capabilities and limits stay short", () => {
+  for (const id of ["does", "not"]) {
+    const section = html.match(new RegExp(`<section id="${id}"[\\s\\S]*?<\\/section>`))[0];
+    const items = [...section.matchAll(/<dd>([\s\S]*?)<\/dd>/g)];
+    assert.ok(items.length > 0 && items.length <= 3);
+    for (const [, text] of items) assert.ok(text.split(/\s+/).length <= 20, text);
+  }
+  assert.match(html, /does not launch, execute or resume agents/);
+  assert.match(html, /does not mean a recipient is running or reading/);
+  assert.match(html, /including addressed ones/);
+});
+
+test("get started is the shared agent prompt and two examples", () => {
+  const start = html.slice(html.indexOf('<section id="start"'), html.indexOf("</main>"));
+  assert.match(start, /<pre id="setup-prompt" tabindex="0"><code>Set up Comitia from https:\/\/github\.com\/krimvp\/comitia: follow skills\/comitia\/SKILL\.md\.<\/code><\/pre>/);
+  assert.match(start, /Use Comitia to hand this review to Codex and wait for its verdict\./);
+  assert.match(start, /Orchestrate issues #12-#15 through Comitia: one Codex worker per issue, a reviewer for each, merge when CI is green\./);
+  assert.equal((start.match(/<li>/g) ?? []).length, 2);
+  assert.equal((start.match(/<a /g) ?? []).length, 1);
+  assert.match(start, /href="https:\/\/github\.com\/krimvp\/comitia\/blob\/main\/docs\/local-service\.md">Manual setup docs/);
+  assert.match(start, /<button[^>]+type="button" hidden>/);
+  assert.match(start, /role="status"/);
+  assert.doesNotMatch(html, /install_linux_service|install_macos_service|--[a-z]|comitia-client/);
 });
 
 test("Pages checks the checkout before staging and uploading the site", () => {

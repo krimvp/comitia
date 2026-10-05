@@ -106,7 +106,7 @@ main, .foot { width: min(1240px, 100% - 2 * var(--gutter)); margin: 0 auto; }
   padding: clamp(40px, 7vw, 88px) 0 clamp(48px, 7vw, 80px);
   align-items: start;
 }
-.hero > *, .sheet > *, .spec > *, .gloss > span { min-width: 0; }
+.hero > *, .sheet > *, .spec > * { min-width: 0; }
 @media (min-width: 1000px) { .hero { grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); } }
 
 h1 {
@@ -130,16 +130,6 @@ h1::before, h1::after {
 }
 h1::before { top: 0; left: 0; border-width: 1.5px 0 0 1.5px; }
 h1::after { bottom: 0; right: 0; border-width: 0 1.5px 1.5px 0; }
-.gloss {
-  display: flex;
-  align-items: baseline;
-  gap: 0.6rem;
-  margin: 0 0 1.75rem;
-  font-size: var(--s-1);
-  color: var(--muted);
-}
-.gloss::before { content: ""; flex: 0 0 2rem; border-top: 1px solid var(--rule-strong); transform: translateY(-0.3em); }
-.gloss i { color: var(--ink); }
 .lede { font-size: var(--s1); line-height: 1.35; font-weight: 400; max-width: 26em; margin: 0 0 1.1em; }
 .hero-text > p { max-width: 34em; }
 .hero-text > p:not(.lede) { color: var(--muted); }
@@ -148,6 +138,8 @@ h1::after { bottom: 0; right: 0; border-width: 0 1.5px 1.5px 0; }
 .button {
   display: inline-flex;
   align-items: stretch;
+  padding: 0;
+  cursor: pointer;
   border: 1.5px solid var(--ink);
   background: var(--panel);
   color: var(--ink);
@@ -155,6 +147,7 @@ h1::after { bottom: 0; right: 0; border-width: 0 1.5px 1.5px 0; }
   max-width: 100%;
   font: 600 0.9375rem/1.3 var(--mono);
 }
+.button[hidden] { display: none; }
 .button > span { display: flex; align-items: center; min-width: 0; padding: 0.7rem 0.95rem; }
 .button .idx { flex-shrink: 0; border-right: 1px solid var(--rule-strong); color: var(--accent); padding-inline: 0.7rem; }
 .button svg { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 1.5; }
@@ -228,34 +221,22 @@ h2 { margin: 0; font-size: var(--s2); line-height: 1.2; font-weight: 600; letter
 /* dashed rules: the drafting convention for what is outside the part */
 .sheet-not .spec > div { border-top-style: dashed; border-top-color: var(--rule-strong); }
 
-.steps { list-style: none; margin: 0; padding: 0; counter-reset: step; }
-.steps > li {
-  counter-increment: step;
-  display: grid;
-  grid-template-columns: 2.75rem minmax(0, 1fr);
-  padding: 16px 0 28px;
-  border-top: 1px solid var(--rule);
-}
-.steps > li > * { grid-column: 2; }
-.steps > li::before {
-  content: counter(step);
-  grid-column: 1;
-  grid-row: 1 / span 4;
-  font: 600 var(--s1)/1.2 var(--mono);
-  color: var(--accent);
-}
-.steps h3 { margin: 0 0 0.3rem; font-size: var(--s1); line-height: 1.2; font-weight: 600; }
-.steps p { margin: 0 0 0.85rem; color: var(--muted); max-width: 40em; }
-.steps pre {
+.start-copy > p:first-child { margin-top: 0; }
+.start-copy pre {
   margin: 0 0 0.75rem;
   padding: 14px 16px;
   background: var(--code-bg);
   border-left: 3px solid var(--accent);
   border-radius: 0 3px 3px 0;
-  overflow-x: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
   line-height: 1.5;
-  tab-size: 2;
 }
+.copy-status { color: var(--muted); font-size: 0.9375rem; }
+.copy-status:empty { display: none; }
+.start-copy h3 { margin: 1.5rem 0 0.75rem; font-size: var(--s1); line-height: 1.2; font-weight: 600; }
+.examples { margin: 0 0 1.5rem; padding-left: 1.5em; color: var(--muted); max-width: 40em; }
+.examples li + li { margin-top: 0.75rem; }
 .doc { font-size: 0.9375rem; justify-self: start; }
 
 .foot {
@@ -274,5 +255,4 @@ h2 { margin: 0; font-size: var(--s2); line-height: 1.2; font-weight: 600; letter
 @media (max-width: 520px) {
   h1 { margin-left: 0; }
   .bar nav { gap: 0.25rem 1rem; }
-  .steps > li { grid-template-columns: 2rem minmax(0, 1fr); }
 }

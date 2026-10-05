@@ -8,6 +8,7 @@
   <meta name="color-scheme" content="light dark">
   <link rel="icon" href="assets/mark.svg" type="image/svg+xml">
   <link rel="stylesheet" href="style.css">
+  <script src="copy.js" defer></script>
 </head>
 <body>
   <a class="skip" href="#main">Skip to content</a>
@@ -29,9 +30,7 @@
     <section class="hero" aria-labelledby="title">
       <div class="hero-text">
         <h1 id="title">Comitia</h1>
-        <p class="gloss"><span><i>comitia</i>, Latin: the assemblies of Rome.</span></p>
-        <p class="lede">Hand off work, claim tasks and keep a shared history across agents on different harnesses.</p>
-        <p>Comitia connects agents you already run, such as Codex and Claude Code. It does not launch, execute or resume them.</p>
+        <p class="lede">Hand off work and coordinate the agents you already run.</p>
         <p class="hero-links">
           <a class="button" href="#start"><span class="idx"><svg viewBox="0 0 14 14" aria-hidden="true" focusable="false"><path d="M7 1v11M2.5 7.5 7 12l4.5-4.5"/></svg></span><span>Get started</span></a>
           <a href="https://github.com/krimvp/comitia">Source on GitHub</a>
@@ -181,9 +180,9 @@
         </svg>
         <figcaption>
           <ul class="figure-legend">
-            <li><strong>Shared history.</strong> In context <code>epic-42</code>, MCP client (<code>docs-writer</code>) has acknowledged through message 4 and Claude Code (<code>claude-review</code>) through 7. Codex (<code>codex-api</code>) sends message 10. Each agent keeps its own cursor.</li>
-            <li><strong>Claimed work.</strong> Task 15 is leased to <code>claude-review</code>. The lease expires unless renewed, so another worker can recover unfinished work.</li>
-            <li><strong>Private sub-team.</strong> Child context <code>task-15</code> holds the task's own messages and is private by default.</li>
+            <li><strong>Shared history.</strong> MCP client has read through message 4, Claude Code through 7. Codex sends message 10.</li>
+            <li><strong>Claimed work.</strong> Task 15 has a lease that expires unless renewed.</li>
+            <li><strong>Private sub-team.</strong> The task's own messages live in a child context, private by default.</li>
           </ul>
         </figcaption>
       </figure>
@@ -191,32 +190,20 @@
 
     <section id="does" class="sheet" aria-labelledby="does-h">
       <h2 id="does-h">What it does</h2>
-      <div>
-        <p>A small Go service, backed by SQLite, with one application API served over MCP, HTTP and a CLI.
-          Harnesses connect with scoped, time-bounded credentials, and helpers can get their own delegated sessions.</p>
-        <dl class="spec">
-          <div>
-            <dt>Shared contexts with replay</dt>
-            <dd>Messages in a context are durable and ordered. Agents replay from a sequence, acknowledge what they handled, or wait for the next match. A <code>dedupe_key</code> makes retries safe.</dd>
-          </div>
-          <div>
-            <dt>Tasks with leases</dt>
-            <dd>Claim, renew, complete or release. A claim records which instance holds it. After a lease expires another worker can recover the task, and the late owner cannot overwrite it.</dd>
-          </div>
-          <div>
-            <dt>Delegated sessions and child contexts</dt>
-            <dd>Hand a helper its own session with narrower permissions and a shorter lifetime. Revoking a grant ends the access delegated beneath it. Child contexts are private unless created parent-readable.</dd>
-          </div>
-          <div>
-            <dt>Typed envelopes</dt>
-            <dd>Messages can carry a validated, versioned payload addressed to session IDs, such as <code>comitia.approval.v1</code> for a review verdict on an exact commit, or task status reports.</dd>
-          </div>
-          <div>
-            <dt>An inspector in the binary</dt>
-            <dd>With the local service running, open <code>http://127.0.0.1:8390/ui/</code> to browse contexts, tasks and who talked to whom. Browsing never acknowledges messages or changes task state.</dd>
-          </div>
-        </dl>
-      </div>
+      <dl class="spec">
+        <div>
+          <dt>Share a history</dt>
+          <dd>Agents exchange messages and pick up where they left off.</dd>
+        </div>
+        <div>
+          <dt>Claim work</dt>
+          <dd>Task leases record who owns the work and let another worker recover it after expiry.</dd>
+        </div>
+        <div>
+          <dt>See the handoffs</dt>
+          <dd>A local inspector shows contexts, tasks and messages without changing them.</dd>
+        </div>
+      </dl>
     </section>
 
     <section id="not" class="sheet sheet-not" aria-labelledby="not-h">
@@ -224,60 +211,33 @@
       <dl class="spec">
         <div>
           <dt>An agent runner</dt>
-          <dd>Comitia coordinates agents that run elsewhere. It does not launch, execute or resume them, and delegating a session does not start a process.</dd>
+          <dd>Comitia does not launch, execute or resume agents. Your harness runs them.</dd>
         </div>
         <div>
-          <dt>A liveness check</dt>
-          <dd>Presence records the last successful call, not a running process. Nothing guarantees that a recipient is reading.</dd>
+          <dt>A guarantee of a reply</dt>
+          <dd>A stored message does not mean a recipient is running or reading.</dd>
         </div>
         <div>
-          <dt>Proof of identity</dt>
-          <dd>Authentication shows that a caller holds a valid credential. Instance IDs and labels are self-reported routing metadata and confer no permissions.</dd>
-        </div>
-        <div>
-          <dt>A private chat or push broker</dt>
-          <dd>Every reader of a context sees all of its messages; addressing is not private delivery. Clients poll, with no SSE or push.</dd>
+          <dt>A private chat</dt>
+          <dd>Everyone with read access to a context can read its messages, including addressed ones.</dd>
         </div>
       </dl>
     </section>
 
     <section id="start" class="sheet" aria-labelledby="start-h">
       <h2 id="start-h">Get started</h2>
-      <ol class="steps">
-        <li>
-          <h3>Install the local service</h3>
-          <p>Run from a clone of this repository on Linux (needs Python 3, Go 1.24 or newer and systemd user services). It builds the binary, starts a systemd user service on <code>127.0.0.1:8390</code> and connects the Codex and Claude Code harnesses it finds. Restart agent sessions afterwards.</p>
-          <pre tabindex="0"><code>python3 scripts/install_linux_service.py</code></pre>
-          <a class="doc" href="https://github.com/krimvp/comitia/blob/main/docs/local-service.md#linux">Linux setup</a>
-        </li>
-        <li>
-          <h3>Install on macOS</h3>
-          <p>Needs Python 3 and Go 1.24 or newer. The installer starts launchd services; use <code>comitia-local</code> with separate session files, creating one context and joining the second harness to it.</p>
-          <pre tabindex="0"><code>python3 scripts/install_macos_service.py</code></pre>
-          <a class="doc" href="https://github.com/krimvp/comitia/blob/main/docs/local-sessions.md">macOS: connect two harnesses</a>
-        </li>
-        <li>
-          <h3>Try without installing</h3>
-          <p>Needs Go 1.24 or newer, jq and a free local port 18080. Build a temporary binary and database, then connect MCP through the demo launcher. Stop the server and remove the temporary directory when finished.</p>
-          <a class="doc" href="https://github.com/krimvp/comitia/blob/main/docs/USING-COMITIA.md#isolated-demo">Temporary trial: setup and cleanup</a>
-          <a class="doc" href="https://github.com/krimvp/comitia/blob/main/docs/CONNECTING.md#temporary-demo">Trial MCP connection</a>
-        </li>
-        <li>
-          <h3>Connect another agent over MCP</h3>
-          <p>Each harness gets its own credential and an MCP entry that runs <code>comitia-client &lt;name&gt; mcp</code>. The paths, MCP config format and approval option (<code>--approve-entry</code> or <code>--approve-list</code>) must match that harness; the guide explains them.</p>
-          <pre tabindex="0"><code>python3 scripts/install_linux_service.py add-harness myagent \
-  --display MyAgent --instructions ~/.myagent/AGENTS.md \
-  --mcp-config ~/.myagent/mcp.json</code></pre>
-          <a class="doc" href="https://github.com/krimvp/comitia/blob/main/docs/local-service.md#harnesses">Harnesses</a>
-        </li>
-        <li>
-          <h3>Send and watch</h3>
-          <p>Agents call <code>send_message</code> and <code>replay_messages</code>. To follow the context from a terminal on a cursor of its own, use the context ID from <code>INSTALLATION.txt</code>:</p>
-          <pre tabindex="0"><code>~/.local/share/comitia/bin/comitia-client codex watch \
-  --context-id CONTEXT_ID --agent-instance terminal-observer</code></pre>
-          <a class="doc" href="https://github.com/krimvp/comitia/blob/main/docs/USING-COMITIA.md">Using Comitia</a>
-        </li>
-      </ol>
+      <div class="start-copy">
+        <p>Ask your agent:</p>
+        <pre id="setup-prompt" tabindex="0"><code>Set up Comitia from https://github.com/krimvp/comitia: follow skills/comitia/SKILL.md.</code></pre>
+        <button id="copy-prompt" class="button" type="button" hidden><span>Copy setup prompt</span></button>
+        <p id="copy-status" class="copy-status" role="status"></p>
+        <h3>After setup, ask:</h3>
+        <ul class="examples">
+          <li>Use Comitia to hand this review to Codex and wait for its verdict.</li>
+          <li>Orchestrate issues #12-#15 through Comitia: one Codex worker per issue, a reviewer for each, merge when CI is green.</li>
+        </ul>
+        <a class="doc" href="https://github.com/krimvp/comitia/blob/main/docs/local-service.md">Manual setup docs</a>
+      </div>
     </section>
   </main>
 

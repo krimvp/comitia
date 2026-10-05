@@ -78,13 +78,12 @@ class OnboardingContracts(unittest.TestCase):
         self.assertIn('task-claim', guide)
         self.assertIn('"$HOME/Library/Application Support/Comitia/bin/comitia-local"', guide)
 
-    def test_landing_platform_and_trial_routes(self):
+    def test_landing_starts_with_the_agent_setup_prompt(self):
         html = read('site/index.html')
         start = html.split('<section id="start"', 1)[1]
-        for route in ('docs/local-service.md#linux', 'docs/local-sessions.md', 'docs/USING-COMITIA.md#isolated-demo'):
-            self.assertIn(route, start)
-        self.assertIn('macOS', start)
-        self.assertIn('Go 1.24', start)
+        self.assertIn('Set up Comitia from https://github.com/krimvp/comitia: follow skills/comitia/SKILL.md.', start)
+        self.assertIn('docs/local-service.md', start)
+        self.assertNotIn('install_linux_service.py', start, 'manual install steps belong in the docs')
 
     @unittest.skipUnless(shutil.which('go') and shutil.which('jq'), 'go and jq are required for executable recipes')
     def test_executable_demo_and_lease_recipe(self):
