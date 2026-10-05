@@ -195,7 +195,7 @@ A failure names the CLI command (and dedupe key) that failed; CI runs it three
 times. Concurrent CLI processes wait up to 15 s for the SQLite write lock, and
 opening an up-to-date database does not take the write lock.
 These workers are subprocess clients, not language-model agents.
-See the [six-agent engineering trial](release-readiness-20260909.md) for
+See the [six-agent engineering trial](history/release-readiness-20260909.md) for
 the separate real-agent collaboration results and their limitations.
 
 To compare single-agent, multi-agent, and Comitia-coordinated runs using a

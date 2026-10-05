@@ -160,4 +160,4 @@ Every tool below needs the real `context_id` (task operations use the returned
 
 For canonical schemas and cursor rules, see [Message protocol](message-protocol.md).
 Deployment-specific cloud connector experiments are recorded separately in
-[ChatGPT cloud](chatgpt-cloud.md); they are not prerequisites for local setup.
+[ChatGPT cloud](history/chatgpt-cloud.md); they are not prerequisites for local setup.
