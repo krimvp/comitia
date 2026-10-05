@@ -81,6 +81,9 @@ MCP tools `fail_task` and `cancel_task`, and HTTP endpoints `/v1/tasks/fail` and
 `operation_id`, and `claim_token` (required for failure and holder cancellation).
 They return a task; HTTP wraps it under `task`. Go callers use the optional
 `TaskOutcomeAPI`, or `FailTask`/`CancelTask` helpers, with `TaskOutcomeInput`.
+MCP schemas allow `null` for optional properties as an omitted/default value,
+including `operation_id` and admin cancellation's `claim_token`. Required
+failure claim tokens, lease versions and reasons cannot be null.
 Existing exported interfaces keep their method sets. Older APIs/servers return
 a clear unsupported error; clients never retry by dropping the requested
 outcome or recovery semantics. Old clients can still use ordinary task calls

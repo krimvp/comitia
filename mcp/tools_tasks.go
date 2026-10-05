@@ -18,7 +18,7 @@ func taskTools() []map[string]any {
 		tool("complete_task", "Complete a claimed task using the latest Token as claim_token and Task.LeaseVersion as lease_version from claim/renew.", schema(map[string]any{"task_id": str("Task ID"), "claim_token": str("Opaque claim token"), "lease_version": integer("Current lease version")}, "task_id", "claim_token", "lease_version")),
 		tool("release_task", "Return a leased task to pending; the holder passes its claim token, a context admin may omit it", schema(map[string]any{"task_id": str("Task ID"), "claim_token": str("Opaque claim token; optional for a context admin"), "lease_version": integer("Current lease version")}, "task_id", "lease_version")),
 		tool("get_task", "Get a task by ID", schema(map[string]any{"task_id": str("Task ID")}, "task_id")),
-		tool("list_tasks", "List tasks in a context", schema(map[string]any{"context_id": str("Context ID"), "status": map[string]any{"type": "string", "enum": []string{"pending", "leased", "completed", "failed", "cancelled"}}, "limit": integer("Maximum tasks"), "page": map[string]any{"type": "boolean", "description": "Return tasks, next_after and has_more"}, "after_id": str("Exclusive opaque task cursor from next_after; implies page")}, "context_id")),
+		tool("list_tasks", "List tasks in a context", schema(map[string]any{"context_id": str("Context ID"), "status": map[string]any{"type": "string", "enum": []string{"", "pending", "leased", "completed", "failed", "cancelled"}}, "limit": integer("Maximum tasks"), "page": map[string]any{"type": "boolean", "description": "Return tasks, next_after and has_more"}, "after_id": str("Exclusive opaque task cursor from next_after; implies page")}, "context_id")),
 	}
 }
 

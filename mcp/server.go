@@ -363,11 +363,36 @@ func (s *Server) handle(ctx context.Context, req request) response {
 }
 
 func schema(props map[string]any, required ...string) map[string]any {
-	s := map[string]any{"type": "object", "properties": props, "additionalProperties": false}
+	mandatory := make(map[string]bool, len(required))
+	for _, name := range required {
+		mandatory[name] = true
+	}
+	properties := make(map[string]any, len(props))
+	for name, property := range props {
+		if !mandatory[name] {
+			property = nullableProperty(property.(map[string]any))
+		}
+		properties[name] = property
+	}
+	s := map[string]any{"type": "object", "properties": properties, "additionalProperties": false}
 	if len(required) > 0 {
 		s["required"] = required
 	}
 	return s
+}
+
+// Optional Go decoder fields accept null as their omitted/default value.
+func nullableProperty(property map[string]any) map[string]any {
+	typ, simple := property["type"].(string)
+	if _, enum := property["enum"]; enum || !simple {
+		return map[string]any{"anyOf": []any{property, map[string]any{"type": "null"}}}
+	}
+	out := make(map[string]any, len(property))
+	for key, value := range property {
+		out[key] = value
+	}
+	out["type"] = []string{typ, "null"}
+	return out
 }
 func str(desc string) map[string]any { return map[string]any{"type": "string", "description": desc} }
 func integer(desc string) map[string]any {
