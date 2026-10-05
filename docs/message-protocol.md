@@ -376,7 +376,8 @@ responses. Against a server without these routes, the HTTP Client returns
 
 Each descriptor includes `id`, a draft 2020-12 `payload_schema` for built-ins,
 `body_required`, `task_required`, `task_or_artifact_refs`, semantic
-`requirements`, and `examples` with body/envelope pairs. JSON Schema describes
+`requirements`, and `examples` with body/envelope pairs. `server_authored: true`
+marks schemas that replay can return but appends reject. JSON Schema describes
 payload shape; requirements describe additional checks such as exact artifact
 references, byte limits and conditional evidence. The registered validator is
 authoritative: JSON Schema may be looser for documented semantic checks, such as
@@ -400,6 +401,7 @@ the version; discovery reflects the running service's registry.
 | `comitia.evaluation-result.v1` | Yes | `evaluation_id`, `outcome`, `grader`, nonempty `criteria`; optional `cost`; see below |
 | `comitia.execution-event.v1` | Yes | `run_id`, positive `event_sequence`, `kind`, and kind-specific measurements; see [Execution telemetry](execution-telemetry.md) |
 | `comitia.task-status.v1` | Yes | `state`, `summary`; optional `child_context_id`, `blockers`, `links`; see [Task status](#task-status) |
+| `comitia.task-event.v1` | Server-authored | Not appendable; replayed `kind`, `status`, optional `lease_version`; see [Authoritative task events](#authoritative-task-events) |
 
 Verification status is `passed`, `failed`, or `not_run`. Passed/failed results
 require nonempty `evidence_refs`; not-run results require a nonblank `reason`.
@@ -574,7 +576,9 @@ The message's authenticated `SessionID` identifies the actor whose task
 mutation was authorized. These events are broadcast in the task's context and
 carry no claim tokens or hashes. Readers can replay/wait/filter them normally;
 `send`/`send_message`/`messages/append` cannot author them. Task-status and
-execution telemetry remain advisory. See [task outcomes](task-validation.md#authoritative-events-and-terminal-outcomes)
+execution telemetry remain advisory. Schema discovery lists
+`comitia.task-event.v1` with `server_authored: true` and a payload schema
+describing replayed events; its examples are illustrative and not appendable. See [task outcomes](task-validation.md#authoritative-events-and-terminal-outcomes)
 for failure/cancellation authority, reasons and recovery.
 
 ## Sending

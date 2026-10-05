@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {taskMarker, taskEvent} from '../ui/task-outcomes.mjs';
-import {taskStatus, stateLabel} from '../ui/model.mjs';
+import {taskStatus, stateLabel, messagePreview} from '../ui/model.mjs';
 import {normalizeResponse} from '../ui/wire.mjs';
 
 test('terminal task outcomes are distinct from pending and advisory reports', () => {
@@ -17,6 +17,7 @@ test('terminal task outcomes are distinct from pending and advisory reports', ()
     assert.equal(taskEvent({envelope}), null);
     const event = {schema:'comitia.task-event.v1',task_id:'t',payload:{status:state,reason:'stopped'}};
     assert.equal(taskEvent({envelope:event}), `Task ${state}: stopped`);
+    assert.equal(messagePreview({envelope:event}), `Task ${state}: stopped`);
   }
   assert.equal(taskEvent({envelope:{schema:'comitia.task-event.v1',payload:{status:'<b>',reason:1}}}), 'Task unknown');
 });

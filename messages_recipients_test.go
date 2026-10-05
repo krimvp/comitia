@@ -64,21 +64,26 @@ func TestStrictRecipientSelection(t *testing.T) {
 					t.Fatal("cursor did not advance")
 				}
 			}
-			if !reflect.DeepEqual(got, []int64{2, 3, 5, 7}) {
+			// Task creation appends a broadcast task event at sequence 1.
+			want := []int64{3, 4, 6, 8}
+			if indexed == "" || indexed == "task" {
+				want = append([]int64{1}, want...)
+			}
+			if !reflect.DeepEqual(got, want) {
 				t.Fatalf("strict sequences %v", got)
 			}
 			waited, err := f.svc.WaitMessages(ctx, f.admin.Token, f.context.ID, 0, 0, filter)
-			if err != nil || len(waited) != 4 {
+			if err != nil || len(waited) != len(want) {
 				t.Fatalf("wait: %v %v", waited, err)
 			}
 		})
 	}
 	legacy, err := f.svc.ReplayMessages(ctx, f.admin.Token, f.context.ID, 0, 100, MessageFilters{ForInstance: "worker"})
-	if err != nil || len(legacy) != 5 || legacy[0].Sequence != 1 {
+	if err != nil || len(legacy) != 6 || legacy[0].Sequence != 1 {
 		t.Fatalf("legacy precedence: %v %v", legacy, err)
 	}
 	unfiltered, err := f.svc.ReplayMessages(ctx, f.admin.Token, f.context.ID, 0, 100)
-	if err != nil || len(unfiltered) != 7 {
+	if err != nil || len(unfiltered) != 8 {
 		t.Fatalf("shared log: %v %v", unfiltered, err)
 	}
 	if _, err := f.svc.ReplayMessages(ctx, "invalid", f.context.ID, 0, 100, strict); !errors.Is(err, ErrUnauthenticated) {

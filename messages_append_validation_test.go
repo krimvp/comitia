@@ -40,7 +40,7 @@ func TestHistoricalEvaluationParsingAndReport(t *testing.T) {
 	if err := f.store.Update(ctx, func(w WriteStore) error { _, err := w.PutMessage(m); return err }); err != nil {
 		t.Fatal(err)
 	}
-	replay, err := f.svc.ReplayMessages(ctx, f.admin.Token, f.context.ID, 0, 100)
+	replay, err := f.svc.ReplayMessages(ctx, f.admin.Token, f.context.ID, 0, 100, MessageFilters{Schema: EvaluationResultSchema})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -84,6 +84,10 @@ func TestBuiltinAppendRejectsDuplicateKeys(t *testing.T) {
 		t.Fatal(err)
 	}
 	for schema, descriptor := range f.svc.messageSchemaDescriptors {
+		if descriptor.ServerAuthored {
+			// Appends are rejected before payload validation; the conformance corpus covers its validator.
+			continue
+		}
 		t.Run(schema, func(t *testing.T) {
 			for i, example := range descriptor.Examples {
 				var object map[string]json.RawMessage
@@ -123,8 +127,9 @@ func TestBuiltinAppendRejectsDuplicateKeys(t *testing.T) {
 			}
 		})
 	}
+	// Only the task-created event precedes the rejected appends.
 	replay, err := f.svc.ReplayMessages(ctx, f.admin.Token, f.context.ID, 0, 100)
-	if err != nil || len(replay) != 0 {
+	if err != nil || len(replay) != 1 || replay[0].Envelope.Schema != TaskEventSchema {
 		t.Fatalf("rejected payload persisted: %+v %v", replay, err)
 	}
 }

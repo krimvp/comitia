@@ -194,11 +194,11 @@ func schemaConformanceFixture(t *testing.T, name string) (*Server, map[string]an
 	instance := map[string]any{"id": "schema-worker", "label": "worker"}
 	envelope := map[string]any{"schema": "comitia.discussion.v1", "payload": map[string]any{}, "task_id": task.ID, "reply_to": "", "recipient_session_ids": []any{helper.Session.ID}, "recipient_instances": []any{"schema-worker"}}
 	inputs := map[string]map[string]any{
-		"server_info": {}, "storage_status": {},
+		"server_info": {}, "storage_status": {}, "list_message_schemas": {}, "get_message_schema": {"schema": comitia.TaskEventSchema},
 		"send_message":      {"context_id": parent.ID, "dedupe_key": "schema-message", "body": "message", "envelope": envelope, "agent_instance": instance, "task_fence": map[string]any{"task_id": task.ID, "claim_token": claim.Token, "lease_version": claim.Task.LeaseVersion}},
 		"list_participants": {"context_id": parent.ID, "limit": 10, "page": false, "after_id": ""},
-		"replay_messages":   {"context_id": parent.ID, "after": 0, "limit": 10, "for_instance": "schema-worker", "from_instance": "", "task_id": task.ID, "schema": comitia.TaskEventSchema, "agent_instance": "schema-worker", "max_bytes": 4096, "page": false, "compact": false},
-		"wait_messages":     {"context_id": parent.ID, "after": 0, "timeout_seconds": 0, "for_instance": "schema-worker", "from_instance": "", "task_id": task.ID, "schema": comitia.TaskEventSchema, "agent_instance": "schema-worker", "max_bytes": 4096, "page": false, "compact": false},
+		"replay_messages":   {"context_id": parent.ID, "after": 0, "limit": 10, "for_instance": "schema-worker", "from_instance": "", "task_id": task.ID, "schema": comitia.TaskEventSchema, "agent_instance": "schema-worker", "strict_recipients": true, "max_bytes": 4096, "page": false, "compact": false},
+		"wait_messages":     {"context_id": parent.ID, "after": 0, "timeout_seconds": 0, "for_instance": "schema-worker", "from_instance": "", "task_id": task.ID, "schema": comitia.TaskEventSchema, "agent_instance": "schema-worker", "strict_recipients": true, "max_bytes": 4096, "page": false, "compact": false},
 		"ack_messages":      {"context_id": parent.ID, "sequence": 0, "agent_instance": "schema-worker"},
 		"message_cursor":    {"context_id": parent.ID, "agent_instance": "schema-worker"},
 		"create_task":       {"context_id": parent.ID, "title": "new", "body": "details", "operation_id": "create"},

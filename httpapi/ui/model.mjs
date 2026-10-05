@@ -1,3 +1,4 @@
+import {taskEvent} from './task-outcomes.mjs';
 export const PAGE_SIZE = 100;
 export const WINDOW_LIMIT = 5000;
 export const shortID = value => String(value || '').slice(0, 8);
@@ -210,6 +211,8 @@ const previewFields = new Map([
   ['comitia.task-status.v1', ['state', 'summary']],
 ]);
 export function messagePreview(message) {
+  const event = taskEvent(message);
+  if (event) return event;
   if (typeof message.Body === 'string' && message.Body.trim()) return message.Body;
   const envelope = message.envelope || {}, payload = envelope.payload || {};
   const parts = (previewFields.get(envelope.schema) || []).map(field => typeof payload[field] === 'string' ? payload[field].trim() : '').filter(Boolean);

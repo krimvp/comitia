@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/santhosh-tekuri/jsonschema/v6"
 )
@@ -176,9 +177,97 @@ func messagePayloadSemanticCorpus() map[string][]messagePayloadSample {
 			{"valid-Go-single-digit-hour", `{"run_id":"run","event_sequence":1,"kind":"run_started","occurred_at":"2026-10-04T1:00:00Z"}`, ""},
 			{"invalid-calendar", `{"run_id":"run","event_sequence":1,"kind":"run_started","occurred_at":"2026-02-30T12:00:00Z"}`, "RFC3339"},
 		},
+		TaskEventSchema: {
+			{"created", `{"kind":"created","status":"pending","lease_version":0}`, ""},
+			{"empty-previous", `{"kind":"created","status":"pending","previous_status":"","lease_version":0}`, ""},
+			{"unknown-status", `{"kind":"claimed","status":"done","lease_version":1}`, ""},
+			{"instance-without-id", `{"kind":"claimed","status":"leased","lease_version":1,"lease_owner_instance":{"label":"worker"}}`, ""},
+			{"invalid-instance-id", `{"kind":"claimed","status":"leased","lease_version":1,"lease_owner_instance":{"id":"bad id"}}`, ""},
+			{"mis-cased-instance-id", `{"kind":"claimed","status":"leased","lease_version":1,"lease_owner_instance":{"ID":"worker-1"}}`, ""},
+			{"integral-decimal-lexeme", `{"kind":"renewed","status":"leased","lease_version":2.0}`, "Integer JSON lexemes"},
+		},
 		TaskStatusSchema: {
+			{"failed", `{"state":"failed","summary":"Tests failed"}`, ""},
+			{"cancelled", `{"state":"cancelled","summary":"Superseded"}`, ""},
 			{"summary-byte-bound", `{"state":"done","summary":"` + strings.Repeat("é", 2049) + `"}`, "4096 bytes"},
 			{"links-byte-bound", `{"state":"done","summary":"done","links":["` + strings.Repeat("é", 513) + `"]}`, "1024 bytes"},
 		},
+	}
+}
+
+func TestServerTaskEventsMatchDescriptor(t *testing.T) {
+	f := setup(t, ":memory:")
+	defer f.store.Close()
+	ctx := context.Background()
+	descriptor, err := f.svc.GetMessageSchema(ctx, f.admin.Token, TaskEventSchema)
+	if err != nil || !descriptor.ServerAuthored {
+		t.Fatalf("descriptor: %+v %v", descriptor, err)
+	}
+	schema, err := jsonschema.UnmarshalJSON(bytes.NewReader(descriptor.PayloadSchema))
+	if err != nil {
+		t.Fatal(err)
+	}
+	compiler := jsonschema.NewCompiler()
+	url := "urn:comitia:message-schema:" + TaskEventSchema
+	if err := compiler.AddResource(url, schema); err != nil {
+		t.Fatal(err)
+	}
+	compiled, err := compiler.Compile(url)
+	if err != nil {
+		t.Fatal(err)
+	}
+	released, err := f.svc.CreateTask(ctx, f.admin.Token, f.context.ID, TaskInput{Title: "released"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	claim, err := f.svc.ClaimTask(ctx, f.admin.Token, released.ID, time.Hour, AgentInstance{ID: "worker-1", Label: "Worker"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := f.svc.ReleaseTask(ctx, f.admin.Token, released.ID, claim.Token, claim.Task.LeaseVersion); err != nil {
+		t.Fatal(err)
+	}
+	failed, err := f.svc.CreateTask(ctx, f.admin.Token, f.context.ID, TaskInput{Title: "failed"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if claim, err = f.svc.ClaimTask(ctx, f.admin.Token, failed.ID, time.Hour); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := f.svc.FailTask(ctx, f.admin.Token, failed.ID, TaskOutcomeInput{ClaimToken: claim.Token, LeaseVersion: claim.Task.LeaseVersion, Reason: "tests failed"}); err != nil {
+		t.Fatal(err)
+	}
+	completed, err := f.svc.CreateTask(ctx, f.admin.Token, f.context.ID, TaskInput{Title: "completed"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if claim, err = f.svc.ClaimTask(ctx, f.admin.Token, completed.ID, time.Hour); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := f.svc.CompleteTask(ctx, f.admin.Token, completed.ID, claim.Token, claim.Task.LeaseVersion); err != nil {
+		t.Fatal(err)
+	}
+	cancelled, err := f.svc.CreateTask(ctx, f.admin.Token, f.context.ID, TaskInput{Title: "cancelled"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := f.svc.CancelTask(ctx, f.admin.Token, cancelled.ID, TaskOutcomeInput{Reason: "unneeded"}); err != nil {
+		t.Fatal(err)
+	}
+	events, err := f.svc.ReplayMessages(ctx, f.admin.Token, f.context.ID, 0, 100, MessageFilters{Schema: TaskEventSchema})
+	if err != nil || len(events) != 11 {
+		t.Fatalf("events: %d %v", len(events), err)
+	}
+	for _, event := range events {
+		payload, err := jsonschema.UnmarshalJSON(bytes.NewReader(event.Envelope.Payload))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := compiled.Validate(payload); err != nil {
+			t.Fatalf("schema rejects server event %s: %v", event.Envelope.Payload, err)
+		}
+		if err := f.svc.messageSchemas[TaskEventSchema](event.Envelope.Payload); err != nil {
+			t.Fatalf("validator rejects server event %s: %v", event.Envelope.Payload, err)
+		}
 	}
 }

@@ -17,7 +17,21 @@ type TaskEventPayload struct {
 
 func validTaskEvent(raw json.RawMessage) error {
 	var p TaskEventPayload
-	return strictPayload(raw, &p)
+	if err := strictPayload(raw, &p); err != nil {
+		return err
+	}
+	switch p.Kind {
+	case "created", "claimed", "renewed", "released", "completed", "failed", "cancelled":
+	default:
+		return Invalidf("kind must be created, claimed, renewed, released, completed, failed or cancelled")
+	}
+	if p.Status == "" || !validTaskStatusFilter(p.Status) || !validTaskStatusFilter(p.PreviousStatus) || p.LeaseVersion < 0 {
+		return Invalidf("status and previous_status must be task statuses; lease_version must be nonnegative")
+	}
+	if p.LeaseOwnerInstance != nil && !validInstanceID(p.LeaseOwnerInstance.ID) {
+		return Invalidf("lease_owner_instance.id must be a valid instance ID")
+	}
+	return nil
 }
 
 func putTaskEvent(w MessageWriteStore, sid string, t Task, kind string, previous TaskStatus) error {

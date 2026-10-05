@@ -472,7 +472,7 @@ function renderMessages() {
     top.append(sender, node('span', typeLabel(type), `badge ${type.replace(/^comitia\./,'').replace(/\.v\d+$/,'')}`), node('span', date(message.CreatedAt), 'message-time'));
     const status = taskStatus(message, tasks, known);
     if (status) top.append(node('span', stateLabel(status.state), `badge task-state ${status.state}`));
-    main.append(top, node('p', taskEvent(message) || messagePreview(message), 'message-body'));
+    main.append(top, node('p', messagePreview(message), 'message-body'));
     main.append(node('p', `To ${recipientLabel(envelope, agentLabel)}`, 'message-routing'));
     card.append(main);
     const actions = node('div', undefined, 'message-actions');
