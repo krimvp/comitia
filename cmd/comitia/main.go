@@ -102,7 +102,7 @@ func run(ctx context.Context, args []string) error {
 		return errors.New("bootstrap is available only with embedded SQLite")
 	}
 	if cmd == "serve" {
-		_, depth, count, err := serveFlags(args)
+		_, depth, count, _, err := serveFlags(args)
 		if err != nil {
 			return err
 		}
@@ -192,6 +192,7 @@ Services:
   mcp               run an MCP stdio adapter
   mcp-http          run a remote MCP HTTP adapter
   server-info       inspect version and feature support
+  storage-status    probe write readiness (administrator)
 
 Global flags:
 `

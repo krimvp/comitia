@@ -54,11 +54,11 @@ func TestContextArchiveCommand(t *testing.T) {
 }
 
 func TestServeContextLimitFlags(t *testing.T) {
-	listen, depth, count, err := serveFlags(nil)
+	listen, depth, count, _, err := serveFlags(nil)
 	if err != nil || listen == "" || depth != 3 || count != 20 {
 		t.Fatalf("defaults: %q %d %d %v", listen, depth, count, err)
 	}
-	listen, depth, count, err = serveFlags([]string{"--listen", "127.0.0.1:1234", "--max-context-depth", "1", "--max-child-contexts-per-grant", "2"})
+	listen, depth, count, _, err = serveFlags([]string{"--listen", "127.0.0.1:1234", "--max-context-depth", "1", "--max-child-contexts-per-grant", "2"})
 	if err != nil || listen != "127.0.0.1:1234" || depth != 1 || count != 2 {
 		t.Fatalf("flags: %q %d %d %v", listen, depth, count, err)
 	}
