@@ -643,6 +643,17 @@ comitia send --context-id CONTEXT_ID --dedupe-key review-1 \
   --agent-instance issue-3-worker --agent-instance-label 'Implementation worker'
 ```
 
+A `dedupe_key` is at most 256 bytes (MCP advertises `maxLength`); longer keys
+are rejected as `invalid`, while messages stored with longer keys before the cap
+remain readable. A retry with the same key, body, envelope, instance and task
+attempt returns the original message. A different send under a used key fails
+with `conflict`; the error message and its additive `details` object
+(`message_id`, `sequence`, `differs`) identify the caller's own existing message
+and name the differing parts (`body`, `envelope`, `agent_instance`,
+`task_attempt`) without their values. The Go API returns
+`*comitia.DedupeConflictError` (also via the HTTP client); older clients still
+see `conflict` with the ID in the message text.
+
 MCP `send_message` accepts `context_id`, `dedupe_key`, and optional `body`,
 `envelope`, and `agent_instance` object. HTTP `messages/append` accepts the
 envelope inside its `message` object, with `agent_instance` alongside `Body`

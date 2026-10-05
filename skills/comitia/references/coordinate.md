@@ -40,8 +40,9 @@ check actual process state before resuming or replacing work.
 
 ## Send, read, wait, handle, acknowledge
 
-1. Send each logical message with a unique stable `dedupe_key`; a retry repeats
-   the same body, envelope and instance. Discover typed payloads with
+1. Send each logical message with a unique stable `dedupe_key` (at most 256
+   bytes); a retry repeats the same body, envelope and instance. A `conflict`
+   names the existing message ID and sequence: read it, do not suffix the key. Discover typed payloads with
    `list_message_schemas`/`get_message_schema`; do not invent envelope fields.
    For a routed note use `comitia.discussion.v1`, nonempty body, `payload:{}`,
    `recipient_session_ids:[SESSION]` and `recipient_instances:[INSTANCE]`.

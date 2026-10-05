@@ -85,12 +85,16 @@ func TestRecoveryHintsAfterAuthorization(t *testing.T) {
 		t.Run(map[bool]string{false: "embedded", true: "remote"}[remote], func(t *testing.T) {
 			s, svc, _, c := contextServer(t, remote)
 			ctx := context.Background()
-			if _, err := s.API.AppendMessage(ctx, s.Credential, c.ID, comitia.MessageInput{DedupeKey: "private-key", Body: "private-body"}); err != nil {
+			original, err := s.API.AppendMessage(ctx, s.Credential, c.ID, comitia.MessageInput{DedupeKey: "private-key", Body: "private-body"})
+			if err != nil {
 				t.Fatal(err)
 			}
 			conflict := operationalToolError(t, s, "send_message", map[string]any{"context_id": c.ID, "dedupe_key": "private-key", "body": "private-changed-body"})
 			if conflict.Code != "conflict" || !strings.Contains(conflict.Hint, "original message") {
 				t.Fatalf("dedupe=%+v", conflict)
+			}
+			if d := conflict.Details; d == nil || d.MessageID != original.ID || d.Sequence != original.Sequence || strings.Join(d.Differs, ",") != "body" || !strings.Contains(conflict.Message, original.ID) {
+				t.Fatalf("dedupe details=%+v", conflict)
 			}
 			task, err := svc.CreateTask(ctx, s.Credential, c.ID, comitia.TaskInput{Title: "private-title"})
 			if err != nil {

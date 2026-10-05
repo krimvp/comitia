@@ -4,13 +4,34 @@ import (
 	"context"
 	"crypto/subtle"
 	"errors"
+	"fmt"
+	"strings"
 )
+
+// MaxDedupeKeyBytes bounds new dedupe keys; existing longer keys stay readable.
+const MaxDedupeKeyBytes = 256
+
+// DedupeConflictError reports a send whose dedupe scope already holds a different
+// message. That message belongs to the caller's own session and instance scope.
+type DedupeConflictError struct {
+	MessageID string
+	Sequence  int64
+	Differs   []string // body, envelope, agent_instance, task_attempt
+}
+
+func (e *DedupeConflictError) Error() string {
+	return fmt.Sprintf("%s: dedupe_key already used by message %s (sequence %d) with a different %s", ErrConflict, e.MessageID, e.Sequence, strings.Join(e.Differs, ", "))
+}
+func (e *DedupeConflictError) Unwrap() error { return ErrConflict }
 
 func (s *Service) AppendMessage(ctx context.Context, raw, cid string, in MessageInput) (Message, error) {
 	var m Message
 	appended := false
 	if in.DedupeKey == "" {
 		return m, Invalidf("dedupe_key required")
+	}
+	if len(in.DedupeKey) > MaxDedupeKeyBytes {
+		return m, Invalidf("dedupe_key must be at most %d bytes", MaxDedupeKeyBytes)
 	}
 	if in.Envelope == nil && in.Body == "" {
 		return m, Invalidf("body or envelope required")
@@ -43,8 +64,8 @@ func (s *Service) AppendMessage(ctx context.Context, raw, cid string, in Message
 		}
 		old, e := w.MessageByDedupe(cid, a.session.ID, in.DedupeKey, instanceID)
 		if e == nil {
-			if old.Body != in.Body || !sameEnvelope(old.Envelope, envelope) || !sameAgentInstance(old.AgentInstance, instance) || !sameTaskAttempt(old.TaskAttempt, attempt) {
-				return ErrConflict
+			if differs := dedupeDiffers(old, in.Body, envelope, instance, attempt); len(differs) > 0 {
+				return &DedupeConflictError{MessageID: old.ID, Sequence: old.Sequence, Differs: differs}
 			}
 			m = old
 			s.touchInstanceIn(w, a.session.ID, cid, instance)
@@ -149,6 +170,23 @@ func taskAttempt(f *TaskFence) *TaskAttempt {
 		return nil
 	}
 	return &TaskAttempt{TaskID: f.TaskID, LeaseVersion: f.LeaseVersion, ClaimTokenHash: tokenHash(f.ClaimToken)}
+}
+
+// dedupeDiffers names the differing parts without exposing their values.
+func dedupeDiffers(old Message, body string, envelope *MessageEnvelope, instance *AgentInstance, attempt *TaskAttempt) []string {
+	var differs []string
+	for _, part := range []struct {
+		name string
+		same bool
+	}{
+		{"body", old.Body == body}, {"envelope", sameEnvelope(old.Envelope, envelope)},
+		{"agent_instance", sameAgentInstance(old.AgentInstance, instance)}, {"task_attempt", sameTaskAttempt(old.TaskAttempt, attempt)},
+	} {
+		if !part.same {
+			differs = append(differs, part.name)
+		}
+	}
+	return differs
 }
 func sameTaskAttempt(a, b *TaskAttempt) bool {
 	if a == nil || b == nil {

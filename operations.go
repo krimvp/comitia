@@ -11,10 +11,19 @@ import (
 
 // ErrorInfo contains only public, safe recovery information.
 type ErrorInfo struct {
-	Code      string `json:"code"`
-	Message   string `json:"message"`
-	Hint      string `json:"hint,omitempty"`
-	RequestID string `json:"request_id,omitempty"`
+	Code      string        `json:"code"`
+	Message   string        `json:"message"`
+	Hint      string        `json:"hint,omitempty"`
+	RequestID string        `json:"request_id,omitempty"`
+	Details   *ErrorDetails `json:"details,omitempty"`
+}
+
+// ErrorDetails identifies the caller's own existing resource behind a conflict.
+// Differs names conflicting request parts, never their values.
+type ErrorDetails struct {
+	MessageID string   `json:"message_id,omitempty"`
+	Sequence  int64    `json:"sequence,omitempty"`
+	Differs   []string `json:"differs,omitempty"`
 }
 
 // OperationalError preserves errors.Is classification across remote adapters.
@@ -65,12 +74,17 @@ func SafeError(operation string, err error, requestID string) ErrorInfo {
 		info.Message = ErrBootstrapUsed.Error()
 	case "conflict":
 		info.Message = ErrConflict.Error()
-		switch operation {
-		case "send_message":
+		var dedupe *DedupeConflictError
+		switch {
+		case errors.As(err, &dedupe):
+			info.Message = dedupe.Error()
+			info.Details = &ErrorDetails{MessageID: dedupe.MessageID, Sequence: dedupe.Sequence, Differs: append([]string(nil), dedupe.Differs...)}
+			info.Hint = "The original message was already accepted; read it with get_message instead of resending. Use a new dedupe key only for a genuinely different message."
+		case operation == "send_message":
 			info.Hint = "Reuse the original message with this dedupe key, or use a new key for a different message."
-		case "claim_task":
+		case operation == "claim_task":
 			info.Hint = "Call get_task to refresh task status; claim only a pending task or one whose lease has expired."
-		case "release_task":
+		case operation == "release_task":
 			info.Hint = "Call get_task to refresh task status before releasing a current lease."
 		default:
 			info.Hint = "Refresh the resource state before retrying this operation."
