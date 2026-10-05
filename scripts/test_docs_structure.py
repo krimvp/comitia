@@ -15,6 +15,8 @@ ROOT = Path(__file__).resolve().parents[1]
 WORD_BASELINE = {
     'README.md': 444,
     'docs/CONNECTING.md': 881,
+    # Reviewed #65 owner budget for consumer/request/supervisor/merge workflows.
+    'docs/durable-coordination.md': 2200,
     'docs/RUNBOOK.md': 17,
     'docs/USING-COMITIA.md': 1452,
     'docs/agent-world.md': 77,
@@ -45,6 +47,10 @@ TOPICS = {
     'authorization': ('docs/security.md', 'Authorization invariants'),
     'delegated launchers': ('docs/local-service.md', 'Spawn flow: a delegated session per task owner'),
     'task outcomes': ('docs/task-validation.md', 'Authoritative events and terminal outcomes'),
+    'durable consumers': ('docs/durable-coordination.md', 'Process, then acknowledge'),
+    'request receipts': ('docs/durable-coordination.md', 'Scoped conversations and durable requests'),
+    'merge reconciliation': ('docs/durable-coordination.md', 'Exact-SHA certificates and merge reconciliation'),
+    'supervised processes': ('docs/durable-coordination.md', 'Supervised process registry and steering'),
 }
 
 
@@ -175,7 +181,9 @@ class DocsStructure(unittest.TestCase):
         table_owners = {'schema': 'docs/message-protocol.md',
                         'instance environment': 'docs/message-protocol.md',
                         'transport environment': 'docs/local-daemon.md',
-                        'permission': 'docs/security.md'}
+                        'permission': 'docs/security.md',
+                        'message filters': 'docs/message-protocol.md',
+                        'process registry': 'docs/durable-coordination.md'}
         found = {kind: [] for kind in table_owners}
         for path in active_files():
             text = prose(path.read_text())
@@ -190,11 +198,17 @@ class DocsStructure(unittest.TestCase):
                     kinds.append('transport environment')
                 if re.search(r'\|\s*permissions?\s*\|', header):
                     kinds.append('permission')
+                if len(set(re.findall(r'`(?:reply_to|thread_id|from_session)`', table))) > 1:
+                    kinds.append('message filters')
+                if 'registry field' in header:
+                    kinds.append('process registry')
                 for kind in kinds:
                     owner = str(path.relative_to(ROOT))
                     found[kind].append(owner)
                     self.assertEqual(owner, table_owners[kind], f'{kind} table repeated outside its owner: {owner}')
         self.assertEqual(found['schema'], ['docs/message-protocol.md'])
+        self.assertEqual(found['message filters'], ['docs/message-protocol.md'])
+        self.assertEqual(found['process registry'], ['docs/durable-coordination.md'])
         for owners in found.values():
             self.assertLessEqual(len(owners), 1, 'duplicate reference inventories')
 
@@ -249,13 +263,17 @@ class DocsStructure(unittest.TestCase):
                 self.assertLessEqual(counts[name], baseline * 1.10, 'active guide grew past its reviewed +10% budget')
         self.assertLessEqual(sum(counts.values()), sum(WORD_BASELINE.values()) * 1.10)
 
-    def test_merged_task_workflow_is_linked(self):
+    def test_merged_workflows_are_linked(self):
         using = (ROOT/'docs/USING-COMITIA.md').read_text()
         self.assertIn('](task-validation.md#authoritative-events-and-terminal-outcomes)', using)
         self.assertIn('](message-protocol.md#authoritative-task-events)', using)
         self.assertNotIn('issues/63', using)
-        self.assertIn('Placeholder: [durable consumers', using)
-        self.assertIn('issues/65', using)
+        for anchor in ('process-then-acknowledge', 'scoped-conversations-and-durable-requests',
+                       'exact-sha-certificates-and-merge-reconciliation',
+                       'supervised-process-registry-and-steering'):
+            self.assertIn(f'](durable-coordination.md#{anchor})', using)
+        self.assertNotIn('issues/65', using)
+        self.assertNotIn('Placeholder:', using)
 
 
 class LinkAuditHelpers(unittest.TestCase):

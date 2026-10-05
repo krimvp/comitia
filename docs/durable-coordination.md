@@ -6,6 +6,13 @@ belong to your consumer, launcher or merge gate. A message acknowledgement means
 “this consumer has handled everything through this sequence”; it does not mean a
 worker ran, a request completed or a PR merged.
 
+This design uses existing message, cursor, lease and resume primitives. Durable
+requests and receipts belong in the message log; optional query interfaces and
+SQLite side-table projections preserve existing API and database compatibility.
+The [message protocol](message-protocol.md#envelope-contract) owns schema and
+filter reference inventories; this guide owns consumer, request, supervisor and
+merge reconciliation workflows.
+
 ## Process, then acknowledge
 
 Give the business consumer its own instance, such as `issue-65-consumer`. Use
@@ -66,13 +73,9 @@ and Go's optional `MessageQueryAPI.GetMessage(ctx, token, contextID, messageID)`
 read one message under the context's read permission. Missing or foreign message
 IDs return forbidden, so lookup cannot reveal messages in other contexts.
 
-Replay/wait/page/watch support these AND-combined optional filters:
-
-| Wire/MCP field | CLI flag | Meaning |
-| --- | --- | --- |
-| `reply_to` | `--reply-to` | Direct replies to this message in this context |
-| `thread_id` | `--thread-id` | This root message and all recursive reply descendants |
-| `from_session` | `--from-session` | Authenticated sender session, unlike self-reported `from_instance` |
+For request/reply consumers, combine `reply_to`, `thread_id` and authenticated
+`from_session` selectors as needed. The [filter reference](message-protocol.md#filtered-replay-and-waiting)
+owns their matching rules and CLI spellings.
 
 Unknown or foreign reply/thread roots return forbidden. `from_session` may name
 a historical revoked/expired author; it matches immutable provenance, not current

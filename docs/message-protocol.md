@@ -341,7 +341,7 @@ including TAB, CR, ESC and BEL, DEL, C1 controls, Unicode format/bidi and
 line/paragraph separators) uses its Go escape, such as `\t`, `\r`, `\a`,
 `\x1b` or `\u202e`. Raw tabs only separate fields. Use `replay` for the exact
 JSON body, or `watch --json-lines --manual-ack` for complete records. The
-[durable consumer recipe](durable-coordination.md#process-then-ack) commits business
+[durable consumer recipe](durable-coordination.md#process-then-acknowledge) commits business
 effects before a separate ack; terminal display alone does not prove handling.
 Every successful default terminal print is followed by a monotonic acknowledgement
 using the same instance. `--no-ack` disables these writes while retaining the
