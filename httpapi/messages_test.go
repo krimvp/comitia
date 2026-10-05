@@ -1,9 +1,11 @@
 package httpapi
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -155,5 +157,94 @@ func TestHTTPMessageSchemaDiscoveryLegacyAPI(t *testing.T) {
 	}
 	if _, err := client.GetMessageSchema(context.Background(), "fixed", "comitia.discussion.v1"); !errors.Is(err, comitia.ErrInvalid) {
 		t.Fatalf("unsupported get: %v", err)
+	}
+}
+
+// An old server (merge base 172a7aa) rejects the review-panel additions with
+// these exact validator errors; everything else reaches a real handler.
+func TestReviewPanelRequestsReportOldServerUnsupported(t *testing.T) {
+	st, err := sqlite.OpenSQLite(":memory:")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer st.Close()
+	svc, err := comitia.New(comitia.Config{Store: st, BootstrapCredential: "local"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx := context.Background()
+	_, owner, err := svc.Bootstrap(ctx, comitia.BootstrapInput{Credential: "local", AdminName: "owner", SessionTTL: time.Hour})
+	if err != nil {
+		t.Fatal(err)
+	}
+	w, err := svc.CreateWorkspace(ctx, owner.Token, "w")
+	if err != nil {
+		t.Fatal(err)
+	}
+	c, err := svc.CreateContext(ctx, owner.Token, comitia.CreateContextInput{WorkspaceID: w.ID, Name: "c"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	root, err := svc.AppendMessage(ctx, owner.Token, c.ID, comitia.MessageInput{DedupeKey: "root", Body: "proposal"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	real := NewHandler(svc)
+	old := http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
+		raw, _ := io.ReadAll(r.Body)
+		r.Body = io.NopCloser(bytes.NewReader(raw))
+		var req struct {
+			Message struct {
+				Envelope *struct {
+					Schema  string                     `json:"schema"`
+					Payload map[string]json.RawMessage `json:"payload"`
+				} `json:"envelope"`
+			} `json:"message"`
+		}
+		_ = json.Unmarshal(raw, &req)
+		if env := req.Message.Envelope; strings.HasSuffix(r.URL.Path, "/messages/append") && env != nil {
+			if env.Schema == comitia.StanceSchema {
+				writeError(rw, comitia.Invalidf("schema must name a registered message schema"), http.StatusBadRequest)
+				return
+			}
+			for _, field := range []string{"priority", "size"} {
+				if _, ok := env.Payload[field]; ok && env.Schema == "comitia.finding.v1" {
+					writeError(rw, comitia.Invalidf("payload: unknown field %q; keys are case-sensitive", field), http.StatusBadRequest)
+					return
+				}
+			}
+		}
+		real.ServeHTTP(rw, r)
+	})
+	ts := httptest.NewServer(old)
+	defer ts.Close()
+	client, err := NewClient(ts.URL, ts.Client())
+	if err != nil {
+		t.Fatal(err)
+	}
+	tests := []struct{ name, schema, reply, payload, want string }{
+		{"legacy-finding", "comitia.finding.v1", "", `{"severity":"info","summary":"s"}`, ""},
+		{"priority", "comitia.finding.v1", "", `{"severity":"info","summary":"s","priority":"P1"}`, "comitia.finding.v1 priority unsupported by this server"},
+		{"size", "comitia.finding.v1", "", `{"severity":"info","summary":"s","size":"S"}`, "comitia.finding.v1 size unsupported by this server"},
+		{"stance", comitia.StanceSchema, root.ID, `{"stance":"agree"}`, comitia.StanceSchema + " unsupported by this server"},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := client.AppendMessage(ctx, owner.Token, c.ID, comitia.MessageInput{DedupeKey: tc.name, Envelope: &comitia.MessageEnvelope{Schema: tc.schema, ReplyTo: tc.reply, Payload: json.RawMessage(tc.payload)}})
+			if tc.want == "" {
+				if err != nil {
+					t.Fatal(err)
+				}
+				return
+			}
+			if !errors.Is(err, comitia.ErrInvalid) || !strings.Contains(err.Error(), tc.want) {
+				t.Fatalf("got %v want %q", err, tc.want)
+			}
+		})
+	}
+	// Ordinary unknown-field errors on findings stay invalid input, not unsupported.
+	_, err = client.AppendMessage(ctx, owner.Token, c.ID, comitia.MessageInput{DedupeKey: "typo", Envelope: &comitia.MessageEnvelope{Schema: "comitia.finding.v1", Payload: json.RawMessage(`{"severity":"info","summary":"s","prority":"P1"}`)}})
+	if !errors.Is(err, comitia.ErrInvalid) || strings.Contains(err.Error(), "unsupported") {
+		t.Fatalf("typo: %v", err)
 	}
 }

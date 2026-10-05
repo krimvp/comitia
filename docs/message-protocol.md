@@ -490,13 +490,18 @@ one-line vote message:
 }
 ```
 
-`reply_to` is required and must name a message in the same context; a missing
-or foreign target is refused as forbidden, without revealing which. `refine`
+`reply_to` is required and must name a message in the same context. Sending a
+stance also needs read on the context (direct or inherited from a
+`parent_readable` parent) besides write; a missing, foreign or unreadable target
+is refused as forbidden, without revealing which. `refine`
 with a `note` amends rather than duplicating the finding. Tally a finding with
 replay `reply_to=<finding ID>` and `schema=comitia.stance.v1`. A stance is a
 claim, not an approval; exact artifact verdicts still use `comitia.approval.v1`.
 Servers older than this schema reject it as an unregistered schema, and reject
-`priority`/`size` as unknown payload fields; check `list_message_schemas` first.
+`priority`/`size` as unknown payload fields; the HTTP client reports both as
+invalid input ending `unsupported by this server` (for example
+`comitia.finding.v1 priority unsupported by this server`) and never retries
+without the field. Check `list_message_schemas` first.
 
 These are structured claims, **not proof of correctness**. A verification-result
 message does not accept work, and a work-submitted message does not complete a

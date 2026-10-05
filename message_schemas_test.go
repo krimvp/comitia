@@ -267,3 +267,49 @@ func TestReviewPanelFindingPriorityAndStance(t *testing.T) {
 		t.Fatalf("stance discovery: %v", err)
 	}
 }
+
+func TestStanceWriteOnlyDoesNotRevealMessageExistence(t *testing.T) {
+	f := setup(t, ":memory:")
+	defer f.store.Close()
+	ctx := context.Background()
+	root, err := f.svc.AppendMessage(ctx, f.admin.Token, f.context.ID, MessageInput{DedupeKey: "root", Body: "private proposal"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, writer, _, err := f.svc.DelegateSession(ctx, f.admin.Token, DelegateInput{PrincipalName: "write-only", TTL: time.Hour, Grants: []DelegatedGrant{{ContextID: f.context.ID, Permissions: PermissionWrite, ExpiresAt: f.now.Add(30 * time.Minute)}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := f.svc.GetMessage(ctx, writer.Token, f.context.ID, root.ID); !errors.Is(err, ErrForbidden) {
+		t.Fatalf("fixture must deny message read: %v", err)
+	}
+	stance := func(token, cid, key, target string) error {
+		_, err := f.svc.AppendMessage(ctx, token, cid, MessageInput{DedupeKey: key, Envelope: &MessageEnvelope{Schema: StanceSchema, ReplyTo: target, Payload: json.RawMessage(`{"stance":"agree"}`)}})
+		return err
+	}
+	for i, target := range []string{root.ID, "no-such-message"} {
+		if err := stance(writer.Token, f.context.ID, fmt.Sprint("stance-", i), target); !errors.Is(err, ErrForbidden) {
+			t.Fatalf("write-only stance existing=%v: %v", i == 0, err)
+		}
+	}
+	// Ordinary write-only messages are unaffected.
+	if _, err := f.svc.AppendMessage(ctx, writer.Token, f.context.ID, MessageInput{DedupeKey: "plain", Body: "note"}); err != nil {
+		t.Fatal(err)
+	}
+	// Read inherited from a parent satisfies the check with write on the child.
+	child, err := f.svc.CreateChildContext(ctx, f.admin.Token, CreateChildContextInput{ParentContextID: f.context.ID, Name: "panel", ParentReadable: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	proposal, err := f.svc.AppendMessage(ctx, f.admin.Token, child.ID, MessageInput{DedupeKey: "proposal", Body: "proposal"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, inherited, _, err := f.svc.DelegateSession(ctx, f.admin.Token, DelegateInput{PrincipalName: "inherited", TTL: time.Hour, Grants: []DelegatedGrant{{ContextID: f.context.ID, Permissions: PermissionRead, ExpiresAt: f.now.Add(30 * time.Minute)}, {ContextID: child.ID, Permissions: PermissionWrite, ExpiresAt: f.now.Add(30 * time.Minute)}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := stance(inherited.Token, child.ID, "inherited", proposal.ID); err != nil {
+		t.Fatalf("inherited read stance: %v", err)
+	}
+}
