@@ -2,12 +2,14 @@
   "codex": {
     "display": "Codex",
     "instructions": "~/.codex/AGENTS.md",
+    "skills_dir": "~/.agents/skills",
     "mcp": {"file": "~/.codex/config.toml", "format": "toml", "key": "mcp_servers"},
     "approval": {"format": "entry", "key": "default_tools_approval_mode", "value": "approve"}
   },
   "claude": {
     "display": "Claude",
     "instructions": "~/.claude/CLAUDE.md",
+    "skills_dir": "~/.claude/skills",
     "mcp": {"file": "~/.claude.json", "format": "json", "key": "mcpServers"},
     "approval": {"format": "list", "file": "~/.claude/settings.json", "key": "permissions.allow", "value": "mcp__comitia__*"}
   }
