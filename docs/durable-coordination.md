@@ -76,7 +76,9 @@ Replay/wait/page/watch support these AND-combined optional filters:
 
 Unknown or foreign reply/thread roots return forbidden. `from_session` may name
 a historical revoked/expired author; it matches immutable provenance, not current
-presence. Queries require read permission, preserve count/byte limits and
+presence. Server-authored `comitia.task-event.v1` messages carry the session
+whose task mutation was authorized, so `from_session` matches them too; add
+`schema` to exclude them. Task events never reply to anything. Queries require read permission, preserve count/byte limits and
 `scanned_through`, and never narrow what another context reader can see.
 SQLite uses a new indexed `message_replies` side table and an author index.
 Custom stores must opt into `MessageQueryStore.SupportsMessageQueries()` and honor

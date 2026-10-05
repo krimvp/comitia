@@ -51,6 +51,17 @@ func TestScopedMessageQueries(t *testing.T) {
 	nested := appendTo(f.context.ID, "nested", first.ID)
 	last := appendTo(f.context.ID, "last", root.ID)
 	foreign := appendTo(other.ID, "foreign", "")
+	// Task events are attributed to the authorized actor but join no thread.
+	if _, err := f.svc.CreateTask(ctx, f.admin.Token, f.context.ID, TaskInput{Title: "scoped"}); err != nil {
+		t.Fatal(err)
+	}
+	events, err := f.svc.ReplayMessages(ctx, f.admin.Token, f.context.ID, 0, 10, MessageFilters{Schema: TaskEventSchema})
+	if err != nil || len(events) != 1 {
+		t.Fatalf("task event: %v %v", events, err)
+	}
+	if got, err := f.svc.GetMessage(ctx, f.admin.Token, f.context.ID, events[0].ID); err != nil || got.Envelope.Schema != TaskEventSchema {
+		t.Fatalf("task event lookup: %+v %v", got, err)
+	}
 	got, err := f.svc.GetMessage(ctx, f.admin.Token, f.context.ID, root.ID)
 	if err != nil || !reflect.DeepEqual(got, root) {
 		t.Fatalf("lookup: %+v %v", got, err)
@@ -86,6 +97,9 @@ func TestScopedMessageQueries(t *testing.T) {
 		{MessageFilters{ThreadID: first.ID}, []string{first.ID, nested.ID}},
 		{MessageFilters{ReplyTo: root.ID, ThreadID: root.ID, FromSession: f.admin.Session.ID, Schema: "comitia.discussion.v1", ForInstance: "reader", StrictRecipients: true}, []string{first.ID, last.ID}},
 		{MessageFilters{ThreadID: root.ID, FromSession: "another"}, nil},
+		{MessageFilters{FromSession: f.admin.Session.ID}, []string{root.ID, first.ID, nested.ID, last.ID, events[0].ID}},
+		{MessageFilters{ReplyTo: events[0].ID}, nil},
+		{MessageFilters{ThreadID: events[0].ID}, []string{events[0].ID}},
 	} {
 		for _, wait := range []bool{false, true} {
 			var messages []Message
