@@ -160,7 +160,7 @@ func messageQuery(cid, sid string, after int64, limit int, f MessageFilters) (st
 				args = append(args, sid)
 			}
 		}
-	} else if f.ForInstance != "" {
+	} else if f.ForInstance != "" && !scopedMessageFilters(f) {
 		// The routing classes are disjoint. Bound each ordered seek before
 		// merging, so a small page does not materialize all eligible history.
 		recipients := `SELECT message_id,seq FROM (SELECT message_id,seq FROM message_recipients WHERE context_id=? AND seq>? AND kind='broadcast' AND recipient='' ORDER BY seq LIMIT ?)
@@ -174,6 +174,15 @@ UNION ALL SELECT message_id,seq FROM (SELECT message_id,seq FROM message_recipie
 		recipientArgs = append(recipientArgs, limit)
 		query = strings.Replace(query, "FROM messages m", "FROM ("+recipients+") p CROSS JOIN messages m ON m.id=p.message_id", 1)
 		where, order, args = "1=1", "p.seq", recipientArgs
+	} else if f.ForInstance != "" {
+		// Scoped selectors below must run before any limit. Bounding recipient
+		// candidates first could omit a later match and falsely advance the scan.
+		where += ` AND EXISTS (SELECT 1 FROM message_recipients r WHERE r.message_id=m.id AND ((r.kind='broadcast' AND r.recipient='') OR (r.kind='session' AND r.recipient=?) OR (r.kind='instance' AND r.recipient=?)))`
+		args = append(args, sid, f.ForInstance)
+		if f.StrictRecipients {
+			where += " AND " + strictRecipientSessions("e.envelope")
+			args = append(args, sid)
+		}
 	}
 	if f.FromSession != "" {
 		where += " AND m.session_id=?"

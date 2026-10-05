@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"path/filepath"
 	"reflect"
 	"strings"
@@ -198,6 +199,105 @@ func TestReplyProjectionRecoveryAndIndexedSeek(t *testing.T) {
 		}
 		if !strings.Contains(details, want) {
 			t.Fatalf("missing index %s: %s", want, details)
+		}
+	}
+}
+
+func TestScopedRecipientFiltersBeforeLimit(t *testing.T) {
+	f := setup(t, ":memory:")
+	defer f.store.Close()
+	ctx := context.Background()
+	writer := messageWorker(t, f, "scoped-writer", f.context.ID)
+	appendMessage := func(token, key, reply string, sessions, instances []string) Message {
+		t.Helper()
+		m, err := f.svc.AppendMessage(ctx, token, f.context.ID, MessageInput{DedupeKey: key, Body: key, Envelope: &MessageEnvelope{Schema: "comitia.discussion.v1", ReplyTo: reply, RecipientSessionIDs: sessions, RecipientInstances: instances, Payload: json.RawMessage(`{}`)}})
+		if err != nil {
+			t.Fatal(err)
+		}
+		return m
+	}
+	root := appendMessage(f.admin.Token, "root", "", nil, nil)
+	routes := []struct {
+		name                string
+		sessions, instances []string
+	}{
+		{"broadcast", nil, nil},
+		{"session", []string{f.admin.Session.ID}, nil},
+		{"instance", nil, []string{"reader"}},
+	}
+	// Each recipient seek has more unrelated candidates than both limit=1 and
+	// wait's default 100. No candidate class can mask another class's truncation.
+	for _, route := range routes {
+		for i := 0; i < 105; i++ {
+			appendMessage(f.admin.Token, fmt.Sprintf("%s-%d", route.name, i), "", route.sessions, route.instances)
+		}
+	}
+	mixed := appendMessage(writer.Token, "mixed", root.ID, []string{writer.Session.ID}, []string{"reader"})
+	var eligible []Message
+	for _, route := range routes {
+		eligible = append(eligible, appendMessage(writer.Token, "reply-"+route.name, root.ID, route.sessions, route.instances))
+	}
+	for _, indexed := range []bool{false, true} {
+		for _, strict := range []bool{false, true} {
+			for _, kind := range []string{"reply", "thread", "author"} {
+				t.Run(fmt.Sprintf("%s/indexed=%v/strict=%v", kind, indexed, strict), func(t *testing.T) {
+					filter := MessageFilters{ForInstance: "reader", StrictRecipients: strict}
+					switch kind {
+					case "reply":
+						filter.ReplyTo = root.ID
+					case "thread":
+						filter.ThreadID = root.ID
+					case "author":
+						filter.FromSession = writer.Session.ID
+					}
+					if indexed {
+						filter.Schema = "comitia.discussion.v1"
+					}
+					want := eligible
+					if !strict {
+						want = append([]Message{mixed}, eligible...)
+					}
+					for _, limit := range []int{1, 100} {
+						after := root.Sequence
+						for i := 0; i < len(want); {
+							page, err := f.svc.ReplayMessagesPage(ctx, f.admin.Token, f.context.ID, after, limit, filter)
+							count := min(limit, len(want)-i)
+							if err != nil || len(page.Messages) != count {
+								t.Fatalf("limit=%d after=%d: %+v %v; omitted matching seq=%d", limit, after, page, err, want[i].Sequence)
+							}
+							for j, m := range page.Messages {
+								if m.ID != want[i+j].ID {
+									t.Fatalf("wrong match: %s want %s", m.ID, want[i+j].ID)
+								}
+							}
+							delivered := want[i+count-1].Sequence
+							if page.NextAfter != delivered || page.ScannedThrough != delivered || page.HasMore != (i+count < len(want)) {
+								t.Fatalf("limited page skipped an undelivered match: %+v", page)
+							}
+							// The documented durable-consumer recipe can safely ack this watermark.
+							if err := f.svc.AckMessages(ctx, f.admin.Token, f.context.ID, page.ScannedThrough, "scoped-consumer"); err != nil {
+								t.Fatal(err)
+							}
+							after = page.ScannedThrough
+							i += count
+						}
+						empty, err := f.svc.ReplayMessagesPage(ctx, f.admin.Token, f.context.ID, after, limit, filter)
+						if err != nil || len(empty.Messages) != 0 || empty.HasMore || empty.ScannedThrough != eligible[len(eligible)-1].Sequence {
+							t.Fatalf("end: %+v %v", empty, err)
+						}
+					}
+					page, err := f.svc.WaitMessagesPage(ctx, f.admin.Token, f.context.ID, root.Sequence, 0, filter)
+					if err != nil || len(page.Messages) != len(want) || page.Messages[0].ID != want[0].ID || page.ScannedThrough != want[len(want)-1].Sequence {
+						t.Fatalf("wait skipped sparse matches: %+v %v", page, err)
+					}
+					// A byte-limited page must not report progress past an omitted reply.
+					filter.MaxBytes = 1
+					page, err = f.svc.ReplayMessagesPage(ctx, f.admin.Token, f.context.ID, root.Sequence, 100, filter)
+					if err != nil || len(page.Messages) != 1 || page.Messages[0].ID != want[0].ID || page.ScannedThrough != want[0].Sequence || !page.HasMore {
+						t.Fatalf("byte limit: %+v %v", page, err)
+					}
+				})
+			}
 		}
 	}
 }
