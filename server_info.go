@@ -61,6 +61,51 @@ type ServerInfo struct {
 	Features        []string `json:"features"`
 
 	Build BuildInfo `json:"build"`
+
+	// Client fields are set only by adapters that report their own build, such
+	// as the MCP server_info tool; see WithClient.
+	Client                *BuildInfo `json:"client,omitempty"`
+	ClientStale           *bool      `json:"client_stale,omitempty"`
+	ClientMissingFeatures []string   `json:"client_missing_features,omitempty"`
+	ClientHint            string     `json:"client_hint,omitempty"`
+}
+
+// Features returns the feature inventory compiled into this binary.
+func Features() []string { return append([]string{}, serverFeatures...) }
+
+// WithClient reports how a client built as client relates to the server. The
+// client is stale when the server advertises features this build does not
+// know, or when both sides report a known, different revision or release.
+func (info ServerInfo) WithClient(client BuildInfo) ServerInfo {
+	info.Client = &client
+	known := make(map[string]bool, len(serverFeatures))
+	for _, f := range serverFeatures {
+		known[f] = true
+	}
+	info.ClientMissingFeatures = nil
+	for _, f := range info.Features {
+		if !known[f] {
+			info.ClientMissingFeatures = append(info.ClientMissingFeatures, f)
+		}
+	}
+	differs := func(a, b string, unknown ...string) bool {
+		for _, u := range append(unknown, "") {
+			if a == u || b == u {
+				return false
+			}
+		}
+		return a != b
+	}
+	stale := len(info.ClientMissingFeatures) > 0 || differs(client.Revision, info.Build.Revision, "unknown") || differs(client.Version, info.Build.Version, "dev")
+	info.ClientStale = &stale
+	info.ClientHint = ""
+	switch {
+	case len(info.ClientMissingFeatures) > 0:
+		info.ClientHint = "the server is newer than this MCP client; restart the MCP client (the agent session) to load the upgraded tool schemas"
+	case stale:
+		info.ClientHint = "this MCP client and the server run different builds; restart the MCP client (the agent session) after upgrading"
+	}
+	return info
 }
 
 type ServerInfoAPI interface {
@@ -104,5 +149,5 @@ func (s *Service) ServerInfo(ctx context.Context, raw string) (ServerInfo, error
 	if err != nil {
 		return ServerInfo{}, err
 	}
-	return ServerInfo{Build: BuildIdentity(), Version: BuildVersion(), ProtocolVersion: ProtocolVersion, Features: append([]string{}, serverFeatures...)}, nil
+	return ServerInfo{Build: BuildIdentity(), Version: BuildVersion(), ProtocolVersion: ProtocolVersion, Features: Features()}, nil
 }

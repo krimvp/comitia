@@ -9,7 +9,9 @@ Contents: [instance mode](#discover-and-choose-one-instance-mode),
 
 Use the assigned context/session, or the managed instruction block's defaults.
 Call `server_info` first: optional fields need both the server feature and the
-running MCP tool schema. Upgraded instructions may precede a client restart.
+running MCP tool schema. Upgraded instructions may precede a client restart;
+`client_stale: true` means this MCP client is older or differs, so follow
+`client_hint` and ask for the session to be restarted.
 Choose a distinct stable process instance ID (1–64 ASCII letters, digits, `.`,
 `_`, `-`); use a new cursor for a separate consumer, viewer or watcher.
 

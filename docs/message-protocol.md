@@ -813,14 +813,23 @@ or rule, for example `invalid input: task_id required` or
 `invalid`; the HTTP client preserves `errors.Is(err, comitia.ErrInvalid)`. MCP tool
 errors expose the same detail in text with `isError: true`, and CLI errors print it
 as JSON on stderr. Rejected values and credentials are never included. MCP unknown
-argument fields also identify the running client version and suggest a restart.
+argument fields also identify the running client build. They suggest restarting
+the MCP client only when `server_info` reports `client_stale`; when the client
+matches the server they ask to check the field name instead, and when the server
+build cannot be read they suggest calling `server_info`.
 
 Call the `server_info` MCP tool with `{}`, send authenticated `POST /v1/server_info`
 with `{}`, or run `comitia --server-url URL server-info` with a credential. Any
 valid session can discover capabilities, including a session without context
 grants. The result contains `version`, `protocol_version` (the MCP revision),
 `features`, and `build: {version, revision, dirty}`; HTTP wraps it in `server_info`
-and MCP in `result`. The same build identity appears in MCP initialize/discover,
+and MCP in `result`. The MCP tool also reports the adapter's own build as
+`client: {version, revision, dirty}` and `client_stale`, true when the server
+advertises features this client does not know (listed in
+`client_missing_features`) or when both sides report a known, different revision
+or release version. A stale result carries `client_hint` with the restart advice;
+restart the agent session so its MCP client loads the upgraded tool schemas. HTTP
+and CLI results omit the client fields. The same build identity appears in MCP initialize/discover,
 unknown-field guidance and internal failure diagnostics. `dirty` is the string
 `true`, `false`, or `unknown`; missing revision metadata is `unknown`. Local source
 builds may still use release version `dev`. Source installers stamp `Revision`

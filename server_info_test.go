@@ -2,9 +2,11 @@ package comitia
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"reflect"
 	"slices"
+	"strings"
 	"testing"
 	"time"
 )
@@ -66,5 +68,51 @@ func TestBuildVersion(t *testing.T) {
 	Version = "v1.2.3"
 	if got := BuildVersion(); got != "v1.2.3" {
 		t.Fatalf("ldflags override=%q", got)
+	}
+}
+
+func TestServerInfoWithClient(t *testing.T) {
+	server := ServerInfo{Features: Features(), Build: BuildInfo{Version: "dev", Revision: "abc", Dirty: "false"}}
+	tests := []struct {
+		name    string
+		client  BuildInfo
+		extra   []string
+		stale   bool
+		missing []string
+		hint    string
+	}{
+		{"same build", BuildInfo{Version: "dev", Revision: "abc", Dirty: "false"}, nil, false, nil, ""},
+		{"unknown client revision", BuildInfo{Version: "dev", Revision: "unknown", Dirty: "unknown"}, nil, false, nil, ""},
+		{"older client revision", BuildInfo{Version: "dev", Revision: "old", Dirty: "false"}, nil, true, nil, "different builds"},
+		{"release client, dev server", BuildInfo{Version: "v1.0.0", Revision: "unknown"}, nil, false, nil, ""},
+		{"server features unknown to client", BuildInfo{Version: "dev", Revision: "unknown"}, []string{"future_feature"}, true, []string{"future_feature"}, "restart the MCP client"},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			in := server
+			in.Features = append(Features(), tc.extra...)
+			got := in.WithClient(tc.client)
+			if got.Client == nil || *got.Client != tc.client || got.ClientStale == nil || *got.ClientStale != tc.stale || !reflect.DeepEqual(got.ClientMissingFeatures, tc.missing) {
+				t.Fatalf("got=%+v", got)
+			}
+			if (tc.hint == "") != (got.ClientHint == "") || !strings.Contains(got.ClientHint, tc.hint) {
+				t.Fatalf("hint=%q", got.ClientHint)
+			}
+		})
+	}
+	released := ServerInfo{Features: Features(), Build: BuildInfo{Version: "v1.1.0", Revision: "unknown"}}
+	if got := released.WithClient(BuildInfo{Version: "v1.0.0", Revision: "unknown"}); !*got.ClientStale {
+		t.Fatalf("release mismatch=%+v", got)
+	}
+	// Service results never carry client fields; adapters add them.
+	f := setup(t, ":memory:")
+	defer f.store.Close()
+	info, err := f.svc.ServerInfo(context.Background(), f.admin.Token)
+	if err != nil || info.Client != nil || info.ClientStale != nil || info.ClientHint != "" {
+		t.Fatalf("info=%+v err=%v", info, err)
+	}
+	raw, _ := json.Marshal(info)
+	if strings.Contains(string(raw), "client") {
+		t.Fatalf("wire=%s", raw)
 	}
 }

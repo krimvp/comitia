@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -130,5 +131,61 @@ func TestServerInfoMCP(t *testing.T) {
 	}
 	if !listed {
 		t.Fatal("tool not listed")
+	}
+}
+
+type infoAPI struct {
+	fakeAPI
+	info comitia.ServerInfo
+	err  error
+}
+
+func (a *infoAPI) ServerInfo(context.Context, string) (comitia.ServerInfo, error) {
+	return a.info, a.err
+}
+
+func TestStaleClientMCP(t *testing.T) {
+	client := comitia.BuildIdentity()
+	newer := comitia.ServerInfo{Version: "dev", ProtocolVersion: ProtocolVersion, Features: append(comitia.Features(), "future_feature"), Build: comitia.BuildInfo{Version: "dev", Revision: "newer-revision", Dirty: "false"}}
+	current := comitia.ServerInfo{Version: client.Version, ProtocolVersion: ProtocolVersion, Features: comitia.Features(), Build: client}
+	tests := []struct {
+		name        string
+		info        comitia.ServerInfo
+		err         error
+		stale       bool
+		want, avoid string
+	}{
+		{"newer server", newer, nil, true, "server is comitia dev, revision newer-revision; the server is newer than this MCP client; restart the MCP client", "check the field name"},
+		{"same build", current, nil, false, "matching the server; check the field name against the tool schema", "restart"},
+		{"server_info unavailable", comitia.ServerInfo{}, comitia.ErrUnauthenticated, false, "check the field name against the tool schema, or call server_info", "restart the MCP client ("},
+	}
+	// A partial API without ServerInfo keeps the generic hint instead of panicking.
+	s := &Server{API: &fakeAPI{}, Credential: "fixed-secret"}
+	if _, err := s.call(context.Background(), "get_task", json.RawMessage(`{"after_sequence":1}`)); !errors.Is(err, comitia.ErrInvalid) || !strings.Contains(err.Error(), "or call server_info") {
+		t.Fatalf("partial API=%v", err)
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			s := &Server{API: &infoAPI{info: tc.info, err: tc.err}, Credential: "fixed-secret"}
+			if tc.err == nil {
+				v, err := s.call(context.Background(), "server_info", json.RawMessage(`{}`))
+				info, _ := v.(comitia.ServerInfo)
+				if err != nil || info.Client == nil || *info.Client != client || *info.ClientStale != tc.stale || info.Build != tc.info.Build {
+					t.Fatalf("info=%+v err=%v", info, err)
+				}
+				if tc.stale && (!reflect.DeepEqual(info.ClientMissingFeatures, []string{"future_feature"}) || !strings.Contains(info.ClientHint, "restart the MCP client")) {
+					t.Fatalf("info=%+v", info)
+				}
+				raw, _ := json.Marshal(info)
+				if !strings.Contains(string(raw), `"client_stale":`+map[bool]string{true: "true", false: "false"}[tc.stale]) {
+					t.Fatalf("wire=%s", raw)
+				}
+			}
+			_, err := s.call(context.Background(), "get_task", json.RawMessage(`{"task_id":"t","after_sequence":1}`))
+			text := publicError(err).Error()
+			if !errors.Is(err, comitia.ErrInvalid) || !strings.HasPrefix(text, `invalid input: unknown field "after_sequence" (this client is comitia `+client.Version) || !strings.Contains(text, tc.want) || strings.Contains(text, tc.avoid) || strings.Contains(text, "fixed-secret") {
+				t.Fatalf("error=%v", text)
+			}
+		})
 	}
 }
