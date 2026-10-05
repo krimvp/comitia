@@ -93,7 +93,7 @@ func TestTaskStatusMessages(t *testing.T) {
 	}
 }
 
-// Write without read cannot tell children from other contexts: naming any child is refused alike.
+// Write without read cannot probe task or child membership: references are refused alike.
 func TestTaskStatusChildRequiresParentRead(t *testing.T) {
 	f := setup(t, ":memory:")
 	defer f.store.Close()
@@ -120,7 +120,7 @@ func TestTaskStatusChildRequiresParentRead(t *testing.T) {
 			t.Fatalf("probe %s: %v", cid, err)
 		}
 	}
-	if err := send("plain", `{"state":"done","summary":"s"}`); err != nil {
-		t.Fatalf("status without child: %v", err)
+	if err := send("plain", `{"state":"done","summary":"s"}`); !errors.Is(err, ErrForbidden) || !strings.Contains(err.Error(), "task_id") {
+		t.Fatalf("write-only task reference without child: %v", err)
 	}
 }

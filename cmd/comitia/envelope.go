@@ -28,7 +28,7 @@ func readEnvelope(path string) (*comitia.MessageEnvelope, error) {
 	d.DisallowUnknownFields()
 	var env *comitia.MessageEnvelope
 	if err = d.Decode(&env); err != nil {
-		return nil, comitia.InvalidJSON(err, "envelope")
+		return nil, comitia.InvalidJSONFields(err, "envelope", raw, new(comitia.MessageEnvelope))
 	}
 	if env == nil {
 		return nil, comitia.Invalidf("envelope must contain one JSON object")

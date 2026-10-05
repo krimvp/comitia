@@ -91,7 +91,7 @@ func TestExternalStoreFilteredWaitScanner(t *testing.T) {
 			}
 			done := make(chan error, 1)
 			go func() {
-				_, err := reader.WaitMessages(waitCtx, admin.Token, wc.ID, 0, 3*time.Second, comitia.MessageFilters{Schema: "missing"})
+				_, err := reader.WaitMessages(waitCtx, admin.Token, wc.ID, 0, 3*time.Second, comitia.MessageFilters{Schema: "comitia.finding.v1"})
 				done <- err
 			}()
 			want := []int64{0, 32, 32}

@@ -71,7 +71,7 @@ func TestReplayFiltersAndPaging(t *testing.T) {
 		{"schema", MessageFilters{Schema: "comitia.discussion.v1"}, []int64{3, 4, 5, 6, 7, 8}},
 		{"all filters", MessageFilters{ForInstance: "alice", FromInstance: "worker", TaskID: task.ID, Schema: "comitia.discussion.v1"}, []int64{8}},
 		{"unknown task", MessageFilters{TaskID: "missing"}, nil},
-		{"unknown schema", MessageFilters{Schema: "comitia.discussion"}, nil},
+		{"schema without matches", MessageFilters{Schema: "comitia.approval.v1"}, nil},
 		{"unknown sender", MessageFilters{FromInstance: "work"}, nil},
 	}
 	for _, tc := range tests {
