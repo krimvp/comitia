@@ -260,6 +260,18 @@ class CredentialsTest(helpers.Base):
                                (document['grants'][0]['ExpiresAt'] if change == 'expires_at' else None,
                                 document['grants'][0]['ID']))
 
+    def test_binary_without_credential_check_falls_back_to_participants(self):
+        def older(*command, **kwargs):
+            if command[0] == 'credential-check':
+                raise RuntimeError('Comitia credential-check failed: {"error":"unknown command \\"credential-check\\""}')
+            return self.run(*command, **kwargs)
+        local.validate_credential(older, self.credential('codex'), self.context['context_id'])
+        document = json.loads(self.credential('codex').read_text())
+        with sqlite3.connect(self.root/'data/comitia.db') as db:
+            db.execute('UPDATE grants SET revoked_at=? WHERE id=?', ('2000-01-01T00:00:00Z', document['grants'][0]['ID']))
+        with self.assertRaisesRegex(RuntimeError, 'codex.*unusable'):
+            local.validate_credential(older, self.credential('codex'), self.context['context_id'])
+
     def test_repair_rejects_loss_of_write_permission_when_read_remains(self):
         document = json.loads(self.credential('codex').read_text())
         with sqlite3.connect(self.root/'data/comitia.db') as db:
