@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   test:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
@@ -51,7 +51,7 @@ jobs:
           retention-days: 7
 
   inspector-browser:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     env:
       GOTOOLCHAIN: go1.24.13
       GOFLAGS: -buildvcs=false
