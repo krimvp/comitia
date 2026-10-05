@@ -47,6 +47,11 @@ type MessageEnvelope struct {
 // MessageFilters narrow replay within the same context read permission.
 // Nonempty fields are combined with AND; routing metadata is self-reported.
 type MessageFilters struct {
+	// ReplyTo selects direct replies; ThreadID includes the root and descendants.
+	ReplyTo  string `json:"reply_to,omitempty"`
+	ThreadID string `json:"thread_id,omitempty"`
+	// FromSession selects the authenticated author, independent of instance claims.
+	FromSession string `json:"from_session,omitempty"`
 	// MaxBytes bounds the encoded messages array; zero uses DefaultMessageBytes.
 	MaxBytes     int    `json:"max_bytes,omitempty"`
 	ForInstance  string `json:"for_instance,omitempty"`
@@ -320,6 +325,10 @@ func builtinMessageSchemas() map[string]PayloadValidator {
 		ExecutionEventSchema:   appendPayloadValidator(&executionEventPayload{}, validExecutionEvent),
 		TaskStatusSchema:       appendPayloadValidator(&TaskStatusPayload{}, validTaskStatus),
 		TaskEventSchema:        appendPayloadValidator(&TaskEventPayload{}, validTaskEvent),
+		RequestSchema:          validRequest,
+		ReceiptSchema:          validReceipt,
+		MergeCertificateSchema: validMergeCertificate,
+		MergeReceiptSchema:     validMergeReceipt,
 		ApprovalSchema:         appendPayloadValidator(&ApprovalPayload{}, validApproval),
 	}
 }

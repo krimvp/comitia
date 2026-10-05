@@ -82,6 +82,8 @@ func TestBuiltinPayloadKeysAreCaseSensitive(t *testing.T) {
 				if env.TaskID != "" {
 					env.TaskID = task.ID
 				}
+				env = materializeProtocolExample(t, f, fmt.Sprintf("%s-%d", d.ID, i), env)
+				example.Envelope = env
 				canonical, err := f.svc.AppendMessage(ctx, f.admin.Token, f.context.ID, MessageInput{DedupeKey: fmt.Sprintf("%s-%d", d.ID, i), Body: example.Body, Envelope: &env})
 				if err != nil {
 					t.Fatalf("canonical append: %v", err)

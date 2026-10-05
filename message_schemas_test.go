@@ -59,6 +59,7 @@ func TestMessageSchemaDiscoveryContracts(t *testing.T) {
 			if ex.Envelope.TaskID != "" {
 				ex.Envelope.TaskID = task.ID
 			}
+			ex.Envelope = materializeProtocolExample(t, f, d.ID+string(rune('0'+i)), ex.Envelope)
 			_, err := f.svc.AppendMessage(ctx, f.admin.Token, f.context.ID, MessageInput{DedupeKey: d.ID + string(rune('0'+i)), Body: ex.Body, Envelope: &ex.Envelope})
 			if d.ServerAuthored != (d.ID == TaskEventSchema) || d.ServerAuthored && !errors.Is(err, ErrInvalid) {
 				t.Fatalf("server-authored example %s: %v", d.ID, err)
@@ -139,7 +140,7 @@ func TestExtensionMessageSchemaDescriptors(t *testing.T) {
 		t.Fatalf("extension descriptor: %+v %v", got, err)
 	}
 	list, err := svc.ListMessageSchemas(ctx, f.admin.Token)
-	if err != nil || len(list) != 14 {
+	if err != nil || len(list) != len(builtinMessageSchemas())+2 {
 		t.Fatalf("extension list: %v %v", list, err)
 	}
 	opaque, err := svc.GetMessageSchema(ctx, f.admin.Token, "project.opaque.v1")

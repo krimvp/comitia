@@ -13,6 +13,17 @@ import (
 
 func (h *handler) messageRoutes() map[string]endpoint {
 	return map[string]endpoint{
+		"messages/query-support": typedEndpoint(func(ctx context.Context, token string, _ emptyRequest) (emptyResult, error) {
+			if _, ok := h.api.(comitia.MessageQueryAPI); !ok {
+				return emptyResult{}, comitia.Invalidf("scoped message queries unsupported by API")
+			}
+			_, err := h.api.ServerInfo(ctx, token)
+			return emptyResult{}, err
+		}),
+		"messages/get": typedEndpoint(func(ctx context.Context, token string, q messageGetRequest) (messageResult, error) {
+			v, err := comitia.LookupMessage(ctx, h.api, token, q.ContextID, q.MessageID)
+			return messageResult{ptr(messageDTO(v))}, err
+		}),
 		"messages/schemas/list": typedEndpoint(func(ctx context.Context, token string, _ emptyRequest) (messageSchemasResult, error) {
 			api, ok := h.api.(comitia.MessageSchemaAPI)
 			if !ok {
@@ -56,6 +67,9 @@ func (h *handler) messageRoutes() map[string]endpoint {
 			if err != nil {
 				return readMessagesResult{}, err
 			}
+			if err := comitia.CheckMessageQueryAPI(h.api, q.messageFilters()); err != nil {
+				return readMessagesResult{}, err
+			}
 			if q.Page {
 				v, err := comitia.ReplayMessagePage(ctx, h.api, token, q.ContextID, q.After, limit, q.messageFilters())
 				if err != nil {
@@ -79,6 +93,9 @@ func (h *handler) messageRoutes() map[string]endpoint {
 				}
 			}
 			filters := q.replay().messageFilters()
+			if err := comitia.CheckMessageQueryAPI(h.api, filters); err != nil {
+				return readMessagesResult{}, err
+			}
 			if q.Page {
 				v, err := comitia.WaitMessagePage(ctx, h.api, token, q.ContextID, q.After, timeout, filters)
 				if err != nil {
@@ -103,17 +120,17 @@ func (h *handler) messageRoutes() map[string]endpoint {
 }
 
 func (q replayRequest) messageFilters() comitia.MessageFilters {
-	f := comitia.MessageFilters{MaxBytes: q.MaxBytes, StrictRecipients: q.StrictRecipients, ForInstance: q.ForInstance, FromInstance: q.FromInstance, TaskID: q.TaskID, Schema: q.Schema}
+	f := comitia.MessageFilters{ReplyTo: q.ReplyTo, ThreadID: q.ThreadID, FromSession: q.FromSession, MaxBytes: q.MaxBytes, StrictRecipients: q.StrictRecipients, ForInstance: q.ForInstance, FromInstance: q.FromInstance, TaskID: q.TaskID, Schema: q.Schema}
 	if q.AgentInstance != "" {
 		f.AgentInstance = &q.AgentInstance
 	}
 	return f
 }
 func (q replayRequest) wait(seconds float64) waitRequest {
-	return waitRequest{ContextID: q.ContextID, After: q.After, MaxBytes: q.MaxBytes, Page: q.Page, AgentInstance: q.AgentInstance, ForInstance: q.ForInstance, FromInstance: q.FromInstance, TaskID: q.TaskID, Schema: q.Schema, TimeoutSeconds: &seconds, StrictRecipients: q.StrictRecipients}
+	return waitRequest{ReplyTo: q.ReplyTo, ThreadID: q.ThreadID, FromSession: q.FromSession, ContextID: q.ContextID, After: q.After, MaxBytes: q.MaxBytes, Page: q.Page, AgentInstance: q.AgentInstance, ForInstance: q.ForInstance, FromInstance: q.FromInstance, TaskID: q.TaskID, Schema: q.Schema, TimeoutSeconds: &seconds, StrictRecipients: q.StrictRecipients}
 }
 func (q waitRequest) replay() replayRequest {
-	return replayRequest{ContextID: q.ContextID, After: q.After, MaxBytes: q.MaxBytes, Page: q.Page, AgentInstance: q.AgentInstance, ForInstance: q.ForInstance, FromInstance: q.FromInstance, TaskID: q.TaskID, Schema: q.Schema, StrictRecipients: q.StrictRecipients}
+	return replayRequest{ReplyTo: q.ReplyTo, ThreadID: q.ThreadID, FromSession: q.FromSession, ContextID: q.ContextID, After: q.After, MaxBytes: q.MaxBytes, Page: q.Page, AgentInstance: q.AgentInstance, ForInstance: q.ForInstance, FromInstance: q.FromInstance, TaskID: q.TaskID, Schema: q.Schema, StrictRecipients: q.StrictRecipients}
 }
 
 // A nil AgentInstance uses the client's default presence instance.
@@ -125,6 +142,7 @@ func (c *Client) messageReadRequest(cid string, after int64, filters []comitia.M
 	var instances []string
 	if len(filters) == 1 {
 		f := filters[0]
+		q.ReplyTo, q.ThreadID, q.FromSession = f.ReplyTo, f.ThreadID, f.FromSession
 		q.MaxBytes, q.StrictRecipients = f.MaxBytes, f.StrictRecipients
 		q.ForInstance, q.FromInstance, q.TaskID, q.Schema = f.ForInstance, f.FromInstance, f.TaskID, f.Schema
 		if f.AgentInstance != nil {
@@ -139,6 +157,11 @@ func (c *Client) messageReadRequest(cid string, after int64, filters []comitia.M
 // Servers before strict recipient selection reject the member. Never retry
 // without it: that would silently widen the selected recipients.
 func strictRecipientsUnsupported(q replayRequest, err error) error {
+	for _, field := range []struct{ name, value string }{{"reply_to", q.ReplyTo}, {"thread_id", q.ThreadID}, {"from_session", q.FromSession}} {
+		if field.value != "" && unknownField(err, field.name) {
+			return fmt.Errorf("%w: scoped message queries unsupported by this server", comitia.ErrInvalid)
+		}
+	}
 	if q.StrictRecipients && errors.Is(err, comitia.ErrInvalid) && strings.Contains(err.Error(), `unknown field "strict_recipients"`) {
 		return fmt.Errorf("%w: strict_recipients unsupported by this server", comitia.ErrInvalid)
 	}
@@ -175,6 +198,12 @@ func (c *Client) AppendMessage(ctx context.Context, token, id string, input comi
 	input.AgentInstance = c.InstanceDefaults.Message(input.AgentInstance)
 	var out messageResult
 	err := c.call(ctx, token, "messages/append", appendRequest{id, ptr(messageInput(input))}, &out)
+	if input.Envelope != nil && errors.Is(err, comitia.ErrInvalid) && strings.Contains(err.Error(), "schema must name a registered message schema") {
+		switch input.Envelope.Schema {
+		case comitia.RequestSchema, comitia.ReceiptSchema, comitia.MergeCertificateSchema, comitia.MergeReceiptSchema:
+			return comitia.Message{}, fmt.Errorf("%w: %s unsupported by this server", comitia.ErrInvalid, input.Envelope.Schema)
+		}
+	}
 	if input.TaskFence != nil && unknownField(err, "task_fence") {
 		return comitia.Message{}, ErrTaskResultFencingUnsupported
 	}
@@ -189,6 +218,11 @@ func (c *Client) ReplayMessages(ctx context.Context, token, id string, after int
 		return nil, err
 	}
 	q.Limit = ptr(limit)
+	if q.ReplyTo != "" || q.ThreadID != "" || q.FromSession != "" {
+		if err := c.messageQuerySupport(ctx, token); err != nil {
+			return nil, err
+		}
+	}
 	var out readMessagesResult
 	err = strictRecipientsUnsupported(q, c.call(ctx, token, "messages/replay", q, &out))
 	if err = requiredResult(err, out.Messages); err != nil {
@@ -207,6 +241,11 @@ func (c *Client) WaitMessages(ctx context.Context, token, id string, after int64
 	if err != nil {
 		return nil, err
 	}
+	if q.ReplyTo != "" || q.ThreadID != "" || q.FromSession != "" {
+		if err := c.messageQuerySupport(ctx, token); err != nil {
+			return nil, err
+		}
+	}
 	var out readMessagesResult
 	err = strictRecipientsUnsupported(q, c.call(ctx, token, "messages/wait", q.wait(timeout.Seconds()), &out))
 	if err = requiredResult(err, out.Messages); err != nil {
@@ -220,6 +259,11 @@ func (c *Client) ReplayMessagesPage(ctx context.Context, token, id string, after
 		return comitia.MessagePage{}, err
 	}
 	q.Limit, q.Page = ptr(limit), true
+	if q.ReplyTo != "" || q.ThreadID != "" || q.FromSession != "" {
+		if err := c.messageQuerySupport(ctx, token); err != nil {
+			return comitia.MessagePage{}, err
+		}
+	}
 	var out readMessagesResult
 	err = strictRecipientsUnsupported(q, c.call(ctx, token, "messages/replay", q, &out))
 	if err = requiredResult(err, out.Page); err != nil {
@@ -239,6 +283,11 @@ func (c *Client) WaitMessagesPage(ctx context.Context, token, id string, after i
 		return comitia.MessagePage{}, err
 	}
 	q.Page = true
+	if q.ReplyTo != "" || q.ThreadID != "" || q.FromSession != "" {
+		if err := c.messageQuerySupport(ctx, token); err != nil {
+			return comitia.MessagePage{}, err
+		}
+	}
 	var out readMessagesResult
 	err = strictRecipientsUnsupported(q, c.call(ctx, token, "messages/wait", q.wait(timeout.Seconds()), &out))
 	if err = requiredResult(err, out.Page); err != nil {
@@ -338,4 +387,24 @@ func wirePageResult(page comitia.MessagePage, budget int) (readMessagesResult, e
 	}
 	value.Messages = messages
 	return readMessagesResult{Page: &value}, nil
+}
+
+func (c *Client) messageQuerySupport(ctx context.Context, token string) error {
+	var out emptyResult
+	err := c.call(ctx, token, "messages/query-support", emptyRequest{}, &out)
+	if errors.Is(err, comitia.ErrNotFound) {
+		return fmt.Errorf("%w: scoped message queries unsupported by this server", comitia.ErrInvalid)
+	}
+	return err
+}
+func (c *Client) GetMessage(ctx context.Context, token, cid, mid string) (comitia.Message, error) {
+	if err := c.messageQuerySupport(ctx, token); err != nil {
+		return comitia.Message{}, err
+	}
+	var out messageResult
+	err := c.call(ctx, token, "messages/get", messageGetRequest{cid, mid}, &out)
+	if err = requiredResult(err, out.Message); err != nil {
+		return comitia.Message{}, err
+	}
+	return comitia.Message(*out.Message), nil
 }

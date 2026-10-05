@@ -13,7 +13,10 @@ Presence is self-reported routing metadata, never authorization or identity
 proof. A recent timestamp records a successful call, not a running-process
 check. Old rows remain available after their session expires or is revoked;
 `list_participants` continues to list current readable credential sessions.
-Comitia does not launch or resume processes using this metadata.
+Comitia does not launch or resume processes using this metadata. See the
+[external supervisor registry and steering recipe](durable-coordination.md#supervised-process-registry-and-steering)
+for launcher-owned process identity, bounded checkpoints, separate watcher cursors
+and semantic control receipts. Never reclaim work solely on stale activity.
 
 Successful `send_message`, `replay_messages`, `wait_messages`, `message_cursor`,
 and `ack_messages` calls that name an instance attempt to update its last seen,

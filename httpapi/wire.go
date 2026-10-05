@@ -311,7 +311,14 @@ type resumeRequest struct {
 	Resume    json.RawMessage        `json:"resume"`
 }
 
+type messageGetRequest struct {
+	ContextID string `json:"context_id"`
+	MessageID string `json:"message_id"`
+}
 type replayRequest struct {
+	ReplyTo          string `json:"reply_to,omitempty"`
+	ThreadID         string `json:"thread_id,omitempty"`
+	FromSession      string `json:"from_session,omitempty"`
 	ContextID        string `json:"context_id"`
 	After            int64  `json:"after,omitempty"`
 	MaxBytes         int    `json:"max_bytes,omitempty"`
@@ -326,6 +333,9 @@ type replayRequest struct {
 }
 
 type waitRequest struct {
+	ReplyTo        string   `json:"reply_to,omitempty"`
+	ThreadID       string   `json:"thread_id,omitempty"`
+	FromSession    string   `json:"from_session,omitempty"`
 	ContextID      string   `json:"context_id"`
 	After          int64    `json:"after,omitempty"`
 	MaxBytes       int      `json:"max_bytes,omitempty"`

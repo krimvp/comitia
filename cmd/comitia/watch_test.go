@@ -13,6 +13,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -410,5 +411,88 @@ func TestWatchEscapesTerminalControls(t *testing.T) {
 	want := "1\t-\t-\t" + `safe\r\x1b[2Kforged approval\x1b]52;c;Y2xpcGJvYXJk\a\ttab\u009b\xff` + "\n"
 	if out.String() != want {
 		t.Fatalf("output %q, want %q", out.String(), want)
+	}
+}
+
+func TestWatchJSONLinesProcessThenAck(t *testing.T) {
+	api, token, cid, _ := watchFixture(t)
+	ctx := context.Background()
+	root, err := api.AppendMessage(ctx, token, cid, comitia.MessageInput{DedupeKey: "root", Body: "root"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	message, err := api.AppendMessage(ctx, token, cid, comitia.MessageInput{DedupeKey: "full", Body: "first\nsecond\t\x1b\u202e", AgentInstance: &comitia.AgentInstance{ID: "writer", Label: "Worker"}, Envelope: &comitia.MessageEnvelope{Schema: "comitia.discussion.v1", ReplyTo: root.ID, RecipientInstances: []string{"reader"}, Payload: json.RawMessage(`{}`)}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := api.AckMessages(ctx, token, cid, root.Sequence, "consumer"); err != nil {
+		t.Fatal(err)
+	}
+	for i := 0; i < 2; i++ {
+		runCtx, cancel := context.WithTimeout(ctx, time.Second)
+		var output bytes.Buffer
+		err := watchMessageOutput(runCtx, api, token, cid, "consumer", time.Second, comitia.MessageFilters{}, false, true, cancelWatchWriter{&output, cancel})
+		cancel()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if bytes.Count(output.Bytes(), []byte("\n")) != 1 {
+			t.Fatalf("multiline frame: %q", output.String())
+		}
+		var decoded comitia.Message
+		if err := json.Unmarshal(bytes.TrimSpace(output.Bytes()), &decoded); err != nil {
+			t.Fatal(err)
+		}
+		if !reflect.DeepEqual(decoded, message) {
+			t.Fatalf("full record lost: %+v want %+v", decoded, message)
+		}
+		cursor, err := api.MessageCursor(ctx, token, cid, "consumer")
+		if err != nil || cursor != root.Sequence {
+			t.Fatalf("print acknowledged business effect: %d %v", cursor, err)
+		}
+	}
+	// Business state was durably committed before the explicit ack. Restart will
+	// now skip exactly that message; the separate terminal cursor was untouched.
+	if err := api.AckMessages(ctx, token, cid, message.Sequence, "consumer"); err != nil {
+		t.Fatal(err)
+	}
+	remaining, err := api.ReplayMessages(ctx, token, cid, message.Sequence, 100)
+	if err != nil || len(remaining) != 0 {
+		t.Fatalf("restart: %v %v", remaining, err)
+	}
+	if cursor, err := api.MessageCursor(ctx, token, cid, "terminal"); err != nil || cursor != 0 {
+		t.Fatalf("other consumer moved: %d %v", cursor, err)
+	}
+}
+
+type failedWatchWriter struct{}
+
+func (failedWatchWriter) Write([]byte) (int, error) { return 0, io.ErrClosedPipe }
+
+func TestWatchJSONLinesOutputFailureLeavesCursor(t *testing.T) {
+	api, token, cid, _ := watchFixture(t)
+	if _, err := api.AppendMessage(context.Background(), token, cid, comitia.MessageInput{DedupeKey: "failure", Body: "unhandled"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := watchMessageOutput(context.Background(), api, token, cid, "consumer", time.Second, comitia.MessageFilters{}, false, true, failedWatchWriter{}); !errors.Is(err, io.ErrClosedPipe) {
+		t.Fatalf("output error: %v", err)
+	}
+	if cursor, err := api.MessageCursor(context.Background(), token, cid, "consumer"); err != nil || cursor != 0 {
+		t.Fatalf("failed output acknowledged: %d %v", cursor, err)
+	}
+}
+
+func TestWatchJSONLinesRequiresManualAck(t *testing.T) {
+	api, token, cid, _ := watchFixture(t)
+	cfg := config{credential: token}
+	// Runtime flag errors precede the long-lived loop.
+	if err := runMessages(context.Background(), cfg, api, json.NewEncoder(io.Discard), "watch", []string{"--context-id", cid, "--json-lines"}); !errors.Is(err, comitia.ErrInvalid) {
+		t.Fatalf("implicit auto ack: %v", err)
+	}
+	for _, args := range [][]string{{"--json-lines", "--manual-ack"}, {"--json-lines", "--no-ack"}} {
+		cfg.parseOnly = true
+		if err := runMessages(context.Background(), cfg, nil, nil, "watch", args); err != nil {
+			t.Fatal(err)
+		}
 	}
 }

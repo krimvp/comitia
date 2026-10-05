@@ -46,6 +46,21 @@ func runMessages(ctx context.Context, cfg config, api comitia.API, out *json.Enc
 			return e
 		}
 		return out.Encode(v)
+	case "message-get":
+		fs := newFlags(cmd)
+		cid := fs.String("context-id", "", "readable context ID")
+		mid := fs.String("message-id", "", "message ID in this context")
+		if err := fs.Parse(args); err != nil {
+			return err
+		}
+		if cfg.parseOnly {
+			return nil
+		}
+		v, err := comitia.LookupMessage(ctx, api, needCredential(cfg), *cid, *mid)
+		if err != nil {
+			return err
+		}
+		return out.Encode(v)
 	case "participants":
 		fs := newFlags(cmd)
 		page := fs.Bool("page", false, "return items, next_after and has_more")
@@ -78,6 +93,8 @@ func runMessages(ctx context.Context, cfg config, api comitia.API, out *json.Enc
 		timeoutSeconds := fs.Float64("timeout-seconds", 30, "wait timeout seconds (capped at 60)")
 		defaultID, _ := cfg.instances.ID()
 		instance := fs.String("agent-instance", defaultID, "self-reported instance ID for presence and the watch cursor (defaults to COMITIA_AGENT_INSTANCE)")
+		jsonLines := fs.Bool("json-lines", false, "full messages as JSON lines; requires --manual-ack or --no-ack")
+		manualAck := fs.Bool("manual-ack", false, "acknowledge separately after durable business handling")
 		noAck := fs.Bool("no-ack", false, "do not acknowledge printed watch messages")
 		page := fs.Bool("page", false, "return messages, next_after and has_more")
 		filters := messageFilterFlags(fs)
@@ -89,6 +106,15 @@ func runMessages(ctx context.Context, cfg config, api comitia.API, out *json.Enc
 			return nil
 		}
 		filters.AgentInstance = instance
+		if err := comitia.CheckMessageQueryAPI(api, *filters); err != nil {
+			return err
+		}
+		if (*jsonLines || *manualAck) && cmd != "watch" {
+			return comitia.Invalidf("--json-lines and --manual-ack require watch")
+		}
+		if *jsonLines && !*manualAck && !*noAck {
+			return comitia.Invalidf("--json-lines requires --manual-ack or --no-ack")
+		}
 		if cmd == "watch" && *page {
 			return comitia.Invalidf("--page is supported by replay and wait")
 		}
@@ -113,7 +139,7 @@ func runMessages(ctx context.Context, cfg config, api comitia.API, out *json.Enc
 		if cmd == "watch" {
 			ctx, stop := signal.NotifyContext(ctx, os.Interrupt, syscall.SIGTERM)
 			defer stop()
-			return watchMessages(ctx, api, needCredential(cfg), *cid, *instance, timeout, *filters, !*noAck, os.Stdout)
+			return watchMessageOutput(ctx, api, needCredential(cfg), *cid, *instance, timeout, *filters, !*noAck && !*manualAck, *jsonLines, os.Stdout)
 		}
 		if *page {
 			v, e := comitia.WaitMessagePage(ctx, api, needCredential(cfg), *cid, *after, timeout, *filters)
@@ -191,6 +217,9 @@ func messageInstance(cfg config, fs *flag.FlagSet, id, label string) *comitia.Ag
 
 func messageFilterFlags(fs *flag.FlagSet) *comitia.MessageFilters {
 	f := new(comitia.MessageFilters)
+	fs.StringVar(&f.ReplyTo, "reply-to", "", "direct replies to this message in this context")
+	fs.StringVar(&f.ThreadID, "thread-id", "", "root message and recursive descendants in this context")
+	fs.StringVar(&f.FromSession, "from-session", "", "authenticated sender session ID")
 	fs.StringVar(&f.ForInstance, "for-instance", "", "recipient instance, caller session with no instance recipients, or broadcast")
 	fs.BoolVar(&f.StrictRecipients, "strict-recipients", false, "require both recipient lists to match caller session and --for-instance")
 	fs.StringVar(&f.FromInstance, "from-instance", "", "self-reported sender instance")

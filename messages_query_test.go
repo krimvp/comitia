@@ -1,0 +1,189 @@
+package comitia
+
+import (
+	"context"
+	"encoding/json"
+	"errors"
+	"path/filepath"
+	"reflect"
+	"strings"
+	"testing"
+	"time"
+)
+
+// Original exported method sets compile without implementing the optional API.
+type originalMessageAPI interface {
+	ListParticipants(context.Context, string, string, int) ([]Participant, error)
+	AppendMessage(context.Context, string, string, MessageInput) (Message, error)
+	ReplayMessages(context.Context, string, string, int64, int, ...MessageFilters) ([]Message, error)
+	AckMessages(context.Context, string, string, int64, ...string) error
+	MessageCursor(context.Context, string, string, ...string) (int64, error)
+	WaitMessages(context.Context, string, string, int64, time.Duration, ...MessageFilters) ([]Message, error)
+}
+type oldMessageAPI struct{ originalMessageAPI }
+type oldMessageReadStore struct{ MessageReadStore }
+type oldMessageWriteStore struct{ MessageWriteStore }
+
+var _ MessageAPI = oldMessageAPI{}
+var _ MessageReadStore = oldMessageReadStore{}
+var _ MessageWriteStore = oldMessageWriteStore{}
+var _ MessageQueryAPI = (*Service)(nil)
+var _ MessageQueryStore = (*sqlStore)(nil)
+
+func TestScopedMessageQueries(t *testing.T) {
+	f := setup(t, ":memory:")
+	defer f.store.Close()
+	ctx := context.Background()
+	other, err := f.svc.CreateContext(ctx, f.admin.Token, CreateContextInput{WorkspaceID: f.context.WorkspaceID, Name: "other"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	appendTo := func(cid, key, reply string) Message {
+		t.Helper()
+		m, err := f.svc.AppendMessage(ctx, f.admin.Token, cid, MessageInput{DedupeKey: key, Body: key, Envelope: &MessageEnvelope{Schema: "comitia.discussion.v1", ReplyTo: reply, Payload: json.RawMessage(`{}`)}})
+		if err != nil {
+			t.Fatal(err)
+		}
+		return m
+	}
+	root := appendTo(f.context.ID, "root", "")
+	first := appendTo(f.context.ID, "first", root.ID)
+	nested := appendTo(f.context.ID, "nested", first.ID)
+	last := appendTo(f.context.ID, "last", root.ID)
+	foreign := appendTo(other.ID, "foreign", "")
+	got, err := f.svc.GetMessage(ctx, f.admin.Token, f.context.ID, root.ID)
+	if err != nil || !reflect.DeepEqual(got, root) {
+		t.Fatalf("lookup: %+v %v", got, err)
+	}
+	for _, mid := range []string{"missing", foreign.ID} {
+		if _, err := f.svc.GetMessage(ctx, f.admin.Token, f.context.ID, mid); !errors.Is(err, ErrForbidden) {
+			t.Fatalf("scope leak: %v", err)
+		}
+		if _, err := f.svc.ReplayMessages(ctx, f.admin.Token, f.context.ID, 0, 10, MessageFilters{ReplyTo: mid}); !errors.Is(err, ErrForbidden) {
+			t.Fatalf("reply scope leak: %v", err)
+		}
+	}
+	if _, err := f.svc.GetMessage(ctx, "invalid", f.context.ID, root.ID); !errors.Is(err, ErrUnauthenticated) {
+		t.Fatal(err)
+	}
+	p, err := f.svc.CreatePrincipal(ctx, f.admin.Token, "ungranted")
+	if err != nil {
+		t.Fatal(err)
+	}
+	session, err := f.svc.MintSession(ctx, f.admin.Token, p.ID, time.Hour)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := f.svc.GetMessage(ctx, session.Token, f.context.ID, root.ID); !errors.Is(err, ErrForbidden) {
+		t.Fatalf("authorization: %v", err)
+	}
+	for _, tc := range []struct {
+		filter MessageFilters
+		ids    []string
+	}{
+		{MessageFilters{ReplyTo: root.ID}, []string{first.ID, last.ID}},
+		{MessageFilters{ThreadID: root.ID}, []string{root.ID, first.ID, nested.ID, last.ID}},
+		{MessageFilters{ThreadID: first.ID}, []string{first.ID, nested.ID}},
+		{MessageFilters{ReplyTo: root.ID, ThreadID: root.ID, FromSession: f.admin.Session.ID, Schema: "comitia.discussion.v1", ForInstance: "reader", StrictRecipients: true}, []string{first.ID, last.ID}},
+		{MessageFilters{ThreadID: root.ID, FromSession: "another"}, nil},
+	} {
+		for _, wait := range []bool{false, true} {
+			var messages []Message
+			if wait {
+				messages, err = f.svc.WaitMessages(ctx, f.admin.Token, f.context.ID, 0, 0, tc.filter)
+			} else {
+				messages, err = f.svc.ReplayMessages(ctx, f.admin.Token, f.context.ID, 0, 100, tc.filter)
+			}
+			if err != nil {
+				t.Fatal(err)
+			}
+			var ids []string
+			for _, m := range messages {
+				ids = append(ids, m.ID)
+			}
+			if !reflect.DeepEqual(ids, tc.ids) {
+				t.Fatalf("filter %+v wait=%v: %v", tc.filter, wait, ids)
+			}
+		}
+	}
+	page, err := f.svc.ReplayMessagesPage(ctx, f.admin.Token, f.context.ID, 0, 1, MessageFilters{ReplyTo: root.ID})
+	if err != nil || len(page.Messages) != 1 || page.Messages[0].ID != first.ID || !page.HasMore {
+		t.Fatalf("page: %+v %v", page, err)
+	}
+	next, err := f.svc.ReplayMessagesPage(ctx, f.admin.Token, f.context.ID, page.ScannedThrough, 1, MessageFilters{ReplyTo: root.ID})
+	if err != nil || len(next.Messages) != 1 || next.Messages[0].ID != last.ID {
+		t.Fatalf("next: %+v %v", next, err)
+	}
+	if _, err := LookupMessage(ctx, oldMessageAPI{f.svc}, f.admin.Token, f.context.ID, root.ID); !errors.Is(err, ErrInvalid) {
+		t.Fatal(err)
+	}
+	svc, err := New(Config{Store: noReceiptStore{f.store}, Clock: func() time.Time { return *f.now }})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := svc.ReplayMessages(ctx, f.admin.Token, f.context.ID, 0, 10, MessageFilters{ReplyTo: root.ID}); !errors.Is(err, ErrInvalid) {
+		t.Fatalf("old store widened: %v", err)
+	}
+}
+
+func TestReplyProjectionRecoveryAndIndexedSeek(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "messages.db")
+	f := setup(t, path)
+	defer func() { f.store.Close() }()
+	ctx := context.Background()
+	root, err := f.svc.AppendMessage(ctx, f.admin.Token, f.context.ID, MessageInput{DedupeKey: "root", Body: "root"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := f.store.db.Exec("DROP TRIGGER comitia_message_reply_insert"); err != nil {
+		t.Fatal(err)
+	}
+	reply, err := f.svc.AppendMessage(ctx, f.admin.Token, f.context.ID, MessageInput{DedupeKey: "reply", Body: "reply", Envelope: &MessageEnvelope{Schema: "comitia.discussion.v1", ReplyTo: root.ID, Payload: json.RawMessage(`{}`)}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !f.store.migrationPending(ctx) {
+		t.Fatal("missing reply trigger not detected")
+	}
+	f.store.Close()
+	f.store, err = OpenSQLite(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if f.store.migrationPending(ctx) {
+		t.Fatal("schema still pending")
+	}
+	if err := f.store.View(ctx, func(r ReadStore) error {
+		messages, err := r.Messages(f.context.ID, f.admin.Session.ID, 0, 10, MessageFilters{ReplyTo: root.ID})
+		if err != nil || len(messages) != 1 || messages[0].ID != reply.ID {
+			t.Fatalf("backfill: %v %v", messages, err)
+		}
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+	for _, filter := range []MessageFilters{{ReplyTo: root.ID}, {ThreadID: root.ID}, {FromSession: f.admin.Session.ID}} {
+		query, args := messageQuery(f.context.ID, f.admin.Session.ID, 0, 10, filter)
+		rows, err := f.store.db.Query("EXPLAIN QUERY PLAN "+query, args...)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var details string
+		for rows.Next() {
+			var a, b, c int
+			var d string
+			if err := rows.Scan(&a, &b, &c, &d); err != nil {
+				t.Fatal(err)
+			}
+			details += d + "\n"
+		}
+		rows.Close()
+		want := "message_replies_lookup"
+		if filter.FromSession != "" {
+			want = "messages_author"
+		}
+		if !strings.Contains(details, want) {
+			t.Fatalf("missing index %s: %s", want, details)
+		}
+	}
+}

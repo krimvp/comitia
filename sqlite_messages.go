@@ -41,6 +41,13 @@ END;
 CREATE TRIGGER IF NOT EXISTS comitia_message_instance_filter_insert AFTER INSERT ON message_instances BEGIN
  UPDATE message_filters SET sender=NEW.instance_id WHERE message_id=NEW.message_id;
 END;
+CREATE TABLE IF NOT EXISTS message_replies (message_id TEXT PRIMARY KEY REFERENCES messages(id), context_id TEXT NOT NULL, seq INTEGER NOT NULL, reply_to TEXT NOT NULL);
+CREATE INDEX IF NOT EXISTS message_replies_lookup ON message_replies(context_id,reply_to,seq);
+CREATE INDEX IF NOT EXISTS messages_author ON messages(context_id,session_id,seq);
+INSERT OR REPLACE INTO message_replies SELECT m.id,m.context_id,m.seq,json_extract(e.envelope,'$.reply_to') FROM messages m JOIN message_envelopes e ON e.message_id=m.id WHERE COALESCE(json_extract(e.envelope,'$.reply_to'),'')<>'';
+CREATE TRIGGER IF NOT EXISTS comitia_message_reply_insert AFTER INSERT ON message_envelopes WHEN COALESCE(json_extract(NEW.envelope,'$.reply_to'),'')<>'' BEGIN
+ INSERT INTO message_replies SELECT id,context_id,seq,json_extract(NEW.envelope,'$.reply_to') FROM messages WHERE id=NEW.message_id;
+END;
 CREATE TABLE IF NOT EXISTS acks (session_id TEXT NOT NULL REFERENCES sessions(id), context_id TEXT NOT NULL REFERENCES contexts(id), seq INTEGER NOT NULL, updated_at TEXT NOT NULL, PRIMARY KEY(session_id,context_id));
 `
 
@@ -167,6 +174,19 @@ UNION ALL SELECT message_id,seq FROM (SELECT message_id,seq FROM message_recipie
 		recipientArgs = append(recipientArgs, limit)
 		query = strings.Replace(query, "FROM messages m", "FROM ("+recipients+") p CROSS JOIN messages m ON m.id=p.message_id", 1)
 		where, order, args = "1=1", "p.seq", recipientArgs
+	}
+	if f.FromSession != "" {
+		where += " AND m.session_id=?"
+		args = append(args, f.FromSession)
+	}
+	if f.ReplyTo != "" {
+		where += " AND m.id IN (SELECT message_id FROM message_replies WHERE context_id=? AND reply_to=?)"
+		args = append(args, cid, f.ReplyTo)
+	}
+	if f.ThreadID != "" {
+		query = "WITH RECURSIVE thread(id) AS (SELECT id FROM messages WHERE context_id=? AND id=? UNION ALL SELECT r.message_id FROM message_replies r JOIN thread t ON r.reply_to=t.id WHERE r.context_id=?) " + query
+		args = append([]any{cid, f.ThreadID, cid}, args...)
+		where += " AND m.id IN (SELECT id FROM thread)"
 	}
 	return query + " WHERE " + where + " ORDER BY " + order + " LIMIT ?", append(args, limit)
 }

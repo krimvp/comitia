@@ -171,6 +171,7 @@ Messages and presence:
   send              append a deduplicated message
   replay            read messages after a sequence
   wait              wait for matching messages
+  message-get       read one message in a readable context
   watch             print and acknowledge arriving messages
   ack, cursor       save or read an acknowledgement cursor
   participants      list sessions with context access

@@ -62,6 +62,9 @@ func (s *Service) AppendMessage(ctx context.Context, raw, cid string, in Message
 		if e := s.validateEnvelopeReferences(w, cid, envelope); e != nil {
 			return e
 		}
+		if e := s.validateProtocolReferences(w, cid, a.session.ID, envelope); e != nil {
+			return e
+		}
 		m = Message{TaskAttempt: attempt, ID: id(), ContextID: cid, SessionID: a.session.ID, DedupeKey: in.DedupeKey, Body: in.Body, CreatedAt: s.now().UTC(), Envelope: envelope, AgentInstance: instance, AgentInstanceSelfReported: instance != nil}
 		m, e = w.PutMessage(m)
 		appended = e == nil

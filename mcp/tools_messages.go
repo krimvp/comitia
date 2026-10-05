@@ -11,6 +11,7 @@ import (
 
 func messageTools() []map[string]any {
 	return []map[string]any{
+		tool("get_message", "Read one message in a readable context; authenticated sender is SessionID, instances are self-reported.", schema(map[string]any{"context_id": str("Readable context ID"), "message_id": str("Message ID in this context")}, "context_id", "message_id")),
 		tool("list_message_schemas", "Discover registered message schema IDs, payload JSON Schemas, task/body requirements and examples, including configured extensions.", schema(map[string]any{})),
 		tool("get_message_schema", "Get one registered versioned message schema descriptor; use its example envelope with real context/task IDs.", schema(map[string]any{"schema": str("Exact registered versioned message schema ID")}, "schema")),
 		tool("send_message", "Append a message; optional validated envelope addresses session IDs, not names. Context readers can see all messages. Omitted agent_instance defaults to COMITIA_AGENT_INSTANCE / COMITIA_AGENT_INSTANCE_LABEL.", schema(map[string]any{"context_id": str("Context ID"), "dedupe_key": str("Stable caller-chosen key; scoped to this session and instance"), "body": str("Message explanation; required for untyped/discussion messages"), "envelope": envelopeSchema(), "agent_instance": agentInstanceSchema(), "task_fence": schema(map[string]any{"task_id": str("Must match envelope.task_id"), "claim_token": str("Current opaque lease token; never published"), "lease_version": integer("Current lease version; requires a live claim owned by this session")}, "task_id", "claim_token", "lease_version")}, "context_id", "dedupe_key")),
@@ -24,6 +25,9 @@ func messageTools() []map[string]any {
 
 func messageReadProperties(wait bool) map[string]any {
 	p := map[string]any{"context_id": str("Context ID"), "after": integer("Exclusive sequence cursor"), "for_instance": str("Recipient instance, caller session with no instance recipients, or broadcast"), "from_instance": str("Self-reported sender instance"), "task_id": str("Envelope task ID"), "schema": str("Exact envelope schema ID"), "agent_instance": str("Optional self-reported instance ID for presence; defaults to COMITIA_AGENT_INSTANCE")}
+	p["reply_to"] = nullableMessageFilter("Direct replies to a message in this context")
+	p["thread_id"] = nullableMessageFilter("Root message and recursive descendants in this context")
+	p["from_session"] = nullableMessageFilter("Authenticated sender session ID")
 	p["strict_recipients"] = map[string]any{"type": "boolean", "description": "Require both nonempty recipient lists to match caller session and for_instance; requires for_instance; default false preserves instance precedence"}
 	p["max_bytes"] = integer("Encoded messages-array byte budget (default 1048576, max 4194304); first message always returned intact")
 	p["page"] = map[string]any{"type": "boolean", "description": "Return messages, next_after, scanned_through and has_more instead of the legacy array"}
@@ -38,6 +42,18 @@ func messageReadProperties(wait bool) map[string]any {
 
 func (s *Server) callMessages(ctx context.Context, name string, raw json.RawMessage) (any, error) {
 	switch name {
+	case "get_message":
+		var a struct {
+			ContextID string `json:"context_id"`
+			MessageID string `json:"message_id"`
+		}
+		if err := decode(raw, &a); err != nil {
+			return nil, err
+		}
+		if err := required("context_id", a.ContextID, "message_id", a.MessageID); err != nil {
+			return nil, err
+		}
+		return comitia.LookupMessage(ctx, s.API, s.Credential, a.ContextID, a.MessageID)
 	case "list_message_schemas", "get_message_schema":
 		var a struct {
 			Schema string `json:"schema"`
@@ -124,6 +140,9 @@ func (s *Server) callMessages(ctx context.Context, name string, raw json.RawMess
 		if err != nil {
 			return nil, err
 		}
+		if err := comitia.CheckMessageQueryAPI(s.API, filters); err != nil {
+			return nil, err
+		}
 		var value any
 		if a.Page {
 			value, err = comitia.ReplayMessagePage(ctx, s.API, s.Credential, a.ContextID, a.After, a.Limit, filters)
@@ -156,6 +175,9 @@ func (s *Server) callMessages(ctx context.Context, name string, raw json.RawMess
 		}
 		filters, err := presenceFilters(s.InstanceDefaults, a.MessageFilters)
 		if err != nil {
+			return nil, err
+		}
+		if err := comitia.CheckMessageQueryAPI(s.API, filters); err != nil {
 			return nil, err
 		}
 		var value any
@@ -237,4 +259,8 @@ func messageResult(value any, compact bool) any {
 		text = fmt.Sprintf("%d messages; last_sequence=%d. Full result in structuredContent.", count, after)
 	}
 	return compactResult{value: value, text: text}
+}
+
+func nullableMessageFilter(description string) map[string]any {
+	return map[string]any{"type": []string{"string", "null"}, "description": description}
 }

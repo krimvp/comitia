@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -15,6 +16,13 @@ import (
 )
 
 func watchMessages(ctx context.Context, api comitia.MessageAPI, token, cid, instance string, timeout time.Duration, filters comitia.MessageFilters, ack bool, out io.Writer) error {
+	return watchMessageOutput(ctx, api, token, cid, instance, timeout, filters, ack, false, out)
+}
+
+func watchMessageOutput(ctx context.Context, api comitia.MessageAPI, token, cid, instance string, timeout time.Duration, filters comitia.MessageFilters, ack, jsonLines bool, out io.Writer) error {
+	if err := comitia.CheckMessageQueryAPI(api, filters); err != nil {
+		return err
+	}
 	// A zero timeout would turn an idle watch into a busy loop.
 	if timeout == 0 {
 		return fmt.Errorf("%w: watch timeout must be positive", comitia.ErrInvalid)
@@ -39,17 +47,23 @@ func watchMessages(ctx context.Context, api comitia.MessageAPI, token, cid, inst
 			messages, err = api.WaitMessages(ctx, token, cid, after, timeout, filters)
 			if err == nil {
 				for _, m := range messages {
-					sender, schema := "-", "-"
-					if m.AgentInstance != nil {
-						sender = escapeWatchField(m.AgentInstance.ID)
-					}
-					if m.Envelope != nil {
-						schema = escapeWatchField(m.Envelope.Schema)
-					}
-					body, _, _ := strings.Cut(m.Body, "\n")
-					body = escapeWatchField(strings.TrimSuffix(body, "\r"))
-					if _, e := fmt.Fprintf(out, "%d\t%s\t%s\t%s\n", m.Sequence, sender, schema, body); e != nil {
-						return e
+					if jsonLines {
+						if e := json.NewEncoder(out).Encode(m); e != nil {
+							return e
+						}
+					} else {
+						sender, schema := "-", "-"
+						if m.AgentInstance != nil {
+							sender = escapeWatchField(m.AgentInstance.ID)
+						}
+						if m.Envelope != nil {
+							schema = escapeWatchField(m.Envelope.Schema)
+						}
+						body, _, _ := strings.Cut(m.Body, "\n")
+						body = escapeWatchField(strings.TrimSuffix(body, "\r"))
+						if _, e := fmt.Fprintf(out, "%d\t%s\t%s\t%s\n", m.Sequence, sender, schema, body); e != nil {
+							return e
+						}
 					}
 					after = m.Sequence
 					if ack {

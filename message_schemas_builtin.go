@@ -65,6 +65,12 @@ func builtinMessageSchemaDescriptors() map[string]MessageSchemaDescriptor {
 			if task {
 				e.Envelope.TaskID = "example-task-id"
 			}
+			switch id {
+			case ReceiptSchema, MergeCertificateSchema:
+				e.Envelope.ReplyTo = "example-request-message"
+			case MergeReceiptSchema:
+				e.Envelope.ReplyTo = "example-certificate-message"
+			}
 			d.Examples = append(d.Examples, e)
 		}
 		d.ServerAuthored = id == TaskEventSchema
@@ -123,6 +129,7 @@ func builtinMessageSchemaDescriptors() map[string]MessageSchemaDescriptor {
 		payloadCondition("kind", map[string]any{"const": "run_finished"}, payloadFields(map[string]any{"status": payloadEnum("succeeded", "failed", "cancelled")}, "status")),
 	}
 	add(ExecutionEventSchema, telemetry, false, true, false, []string{"event_sequence is positive and fits int64; optional metrics are nonnegative int64 values.", "Nonempty occurred_at must be RFC3339; nonempty status must be succeeded, failed or cancelled.", "cost_micros requires uppercase three-letter currency and cost_source provider_reported, estimated or configured; without cost_micros, currency/cost_source must be empty.", "model_usage requires nonblank model and at least one usage metric; tool_usage requires nonblank tool_name; run_finished requires status."}, `{"run_id":"run-1","event_sequence":1,"kind":"run_started"}`, `{"run_id":"run-1","event_sequence":2,"kind":"model_usage","model":"example-model","input_tokens":100}`)
+	addCoordinationDescriptors(add)
 	return out
 }
 
