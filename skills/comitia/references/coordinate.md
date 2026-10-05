@@ -44,8 +44,11 @@ check actual process state before resuming or replacing work.
    bytes); a retry repeats the same body, envelope and instance. A `conflict`
    names the existing message ID and sequence: read it, do not suffix the key. Discover typed payloads with
    `list_message_schemas`/`get_message_schema`; do not invent envelope fields.
-   For a routed note use `comitia.discussion.v1`, nonempty body, `payload:{}`,
-   `recipient_session_ids:[SESSION]` and `recipient_instances:[INSTANCE]`.
+   For a routed note, send a nonempty body with top-level
+   `recipient_session_ids:[SESSION]` and `recipient_instances:[INSTANCE]`; no
+   envelope is needed. If the running tool schema/server rejects those fields,
+   use an explicit `comitia.discussion.v1` envelope with `payload:{}` and the
+   same recipients; never retry by dropping recipients.
 2. Read `message_cursor` in your chosen instance scope and replay after its
    sequence. Each nonempty recipient list must match your session or instance
    respectively; both empty means broadcast. Addressing is not privacy.

@@ -169,11 +169,13 @@ type delegateInput struct {
 }
 
 type messageInput struct {
-	TaskFence     *comitia.TaskFence       `json:"task_fence,omitempty"`
-	DedupeKey     string                   `json:"dedupe_key"`
-	Body          string                   `json:"body"`
-	Envelope      *comitia.MessageEnvelope `json:"envelope,omitempty"`
-	AgentInstance *comitia.AgentInstance   `json:"agent_instance,omitempty"`
+	RecipientSessionIDs []string                 `json:"recipient_session_ids,omitempty"`
+	RecipientInstances  []string                 `json:"recipient_instances,omitempty"`
+	TaskFence           *comitia.TaskFence       `json:"task_fence,omitempty"`
+	DedupeKey           string                   `json:"dedupe_key"`
+	Body                string                   `json:"body"`
+	Envelope            *comitia.MessageEnvelope `json:"envelope,omitempty"`
+	AgentInstance       *comitia.AgentInstance   `json:"agent_instance,omitempty"`
 }
 
 type taskInput struct {

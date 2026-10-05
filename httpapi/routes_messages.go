@@ -204,6 +204,14 @@ func (c *Client) AppendMessage(ctx context.Context, token, id string, input comi
 			return comitia.Message{}, fmt.Errorf("%w: %s unsupported by this server", comitia.ErrInvalid, input.Envelope.Schema)
 		}
 	}
+	for _, field := range []struct {
+		name   string
+		values []string
+	}{{"recipient_session_ids", input.RecipientSessionIDs}, {"recipient_instances", input.RecipientInstances}} {
+		if len(field.values) > 0 && unknownField(err, field.name) && !strings.Contains(err.Error(), "payload:") {
+			return comitia.Message{}, fmt.Errorf("%w: top-level %s unsupported by this server", comitia.ErrInvalid, field.name)
+		}
+	}
 	if input.TaskFence != nil && unknownField(err, "task_fence") {
 		return comitia.Message{}, ErrTaskResultFencingUnsupported
 	}
