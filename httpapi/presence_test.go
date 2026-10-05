@@ -74,6 +74,39 @@ func TestHTTPInstancePresence(t *testing.T) {
 			t.Fatalf("roundtrip: %v %v", rows, err)
 		}
 	}
+	checkTaskPresence := func() {
+		t.Helper()
+		rows, err := client.ListInstances(ctx, owner.Token, c.ID)
+		if err != nil || len(rows) != 1 || rows[0].SeenSecondsAgo == nil || *rows[0].SeenSecondsAgo != 0 || rows[0].Recent == nil || !*rows[0].Recent || !rows[0].LastSeen.Equal(now) {
+			t.Fatalf("task presence: %v %v", rows, err)
+		}
+	}
+	task, err := client.CreateTask(ctx, owner.Token, c.ID, comitia.TaskInput{Title: "work"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	now = now.Add(31 * time.Second)
+	claim, err := client.ClaimTask(ctx, owner.Token, task.ID, time.Hour, comitia.AgentInstance{ID: "worker"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	checkTaskPresence()
+	now = now.Add(31 * time.Second)
+	claim, err = client.RenewClaim(ctx, owner.Token, task.ID, claim.Token, claim.Task.LeaseVersion, time.Hour)
+	if err != nil {
+		t.Fatal(err)
+	}
+	checkTaskPresence()
+	now = now.Add(31 * time.Second)
+	if _, err := client.CompleteTask(ctx, owner.Token, task.ID, claim.Token, claim.Task.LeaseVersion); err != nil {
+		t.Fatal(err)
+	}
+	checkTaskPresence()
+	now = now.Add(90 * time.Second)
+	rows, err = client.ListInstances(ctx, owner.Token, c.ID)
+	if err != nil || len(rows) != 1 || rows[0].SeenSecondsAgo == nil || *rows[0].SeenSecondsAgo != 90 || rows[0].Recent == nil || *rows[0].Recent || !rows[0].Active {
+		t.Fatalf("stale presence: %v %v", rows, err)
+	}
 	if err := client.SetInstanceResume(ctx, owner.Token, c.ID, &comitia.AgentInstance{ID: "worker"}, json.RawMessage(`[]`)); !errors.Is(err, comitia.ErrInvalid) {
 		t.Fatalf("invalid: %v", err)
 	}

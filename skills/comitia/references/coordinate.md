@@ -36,9 +36,11 @@ Changing instance scope on a retry creates a different message. See
 Call `list_participants(context_id)` and address `SessionID`, never display names.
 Use `page:true`, then `after_id:next_after` until `has_more:false` for large lists.
 With `presence`, use `list_instances` and `set_instance_resume` with nonsecret
-harness run ID, cwd and checkpoint metadata. Recent activity does not prove a
-process is running; `active` describes the credential session. A launcher must
-check actual process state before resuming or replacing work.
+harness run ID, cwd and checkpoint metadata. `seen_seconds_ago` uses the server
+clock; `recent` means activity within 90 seconds (optional on older servers).
+Claim, renew and complete record activity for the claim's instance. Recent
+activity does not prove a process is running; `active` describes the credential
+session. A launcher must check actual process state before resuming or replacing work.
 
 ## Send, read, wait, handle, acknowledge
 

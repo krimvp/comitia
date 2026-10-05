@@ -66,6 +66,35 @@ func TestMCPInstancePresence(t *testing.T) {
 			t.Fatalf("%s: %v", operation.name, rows)
 		}
 	}
+	callTask := func(name string, args map[string]any) any {
+		t.Helper()
+		if name == "create_task" {
+			args["context_id"] = c.ID
+		}
+		raw, _ := json.Marshal(args)
+		v, err := s.call(ctx, name, raw)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return v
+	}
+	checkTaskPresence := func() {
+		t.Helper()
+		rows := call("list_instances", map[string]any{}).([]comitia.InstancePresence)
+		if len(rows) != 1 || rows[0].SeenSecondsAgo == nil || *rows[0].SeenSecondsAgo != 0 || rows[0].Recent == nil || !*rows[0].Recent || !rows[0].LastSeen.Equal(now) {
+			t.Fatalf("task presence: %v", rows)
+		}
+	}
+	task := callTask("create_task", map[string]any{"title": "work"}).(comitia.Task)
+	now = now.Add(31 * time.Second)
+	claim := callTask("claim_task", map[string]any{"task_id": task.ID, "lease_seconds": 3600, "agent_instance": map[string]any{"id": "worker"}}).(comitia.TaskClaim)
+	checkTaskPresence()
+	now = now.Add(31 * time.Second)
+	claim = callTask("renew_task", map[string]any{"task_id": task.ID, "lease_seconds": 3600, "claim_token": claim.Token, "lease_version": claim.Task.LeaseVersion}).(comitia.TaskClaim)
+	checkTaskPresence()
+	now = now.Add(31 * time.Second)
+	callTask("complete_task", map[string]any{"task_id": task.ID, "claim_token": claim.Token, "lease_version": claim.Task.LeaseVersion})
+	checkTaskPresence()
 	for _, args := range []string{`{"context_id":"` + c.ID + `","resume":{}}`, `{"context_id":"` + c.ID + `","agent_instance":{"id":"worker"},"resume":null}`, `{"context_id":"` + c.ID + `","agent_instance":{"id":"worker"},"resume":{},"unknown":true}`} {
 		if _, err := s.call(ctx, "set_instance_resume", json.RawMessage(args)); !errors.Is(err, comitia.ErrInvalid) {
 			t.Fatalf("invalid resume accepted: %v", err)
