@@ -268,7 +268,13 @@ def validate_credential(run, path, context_id=None):
         if Path(path).stem != 'owner' and grants:
             for grant in grants:
                 permissions = ','.join(p for i, p in enumerate(PERMISSIONS) if grant['Permissions'] & (1 << i))
-                run('credential-check', '--context-id', grant['ContextID'], '--permissions', permissions, token=token(path))
+                try:
+                    run('credential-check', '--context-id', grant['ContextID'], '--permissions', permissions, token=token(path))
+                except RuntimeError as error:
+                    # Binaries installed before credential-check: check the session and context access they can.
+                    if 'unknown command' not in str(error) or 'credential-check' not in str(error):
+                        raise
+                    run('participants', '--context-id', grant['ContextID'], token=token(path))
         elif context_id and Path(path).stem == 'owner':
             run('participants', '--context-id', context_id, token=token(path))
         else:
