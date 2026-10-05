@@ -2,9 +2,12 @@ package main
 
 import (
 	"context"
+	"encoding/hex"
 	"encoding/json"
 	"flag"
 	"fmt"
+	"log"
+	"net"
 	"net/http"
 	"os"
 	"strconv"
@@ -19,7 +22,7 @@ import (
 func runServe(ctx context.Context, cfg config, api comitia.API, out *json.Encoder, cmd string, args []string) error {
 	switch cmd {
 	case "serve":
-		listen, _, _, err := serveFlags(args)
+		listen, _, _, logRequests, err := serveFlags(args)
 		if err != nil {
 			return err
 		}
@@ -29,7 +32,11 @@ func runServe(ctx context.Context, cfg config, api comitia.API, out *json.Encode
 		if cfg.serverURL != "" {
 			return comitia.Invalidf("serve requires embedded SQLite")
 		}
-		return http.ListenAndServe(listen, httpapi.NewHandler(api))
+		handler := httpapi.NewHandler(api)
+		if logRequests {
+			handler = serveLoggingHandler(handler)
+		}
+		return serveHTTP(ctx, listen, cfg.db, handler)
 	case "mcp":
 		fs := newFlags(cmd)
 		dir := fs.String("sessions-dir", env("COMITIA_SESSIONS_DIR", ""), "private delegated credential directory (default ~/.local/share/comitia/sessions)")
@@ -108,18 +115,22 @@ func runServe(ctx context.Context, cfg config, api comitia.API, out *json.Encode
 	}
 }
 
-func serveFlags(args []string) (string, int, int, error) {
+func serveFlags(args []string) (string, int, int, bool, error) {
 	fs := newFlags("serve")
 	listen := fs.String("listen", env("COMITIA_LISTEN", "127.0.0.1:8080"), "listen address")
+	logRequests := fs.Bool("log-requests", false, "log allowlisted method, route, status, duration and request_id (or COMITIA_HTTP_LOG)")
 	depth := fs.Int("max-context-depth", 3, "maximum child nesting depth (top-level is 0)")
 	count := fs.Int("max-child-contexts-per-grant", 20, "maximum children created by each grant (including archived children)")
 	if err := fs.Parse(args); err != nil {
-		return "", 0, 0, err
+		return "", 0, 0, false, err
 	}
 	if *depth < 1 || *count < 1 {
-		return "", 0, 0, fmt.Errorf("%w: context limits must be positive", comitia.ErrInvalid)
+		return "", 0, 0, false, fmt.Errorf("%w: context limits must be positive", comitia.ErrInvalid)
 	}
-	return *listen, *depth, *count, nil
+	if err := booleanEnv(fs, "log-requests", "COMITIA_HTTP_LOG", logRequests); err != nil {
+		return "", 0, 0, false, err
+	}
+	return *listen, *depth, *count, *logRequests, nil
 }
 
 func booleanEnv(fs *flag.FlagSet, name, key string, value *bool) error {
@@ -138,4 +149,72 @@ func booleanEnv(fs *flag.FlagSet, name, key string, value *bool) error {
 	}
 	*value = parsed
 	return nil
+}
+
+func serveHTTP(ctx context.Context, address, db string, handler http.Handler) error {
+	listener, err := net.Listen("tcp", address)
+	if err != nil {
+		return err
+	}
+	defer listener.Close()
+	build := comitia.BuildIdentity()
+	log.Printf("comitia serve listen=%q version=%q revision=%q db=%q", listener.Addr().String(), build.Version, build.Revision, db)
+	server := &http.Server{Handler: handler}
+	stop := context.AfterFunc(ctx, func() { _ = server.Close() })
+	defer stop()
+	err = server.Serve(listener)
+	if err == http.ErrServerClosed && ctx.Err() != nil {
+		return nil
+	}
+	return err
+}
+
+func serveLoggingHandler(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		started := time.Now()
+		w.Header().Set("X-Request-ID", comitia.NewRequestID())
+		rec := &serveStatusRecorder{ResponseWriter: w, status: http.StatusOK}
+		next.ServeHTTP(rec, r)
+		method := r.Method
+		switch method {
+		case http.MethodGet, http.MethodHead, http.MethodPost, http.MethodPut,
+			http.MethodPatch, http.MethodDelete, http.MethodOptions, http.MethodConnect, http.MethodTrace:
+		default:
+			method = "other"
+		}
+		route := "unknown"
+		if strings.HasPrefix(r.URL.Path, "/v1/") {
+			if operation := comitia.SafeOperation(strings.TrimPrefix(r.URL.Path, "/v1/")); operation != "unknown" {
+				route = "/v1/" + operation
+			}
+		} else if strings.HasPrefix(r.URL.Path, "/ui/") {
+			route = "/ui/"
+		}
+		requestID := rec.Header().Get("X-Request-ID")
+		if decoded, err := hex.DecodeString(requestID); err != nil || len(decoded) != 16 {
+			requestID = "unknown"
+		}
+		log.Printf("comitia http method=%s route=%s status=%d duration_ms=%d request_id=%s", method, route, rec.status, time.Since(started).Milliseconds(), requestID)
+	})
+}
+
+type serveStatusRecorder struct {
+	http.ResponseWriter
+	status      int
+	wroteHeader bool
+}
+
+func (s *serveStatusRecorder) WriteHeader(code int) {
+	if !s.wroteHeader {
+		s.status = code
+		s.wroteHeader = true
+	}
+	s.ResponseWriter.WriteHeader(code)
+}
+
+func (s *serveStatusRecorder) Write(b []byte) (int, error) {
+	if !s.wroteHeader {
+		s.WriteHeader(http.StatusOK)
+	}
+	return s.ResponseWriter.Write(b)
 }

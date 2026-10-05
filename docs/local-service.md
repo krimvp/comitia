@@ -455,13 +455,24 @@ reviewing the report.
 ### Diagnosing write failures
 
 A loaded inspector or successful `server_info` call establishes read/capability
-availability. To check writer admission, call `storage_status` through an
+availability. To check writer admission, run `comitia --server-url URL
+--credential ADMIN storage-status` (or use `--db PATH` for embedded SQLite).
+The command emits JSON and requires an administrator credential; unsupported
+servers report a clear error. You can also call `storage_status` through an
 administrator's MCP connection or authenticated `POST /v1/storage_status` with an
 empty JSON object. Its no-op write probe has a 250 ms context budget and returns
 `write_ready` plus process-local write failure counts and durations, including the
 last failed write's duration. The probe does not test free disk space and does
 not guarantee the next write will succeed; see the
 [operational protocol](message-protocol.md#operational-failures-and-write-readiness).
+
+`comitia serve` logs one startup line after binding, with its listen address,
+version, revision and database path. Enable request logs with `serve
+--log-requests` or `COMITIA_HTTP_LOG=true`; an explicit flag overrides the
+environment. Request logs contain only an allowlisted method, fixed route label
+(`/v1/<operation>`, `/ui/` or `unknown`), status, duration in milliseconds and
+server-generated request ID. They exclude request/response bodies, credentials,
+headers, query strings and arbitrary paths. Logging is off by default.
 
 Internal write failures produce secret-safe daemon diagnostics with operation,
 error class, generated request ID, duration and build revision. Match the public

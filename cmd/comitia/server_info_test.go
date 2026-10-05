@@ -43,6 +43,32 @@ func TestServerInfoAndValidationCLI(t *testing.T) {
 	if err := commandErr(t, "--server-url", ts.URL, "--credential", "invalid-secret", "server-info"); !errors.Is(err, comitia.ErrUnauthenticated) {
 		t.Fatalf("auth=%v", err)
 	}
+	for _, mode := range []string{"embedded", "remote"} {
+		args := []string{"--db", db, "--credential", owner.Token}
+		if mode == "remote" {
+			args = base
+		}
+		status := command(t, append(args, "storage-status")...)
+		if status["write_ready"] != true || status["write_attempts"].(float64) < 1 {
+			t.Fatalf("%s status=%v", mode, status)
+		}
+		if err := commandErr(t, append(append([]string{}, args[:len(args)-1]...), "invalid-secret", "storage-status")...); !errors.Is(err, comitia.ErrUnauthenticated) {
+			t.Fatalf("%s auth=%v", mode, err)
+		}
+	}
+	principal, err := svc.CreatePrincipal(context.Background(), owner.Token, "non-admin")
+	if err != nil {
+		t.Fatal(err)
+	}
+	reader, err := svc.MintSession(context.Background(), owner.Token, principal.ID, time.Hour)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, target := range [][]string{{"--db", db}, {"--server-url", ts.URL}} {
+		if err := commandErr(t, append(target, "--credential", reader.Token, "storage-status")...); !errors.Is(err, comitia.ErrForbidden) {
+			t.Fatalf("non-admin auth=%v", err)
+		}
+	}
 	for _, args := range [][]string{{"task-create", "--context-id", "unused"}, {"task-list", "--context-id", "unused", "--limit", "0"}, {"task-get"}} {
 		err := commandErr(t, append(base, args...)...)
 		if !errors.Is(err, comitia.ErrInvalid) || (!strings.Contains(err.Error(), "title") && !strings.Contains(err.Error(), "limit") && !strings.Contains(err.Error(), "task-id")) || strings.Contains(err.Error(), owner.Token) {
