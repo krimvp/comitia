@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"reflect"
 	"sort"
 	"testing"
@@ -202,5 +203,67 @@ func TestExtensionMessageSchemaDescriptors(t *testing.T) {
 		if _, err := New(cfg); !errors.Is(err, ErrInvalid) {
 			t.Fatalf("invalid registration: %v", err)
 		}
+	}
+}
+
+func TestReviewPanelFindingPriorityAndStance(t *testing.T) {
+	f := setup(t, ":memory:")
+	defer f.store.Close()
+	ctx := context.Background()
+	other, err := f.svc.CreateContext(ctx, f.admin.Token, CreateContextInput{WorkspaceID: f.context.WorkspaceID, Name: "other"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	local := messageWorker(t, f, "reviewer", f.context.ID)
+	outsider := messageWorker(t, f, "outsider", other.ID)
+	foreign, err := f.svc.AppendMessage(ctx, outsider.Token, other.ID, MessageInput{DedupeKey: "private", Body: "private"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	send := func(key, schema, reply, payload string) (Message, error) {
+		return f.svc.AppendMessage(ctx, local.Token, f.context.ID, MessageInput{DedupeKey: key, Envelope: &MessageEnvelope{Schema: schema, ReplyTo: reply, Payload: json.RawMessage(payload)}})
+	}
+	// Findings without priority/size stay valid; both new fields are optional.
+	if _, err := send("legacy", "comitia.finding.v1", "", `{"severity":"warning","summary":"old shape"}`); err != nil {
+		t.Fatal(err)
+	}
+	finding, err := send("ranked", "comitia.finding.v1", "", `{"severity":"error","summary":"lease skipped","priority":"P1","size":"S"}`)
+	if err != nil || string(finding.Envelope.Payload) != `{"priority":"P1","severity":"error","size":"S","summary":"lease skipped"}` {
+		t.Fatalf("ranked finding: %s %v", finding.Envelope.Payload, err)
+	}
+	for _, payload := range []string{`{"severity":"info","summary":"s","priority":"P4"}`, `{"severity":"info","summary":"s","size":"XL"}`, `{"severity":"info","summary":"s","priority":""}`} {
+		if _, err := send("bad-"+payload, "comitia.finding.v1", "", payload); !errors.Is(err, ErrInvalid) {
+			t.Fatalf("finding %s: %v", payload, err)
+		}
+	}
+	for i, stance := range []string{`{"stance":"agree"}`, `{"stance":"refine","note":"cover release too"}`, `{"stance":"disagree","note":"not a bug"}`} {
+		if _, err := send(fmt.Sprint("stance-", i), StanceSchema, finding.ID, stance); err != nil {
+			t.Fatalf("stance %s: %v", stance, err)
+		}
+	}
+	tests := []struct {
+		name, reply, payload string
+		want                 error
+	}{
+		{"missing reply_to", "", `{"stance":"agree"}`, ErrInvalid},
+		{"unknown stance", finding.ID, `{"stance":"abstain"}`, ErrInvalid},
+		{"blank note", finding.ID, `{"stance":"agree","note":" "}`, ErrInvalid},
+		// Foreign and missing roots fail identically, so existence is not revealed.
+		{"foreign reply_to", foreign.ID, `{"stance":"agree"}`, ErrForbidden},
+		{"missing reply_to target", "no-such-message", `{"stance":"agree"}`, ErrForbidden},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			if _, err := send(tc.name, StanceSchema, tc.reply, tc.payload); !errors.Is(err, tc.want) {
+				t.Fatalf("got %v want %v", err, tc.want)
+			}
+		})
+	}
+	replies, err := f.svc.ReplayMessages(ctx, local.Token, f.context.ID, 0, 100, MessageFilters{ReplyTo: finding.ID, Schema: StanceSchema})
+	if err != nil || len(replies) != 3 {
+		t.Fatalf("stance tally: %d %v", len(replies), err)
+	}
+	if _, err := f.svc.GetMessageSchema(ctx, local.Token, StanceSchema); err != nil {
+		t.Fatalf("stance discovery: %v", err)
 	}
 }

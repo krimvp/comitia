@@ -437,7 +437,8 @@ the version; discovery reflects the running service's registry.
 | `comitia.discussion.v1` | No | Empty object `{}`; nonblank message body required |
 | `comitia.assignment.v1` | Yes | `instructions`, nonempty `acceptance_criteria` string array |
 | `comitia.review-request.v1` | Yes | Nonempty `artifact_refs` and `checks` string arrays |
-| `comitia.finding.v1` | No | `severity` (`info`, `warning`, `error`), `summary`; optional `evidence_refs` |
+| `comitia.finding.v1` | No | `severity` (`info`, `warning`, `error`), `summary`; optional `evidence_refs`, `priority` (`P0`-`P3`), `size` (`S`, `M`, `L`); see [Review panels](#review-panels) |
+| `comitia.stance.v1` | No | `stance` (`agree`, `refine`, `disagree`); optional nonblank `note`; `envelope.reply_to` required; see [Review panels](#review-panels) |
 | `comitia.blocker.v1` | Yes | `reason`, nonempty `needs` string array |
 | `comitia.work-submitted.v1` | No | `summary`, nonempty `artifact_refs` string array |
 | `comitia.verification-result.v1` | Unless `artifact_refs` | `status`, nonempty `checks`; optional nonempty `artifact_refs`; see below |
@@ -472,6 +473,30 @@ lowercase `scheme:value` such as `build:1842` is accepted. With a `task_id`,
 refs stay free-form nonempty strings. A task-backed verification may omit
 `artifact_refs` or set it to `null`; a supplied array must be nonempty and contain
 nonblank strings. Taskless verification still requires exact artifact refs.
+
+### Review panels
+
+Reviewers rank a finding with optional `priority` (`P0` most urgent to `P3`)
+and `size` (`S`, `M`, `L` effort); both are case-sensitive, may be omitted or
+`null`, and findings without them stay valid. Other reviewers answer a finding
+(or any proposal message) with a typed `comitia.stance.v1` reply instead of a
+one-line vote message:
+
+```json
+{
+  "schema": "comitia.stance.v1",
+  "reply_to": "FINDING_MESSAGE_ID",
+  "payload": {"stance": "refine", "note": "Also cover the release path"}
+}
+```
+
+`reply_to` is required and must name a message in the same context; a missing
+or foreign target is refused as forbidden, without revealing which. `refine`
+with a `note` amends rather than duplicating the finding. Tally a finding with
+replay `reply_to=<finding ID>` and `schema=comitia.stance.v1`. A stance is a
+claim, not an approval; exact artifact verdicts still use `comitia.approval.v1`.
+Servers older than this schema reject it as an unregistered schema, and reject
+`priority`/`size` as unknown payload fields; check `list_message_schemas` first.
 
 These are structured claims, **not proof of correctness**. A verification-result
 message does not accept work, and a work-submitted message does not complete a
