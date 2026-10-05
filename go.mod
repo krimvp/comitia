@@ -1,6 +1,6 @@
 module github.com/krimvp/comitia
 
-go 1.24
+go 1.24.0
 
 require (
 	github.com/santhosh-tekuri/jsonschema/v6 v6.0.2
