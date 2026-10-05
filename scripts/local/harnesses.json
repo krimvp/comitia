@@ -3,6 +3,8 @@
     "display": "Codex",
     "instructions": "~/.codex/AGENTS.md",
     "skills_dir": "~/.agents/skills",
+    "other_skills_dirs": ["~/.codex/skills"],
+    "env_vars": ["COMITIA_AGENT_INSTANCE", "COMITIA_AGENT_INSTANCE_LABEL"],
     "mcp": {"file": "~/.codex/config.toml", "format": "toml", "key": "mcp_servers"},
     "approval": {"format": "entry", "key": "default_tools_approval_mode", "value": "approve"}
   },

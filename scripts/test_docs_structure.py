@@ -196,9 +196,13 @@ class DocsStructure(unittest.TestCase):
                 kinds = []
                 if re.search(r'\|\s*schema\s*\|', header) or len(set(re.findall(r'comitia\.[\w-]+\.v\d+', table))) > 1:
                     kinds.append('schema')
-                if 'COMITIA_AGENT_INSTANCE' in table:
+                launch_examples = (str(path.relative_to(ROOT)) in (
+                    'docs/local-service.md', 'skills/comitia/references/orchestrate.md')
+                    and '| per-launch instance |' in table.lower()
+                    and ('| harness |' in header or '| setting |' in header))
+                if 'COMITIA_AGENT_INSTANCE' in table and not launch_examples:
                     kinds.append('instance environment')
-                elif 'COMITIA_' in table:
+                elif 'COMITIA_' in table and not launch_examples:
                     kinds.append('transport environment')
                 if re.search(r'\|\s*permissions?\s*\|', header):
                     kinds.append('permission')

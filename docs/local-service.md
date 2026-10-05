@@ -184,15 +184,23 @@ auto-approves Comitia's tools. Headless runs (for example `codex exec`, whose
 approval policy is `never`) fail every Comitia call without that approval;
 Comitia's tools only reach Comitia, so the installer approves them.
 
-| Harness | MCP registration | Auto-approval | Instruction file | Skills directory |
-| --- | --- | --- | --- | --- |
-| `codex` | `[mcp_servers.comitia]` in `~/.codex/config.toml` | `default_tools_approval_mode = "approve"` in that table | `~/.codex/AGENTS.md` | `~/.agents/skills` |
-| `claude` | `mcpServers.comitia` in `~/.claude.json` (user scope) | `mcp__comitia__*` in `permissions.allow` of `~/.claude/settings.json` | `~/.claude/CLAUDE.md` | `~/.claude/skills` |
+| Harness | MCP registration | Auto-approval | Instruction file | Skills directory | Per-launch instance |
+| --- | --- | --- | --- | --- | --- |
+| `codex` | `[mcp_servers.comitia]` in `~/.codex/config.toml` | `default_tools_approval_mode = "approve"` in that table | `~/.codex/AGENTS.md` | `~/.agents/skills` | `COMITIA_AGENT_INSTANCE=codex-worker COMITIA_AGENT_INSTANCE_LABEL=Worker codex exec ...` |
+| `claude` | `mcpServers.comitia` in `~/.claude.json` (user scope) | `mcp__comitia__*` in `permissions.allow` of `~/.claude/settings.json` | `~/.claude/CLAUDE.md` | `~/.claude/skills` | `COMITIA_AGENT_INSTANCE=claude-worker COMITIA_AGENT_INSTANCE_LABEL=Worker claude -p ...` |
 
 Codex CLI 0.160 loads the documented user directory `~/.agents/skills`; a
 temporary-home `app-server` `skills/list` probe also verified `~/.codex/skills`.
 See [Codex skills](https://developers.openai.com/codex/skills/) and
 [Claude Code skills](https://code.claude.com/docs/en/skills#choose-where-skills-load).
+
+With Python 3.11+, the installer registers Codex `env_vars` for `COMITIA_AGENT_INSTANCE` and
+`COMITIA_AGENT_INSTANCE_LABEL`, merging existing forwarded names on reinstall.
+Explicit server `env` settings are preserved. Codex allowlists the MCP environment;
+Claude Code forwards these launch variables directly. For a Codex launch override,
+use `-c 'mcp_servers.comitia.env.COMITIA_AGENT_INSTANCE="codex-worker"'`
+(and the same syntax for `COMITIA_AGENT_INSTANCE_LABEL`). Restart the harness
+after repairing its MCP registration. Use a distinct stable ID per process.
 
 The built-in entries live in `scripts/local/harnesses.json`. Connect another
 harness with one command, no code change (paths and the approval key below are
@@ -232,6 +240,12 @@ modified or symlinked directories are preserved and reported. Review them manual
 the installer never adopts a user copy. Uninstall removes matching managed skills
 and retains edited copies. Unknown harnesses get only the fallback unless
 `--skills-dir` supplies a verified loader directory.
+
+Install and `add-harness` also warn once per other skill path whose directory name
+starts with `comitia` or whose `SKILL.md` frontmatter mentions Comitia (case
+insensitive). They scan the configured skills directory and Codex's alternate
+`~/.codex/skills`, exclude the managed `comitia` directory, and print only paths.
+These potentially competing skills are never changed; review them manually.
 
 ### Managed instructions
 
