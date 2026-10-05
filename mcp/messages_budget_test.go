@@ -52,8 +52,11 @@ func TestRemoteMCPMessagePagesAndCompactResults(t *testing.T) {
 	s := &Server{API: client, Credential: owner.Token}
 	for _, name := range []string{"replay_messages", "wait_messages"} {
 		t.Run(name, func(t *testing.T) {
-			for _, compact := range []bool{false, true} {
+			for _, compact := range []any{false, true, nil, "omitted"} {
 				args := map[string]any{"context_id": wc.ID, "max_bytes": comitia.MaxMessageBytes, "page": true, "compact": compact}
+				if compact == "omitted" {
+					delete(args, "compact")
+				}
 				if name == "wait_messages" {
 					args["timeout_seconds"] = 0
 				}
@@ -72,9 +75,13 @@ func TestRemoteMCPMessagePagesAndCompactResults(t *testing.T) {
 				}
 				text := result["content"].([]any)[0].(map[string]any)["text"].(string)
 				structured, _ := json.Marshal(result["structuredContent"])
-				if compact {
+				if compact != false {
 					if len(text) > 200 || strings.Contains(text, "Body") || !strings.Contains(text, "next_after=3") {
 						t.Fatalf("not compact: %d bytes", len(text))
+					}
+					encoded, _ := json.Marshal(result)
+					if len(encoded) > len(structured)+512 {
+						t.Fatalf("duplicated payload: result=%d structured=%d", len(encoded), len(structured))
 					}
 				} else if text != string(structured) {
 					t.Fatal("legacy full-text result changed")

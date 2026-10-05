@@ -91,11 +91,16 @@ func TestAdvertisedSchemasAcceptedArguments(t *testing.T) {
 						t.Fatal(err)
 					}
 				}
-				_, err := s.call(context.Background(), name, raw)
-				if mode == "baseline" && err != nil {
-					t.Fatalf("invalid baseline: %v", err)
+				params, _ := json.Marshal(map[string]any{"name": name, "arguments": json.RawMessage(raw)})
+				if len(raw) == 0 {
+					params, _ = json.Marshal(map[string]any{"name": name})
 				}
-				if err != nil {
+				res := s.handle(context.Background(), request{JSONRPC: "2.0", Method: "tools/call", Params: params})
+				failed := res.Error != nil || res.Result.(map[string]any)["isError"] == true
+				if mode == "baseline" && failed {
+					t.Fatalf("invalid baseline: %v", res)
+				}
+				if failed {
 					return
 				}
 				for i, compiled := range schemas {
@@ -226,6 +231,7 @@ func schemaConformanceFixture(t *testing.T, name string) (*Server, map[string]an
 	if !ok {
 		t.Fatalf("no conformance fixture for tool %s", name)
 	}
+	args["compact"] = false
 	raw, err := json.Marshal(args)
 	if err != nil {
 		t.Fatal(err)

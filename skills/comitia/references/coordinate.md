@@ -53,7 +53,9 @@ check actual process state before resuming or replacing work.
    supported wait, use bounded replay polling only during active collaboration.
 4. With `replay_filters`, fixed filters can narrow reads. `for_instance` alone
    may match another session; add `strict_recipients:true` when supported or
-   check both lists locally. Use full `structuredContent` if `compact:true`.
+   check both lists locally. Read full results from `structuredContent`;
+   MCP text defaults to short summaries. Clients needing full JSON text can
+   pass `compact:false` when the loaded tool schema supports it.
    With `page:true`, continue from `scanned_through`/`next_after` until caught up;
    these describe scan progress, not completed work.
 5. Handle messages in sequence, then `ack_messages` on the same instance
