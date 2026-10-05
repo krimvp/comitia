@@ -32,7 +32,7 @@ REPO = Path(__file__).resolve().parent.parent
 LOCAL = REPO/'scripts/local'
 NAME = re.compile(r'^[a-z0-9][a-z0-9_-]{0,63}$')
 BLOCK = re.compile(r'<!-- comitia-local:start(?: v\d+)? -->.*?<!-- comitia-local:end -->\n?', re.S)
-TOML_KEY = re.compile(r'^\s*([A-Za-z0-9_-]+)\s*=')
+TOML_KEY = re.compile(r'''^\s*([A-Za-z0-9_-]+|'[^']*'|"(?:[^"\\]|\\.)*")\s*=''')
 ONE_YEAR = datetime.timedelta(hours=8760)
 # Children must expire before their parent; the owner outlives a full-year child by this margin.
 MARGIN = datetime.timedelta(hours=1)
@@ -453,8 +453,9 @@ def harnesses(root):
     registry = root/'harnesses.json'
     if registry.exists():
         for name, spec in json.loads(registry.read_text()).items():
-            if table.get(name, {}).get('skills_dir'):
-                spec.setdefault('skills_dir', table[name]['skills_dir'])
+            for key in ('skills_dir', 'other_skills_dirs', 'env_vars'):
+                if key in table.get(name, {}):
+                    spec.setdefault(key, table[name][key])
             table[name] = spec
     return table
 
@@ -533,7 +534,10 @@ def set_toml_table(text, table, entry):
         for line, outside in lines[start+1:end]:
             if outside:
                 key = TOML_KEY.match(line)
-                dropping = bool(key and key.group(1) in entry)
+                decoded = key[1] if key else None
+                if key and tomllib:
+                    decoded = next(iter(tomllib.loads(key[1]+' = 0')))
+                dropping = decoded in entry
             if not dropping:
                 kept.append(line)
         while kept and not kept[-1].strip():
@@ -565,16 +569,29 @@ def dotted(document, key):
         document = document.setdefault(part, {})
     return document, last
 
+def merge_env_vars(current, entry):
+    if not entry.get('env_vars'):
+        return entry
+    values = current.get('env_vars', [])
+    if not isinstance(values, list) or any(not isinstance(value, str) for value in values):
+        raise ValueError('MCP env_vars must be an array of strings')
+    return {**entry, 'env_vars': list(dict.fromkeys(values+entry['env_vars']))}
+
 def register_mcp(mcp, entry, home, backups):
     path = expand(mcp['file'], home)
     if mcp['format'] == 'toml':
         text = path.read_text() if path.exists() else ''
+        if entry.get('env_vars'):
+            if tomllib is None:
+                raise RuntimeError('Environment forwarding requires Python 3.11 or newer.')
+            current = lookup(tomllib.loads(text), f'{mcp.get("key", "mcp_servers")}.{SERVER}') or {}
+            entry = merge_env_vars(current, entry)
         write_text(path, set_toml_table(text, f'{mcp.get("key", "mcp_servers")}.{SERVER}', entry), backups)
     else:
         document = json_document(path)
         servers, last = dotted(document, mcp.get('key', 'mcpServers'))
         current = servers.setdefault(last, {}).get(SERVER, {})
-        servers[last][SERVER] = {**current, 'type': 'stdio', **entry}
+        servers[last][SERVER] = {**current, 'type': 'stdio', **merge_env_vars(current, entry)}
         write_text(path, json.dumps(document, indent=2)+'\n', backups)
 
 def allow_listed(approval, home, backups):
@@ -598,6 +615,8 @@ def harness_entry(name, spec, root):
     approval = spec.get('approval') or {}
     if approval.get('format') == 'entry':
         entry[approval['key']] = approval['value']
+    if spec.get('env_vars'):
+        entry['env_vars'] = spec['env_vars']
     return entry
 
 def remember_approval(root, approval, home):
@@ -616,6 +635,30 @@ def remember_harness(root, name, spec):
     if entry not in managed.setdefault('harnesses', []):
         managed['harnesses'].append(entry)
         write_text(path, json.dumps(managed, indent=2)+'\n', mode=0o600)
+
+def warn_shadow_skills(spec, home):
+    directories = [spec['skills_dir']] if spec.get('skills_dir') else []
+    directories += spec.get('other_skills_dirs', [])
+    seen = set()
+    for directory in directories:
+        directory = expand(directory, home)
+        if not directory.is_dir():
+            continue
+        for path in sorted(directory.iterdir()):
+            if path.name == 'comitia' or not path.is_dir() or path.absolute() in seen:
+                continue
+            seen.add(path.absolute())
+            mentions = False
+            try:
+                text = (path/'SKILL.md').read_text()
+                lines = text.splitlines()
+                if lines and lines[0].strip() == '---':
+                    end = next((i for i in range(1, len(lines)) if lines[i].strip() == '---'), None)
+                    mentions = end is not None and bool(re.search(r'\bcomitia\b', '\n'.join(lines[1:end]), re.I))
+            except (OSError, UnicodeError):
+                pass
+            if path.name.lower().startswith('comitia') or mentions:
+                print(f'Warning: potentially shadowing Comitia skill: {path}')
 
 def skill_files(path):
     """Fingerprint the whole tree; extra files, directories and links are edits."""
@@ -814,6 +857,7 @@ def place_block(text, block):
 def add_harness(name, spec, root, home, run, permissions='read,write,claim,grant'):
     """Mint the harness credential once, register the MCP server and its auto-approval, render instructions."""
     check(name, spec)
+    warn_shadow_skills(spec, home)
     install_skill(root, root/'skills/comitia')
     if spec.get('skills_dir'):
         install_skill(root, expand(spec['skills_dir'], home)/'comitia')

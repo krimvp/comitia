@@ -141,6 +141,7 @@ non-interactive mode, sandbox, approval configuration and session registry.
 | Setting | Codex CLI 0.160 | Claude Code | Other harnesses |
 | --- | --- | --- | --- |
 | Headless launch | `codex exec -m MODEL -c model_reasoning_effort=LEVEL - < prompt` | `claude -p` | documented headless mode |
+| Per-launch instance | `COMITIA_AGENT_INSTANCE=codex-worker COMITIA_AGENT_INSTANCE_LABEL=Worker codex exec ...` (installer forwards both via `env_vars`); override with `-c 'mcp_servers.comitia.env.COMITIA_AGENT_INSTANCE="codex-worker"'` | `COMITIA_AGENT_INSTANCE=claude-worker COMITIA_AGENT_INSTANCE_LABEL=Worker claude -p ...` | forward both variables to MCP |
 | Comitia approval | `-c 'mcp_servers.comitia.default_tools_approval_mode="approve"'` | allow `mcp__comitia__*` | per-server/tool approval |
 | Worktree/network sandbox | `-s workspace-write -c sandbox_workspace_write.network_access=true` | permission mode/allow rules | inspect policy |
 | Worktree git metadata | `--add-dir REPO/.git`; if read-only use scratch handoff | normally allowed; inspect policy | metadata lives in REPO/.git/worktrees |
