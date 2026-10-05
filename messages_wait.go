@@ -113,6 +113,10 @@ func (s *Service) scanMessages(ctx context.Context, raw, cid string, after int64
 	if err != nil {
 		return nil, after, err
 	}
+	after, f, err = resolveMessageAfter(ctx, s, raw, cid, after, f)
+	if err != nil {
+		return nil, after, err
+	}
 	if after < 0 {
 		return nil, after, Invalidf("after must be nonnegative")
 	}
@@ -133,10 +137,28 @@ func (s *Service) scanMessages(ctx context.Context, raw, cid string, after int64
 			return e
 		}
 		sid = a.session.ID
-		if scan, ok := r.(MessageScanStore); ok {
-			out, scanned, e = scan.MessagesScanned(cid, a.session.ID, after, limit, f)
-		} else {
-			out, e = r.Messages(cid, a.session.ID, after, limit, f)
+		for {
+			var batch []Message
+			next := scanned
+			if scan, ok := r.(MessageScanStore); ok {
+				batch, next, e = scan.MessagesScanned(cid, sid, scanned, limit, f)
+			} else {
+				batch, e = r.Messages(cid, sid, scanned, limit, f)
+			}
+			if e != nil {
+				break
+			}
+			for _, m := range batch {
+				next = max(next, m.Sequence)
+				if f.includesRenewals() || !renewedMessage(m) {
+					out = append(out, m)
+				}
+			}
+			progressed := next > scanned
+			scanned = max(scanned, next)
+			if len(out) != 0 || len(batch) == 0 || !progressed {
+				break
+			}
 		}
 		if e == nil {
 			heartbeat = s.instanceHeartbeatDue(r, sid, cid, instance)
@@ -171,6 +193,11 @@ func (s *Service) WaitMessages(ctx context.Context, raw, cid string, after int64
 }
 
 func (s *Service) waitMessagesScanned(ctx context.Context, raw, cid string, after int64, timeout time.Duration, filters ...MessageFilters) ([]Message, int64, error) {
+	f, err := messageFilters(filters)
+	if err != nil {
+		return nil, after, err
+	}
+
 	if timeout < 0 {
 		return nil, after, Invalidf("timeout must be nonnegative")
 	}
@@ -183,6 +210,11 @@ func (s *Service) waitMessagesScanned(ctx context.Context, raw, cid string, afte
 		scanCtx, cancel = context.WithTimeout(ctx, timeout)
 		defer cancel()
 	}
+	after, f, err = resolveMessageAfter(scanCtx, s, raw, cid, after, f)
+	if err != nil {
+		return nil, after, err
+	}
+	filters = []MessageFilters{f}
 	v, unsubscribe := s.messageNotifications.subscribe(cid)
 	defer unsubscribe()
 	timer := time.NewTimer(timeout)

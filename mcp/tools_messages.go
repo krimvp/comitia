@@ -16,7 +16,7 @@ func messageTools() []map[string]any {
 		tool("get_message_schema", "Get one registered versioned message schema descriptor; use its example envelope with real context/task IDs.", schema(map[string]any{"schema": str("Exact registered versioned message schema ID")}, "schema")),
 		tool("send_message", "Append a message; optional validated envelope addresses session IDs, not names. Context readers can see all messages. Omitted agent_instance defaults to COMITIA_AGENT_INSTANCE / COMITIA_AGENT_INSTANCE_LABEL.", schema(map[string]any{"context_id": str("Context ID"), "dedupe_key": str("Stable caller-chosen key; scoped to this session and instance"), "body": str("Message explanation; required for untyped/discussion messages"), "envelope": envelopeSchema(), "agent_instance": agentInstanceSchema(), "task_fence": schema(map[string]any{"task_id": str("Must match envelope.task_id"), "claim_token": str("Current opaque lease token; never published"), "lease_version": integer("Current lease version; requires a live claim owned by this session")}, "task_id", "claim_token", "lease_version")}, "context_id", "dedupe_key")),
 		tool("list_participants", "Discover active readable sessions in a context. Names may repeat; address by SessionID.", schema(map[string]any{"context_id": str("Context ID"), "limit": integer("Maximum participants (default 100)"), "page": map[string]any{"type": "boolean", "description": "Return participants, next_after and has_more"}, "after_id": str("Exclusive session ID from next_after; implies page")}, "context_id")),
-		tool("replay_messages", "Read context messages after a sequence", schema(messageReadProperties(false), "context_id")),
+		tool("replay_messages", "Read context messages after a sequence; renewed task events are skipped unless task-event schema is selected", schema(messageReadProperties(false), "context_id")),
 		tool("ack_messages", "Record consumption through a sequence; omitted agent_instance defaults to COMITIA_AGENT_INSTANCE", schema(map[string]any{"context_id": str("Context ID"), "sequence": integer("Inclusive sequence"), "agent_instance": str("Optional instance ID; defaults to COMITIA_AGENT_INSTANCE; isolates this cursor within the authenticated session")}, "context_id", "sequence")),
 		tool("message_cursor", "Read this session's persisted acknowledgement cursor; omitted agent_instance defaults to COMITIA_AGENT_INSTANCE", schema(map[string]any{"context_id": str("Context ID"), "agent_instance": str("Optional instance ID used by ack_messages; defaults to COMITIA_AGENT_INSTANCE")}, "context_id")),
 		tool("wait_messages", "Wait for matching context messages (default 30 seconds, capped at 60); returns up to 100 or empty on timeout", schema(messageReadProperties(true), "context_id")),
@@ -25,6 +25,9 @@ func messageTools() []map[string]any {
 
 func messageReadProperties(wait bool) map[string]any {
 	p := map[string]any{"context_id": str("Context ID"), "after": integer("Exclusive sequence cursor"), "for_instance": str("Recipient instance, caller session with no instance recipients, or broadcast"), "from_instance": str("Self-reported sender instance"), "task_id": str("Envelope task ID"), "schema": str("Exact envelope schema ID"), "agent_instance": str("Optional self-reported instance ID for presence; defaults to COMITIA_AGENT_INSTANCE")}
+	p["exclude_self"] = map[string]any{"type": "boolean", "description": "Omit messages from this authenticated session and agent_instance (empty instance selects legacy sender)"}
+	p["from_cursor"] = map[string]any{"type": "boolean", "description": "Start at this caller's agent_instance acknowledgement cursor; omit after"}
+	p["schemas"] = map[string]any{"type": "array", "items": map[string]any{"type": []string{"string", "null"}}, "description": "Match any listed schema; selecting comitia.task-event.v1 includes renewed events"}
 	p["reply_to"] = str("Direct replies to a message in this context")
 	p["thread_id"] = str("Root message and recursive descendants in this context")
 	p["from_session"] = str("Authenticated sender session ID")
@@ -124,7 +127,7 @@ func (s *Server) callMessages(ctx context.Context, name string, raw json.RawMess
 			Page      bool   `json:"page"`
 			Compact   bool   `json:"compact"`
 			ContextID string `json:"context_id"`
-			After     int64  `json:"after"`
+			After     *int64 `json:"after"`
 			Limit     int    `json:"limit"`
 		}
 		if err := decode(raw, &a); err != nil {
@@ -143,12 +146,18 @@ func (s *Server) callMessages(ctx context.Context, name string, raw json.RawMess
 		if err := comitia.CheckMessageQueryAPI(s.API, filters); err != nil {
 			return nil, err
 		}
-		var value any
-		if a.Page {
-			value, err = comitia.ReplayMessagePage(ctx, s.API, s.Credential, a.ContextID, a.After, a.Limit, filters)
-		} else {
-			value, err = s.API.ReplayMessages(ctx, s.Credential, a.ContextID, a.After, a.Limit, filters)
+		after, err := messageAfter(a.After, filters)
+		if err != nil {
+			return nil, err
 		}
+		if a.Page || filters.FromCursor {
+			page, err := comitia.ReplayMessagePage(ctx, s.API, s.Credential, a.ContextID, after, a.Limit, filters)
+			if !a.Page {
+				return cursorMessageResult(page), err
+			}
+			return messageResult(page, a.Compact), err
+		}
+		value, err := s.API.ReplayMessages(ctx, s.Credential, a.ContextID, after, a.Limit, filters)
 		return messageResult(value, a.Compact), err
 	case "wait_messages":
 		var a struct {
@@ -156,7 +165,7 @@ func (s *Server) callMessages(ctx context.Context, name string, raw json.RawMess
 			Page           bool     `json:"page"`
 			Compact        bool     `json:"compact"`
 			ContextID      string   `json:"context_id"`
-			After          int64    `json:"after"`
+			After          *int64   `json:"after"`
 			TimeoutSeconds *float64 `json:"timeout_seconds"`
 		}
 		if err := decode(raw, &a); err != nil {
@@ -180,12 +189,18 @@ func (s *Server) callMessages(ctx context.Context, name string, raw json.RawMess
 		if err := comitia.CheckMessageQueryAPI(s.API, filters); err != nil {
 			return nil, err
 		}
-		var value any
-		if a.Page {
-			value, err = comitia.WaitMessagePage(ctx, s.API, s.Credential, a.ContextID, a.After, timeout, filters)
-		} else {
-			value, err = s.API.WaitMessages(ctx, s.Credential, a.ContextID, a.After, timeout, filters)
+		after, err := messageAfter(a.After, filters)
+		if err != nil {
+			return nil, err
 		}
+		if a.Page || filters.FromCursor {
+			page, err := comitia.WaitMessagePage(ctx, s.API, s.Credential, a.ContextID, after, timeout, filters)
+			if !a.Page {
+				return cursorMessageResult(page), err
+			}
+			return messageResult(page, a.Compact), err
+		}
+		value, err := s.API.WaitMessages(ctx, s.Credential, a.ContextID, after, timeout, filters)
 		return messageResult(value, a.Compact), err
 	case "ack_messages":
 		var a struct {
@@ -256,7 +271,21 @@ func messageResult(value any, compact bool) any {
 		if count > 0 {
 			after = v[count-1].Sequence
 		}
-		text = fmt.Sprintf("%d messages; last_sequence=%d. Full result in structuredContent.", count, after)
+		text = fmt.Sprintf("%d messages; next_after=%d; last_sequence=%d. Full result in structuredContent.", count, after, after)
 	}
 	return compactResult{value: value, text: text}
+}
+
+func messageAfter(after *int64, f comitia.MessageFilters) (int64, error) {
+	if after != nil {
+		if f.FromCursor {
+			return 0, comitia.Invalidf("from_cursor cannot be combined with after")
+		}
+		return *after, nil
+	}
+	return 0, nil
+}
+
+func cursorMessageResult(page comitia.MessagePage) any {
+	return compactResult{value: page.Messages, text: fmt.Sprintf("%d messages; next_after=%d; scanned_through=%d; has_more=%t. Full result in structuredContent.", len(page.Messages), page.NextAfter, page.ScannedThrough, page.HasMore)}
 }

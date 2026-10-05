@@ -147,11 +147,15 @@ Labels do not affect cursors. Acknowledgements remain monotonic and cannot
 exceed the context's current maximum sequence. Cursor operations require the
 same authenticated read access as before, even for unseen instance IDs.
 
-Replay still reads the shared context log using an explicit `after` sequence;
-it does not automatically filter recipients or choose an instance cursor. Read
-your instance cursor, replay or wait after it with optional filters, then
-acknowledge the last matching sequence you consumed using the same instance ID.
-Session recipient checks can still be applied locally when needed.
+Replay and wait start at sequence zero when `after` is omitted. Opt into the
+caller's instance cursor with `from_cursor: true` (CLI `--from-cursor`) and omit
+`after`. `agent_instance` chooses the same session/context/instance scope used
+by acknowledgement; an empty instance uses the legacy session cursor. A wait
+resolves this starting cursor once, so later acknowledgements cannot move its
+in-flight read. MCP/CLI reject combining the opt-in with an explicit `after`;
+Go/HTTP reject combining it with a nonzero `after`.
+Reading never acknowledges messages. Handle the results before acknowledging
+with the same instance ID.
 
 ## Filtered replay and waiting
 
@@ -167,13 +171,16 @@ Empty values disable a filter; all nonempty filters must match.
 | `reply_to` | Direct replies to a message in this readable context; missing/foreign roots are forbidden. |
 | `thread_id` | Root message and recursive reply descendants in this readable context. |
 | `from_session` | Exact authenticated sender session ID. |
+| `exclude_self` | Omit messages whose authenticated sender session and sender instance both equal the caller's session and `agent_instance`. Other instances sharing the session and other sessions reusing the instance remain visible. An empty caller instance excludes only that session's legacy senders. |
 | `from_instance` | The message's self-reported `agent_instance.id` equals this exact ID. Legacy senders without a claim do not match. |
 | `task_id` | Envelope `task_id` equals this exact ID. |
 | `schema` | Envelope `schema` equals this exact versioned name. |
+| `schemas` | Envelope `schema` matches any name in the list. CLI repeats `--schema` to build this list. If both `schema` and `schemas` are supplied, both selectors must match. |
 
 Instance filters use the same 1–64 character ID syntax as sender claims.
-`agent_instance` (an ID string, defaulting to `COMITIA_AGENT_INSTANCE`) is not a
-filter: it names the reader for [instance presence](presence.md).
+`agent_instance` (an ID string, defaulting to `COMITIA_AGENT_INSTANCE`) names the
+reader for [instance presence](presence.md), self exclusion and cursor starts.
+It only narrows results when `exclude_self` is enabled.
 Unknown task IDs and schema names simply match nothing. These filters are
 convenience selectors over the same shared context log. They neither grant
 access nor restrict what an authorized reader can obtain with another replay.
@@ -187,12 +194,24 @@ still work against older servers. A strict read against a server that rejects
 the member returns `ErrInvalid` ("strict_recipients unsupported by this
 server"); the Client never retries without it, because that would widen results.
 
+By default replay, wait and watch skip `comitia.task-event.v1` messages whose
+payload `kind` is `renewed`. Other task transitions remain visible. Select
+`schema: "comitia.task-event.v1"` or include that name in `schemas` (CLI
+`--schema comitia.task-event.v1`) to include renewals. Page `scanned_through`
+advances across skipped renewals, including renewal-only timeout results.
+Renewals remain stored and available through direct message lookup.
+
+The HTTP client omits the new `exclude_self`, `from_cursor` and `schemas`
+fields unless enabled. Older servers reject enabled options with a clear
+unsupported error; the client does not retry with a wider read. Embedded APIs
+and stores opt into optional `MessageReadOptionsAPI`/`MessageReadOptionsStore`;
+existing exported interfaces retain their method sets.
+
 Replay keeps its existing output, ordering, exclusive `after` cursor and
 1–1000 `limit`. Filtering happens **in SQL before ORDER BY/LIMIT**, so a page
 contains up to `limit` matching messages regardless of skipped sequences.
-Advance `after` to the last returned message's `Sequence`; an empty result means
-there are currently no later matches. Skipped sequences need no separate scan
-cursor. The default output shape, including empty-result serialization, is unchanged.
+Legacy arrays expose returned sequences; page mode also exposes progress past
+skipped messages. The default array output shape remains unchanged.
 
 ```go
 filters := comitia.MessageFilters{ForInstance: "issue-3-worker", StrictRecipients: true}
@@ -232,9 +251,9 @@ Default MCP/CLI results remain arrays. To request continuation metadata, pass
 {"messages":[],"next_after":42,"scanned_through":57,"has_more":false}
 ```
 
-`next_after` is the last returned sequence, or the supplied `after` on an empty
-page. `scanned_through` reports safe progress through skipped nonmatches from
-that same read snapshot; an empty filtered page can advance it beyond
+`next_after` is the last returned sequence, or the resolved starting sequence
+on an empty page (including `from_cursor`). `scanned_through` reports safe progress
+through skipped nonmatches from that same read snapshot; an empty filtered page can advance it beyond
 `next_after`. After handling returned messages, continue with `scanned_through`
 and exactly the same filters to avoid scanning the same tail again. Count and
 byte truncation never advance it past an omitted match. Changing filters means
@@ -256,8 +275,8 @@ APIs need no new methods; the helpers derive pages using their legacy reads.
 
 MCP tools default to short text summaries for messages, tasks, collections and
 other large results. `structuredContent.result` retains the full result and its
-existing array or page shape. Replay/wait text includes a count and cursor;
-pages also include `next_after`, `scanned_through` and `has_more`. Send text
+existing array or page shape. Replay/wait summaries always include `next_after`,
+including empty reads; pages also include `scanned_through` and `has_more`. Send text
 includes the message ID and sequence, without echoing its body or envelope.
 Every tool accepts `compact: false` to restore full JSON text for clients that
 ignore structured results; omitted, null or true selects the default summary.
@@ -331,7 +350,10 @@ Watch reads the specified instance's persisted acknowledgement cursor on
 startup. The `--agent-instance` flag selects the cursor and defaults to
 `COMITIA_AGENT_INSTANCE`; without a default, or with an explicit empty
 `--agent-instance=`, watch uses the legacy session cursor. `--for-instance`
-selects recipients and is never defaulted.
+defaults to `--agent-instance`; an explicit value overrides it, and
+`--for-instance=` disables recipient filtering. Repeat `--schema` to watch
+several schemas, for example discussion and task events. `--exclude-self`
+omits messages from this session and instance.
 It then repeatedly waits and prints tab-separated lines:
 
 ```text
@@ -351,7 +373,10 @@ JSON body, or `watch --json-lines --manual-ack` for complete records. The
 effects before a separate ack; terminal display alone does not prove handling.
 Every successful default terminal print is followed by a monotonic acknowledgement
 using the same instance. `--no-ack` disables these writes while retaining the
-in-memory sequence and resuming from the persisted cursor on startup. Filtered
+in-memory sequence and resuming from the persisted cursor on startup. Watch
+advances through skipped rows using page `scanned_through`, including renewals;
+automatic mode acknowledges that progress after all returned messages have been
+printed. Manual/no-ack mode advances only its in-memory cursor. Filtered
 watch therefore consumes a particular view of the log: use a separate instance
 cursor for a different view if you need to revisit skipped messages.
 

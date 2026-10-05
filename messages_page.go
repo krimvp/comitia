@@ -77,9 +77,21 @@ func messagePage(ctx context.Context, api MessageAPI, token, cid string, after i
 }
 
 func ReplayMessagePage(ctx context.Context, api MessageAPI, token, cid string, after int64, limit int, filters ...MessageFilters) (MessagePage, error) {
+	f, err := messageFilters(filters)
+	if err != nil {
+		return MessagePage{}, err
+	}
+	if err := CheckMessageQueryAPI(api, f); err != nil {
+		return MessagePage{}, err
+	}
 	if pages, ok := api.(MessagePageAPI); ok {
 		return pages.ReplayMessagesPage(ctx, token, cid, after, limit, filters...)
 	}
+	after, f, err = resolveMessageAfter(ctx, api, token, cid, after, f)
+	if err != nil {
+		return MessagePage{}, err
+	}
+	filters = []MessageFilters{f}
 	messages, err := api.ReplayMessages(ctx, token, cid, after, limit, filters...)
 	if err != nil {
 		return MessagePage{}, err
@@ -88,6 +100,13 @@ func ReplayMessagePage(ctx context.Context, api MessageAPI, token, cid string, a
 }
 
 func WaitMessagePage(ctx context.Context, api MessageAPI, token, cid string, after int64, timeout time.Duration, filters ...MessageFilters) (MessagePage, error) {
+	f, err := messageFilters(filters)
+	if err != nil {
+		return MessagePage{}, err
+	}
+	if err := CheckMessageQueryAPI(api, f); err != nil {
+		return MessagePage{}, err
+	}
 	if pages, ok := api.(MessagePageAPI); ok {
 		return pages.WaitMessagesPage(ctx, token, cid, after, timeout, filters...)
 	}
@@ -95,6 +114,15 @@ func WaitMessagePage(ctx context.Context, api MessageAPI, token, cid string, aft
 }
 
 func (s *Service) ReplayMessagesPage(ctx context.Context, token, cid string, after int64, limit int, filters ...MessageFilters) (MessagePage, error) {
+	f, err := messageFilters(filters)
+	if err != nil {
+		return MessagePage{}, err
+	}
+	after, f, err = resolveMessageAfter(ctx, s, token, cid, after, f)
+	if err != nil {
+		return MessagePage{}, err
+	}
+	filters = []MessageFilters{f}
 	messages, scanned, err := s.scanMessages(ctx, token, cid, after, limit, filters)
 	if err != nil {
 		return MessagePage{}, err
@@ -111,6 +139,11 @@ func (s *Service) WaitMessagesPage(ctx context.Context, token, cid string, after
 // The page's lookahead shares the wait budget. If it runs out after matches
 // were read, a conservative continuation preserves those messages.
 func waitMessagePage(ctx context.Context, api MessageAPI, token, cid string, after int64, timeout time.Duration, filters []MessageFilters) (MessagePage, error) {
+	f, err := messageFilters(filters)
+	if err != nil {
+		return MessagePage{}, err
+	}
+
 	if timeout < 0 {
 		return MessagePage{}, Invalidf("timeout must be nonnegative")
 	}
@@ -123,9 +156,13 @@ func waitMessagePage(ctx context.Context, api MessageAPI, token, cid string, aft
 		readCtx, cancel = context.WithTimeout(ctx, timeout)
 		defer cancel()
 	}
+	after, f, err = resolveMessageAfter(readCtx, api, token, cid, after, f)
+	if err != nil {
+		return MessagePage{}, err
+	}
+	filters = []MessageFilters{f}
 	scanned := after
 	var messages []Message
-	var err error
 	if svc, ok := api.(*Service); ok {
 		messages, scanned, err = svc.waitMessagesScanned(readCtx, token, cid, after, timeout, filters...)
 	} else {

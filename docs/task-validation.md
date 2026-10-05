@@ -58,8 +58,10 @@ gates; see [Approvals and merge gates](message-protocol.md#approvals-and-merge-g
 Each successful create, claim, renew, complete, release, failure or cancellation
 appends a server-authored `comitia.task-event.v1` message in the task's context,
 in the same transaction as the task and any mutation receipt. Replay and wait
-return these events, including to readers that cannot write or claim; task
-changes therefore consume message sequence numbers. Filter with
+return these events to readers with context read access; default reads skip
+`renewed` events while page `scanned_through` advances past them. Other
+transitions remain visible. Task changes still consume message sequence numbers.
+Select all events, including renewals, with
 `--schema comitia.task-event.v1` and optionally `--task-id ID`. Messages identify
 the authorized actor by `SessionID`, with the task ID in the envelope and kind,
 previous/current status, lease version, holder metadata and terminal reason in

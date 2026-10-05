@@ -160,7 +160,7 @@ func TestCompactEmptyReplayKeepsCursorAndClaimTokenInStructuredOnly(t *testing.T
 			args["timeout_seconds"] = 0
 		}
 		result := resultCall(t, &Server{API: emptyCollectionsAPI{}, Credential: "caller"}, name, args)
-		if !strings.Contains(resultText(result), "last_sequence=42") {
+		if !strings.Contains(resultText(result), "next_after=42") {
 			t.Fatal("empty summary lost requested cursor")
 		}
 	}
