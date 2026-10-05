@@ -254,10 +254,16 @@ Go callers can use `ReplayMessagePage`/`WaitMessagePage`, or the optional
 `MessagePageAPI` implemented by Service and the HTTP client. Existing custom
 APIs need no new methods; the helpers derive pages using their legacy reads.
 
-MCP replay/wait also accept `compact: true`: `content.text` becomes a short
-count/cursor summary while `structuredContent.result` retains the full array
-or page. By default both fields carry the full result for compatibility.
-Check the loaded tool schema before using new fields with an older adapter.
+MCP tools default to short text summaries for messages, tasks, collections and
+other large results. `structuredContent.result` retains the full result and its
+existing array or page shape. Replay/wait text includes a count and cursor;
+pages also include `next_after`, `scanned_through` and `has_more`. Send text
+includes the message ID and sequence, without echoing its body or envelope.
+Every tool accepts `compact: false` to restore full JSON text for clients that
+ignore structured results; omitted, null or true selects the default summary.
+Check the loaded tool schema before using `compact` with an older adapter:
+older tools may reject it as an unsupported argument. This presentation option
+is local to MCP and does not change REST requests or responses.
 REST requests remain capped at 1 MiB; the Go remote client independently caps
 responses at 16 MiB and reports an explicit oversize error rather than a
 truncated-JSON decode failure. Smaller byte/count limits recover aggregate

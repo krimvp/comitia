@@ -331,7 +331,11 @@ func (s *Server) handle(ctx context.Context, req request) response {
 		}
 		started := time.Now()
 		requestID := comitia.NewRequestID()
-		v, err := s.call(ctx, p.Name, p.Arguments)
+		arguments, compact, err := resultArguments(p.Arguments)
+		var v any
+		if err == nil {
+			v, err = s.call(ctx, p.Name, arguments)
+		}
 		if err != nil {
 			operation := comitia.SafeOperation(p.Name)
 			info := comitia.SafeError(operation, err, requestID)
@@ -352,7 +356,13 @@ func (s *Server) handle(ctx context.Context, req request) response {
 			r.Error = &rpcError{-32603, "internal error"}
 			return r
 		}
-		if summary == "" {
+		if compact && summary == "" {
+			summary = resultSummary(p.Name, v, p.Arguments, len(b))
+		}
+		if compact && len(summary) > 512 {
+			summary = p.Name + " succeeded. Full result in structuredContent."
+		}
+		if !compact || summary == "" {
 			summary = string(b)
 		}
 		r.Result = map[string]any{"content": []any{map[string]any{"type": "text", "text": summary}}, "structuredContent": wrapped, "isError": false}
@@ -420,6 +430,10 @@ func tools() []map[string]any {
 	var out []map[string]any
 	for _, g := range toolGroups {
 		out = append(out, g.tools()...)
+	}
+	for _, t := range out {
+		props := t["inputSchema"].(map[string]any)["properties"].(map[string]any)
+		props["compact"] = nullableProperty(map[string]any{"type": "boolean", "description": "Short text summary by default; full result remains in structuredContent. Set false for full JSON text."})
 	}
 	return out
 }
