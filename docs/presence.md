@@ -7,7 +7,7 @@ and optional `resume` JSON object. `active` is false when the credential session
 is revoked or expired; it does not say whether the process is running or still has a grant on the context.
 `seen_seconds_ago` is a server-computed whole-second age, clamped to zero for
 future timestamps. `recent` means age < **90 seconds**, independent of `active`.
-Absent timestamps/older servers omit these fields.
+Older servers omit these fields.
 Instance IDs and labels follow the [message instance rules](message-protocol.md).
 Rows are keyed by **(authenticated session, context, instance ID)**, so the same
 instance ID in different sessions or contexts has independent metadata.
