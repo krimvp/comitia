@@ -826,8 +826,9 @@ grants. The result contains `version`, `protocol_version` (the MCP revision),
 and MCP in `result`. The MCP tool also reports the adapter's own build as
 `client: {version, revision, dirty}` and `client_stale`, true when the server
 advertises features this client does not know (listed in
-`client_missing_features`) or when both sides report a known, different revision
-or release version. A stale result carries `client_hint` with the restart advice;
+`client_missing_features`) or when both sides report a known, different revision.
+Release version labels are compared only when either revision is `unknown`, so
+builds of one commit with different labels are not stale. A stale result carries `client_hint` with the restart advice;
 restart the agent session so its MCP client loads the upgraded tool schemas. HTTP
 and CLI results omit the client fields. The same build identity appears in MCP initialize/discover,
 unknown-field guidance and internal failure diagnostics. `dirty` is the string

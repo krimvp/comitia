@@ -75,7 +75,8 @@ func Features() []string { return append([]string{}, serverFeatures...) }
 
 // WithClient reports how a client built as client relates to the server. The
 // client is stale when the server advertises features this build does not
-// know, or when both sides report a known, different revision or release.
+// know, or when both sides report a known, different revision; release
+// version labels are compared only when either revision is unknown.
 func (info ServerInfo) WithClient(client BuildInfo) ServerInfo {
 	info.Client = &client
 	known := make(map[string]bool, len(serverFeatures))
@@ -88,15 +89,14 @@ func (info ServerInfo) WithClient(client BuildInfo) ServerInfo {
 			info.ClientMissingFeatures = append(info.ClientMissingFeatures, f)
 		}
 	}
-	differs := func(a, b string, unknown ...string) bool {
-		for _, u := range append(unknown, "") {
-			if a == u || b == u {
-				return false
-			}
-		}
-		return a != b
+	// Builds of one commit may carry different version labels, so a label
+	// counts only when either revision is unknown.
+	set := func(v, unknown string) bool { return v != "" && v != unknown }
+	builds := client.Revision != info.Build.Revision
+	if !set(client.Revision, "unknown") || !set(info.Build.Revision, "unknown") {
+		builds = set(client.Version, "dev") && set(info.Build.Version, "dev") && client.Version != info.Build.Version
 	}
-	stale := len(info.ClientMissingFeatures) > 0 || differs(client.Revision, info.Build.Revision, "unknown") || differs(client.Version, info.Build.Version, "dev")
+	stale := len(info.ClientMissingFeatures) > 0 || builds
 	info.ClientStale = &stale
 	info.ClientHint = ""
 	switch {

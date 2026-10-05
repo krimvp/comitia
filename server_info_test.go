@@ -84,6 +84,7 @@ func TestServerInfoWithClient(t *testing.T) {
 		{"same build", BuildInfo{Version: "dev", Revision: "abc", Dirty: "false"}, nil, false, nil, ""},
 		{"unknown client revision", BuildInfo{Version: "dev", Revision: "unknown", Dirty: "unknown"}, nil, false, nil, ""},
 		{"older client revision", BuildInfo{Version: "dev", Revision: "old", Dirty: "false"}, nil, true, nil, "different builds"},
+		{"same revision, different version labels", BuildInfo{Version: "v1.0.0", Revision: "abc", Dirty: "false"}, nil, false, nil, ""},
 		{"release client, dev server", BuildInfo{Version: "v1.0.0", Revision: "unknown"}, nil, false, nil, ""},
 		{"server features unknown to client", BuildInfo{Version: "dev", Revision: "unknown"}, []string{"future_feature"}, true, []string{"future_feature"}, "restart the MCP client"},
 	}
@@ -103,6 +104,14 @@ func TestServerInfoWithClient(t *testing.T) {
 	released := ServerInfo{Features: Features(), Build: BuildInfo{Version: "v1.1.0", Revision: "unknown"}}
 	if got := released.WithClient(BuildInfo{Version: "v1.0.0", Revision: "unknown"}); !*got.ClientStale {
 		t.Fatalf("release mismatch=%+v", got)
+	}
+	// A known revision on one side only cannot be compared, so labels decide.
+	if got := released.WithClient(BuildInfo{Version: "v1.0.0", Revision: "abc"}); !*got.ClientStale {
+		t.Fatalf("half-known revision=%+v", got)
+	}
+	labelled := ServerInfo{Features: Features(), Build: BuildInfo{Version: "v1.1.0", Revision: "abc"}}
+	if got := labelled.WithClient(BuildInfo{Version: "v0.0.0-20261005-abc", Revision: "abc"}); *got.ClientStale || got.ClientHint != "" {
+		t.Fatalf("same revision with labels=%+v", got)
 	}
 	// Service results never carry client fields; adapters add them.
 	f := setup(t, ":memory:")
