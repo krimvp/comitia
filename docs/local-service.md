@@ -311,8 +311,7 @@ the same context, Codex/Claude MCP configs and send/read/claim acceptance, see
 
 Run the installer again after pulling changes. It replaces the installed binary
 and viewer snapshot and restarts the services. Existing databases and credentials
-are preserved; installation never imports, merges, or replaces test/Kotoba data.
-The old temporary test servers are separate and are not stopped by the installer.
+are preserved; unrelated temporary servers and databases are left alone.
 Omitted `--port` and `--viewer-port` keep the saved URLs in `service.json`
 (the server also falls back to `local-context.json` for older installs).
 Fresh/changed ports are checked before any installation files are rewritten,
@@ -377,18 +376,10 @@ this root only after reviewing retained integration and keeping required backups
 
 ### Validation
 
-Installed both services on macOS and confirmed authenticated context discovery
-through the API and viewer proxy. Terminated each service process and verified
-that launchd restarted it with a new PID, with the same context persisted in the
-database. Verified private credential-file permissions and viewer HTTP response.
-Actual reboot was not performed; login startup is configured through installed
-LaunchAgent plists with RunAtLoad and KeepAlive.
-
-Automatic-login checks verified initial connection and reload without a credential
-form, context discovery, demo/reconnect controls, no Authorization header or
-credential storage in the browser, and rejection of cross-origin requests,
-unrecognized Host headers, and all write/grant routes. The configuration endpoint
-returns only an automatic-login flag, never credential material.
+Earlier manual installation and browser observations are preserved in a
+[dated archive](history/local-service-validation-20261005.md). Current automated
+checks live in [installer tests](../scripts/test_install_linux_service.py) and
+[viewer tests](../scripts/test_world_viewer.py); they use isolated fixtures.
 
 ### Importing a legacy board
 
@@ -417,15 +408,12 @@ or a migration of running clients. The source database remains in place.
 
 ### Clients still running after an upgrade
 
-Installing a new binary restarts the local service, but an agent's existing
-`comitia mcp` process keeps executing the previous binary. The managed instruction
-block is versioned (`comitia-local:start v3`) and may update before that client
-restarts. It instructs agents to check `server_info` and their tool schemas before
-using optional fields; an unknown-field error identifies the running client
-version and source revision. Compare `server_info.build` from the daemon and the
-MCP initialize response from the client; revision/dirty stamps distinguish source
-builds even when both release versions are `dev`. Retry without a rejected optional field and restart the agent session to
-load the upgraded client and its schemas.
+Installing a new binary restarts the service, but an agent's existing MCP
+process keeps running its previous binary. Restart the agent session after
+upgrades. The managed block is `comitia-local:start v4`; its text can update
+before the client restarts. Follow [client compatibility](message-protocol.md#compatibility)
+and compare the daemon's `server_info.build` with the client's MCP initialize
+build identity to distinguish source builds with the same `dev` version.
 
 On Linux, the installer reports PIDs of stale `comitia mcp` processes after
 replacing the binary. It compares `/proc/<pid>/exe` device/inode and modification

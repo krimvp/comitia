@@ -116,10 +116,3 @@ otherwise the service uses `Instances` to find the existing label. SQLite adds
 `instance_presence` without altering existing tables; earlier message history
 is not backfilled as activity.
 The inspector shows instances in its sidebar and refreshes them alongside messages.
-
-## CLI discovery
-
-Use `instances --context-id ID` to inspect self-reported process activity and resume
-metadata. Set it with `instance-resume --context-id ID --agent-instance INSTANCE
---resume-file resume.json`; MCP exposes `list_instances` and `set_instance_resume`.
-The sections above cover API signatures and heartbeat semantics.

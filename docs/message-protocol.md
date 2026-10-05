@@ -22,7 +22,7 @@ CLI/MCP/HTTP default omitted limits to 100; explicit limits must be 1–1000. Li
 callers supply a limit. CLI/MCP results contain `SessionID`, `PrincipalID`, `Name`, and
 session `ExpiresAt`; canonical REST responses use `session_id`, `principal_id`, `name`, and `expires_at`.
 Unnegotiated `/v1/` responses retain legacy record names; see the
-[wire compatibility policy](local-daemon.md). The list includes only currently active sessions with an
+[wire compatibility policy](local-daemon.md#rest-wire-compatibility). The list includes only currently active sessions with an
 effective read grant in that context. Grant expiry/revocation can subsequently
 remove access; discovery is not a reservation. Results are bounded, ordered by
 session ID. Use `participants --page` or MCP `page:true` for
@@ -90,6 +90,38 @@ not private delivery. Consumers should match both their authenticated session
 recipients are present). With neither list present, the message is a broadcast.
 An instance-only recipient list applies to matching claims across readable
 sessions, so use both lists when targeting one particular session.
+
+### Process defaults and overrides
+
+Set `COMITIA_AGENT_INSTANCE` and optional `COMITIA_AGENT_INSTANCE_LABEL` in the
+environment passed to Comitia, not merely in the model prompt.
+
+`send_message`, `claim_task`, `message_cursor`, and `ack_messages` use this default when
+`agent_instance` is omitted. CLI `send`, `task-claim`, `cursor`, and `ack` do the same when
+`--agent-instance` is omitted. This works with embedded SQLite, stdio MCP over
+a remote server, and the Go HTTP client's `NewClient`. The `mcp-http` process
+also applies its configured default to incoming calls, within each caller's
+authenticated session; choose explicit instances when multiple processes use
+that endpoint. Defaults are captured at startup (at construction for Go HTTP
+clients). Set the variables in the environment passed to the Comitia process.
+
+IDs must be 1–64 ASCII letters, digits, `.`, `_`, or `-`. Labels may contain up
+to 128 UTF-8 bytes, with no control characters. Invalid defaults, including a
+label without an ID, fail startup for commands that use instances (send,
+cursor, ack, watch, MCP, and task claims), even if a call supplies
+an explicit instance. Serve, bootstrap, and administrative commands ignore
+these variables. Empty variables behave as unset. Instances are self-reported routing metadata
+and confer no permissions.
+
+Explicit arguments win. An explicit send or claim object replaces both the default ID
+and label; `--agent-instance` does not inherit the default label. An explicit
+empty cursor/ack/watch ID selects the legacy session cursor. With a default set,
+send and claims cannot opt out of an instance: an explicit empty ID is invalid.
+CLI label-only overrides retain the default ID; without a default ID they are
+invalid. MCP `null` behaves as omission for send and claim objects; `{}` or
+`{"id":""}` is invalid. The Go HTTP client defaults omitted `ClaimTask`
+instances; an explicit `comitia.AgentInstance{}` is invalid.
+Without a default, omitted instances preserve legacy behavior.
 
 ### Independent acknowledgement cursors
 
@@ -764,26 +796,38 @@ to Go's `vcs.revision` and `vcs.modified` settings. Release builders can set
 `-ldflags '-X github.com/krimvp/comitia.Version=v1.2.3'`, otherwise the Go module
 build version is used when available.
 
-The feature table is maintained in `server_info.go` and currently lists
-`agent_instances`, `default_agent_instance`, `child_contexts`, `invites`,
-`context_archive`, `task_status`, `approvals`, `instance_claims`, `task_mutation_receipts`,
-`task_result_fencing`,
-`replay_filters`, `wait_messages`, `context_tools` (`create_context`,
-`list_contexts`, `list_child_contexts`), `grant_tools` (`grant_context`,
-`revoke_grant`), `delegated_sessions` (`delegate_session`, `revoke_session`) and
-`presence` (`list_instances`, `set_instance_resume`, read heartbeats; see
-[instance presence](presence.md)), `storage_status`, `operational_errors` and
-`build_provenance`.
-A remote `mcp-http` adapter offers `delegate_session` only with
-`--allow-delegation`, so check the tool schema as well. Optional functionality must
-be gated on both its advertised feature and the running MCP tool schema. For
-example, use `agent_instance` when `agent_instances` is listed, and rely on
-`COMITIA_AGENT_INSTANCE` defaults when `default_agent_instance` is listed and the
-client supports them. A new server can coexist with an old MCP client; discovery
-alone does not upgrade that client's tools. If a described optional field is
-rejected, retry without it, keep instance-prefixed dedupe keys in session scope,
-and restart the agent session to load the new client. If `server_info` itself is
-unavailable, use the basic session-scoped tools until the client is restarted.
+## Compatibility
+
+The feature inventory is maintained in [server_info.go](../server_info.go).
+Use optional functionality only when both the daemon's advertised feature and
+such fields/tools in your running MCP schema support it. A new daemon does not
+upgrade an already running stdio adapter. HTTP delegation additionally requires
+`--allow-delegation`; presence and instances remain self-reported.
+
+Choose one instance mode for the whole process:
+
+- **Launcher default:** when `default_agent_instance` is supported and the
+  launcher sets `COMITIA_AGENT_INSTANCE`, omit per-call instance arguments and
+  use natural stable keys such as `started`.
+- **Explicit:** otherwise, when `agent_instances` is supported, use an instance
+  object on send and an ID string on cursor/ack. Prefix keys with the instance
+  ID for older-server compatibility.
+- **Legacy:** if discovery or the optional field is unavailable, use basic
+  session-scoped tools and instance-prefixed keys. The cursor is shared by that
+  credential's processes. Restart the harness to load upgraded tool schemas.
+
+An unknown optional field error identifies the running client version. Retry
+without that field only when the simpler operation still meets the required
+contract. Never drop a task fence, mutation receipt or strict recipient check
+merely to make a write/read succeed. Changing instance scope on a send retry
+creates a different logical write. Full override and opt-out rules remain in
+[instance cursors](#independent-acknowledgement-cursors).
+
+[REST wire compatibility](local-daemon.md#rest-wire-compatibility) owns response
+spelling, duration units and the two client/server upgrade orders.
+[Backup rollback floor](backup-restore.md#supported-rollback-floor) covers restoring
+storage into older binaries.
+
 
 ### Operational failures and write readiness
 

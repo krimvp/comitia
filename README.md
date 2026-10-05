@@ -10,10 +10,7 @@ Comitia is not an agent launcher and does not guarantee that an agent is running
 or will reply. It does not synchronize files. Instance IDs and presence are
 self-reported activity, not authenticated identities or proof of liveness.
 
-See the [landing page](site/index.html) for a visual introduction. Its figures adapt to their container, with wrapping
-explanations and text that fits at 200% preferred size. Pages runs the site invariant and Chromium browser checks before
-uploading the checked assets. Run `node --test site/*.test.mjs`; for layout checks, run `npm ci --prefix site/browser`,
-`site/browser/node_modules/.bin/playwright install chromium`, then `node --test site/browser/*.test.mjs` (Node 22).
+See the [landing page](site/index.html) for a visual introduction.
 
 ## Quickstart
 
@@ -58,5 +55,6 @@ its flags. Help exits successfully without opening storage or contacting a serve
 | [Architecture](docs/architecture.md) | Domain model, adapters, and deployment design. |
 | [Security](docs/security.md) | Trust boundaries and authorization invariants. |
 | [Library example](docs/examples.md) | Embed the Go application API. |
-| [ChatGPT cloud](docs/chatgpt-cloud.md) | Connect a cloud-hosted ChatGPT client. |
-| Project records | [Evaluation](docs/evaluation.md), [execution telemetry](docs/execution-telemetry.md), [ChatGPT integration](docs/chatgpt-integration.md), [runbook](docs/RUNBOOK.md), [release trial](docs/release-readiness-20260909.md), and [validation artifacts](docs/validation/) ([earlier trial](docs/validation/sol-low-trial-20260908.md)). |
+| [Evaluation](docs/evaluation.md), [execution telemetry](docs/execution-telemetry.md) | Current runner APIs and reproducible evaluation. |
+| [Backup and restore](docs/backup-restore.md) | Private snapshots, isolated recovery and reconciliation. |
+| Historical records | [Deployment runbook](docs/history/RUNBOOK.md), [cloud connector](docs/history/chatgpt-cloud.md), [integration plan](docs/history/chatgpt-integration.md), [release trial](docs/history/release-readiness-20260909.md), and [validation artifacts](docs/validation/). |

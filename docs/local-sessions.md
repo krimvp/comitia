@@ -120,23 +120,7 @@ comitia-local --session-file PATH send --context-id CONTEXT_ID \
   --dedupe-key started --body ready
 ```
 
-The CLI and `comitia mcp` default send/claim metadata, cursor/ack/watch scope and
-replay/wait/resume [presence](presence.md) to this instance. Explicit instance
-arguments override it. IDs are 1–64 ASCII letters, digits, dots, underscores,
-or hyphens; labels are at most 128 UTF-8 bytes without
-control characters. An invalid value or a label without an ID is a startup
-error for instance-aware commands; serve, bootstrap, and administrative commands
-ignore these variables. Empty variables behave as unset. The launcher/wrapper must preserve these
-two variables when starting Comitia.
-
-Each instance has its own cursor and dedupe scope within the authenticated
-session, so different processes may reuse a natural key such as `started`.
-Retries from the same instance return the original message; changed content or
-label conflicts. Unset defaults preserve the shared legacy cursor and dedupe
-scope. Changing from a legacy send to an instance, or changing instance IDs,
-creates a new message for the same key; restarting with the environment set can
-duplicate a legacy retry. With a default set, send and claims cannot opt out of an instance; an explicit
-empty send/claim ID is invalid.
-Cursor/ack accept an explicit empty ID to select the legacy cursor; replay/wait
-with an explicit empty ID record no presence.
-Instance metadata is self-reported and does not change permissions.
+The wrapper preserves these variables. See the canonical
+[instance and cursor rules](message-protocol.md#self-reported-agent-instances)
+for validation, explicit overrides, dedupe scopes and retry boundaries.
+Instances are self-reported and confer no permissions.
