@@ -88,11 +88,15 @@ def main():
             if not page: break
             replay.extend(page); after=page[-1]["Sequence"]
         counts["replays"] = len(replay); last = replay[-1]["Sequence"] if replay else 0
-        assert len(replay) == workers * messages and [x["Sequence"] for x in replay] == list(range(1,last+1))
+        assert [x["Sequence"] for x in replay] == list(range(1,last+1)), "replay sequence gap"
+        # Task operations append server-authored task events; the worker writes are the rest.
+        writes = [x for x in replay if (x.get("envelope") or {}).get("schema") != "comitia.task-event.v1"]
+        counts["task_events"] = len(replay) - len(writes)
+        assert len(writes) == workers * messages, "unexpected write count"
         expected = {f"w{w}-m{i}" for w in range(workers) for i in range(messages)}
-        assert {x["DedupeKey"] for x in replay} == expected, "lost or unexpected logical writes"
+        assert {x["DedupeKey"] for x in writes} == expected, "lost or unexpected logical writes"
         assert len({x["ID"] for x in replay}) == len(replay), "duplicate message IDs"
-        assert all(x["Body"] == x["DedupeKey"] for x in replay), "message body corruption"
+        assert all(x["Body"] == x["DedupeKey"] for x in writes), "message body corruption"
         if last: assert call(a.binary, db, cred, "ack", "--context-id", cid, "--sequence", str(last))[0] == 0; counts["acks"] = 1
         rc, cur, _ = call(a.binary, db, cred, "cursor", "--context-id", cid)
         assert rc == 0 and cur["sequence"] == last, "cursor mismatch after reopen"
