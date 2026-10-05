@@ -163,65 +163,53 @@ the holder session's expiry. `open_ended: true` (CLI `--open-ended`) excludes
 `lease_seconds` and holds until complete/release or session expiry. Losing claim
 permission or revoking the session also makes the lease recoverable.
 
-If you lose a claim token on resume or compaction, inspect `get_task` (CLI
-`task-get`) for the current `LeaseVersion`, then call
-`recover_claim(task_id, lease_version, agent_instance)` (CLI
-`task-recover --task-id ID --lease-version VERSION --agent-instance INSTANCE`).
-Only the authenticated holder session with read and claim access can recover a
-live lease. An instance claim also requires the matching instance ID; omitting
-it or naming another instance fails. Configured instance defaults apply in MCP
-and CLI. Instance IDs remain self-reported metadata within a shared session.
-Other sessions, including context admins, cannot recover the holder's token.
-Expired, terminal, reassigned or stale-version claims fail with `stale_claim`;
-missing and unreadable task IDs both return `forbidden`.
+If you lose a token, read `get_task`/`task-get` for `LeaseVersion`, then use `recover_claim`
+(above) or `task-recover --task-id ID --lease-version VERSION --agent-instance INSTANCE`.
+Recovery requires the authenticated holder's read and claim access and a live
+lease at its current positive version; instance claims require the matching
+self-reported ID. CLI/MCP instance defaults apply. Other sessions, including
+admins, cannot recover. Expired, terminal, reassigned or stale-version claims
+return `stale_claim`; missing/unreadable IDs
+return `forbidden`.
 
-Recovery returns the usual `Task` + fresh `Token`, immediately fencing every
-previous token. It changes only the stored hash, preserving lease version,
-expiry and task timestamps; it does not emit a task transition event. Replace
-the token privately and serialize recovery attempts, since later recoveries
-invalidate earlier responses. Recovery does not renew the lease: renew before
-expiry if more time is needed. Raw tokens are never persisted or logged by the
-server. REST uses `/v1/tasks/recover` with `task_id`, `lease_version`, and optional
-`claim_instance`; Go uses the optional `TaskClaimRecoveryAPI.RecoverClaim`.
-Discover `task_claim_recovery` through `server_info` and check that the running
-MCP schema includes `recover_claim`. Old clients keep their existing task calls;
-new HTTP clients report a clear unsupported error for old servers and never
-fall back to claiming or dropping the instance constraint.
+Recovery returns `Task` + fresh `Token`, storing only its hash: version, expiry,
+timestamps and owner stay unchanged; no event is emitted. Replace tokens
+privately; serialize recoveries because each invalidates previous tokens.
+Retry lost recovery responses at the current version. Recovery does not renew;
+renew before expiry. Raw tokens are never persisted or logged by the server.
+HTTP `/v1/tasks/recover` accepts `task_id`, `lease_version`, optional `claim_instance`;
+Go uses optional `TaskClaimRecoveryAPI.RecoverClaim`.
+Check `server_info` for `task_claim_recovery` and the running MCP schema for
+`recover_claim`. Old clients retain ordinary calls; old servers produce an
+unsupported error without fallback or dropped constraints.
 
-After **every** successful renewal, replace `Token` and `Task.LeaseVersion`
-together. The previous pair, or either mixed pair, is stale and cannot complete
-or renew. If the lease expires, stop owner-only side effects and claim again;
-another worker may already own it. A stale-claim error is an ownership failure,
-not permission to retry completion blindly. Create, claim and renewal accept an optional stable `operation_id` (CLI
-`--operation-id`, at most 256 bytes). Persist a distinct key and the original
-arguments before each logical mutation; retry with exactly the same arguments
-and key after a lost response. SQLite commits a non-secret task receipt atomically with the
-mutation and retains it across restart. Claim tokens are never stored in receipts
-or SQLite files. Identical create retries return the original task snapshot.
-An identical claim/renew retry returns a fresh token only while its recorded
-lease is still live and owned by the caller with the same version. It changes
-only the lease token hash: version, expiry and task outcome stay unchanged, and
-every earlier token for that lease becomes stale. Replace the token after each
-successful retry; serialize retries of the same operation before starting a new
-one, since concurrent retries fence each other's tokens. Retry renewal with the
-original input token/version and key, not the recovered response token. Changed
-arguments or reuse for another mutation conflict. After completion, release,
-expiry, reassignment or another renewal, the old operation returns a conflict
-and no token; inspect the task and use a new operation ID for new work.
-Keys are scoped to the authenticated session across methods and contexts;
-instance IDs are part of the claim request, not a separate receipt scope.
-Retrieval rechecks the original context permission. Receipts do not make external jobs idempotent; give those jobs a
-stable identity and enforce their own ownership boundary. HTTP create puts
-`operation_id` inside `task`; claim/renew put it at the request top level. Go uses
-`TaskInput.OperationID`, `ClaimTaskWithOperation` and `RenewClaimWithOperation`.
-Servers without the `task_mutation_receipts` feature reject `operation_id`
-while decoding, before applying the request; the Go HTTP client then returns
-`httpapi.ErrTaskMutationReceiptsUnsupported` and never resends the call without
-its key. Upgrade the server before relying on recovery.
-Without a key, the live holder can use `recover_claim`. After lease expiry, an
-uncertain claim/renew response requires authorized release/reclaim because
-`get_task` does not reveal a token. To abandon work, release with the current pair; a
-context admin may omit the token but must supply the current version.
+After renewal, replace `Token` and `Task.LeaseVersion` together; previous/mixed
+pairs are stale. After expiry, stop owner-only effects and inspect ownership
+before reclaiming. Stale claims do not authorize blind completion retries.
+
+Create/claim/renew accept session-scoped `operation_id` (CLI `--operation-id`,
+at most 256 bytes). Persist a distinct key and original arguments before each
+mutation; retry identically after lost responses. SQLite commits non-secret
+receipts atomically and retains them across restart. Identical create retries
+return the original snapshot. Claim/renew retries rotate only the token hash
+while the recorded lease remains live, caller-owned and current; version,
+expiry and outcome stay unchanged. Replace tokens and serialize retries before
+new operations. Retry renewal with its original input token/version/key,
+not the recovered token. Changed arguments or reuse for another mutation
+conflict. Completion, release, expiry, reassignment or another renewal makes
+the old operation conflict without a token; inspect the task and use a new key.
+
+Keys span methods/contexts within the session; instance IDs belong to claim
+arguments, not receipt scope. Retrieval rechecks context permissions. Receipts
+do not make external jobs idempotent; give them stable identities and enforce
+ownership separately.
+HTTP create nests `operation_id` inside `task`; claim/renew use the top level.
+Go uses `TaskInput.OperationID`, `ClaimTaskWithOperation`, `RenewClaimWithOperation`.
+Servers without `task_mutation_receipts` reject `operation_id` before mutation;
+HTTP clients return `httpapi.ErrTaskMutationReceiptsUnsupported` without dropping
+it. Upgrade before relying on receipts. Without a key, use holder recovery;
+after expiry, use authorized release/reclaim. `get_task` never reveals tokens.
+Release with the current token/version; admins may omit the token, not version.
 
 ## Validation
 
