@@ -67,11 +67,25 @@ artifact-only alternatives to task-linked submissions. Status messages report
 claims; they do not change task state.
 
 
+## Task events and outcomes
+
+Task mutations publish authoritative `comitia.task-event.v1` messages in the
+same transaction as task state. Read them with replay or wait, filtering by schema
+and task ID. Clients cannot append this reserved schema; agent-authored status
+reports remain claims. Lease expiry alone produces no event until a mutation
+such as reclaim occurs.
+
+When work ends unsuccessfully, the live holder can fail the task, or the holder
+or context admin can cancel it. Both outcomes are terminal; release returns work
+to retryable pending. Follow the owner guide's
+[events and terminal outcomes](task-validation.md#authoritative-events-and-terminal-outcomes)
+for fences, reasons, CLI/MCP calls and retry recovery, and the
+[event payload reference](message-protocol.md#authoritative-task-events) for replay fields.
+
 ## Pending workflow additions
 
-Placeholder: [task events and outcomes (#63)](https://github.com/krimvp/comitia/issues/63)
-and [durable consumers, request/reply and merge gates (#65)](https://github.com/krimvp/comitia/issues/65)
-are still in review. Their final workflows will be linked here after merge.
+Placeholder: [durable consumers, request/reply and merge gates (#65)](https://github.com/krimvp/comitia/issues/65)
+is still in review. Its final workflows will be linked here after merge.
 The existing watch contract below is retained pending that pass.
 
 ## Watch from any terminal or harness

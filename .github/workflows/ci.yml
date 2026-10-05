@@ -27,7 +27,7 @@ jobs:
       - name: Inspector state and landing page tests
         run: node --test httpapi/ui-tests/*.test.mjs site/*.test.mjs
       - run: go vet ./...
-      - name: Evaluation harness and installer tests
+      - name: Documentation structure, onboarding, evaluation and installer tests
         run: python3 -m unittest scripts/test_*.py
       - run: go test -race ./...
 

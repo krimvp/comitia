@@ -18,4 +18,3 @@ form, context discovery, demo/reconnect controls, no Authorization header or
 credential storage in the browser, and rejection of cross-origin requests,
 unrecognized Host headers, and all write/grant routes. The configuration endpoint
 returns only an automatic-login flag, never credential material.
-
