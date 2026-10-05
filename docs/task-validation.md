@@ -133,7 +133,8 @@ returning unfinished work to pending; do not release a completed task:
 | `release_task` | `{"task_id":"TASK_ID","claim_token":"CURRENT_TOKEN","lease_version":2}` | Task object with `Status: "pending"` and incremented version |
 
 The table shows tool values, not JSON-RPC framing: MCP exposes them under
-`structuredContent.result` and as JSON in `content[].text`. CLI returns the
+`structuredContent.result`; `content[].text` is a short summary unless the
+call passes `compact:false`, which restores the full JSON text. CLI returns the
 value directly. REST `tasks/create` and `tasks/complete` wrap it in `task`;
 `tasks/claim` and `tasks/renew` wrap the claim in `claim`.
 
