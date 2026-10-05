@@ -44,6 +44,10 @@ session. A launcher must check actual process state before resuming or replacing
 
 ## Send, read, wait, handle, acknowledge
 
+Unknown schema errors point to discovery; unknown fields list accepted keys.
+Forbidden references name the field without revealing target existence. All replies
+require context read permission, including inherited read.
+
 1. Send each logical message with a unique stable `dedupe_key` (at most 256
    bytes); a retry repeats the same body, envelope and instance. A `conflict`
    names the existing message ID and sequence: read it, do not suffix the key. Discover typed payloads with

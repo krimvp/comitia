@@ -330,6 +330,9 @@ func TestReplayAndWaitCommandFilters(t *testing.T) {
 			for i := range otherArgs {
 				if otherArgs[i] == flag {
 					otherArgs[i+1] = "other"
+					if flag == "--schema" {
+						otherArgs[i+1] = "comitia.finding.v1"
+					}
 					break
 				}
 			}

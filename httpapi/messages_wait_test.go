@@ -65,7 +65,7 @@ func TestHTTPFilteredReplayAndWait(t *testing.T) {
 		case 3:
 			f.TaskID = "other"
 		case 4:
-			f.Schema = "other"
+			f.Schema = "comitia.finding.v1"
 		}
 		got, err := client.ReplayMessages(ctx, owner.Token, c.ID, 0, 1, f)
 		want := 0

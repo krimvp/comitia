@@ -129,7 +129,7 @@ func (s *Service) scanMessages(ctx context.Context, raw, cid string, after int64
 		if e != nil {
 			return e
 		}
-		if e := validateMessageQuery(r, cid, f); e != nil {
+		if e := s.validateMessageQuery(r, cid, f); e != nil {
 			return e
 		}
 		sid = a.session.ID

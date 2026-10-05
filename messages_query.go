@@ -31,7 +31,12 @@ func contextMessage(r MessageReadStore, cid, mid string) (Message, error) {
 	return m, err
 }
 
-func validateMessageQuery(r ReadStore, cid string, f MessageFilters) error {
+func (s *Service) validateMessageQuery(r ReadStore, cid string, f MessageFilters) error {
+	if f.Schema != "" {
+		if _, ok := s.messageSchemas[f.Schema]; !ok {
+			return s.invalidMessageSchema()
+		}
+	}
 	if !scopedMessageFilters(f) {
 		return nil
 	}
@@ -39,9 +44,13 @@ func validateMessageQuery(r ReadStore, cid string, f MessageFilters) error {
 	if !ok || !query.SupportsMessageQueries() {
 		return Invalidf("scoped message queries unsupported by store")
 	}
-	for _, mid := range []string{f.ReplyTo, f.ThreadID} {
+	for _, ref := range []struct{ field, id string }{{"reply_to", f.ReplyTo}, {"thread_id", f.ThreadID}} {
+		mid := ref.id
 		if mid != "" {
 			if _, err := contextMessage(r, cid, mid); err != nil {
+				if errors.Is(err, ErrForbidden) {
+					return referenceError{ref.field}
+				}
 				return err
 			}
 		}

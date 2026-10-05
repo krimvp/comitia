@@ -639,9 +639,9 @@ fetched. `child_context_id`, when set, must be a direct child of the context the
 message is sent in, so readers know where the detail lives; a grandchild, a
 sibling or an unknown ID is rejected as invalid. A child with a nonempty
 `TaskID` must serve the same task as the envelope; taskless shared-team children
-remain valid. Naming a child requires read
+remain valid. Naming the task or a child requires read
 on the current context as well as write, so a write-only sender cannot probe
-which contexts are children. The sender does not need read access to the child, and readers still need their own grant to open it. Like the
+task or child membership. The sender does not need read access to the child, and readers still need their own grant to open it. Like the
 other schemas, a status is a claim and does not change the task's state.
 
 The inspector shows status messages with their state and task title, and links
@@ -676,7 +676,8 @@ comitia send --context-id CONTEXT_ID --dedupe-key review-1 \
 A `dedupe_key` is at most 256 bytes (MCP advertises `maxLength`); longer keys
 are rejected as `invalid`, while messages stored with longer keys before the cap
 remain readable. A retry with the same key, body, envelope, instance and task
-attempt returns the original message. A different send under a used key fails
+attempt returns the original message, subject to current read permission for
+resource references. A different send under a used key fails
 with `conflict`; the error message and its additive `details` object
 (`message_id`, `sequence`, `differs`) identify the caller's own existing message
 and name the differing parts (`body`, `envelope`, `agent_instance`,
@@ -836,6 +837,18 @@ and expiry, invalidating earlier tokens; receipts for moved-on leases conflict.
 See [the complete lease loop](task-validation.md#complete-lease-loop).
 
 ## Validation details and capability discovery
+
+Unknown JSON fields list accepted keys and suggest an unambiguous nearby name
+(`after_sequence` → `after`, `through` → `sequence`). Unregistered envelope schemas
+and replay/wait schema filters are rejected with registered IDs and pointers to
+`list_message_schemas` / `get_message_schema`.
+
+Forbidden references name `task_id`, `reply_to`, or `recipient_session_ids[index]`
+and suggest a lookup tool. Missing and unreadable targets have identical wording;
+target IDs are omitted. References to messages, tasks, or reader sessions require effective context read
+permission (including inherited read), before target lookup or dedupe recovery.
+This covers `reply_to` in all schemas. Write-only callers can still send messages
+without those references.
 
 Validation errors keep the `invalid input` sentinel and name the rejected field
 or rule, for example `invalid input: task_id required` or

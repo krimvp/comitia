@@ -61,6 +61,9 @@ func (s *Service) AppendMessage(ctx context.Context, raw, cid string, in Message
 				return e
 			}
 		}
+		if e := s.validateMessageReferenceAccess(w, a, cid, envelope); e != nil {
+			return e
+		}
 		if in.TaskFence != nil {
 			if _, _, e := s.require(w, raw, cid, PermissionClaim); e != nil {
 				return e
