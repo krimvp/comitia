@@ -151,6 +151,7 @@ def install(root, home, port=None, names=None, binary=None, service=systemctl, l
     client = root/'bin/comitia-client'
     shutil.copy2(local.REPO/'scripts/comitia_client.py', client)
     client.chmod(0o700)
+    local.install_skill(root, root/'skills/comitia')
     table = local.harnesses(root)
     names = default_harnesses(root, home) if names is None else names
     for name in names:
@@ -172,6 +173,8 @@ def harness_spec(args, known):
         spec['display'] = args.display
     if args.instructions:
         spec['instructions'] = str(args.instructions.expanduser().absolute())
+    if args.skills_dir:
+        spec['skills_dir'] = str(args.skills_dir.expanduser().absolute())
     if args.mcp_config:
         fmt = args.mcp_format or ('toml' if args.mcp_config.suffix == '.toml' else 'json')
         spec['mcp'] = {'file': str(args.mcp_config.expanduser().absolute()), 'format': fmt,
@@ -223,6 +226,7 @@ def parser():
     add = commands.add_parser('add-harness', help='Connect one harness: credential, MCP server, auto-approval, instructions')
     add.add_argument('name')
     add.add_argument('--instructions', type=Path, help='Instruction file receiving the managed block')
+    add.add_argument('--skills-dir', type=Path, help='Supported skill directory; installs a managed comitia subdirectory')
     add.add_argument('--mcp-config', type=Path, help='MCP config file registering the comitia server')
     add.add_argument('--mcp-format', choices=('toml', 'json'), help='Default: from the file extension')
     add.add_argument('--mcp-key', help='Table/key holding MCP servers (mcp_servers for toml, mcpServers for json)')
@@ -267,6 +271,9 @@ def main(argv):
         print(f'Rotated local credentials. Originals: {archive}. Restart agent sessions. '
               'Old sessions remain valid until expiry unless --revoke-old was used.')
         return
+    connect_harness(args, root, home)
+
+def connect_harness(args, root, home):
     spec = harness_spec(args, local.harnesses(root))
     run = local.runner(root/'bin/comitia', root/'data/comitia.db')
     local.add_harness(args.name, spec, root, home, run, args.permissions)

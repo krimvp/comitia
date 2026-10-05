@@ -15,6 +15,7 @@ import sys
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import comitia_install as local  # noqa: E402
+import install_linux_service as harness_install  # noqa: E402
 
 LABELS = ('com.comitia.server', 'com.comitia.viewer')
 
@@ -95,6 +96,14 @@ def uninstall(root, home):
     return retained
 
 def main(argv):
+    if argv and argv[0] == 'add-harness':
+        if sys.platform != 'darwin':
+            raise SystemExit('This installer requires macOS.')
+        args = harness_install.parser().parse_args(argv)
+        root = Path.home()/'Library/Application Support/Comitia'
+        if not (root/'local-context.json').exists():
+            raise SystemExit(f'No installation in {root}; run the installer first.')
+        return harness_install.connect_harness(args, root, Path.home())
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--binary', type=Path, help='Use an already built Comitia binary')
     parser.add_argument('--port', type=int, help='Server port (default: saved port, or 8080)')
@@ -151,6 +160,14 @@ def main(argv):
         local.validate_install(run, root, context['context_id'])
         context['server_url'] = f'http://127.0.0.1:{args.port}'
         local.write_text(root/'local-context.json', json.dumps(context, indent=2)+'\n', mode=0o600)
+        wrapper = root/'bin/comitia-client'
+        shutil.copy2(repo/'scripts/comitia_client.py', wrapper)
+        wrapper.chmod(0o700)
+        local.install_skill(root, root/'skills/comitia')
+        table = local.harnesses(root)
+        names = harness_install.default_harnesses(root, Path.home())
+        for name in names:
+            local.add_harness(name, table[name], root, Path.home(), run)
         owner = root/'credentials/owner.json'
         if not (root/'credentials/viewer.json').exists():
             observer = run('delegate', '--name', 'World viewer', '--ttl', local.child_ttl(owner, datetime.timedelta(hours=744)),
@@ -211,6 +228,7 @@ def main(argv):
         print(f'Data: {database}')
         print(f'Owner expiry: {local.expires_at(owner).isoformat()}; rotate before expiry with --rotate-credentials.')
         print('Both services start at login and restart automatically after exit.')
+        print('Connected harnesses: '+(', '.join(names) or 'none')+'. Restart their sessions to load Comitia.')
 
 if __name__ == '__main__':
     try:

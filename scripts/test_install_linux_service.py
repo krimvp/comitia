@@ -147,12 +147,12 @@ class InstallTest(Base):
         self.assertEqual(settings['permissions']['allow'], ['mcp__comitia__*'])
 
         agents = (self.home/'.codex/AGENTS.md').read_text()
-        self.assertTrue(agents.startswith('<!-- comitia-local:start v4 -->\n'))
-        self.assertIn('Your configured identity is `codex`. The shared context ID is `c1` at `http://127.0.0.1:8390`.', agents)
-        self.assertIn('Several Codex sessions share the `codex` credential', agents)
+        self.assertTrue(agents.startswith('<!-- comitia-local:start v5 -->\n'))
+        self.assertIn('Your configured identity is `codex`. The shared context is `c1` at `http://127.0.0.1:8390`;', agents)
+        self.assertIn(str(self.root/'skills/comitia/SKILL.md'), agents)
         self.assertIn(str(self.root/'local-context.json'), agents)
         self.assertNotIn('$', agents)
-        self.assertIn('Several Claude sessions', (self.home/'.claude/CLAUDE.md').read_text())
+        self.assertIn('Your configured identity is `claude`', (self.home/'.claude/CLAUDE.md').read_text())
 
     def test_reinstall_keeps_credentials_and_unrelated_configuration(self):
         (self.home/'.codex/config.toml').write_text('model = "x"\n\n[mcp_servers.comitia]\ncommand = "old"\n'
@@ -222,7 +222,7 @@ class AddHarnessTest(Base):
         entry = json.loads((pi/'mcp.json').read_text())['mcpServers']['comitia']
         self.assertEqual(entry['args'], ['pi', 'mcp'])
         self.assertEqual(entry['autoApprove'], ['*'])
-        self.assertIn('Several Pi sessions share the `pi` credential', (pi/'AGENTS.md').read_text())
+        self.assertIn('Your configured identity is `pi`', (pi/'AGENTS.md').read_text())
         registry = json.loads((self.root/'harnesses.json').read_text())
         self.assertEqual(sorted(registry), ['claude', 'codex', 'pi'])
 
@@ -238,7 +238,7 @@ class AddHarnessTest(Base):
                  '--approve-list', str(droid/'settings.json'), 'tools.allowed', 'comitia/*')
         self.assertIn('[mcp_servers.comitia]\n', (droid/'config.toml').read_text())
         self.assertEqual(json.loads((droid/'settings.json').read_text()), {'tools': {'allowed': ['comitia/*']}})
-        self.assertIn('Several droid sessions', (droid/'AGENTS.md').read_text())
+        self.assertIn('Your configured identity is `droid`', (droid/'AGENTS.md').read_text())
 
     def test_invalid_harnesses_are_rejected_before_minting(self):
         self.install()
@@ -396,10 +396,23 @@ class MacOSInstallerTest(Base):
         self.assertNotIn(str(root/'credentials/owner.json'), arguments)
         self.assertEqual(mode(root/'credentials/viewer-launch-key'), 0o600)
         self.assertTrue((self.home/'.local/bin/comitia-viewer').is_symlink())
+        self.assertTrue((self.home/'.agents/skills/comitia/SKILL.md').exists())
+        self.assertTrue((self.home/'.claude/skills/comitia/SKILL.md').exists())
 
         plist = (self.home/'Library/LaunchAgents/com.comitia.server.plist').read_bytes()
         self.assertIn(str(root/'bin/comitia').encode(), plist)
         self.assertIn(['launchctl', 'bootstrap', f'gui/{os.getuid()}', str(self.home/'Library/LaunchAgents/com.comitia.server.plist')], launchd)
+
+        import install_macos_service
+        custom = self.home/'custom-skills'
+        with mock.patch.object(sys, 'platform', 'darwin'), mock.patch.object(Path, 'home', lambda: self.home), \
+                contextlib.redirect_stdout(io.StringIO()):
+            install_macos_service.main(['add-harness', 'custom', '--instructions', str(self.home/'custom/AGENTS.md'),
+                '--mcp-config', str(self.home/'custom/mcp.json'), '--skills-dir', str(custom), '--no-approval'])
+        self.assertTrue((custom/'comitia/SKILL.md').exists())
+        registered = json.loads((self.home/'custom/mcp.json').read_text())['mcpServers']['comitia']
+        self.assertEqual(registered['command'], str(root/'bin/comitia-client'))
+        self.assertFalse((self.root/'credentials/custom.json').exists())
 
 def free_port():
     with socket.socket() as probe:
@@ -527,18 +540,13 @@ class BlockTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as root:
             block = local.render_instructions('codex', {'display': 'Codex'},
                                               {'context_id': 'c1', 'server_url': 'http://localhost:8390'}, Path(root))
-        self.assertTrue(block.startswith('<!-- comitia-local:start v4 -->\n'))
+        self.assertTrue(block.startswith('<!-- comitia-local:start v5 -->\n'))
         self.assertIsNotNone(local.BLOCK.fullmatch(block))
-        self.assertIn('When `server_info` lists `default_agent_instance` and the launcher sets `COMITIA_AGENT_INSTANCE`', block)
-        self.assertIn('`COMITIA_AGENT_INSTANCE_LABEL`', block)
-        self.assertIn('per-call `agent_instance` plumbing and dedupe-key prefixing are unnecessary', block)
-        self.assertIn('When `server_info` lists `agent_instances` and your tool schema accepts it, pass your instance', block)
-        self.assertIn('Include the instance ID in each `dedupe_key` for compatibility with older servers', block)
-        self.assertIn('Several Codex sessions share the `codex` credential', block)
-        self.assertIn('`recipient_instances` alongside `recipient_session_ids`', block)
-        self.assertIn('When an agent owns a task or child context', block)
-        self.assertIn('`delegate_session`', block)
-        self.assertIn('`revoke_session`', block)
+        self.assertIn('use', block.lower())
+        self.assertIn('`comitia` skill', block)
+        self.assertIn(str(Path(root)/'skills/comitia/SKILL.md'), block)
+        self.assertIn('compatibility/instance procedure', block)
+        self.assertNotIn('### Compatibility:', block)
         self.assertNotIn('${', block)
 
     def test_place_block(self):
@@ -684,8 +692,7 @@ class StaleMCPClients(unittest.TestCase):
     def test_instruction_feature_guidance(self):
         block = local.render_instructions('codex', {'display': 'Codex'},
                                          {'context_id': 'test-context', 'server_url': 'http://localhost'}, self.root)
-        for text in ('server_info', 'agent_instances', 'default_agent_instance', 'instance_claims',
-                     'wait_messages', 'replay_filters', 'delegated_sessions', 'tool schema', 'client version', 'session scope'):
+        for text in ('server_info', 'list_participants', 'compatibility/instance procedure', 'private wrapper files'):
             self.assertIn(text, block)
 
 if __name__ == '__main__':

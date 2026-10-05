@@ -184,10 +184,15 @@ auto-approves Comitia's tools. Headless runs (for example `codex exec`, whose
 approval policy is `never`) fail every Comitia call without that approval;
 Comitia's tools only reach Comitia, so the installer approves them.
 
-| Harness | MCP registration | Auto-approval | Instruction file |
-| --- | --- | --- | --- |
-| `codex` | `[mcp_servers.comitia]` in `~/.codex/config.toml` | `default_tools_approval_mode = "approve"` in that table | `~/.codex/AGENTS.md` |
-| `claude` | `mcpServers.comitia` in `~/.claude.json` (user scope) | `mcp__comitia__*` in `permissions.allow` of `~/.claude/settings.json` | `~/.claude/CLAUDE.md` |
+| Harness | MCP registration | Auto-approval | Instruction file | Skills directory |
+| --- | --- | --- | --- | --- |
+| `codex` | `[mcp_servers.comitia]` in `~/.codex/config.toml` | `default_tools_approval_mode = "approve"` in that table | `~/.codex/AGENTS.md` | `~/.agents/skills` |
+| `claude` | `mcpServers.comitia` in `~/.claude.json` (user scope) | `mcp__comitia__*` in `permissions.allow` of `~/.claude/settings.json` | `~/.claude/CLAUDE.md` | `~/.claude/skills` |
+
+Codex CLI 0.160 loads the documented user directory `~/.agents/skills`; a
+temporary-home `app-server` `skills/list` probe also verified `~/.codex/skills`.
+See [Codex skills](https://developers.openai.com/codex/skills/) and
+[Claude Code skills](https://code.claude.com/docs/en/skills#choose-where-skills-load).
 
 The built-in entries live in `scripts/local/harnesses.json`. Connect another
 harness with one command, no code change (paths and the approval key below are
@@ -196,8 +201,13 @@ placeholders; take them from the harness's documentation):
 ```sh
 python3 scripts/install_linux_service.py add-harness myagent --display MyAgent \
   --instructions ~/.myagent/AGENTS.md --mcp-config ~/.myagent/mcp.json \
+  --skills-dir ~/.myagent/skills \
   --approve-entry 'autoApprove=["*"]'
 ```
+
+On macOS use `python3 scripts/install_macos_service.py add-harness` with the same
+flags. `--skills-dir DIR` copies the skill to `DIR/comitia`; omit it for a harness
+without a supported skill loader. Known harnesses retain their default directory.
 
 `add-harness` mints `credentials/<name>.json` (once), registers the server in
 the MCP config (`.toml` files get a `[mcp_servers.comitia]` table, other files
@@ -212,14 +222,29 @@ Other keys and servers in the edited files are kept. A TOML edit is parsed back
 (Python 3.11+ `tomllib`) and refused, leaving the file untouched, if the file was
 not valid TOML or the result would not be.
 
+### Managed skills
+
+The installer copies [the Comitia skill](../skills/comitia/SKILL.md) to each
+harness's supported skill directory and to `skills/comitia` under the installation
+root as a fallback. `managed-skills.json` records the version and whole-tree hashes.
+Reruns replace only unchanged managed copies, backing up the old skill. Unowned,
+modified or symlinked directories are preserved and reported. Review them manually;
+the installer never adopts a user copy. Uninstall removes matching managed skills
+and retains edited copies. Unknown harnesses get only the fallback unless
+`--skills-dir` supplies a verified loader directory.
+
 ### Managed instructions
 
 `scripts/local/instructions.md` is the one instruction template, rendered per
 harness with its identity, display name, context and server. It sits between
-`<!-- comitia-local:start v4 -->` and `<!-- comitia-local:end -->`: the installer
+`<!-- comitia-local:start v5 -->` and `<!-- comitia-local:end -->`: the installer
 replaces any earlier block of any version in place, or puts the block first in
 the file, and leaves the rest of the file alone. Bump the version in the marker
 when the text changes meaning, so a reader can tell which text an agent saw.
+The short v5 block routes agents to the skill or its installed fallback; the
+compatibility and instance procedure lives in
+[coordinate](../skills/comitia/references/coordinate.md). Existing v4 blocks
+upgrade in place.
 
 ### Permissions for a coordinating session
 
@@ -236,6 +261,10 @@ Install from the repository root with Python 3 and Go 1.24 or newer available:
 ```sh
 python3 scripts/install_macos_service.py
 ```
+
+The installer connects registered harnesses and detected built-in config
+directories, installing their MCP registration, short instructions and skill.
+Restart connected agent sessions after install or upgrade.
 
 The installer builds a standalone Comitia binary and copies the 3D viewer into
 `~/Library/Application Support/Comitia`. It installs two per-user LaunchAgents:
@@ -410,7 +439,7 @@ or a migration of running clients. The source database remains in place.
 
 Installing a new binary restarts the service, but an agent's existing MCP
 process keeps running its previous binary. Restart the agent session after
-upgrades. The managed block is `comitia-local:start v4`; its text can update
+upgrades. The managed block is `comitia-local:start v5`; its text can update
 before the client restarts. Follow [client compatibility](message-protocol.md#compatibility)
 and compare the daemon's `server_info.build` with the client's MCP initialize
 build identity to distinguish source builds with the same `dev` version.

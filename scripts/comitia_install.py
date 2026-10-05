@@ -8,6 +8,7 @@ import contextlib
 import copy
 import fcntl
 import functools
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -36,6 +37,7 @@ ONE_YEAR = datetime.timedelta(hours=8760)
 # Children must expire before their parent; the owner outlives a full-year child by this margin.
 MARGIN = datetime.timedelta(hours=1)
 SERVER = 'comitia'
+SKILL_VERSION = 1
 PERMISSIONS = ('read', 'write', 'claim', 'grant', 'admin', 'create')
 RECOVERY = ('Run rotate-credentials before owner expiry (macOS: --rotate-credentials), or use '
             '--owner-credential with another active admin. If all admin sessions have expired, '
@@ -444,7 +446,10 @@ def harnesses(root):
     table = json.loads((LOCAL/'harnesses.json').read_text())
     registry = root/'harnesses.json'
     if registry.exists():
-        table.update(json.loads(registry.read_text()))
+        for name, spec in json.loads(registry.read_text()).items():
+            if table.get(name, {}).get('skills_dir'):
+                spec.setdefault('skills_dir', table[name]['skills_dir'])
+            table[name] = spec
     return table
 
 def remember(root, name, spec):
@@ -606,6 +611,86 @@ def remember_harness(root, name, spec):
         managed['harnesses'].append(entry)
         write_text(path, json.dumps(managed, indent=2)+'\n', mode=0o600)
 
+def skill_files(path):
+    """Fingerprint the whole tree; extra files, directories and links are edits."""
+    if path.is_symlink() or not path.is_dir():
+        return None
+    files = {}
+    for item in sorted(path.rglob('*')):
+        if item.is_symlink():
+            return None
+        key = str(item.relative_to(path))
+        if item.is_dir():
+            files[key] = 'directory'
+        elif item.is_file():
+            files[key] = hashlib.sha256(item.read_bytes()).hexdigest()
+        else:
+            return None
+    return files
+
+def skill_symlink(root, path):
+    boundary = Path(os.path.commonpath((root.absolute(), path.absolute())))
+    for parent in (path, *path.parents):
+        if parent == boundary:
+            break
+        if parent.is_symlink():
+            return True
+    return False
+
+def install_skill(root, destination):
+    """Replace only our unchanged skill, retaining unowned or modified trees."""
+    source = REPO/'skills/comitia'
+    files = skill_files(source)
+    if not files or 'SKILL.md' not in files:
+        raise RuntimeError(f'Comitia skill is missing from {source}')
+    manifest = root/'managed-skills.json'
+    managed = json_document(manifest)
+    key = str(destination.absolute())
+    previous = managed.get(key)
+    current = skill_files(destination)
+    if skill_symlink(root, destination):
+        print(f'Preserved symlinked Comitia skill path: {destination}')
+        return False
+    if destination.exists() and (not previous or current not in (previous['files'], files)):
+        print(f'Preserved unowned or modified Comitia skill: {destination}')
+        return False
+    if current != files:
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        with tempfile.TemporaryDirectory(prefix='.comitia-skill-', dir=destination.parent) as temporary:
+            staging = Path(temporary)/'new'
+            shutil.copytree(source, staging)
+            old = Path(temporary)/'old'
+            if destination.exists():
+                backups = root/'backups'
+                backups.mkdir(parents=True, exist_ok=True, mode=0o700)
+                shutil.copytree(destination, backups/('skill-'+secrets.token_hex(8)))
+                os.replace(destination, old)
+            try:
+                os.replace(staging, destination)
+            except OSError:
+                if old.exists():
+                    os.replace(old, destination)
+                raise
+    managed[key] = {'version': SKILL_VERSION, 'files': files}
+    write_text(manifest, json.dumps(managed, indent=2)+'\n', mode=0o600)
+    return True
+
+def remove_skills(root):
+    manifest = root/'managed-skills.json'
+    managed, retained = json_document(manifest), []
+    for path, record in list(managed.items()):
+        destination = Path(path)
+        if skill_symlink(root, destination) or (
+                destination.exists() and skill_files(destination) != record['files']):
+            retained.append(path)
+            continue
+        if destination.exists():
+            shutil.rmtree(destination)
+        del managed[path]
+    if manifest.exists():
+        write_text(manifest, json.dumps(managed, indent=2)+'\n', mode=0o600)
+    return retained
+
 def remove_toml_entry(text, table, entry):
     if tomllib is None:
         raise RuntimeError('Selective TOML uninstall requires Python 3.11 or newer.')
@@ -700,12 +785,13 @@ def remove_harnesses(root, home):
                 write_text(config, json.dumps(document, indent=2)+'\n', root/'backups')
     if manifest.exists():
         write_text(manifest, json.dumps({'harnesses': [], 'approvals': []}, indent=2)+'\n', mode=0o600)
-    return retained
+    return retained+remove_skills(root)
 
 def render_instructions(name, spec, local, root):
     template = string.Template((LOCAL/'instructions.md').read_text())
     return template.substitute(identity=name, display=spec.get('display', name), context_id=local['context_id'],
-                               server_url=local['server_url'], local_context=root/'local-context.json')
+                               server_url=local['server_url'], local_context=root/'local-context.json',
+                               skill_path=root/'skills/comitia/SKILL.md')
 
 def place_block(text, block):
     """Replace any managed block (any version) with block, or put it first."""
@@ -722,6 +808,9 @@ def place_block(text, block):
 def add_harness(name, spec, root, home, run, permissions='read,write,claim,grant'):
     """Mint the harness credential once, register the MCP server and its auto-approval, render instructions."""
     check(name, spec)
+    install_skill(root, root/'skills/comitia')
+    if spec.get('skills_dir'):
+        install_skill(root, expand(spec['skills_dir'], home)/'comitia')
     backups = root/'backups'
     local = json.loads((root/'local-context.json').read_text())
     credential = root/'credentials'/f'{name}.json'

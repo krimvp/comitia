@@ -30,14 +30,18 @@ WORD_BASELINE = {
     'docs/execution-telemetry.md': 445,
     'docs/inspector.md': 1505,
     'docs/local-daemon.md': 821,
-    'docs/local-service.md': 3797,
+    'docs/local-service.md': 3980,
     'docs/local-sessions.md': 711,
     'docs/message-protocol.md': 7167,
     'docs/presence.md': 899,
     'docs/release-readiness-20260909.md': 17,
     'docs/security.md': 1989,
     'docs/task-validation.md': 1818,
-    'scripts/local/instructions.md': 557,
+    'scripts/local/instructions.md': 160,
+    'skills/comitia/SKILL.md': 260,
+    'skills/comitia/references/setup.md': 640,
+    'skills/comitia/references/coordinate.md': 1000,
+    'skills/comitia/references/orchestrate.md': 1350,
 }
 HISTORY = ('RUNBOOK.md', 'chatgpt-cloud.md', 'chatgpt-integration.md',
            'release-readiness-20260909.md')
@@ -151,13 +155,13 @@ def link_errors(root, path):
 
 def active_files():
     return [ROOT/'README.md', *sorted((ROOT/'docs').glob('*.md')),
-            ROOT/'scripts/local/instructions.md']
+            ROOT/'scripts/local/instructions.md', *sorted((ROOT/'skills/comitia').rglob('*.md'))]
 
 
 class DocsStructure(unittest.TestCase):
     def test_local_links_and_anchors(self):
         paths = [ROOT/'README.md', *sorted((ROOT/'docs').rglob('*.md')),
-                 ROOT/'scripts/local/instructions.md']
+                 ROOT/'scripts/local/instructions.md', *sorted((ROOT/'skills/comitia').rglob('*.md'))]
         paths += [p for p in sorted((ROOT/'site').rglob('*'))
                   if p.suffix in ('.md', '.html', '.css', '.svg') and 'node_modules' not in p.parts]
         errors = [error for p in paths for error in link_errors(ROOT, p)]
@@ -243,10 +247,24 @@ class DocsStructure(unittest.TestCase):
         self.assertEqual(comitia_install.place_block(old + '# Keep\n', rendered), rendered + '# Keep\n')
 
     def test_managed_modes_are_exclusive(self):
-        template = (ROOT/'scripts/local/instructions.md').read_text()
+        template = (ROOT/'skills/comitia/references/coordinate.md').read_text()
         modes = re.findall(r'^- \*\*([^*]+):\*\*', template, re.M)
         self.assertEqual(modes, ['Default', 'Otherwise explicit', 'Legacy'])
-        self.assertEqual(template.count('### Compatibility:'), 1)
+        self.assertEqual(template.count('## Discover and choose one instance mode'), 1)
+        block = (ROOT/'scripts/local/instructions.md').read_text()
+        self.assertNotIn('**Default:**', block)
+        self.assertIn('${skill_path}', block)
+
+    def test_skill_is_short_and_routes_to_portable_references(self):
+        skill = ROOT/'skills/comitia'
+        paths = [skill/'SKILL.md', *sorted((skill/'references').glob('*.md'))]
+        self.assertLess(len((skill/'SKILL.md').read_text().splitlines()), 80)
+        self.assertLess(sum(len(p.read_text().splitlines()) for p in paths), 500)
+        body = (skill/'SKILL.md').read_text()
+        self.assertRegex(body, r'^---\nname: comitia\ndescription: .+\n')
+        for reference in ('setup', 'coordinate', 'orchestrate'):
+            self.assertIn(f'](references/{reference}.md)', body)
+        self.assertIn('Set up Comitia from https://github.com/krimvp/comitia: follow skills/comitia/SKILL.md.', body)
 
     def test_no_brittle_counts_or_absolute_diagnoses(self):
         for path in active_files():
