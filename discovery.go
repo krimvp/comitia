@@ -83,7 +83,10 @@ func (s *Service) ListTasksPage(ctx context.Context, token, cid string, status T
 				return err
 			}
 			page, err = legacyTaskPage(tasks, after, cursor, limit, "store")
-			return err
+			if err != nil {
+				return err
+			}
+			return s.taskPageLeaseView(r, &page)
 		}
 		tasks, err := pages.TasksAfter(cid, status, cursor.CreatedAt, cursor.ID, limit+1)
 		if err != nil {
@@ -97,7 +100,7 @@ func (s *Service) ListTasksPage(ctx context.Context, token, cid string, status T
 			page.Tasks = tasks
 			page.NextAfter = encodeTaskCursor(tasks[len(tasks)-1])
 		}
-		return nil
+		return s.taskPageLeaseView(r, &page)
 	})
 	if err != nil {
 		return TaskPage{}, err

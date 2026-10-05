@@ -18,7 +18,7 @@ func taskTools() []map[string]any {
 		tool("complete_task", "Complete a claimed task using the latest Token as claim_token and Task.LeaseVersion as lease_version from claim/renew.", schema(map[string]any{"task_id": str("Task ID"), "claim_token": str("Opaque claim token"), "lease_version": integer("Current lease version")}, "task_id", "claim_token", "lease_version")),
 		tool("release_task", "Return a leased task to pending; the holder passes its claim token, a context admin may omit it", schema(map[string]any{"task_id": str("Task ID"), "claim_token": str("Opaque claim token; optional for a context admin"), "lease_version": integer("Current lease version")}, "task_id", "lease_version")),
 		tool("get_task", "Get a task by ID", schema(map[string]any{"task_id": str("Task ID")}, "task_id")),
-		tool("list_tasks", "List tasks in a context", schema(map[string]any{"context_id": str("Context ID"), "status": map[string]any{"type": "string", "enum": []string{"", "pending", "leased", "completed", "failed", "cancelled"}}, "limit": integer("Maximum tasks"), "page": map[string]any{"type": "boolean", "description": "Return tasks, next_after and has_more"}, "after_id": str("Exclusive opaque task cursor from next_after; implies page")}, "context_id")),
+		tool("list_tasks", "List tasks in a context; lease_expired marks recoverable leases; claimable selects pending or expired, owner filters select live leases", schema(map[string]any{"claimable": map[string]any{"type": "boolean", "description": "Pending tasks and expired leases"}, "owner_session": str("Session ID holding live leases; excludes mine"), "owner_instance": str("Instance ID holding live leases"), "mine": map[string]any{"type": "boolean", "description": "Caller live leases, scoped to configured instance when available"}, "context_id": str("Context ID"), "status": map[string]any{"type": "string", "enum": []string{"", "pending", "leased", "completed", "failed", "cancelled"}}, "limit": integer("Maximum tasks"), "page": map[string]any{"type": "boolean", "description": "Return tasks, next_after and has_more"}, "after_id": str("Exclusive opaque task cursor from next_after; implies page")}, "context_id")),
 	}
 }
 
@@ -131,11 +131,15 @@ func (s *Server) callTasks(ctx context.Context, name string, raw json.RawMessage
 		return s.API.GetTask(ctx, s.Credential, a.TaskID)
 	case "list_tasks":
 		var a struct {
-			Page      bool   `json:"page"`
-			AfterID   string `json:"after_id"`
-			ContextID string `json:"context_id"`
-			Status    string `json:"status"`
-			Limit     *int   `json:"limit"`
+			Claimable     bool   `json:"claimable"`
+			OwnerSession  string `json:"owner_session"`
+			OwnerInstance string `json:"owner_instance"`
+			Mine          bool   `json:"mine"`
+			Page          bool   `json:"page"`
+			AfterID       string `json:"after_id"`
+			ContextID     string `json:"context_id"`
+			Status        string `json:"status"`
+			Limit         *int   `json:"limit"`
 		}
 		if err := decode(raw, &a); err != nil {
 			return nil, err
@@ -154,10 +158,11 @@ func (s *Server) callTasks(ctx context.Context, name string, raw json.RawMessage
 		if a.Status != "" && status != comitia.TaskPending && status != comitia.TaskLeased && status != comitia.TaskCompleted && status != comitia.TaskFailed && status != comitia.TaskCancelled {
 			return nil, comitia.Invalidf("status must be pending, leased, completed, failed or cancelled")
 		}
+		f := (comitia.TaskFilters{Claimable: a.Claimable, OwnerSession: a.OwnerSession, OwnerInstance: a.OwnerInstance, Mine: a.Mine}).WithInstance(s.InstanceDefaults)
 		if a.Page || a.AfterID != "" {
-			return comitia.ListTaskPage(ctx, s.API, s.Credential, a.ContextID, status, a.AfterID, limit)
+			return comitia.ListTaskPageFiltered(ctx, s.API, s.Credential, a.ContextID, status, f, a.AfterID, limit)
 		}
-		return s.API.ListTasks(ctx, s.Credential, a.ContextID, status, limit)
+		return comitia.ListTasksFiltered(ctx, s.API, s.Credential, a.ContextID, status, f, limit)
 	default:
 		return nil, errUnknownTool
 	}

@@ -137,7 +137,7 @@ func TestMCPCommandUsesInstanceEnvironment(t *testing.T) {
 
 func TestInvalidInstanceEnvironmentFailsBeforeOpeningBackend(t *testing.T) {
 	for _, tc := range []struct{ id, label string }{{"bad id", ""}, {"", "orphan"}, {"ok", "bad\nlabel"}} {
-		for _, cmd := range []string{"send", "replay", "wait", "cursor", "ack", "watch", "instance-resume", "mcp", "mcp-http", "task-claim"} {
+		for _, cmd := range []string{"send", "replay", "wait", "cursor", "ack", "watch", "instance-resume", "mcp", "mcp-http", "task-claim", "task-list"} {
 			t.Setenv("COMITIA_AGENT_INSTANCE", tc.id)
 			t.Setenv("COMITIA_AGENT_INSTANCE_LABEL", tc.label)
 			db := filepath.Join(t.TempDir(), "must-not-exist.db")

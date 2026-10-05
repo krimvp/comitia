@@ -224,7 +224,7 @@ func parsePermissions(s string) (comitia.Permission, error) {
 
 func usesInstanceDefaults(cmd string) bool {
 	switch cmd {
-	case "send", "replay", "wait", "cursor", "ack", "watch", "instance-resume", "mcp", "mcp-http", "task-claim":
+	case "send", "replay", "wait", "cursor", "ack", "watch", "instance-resume", "mcp", "mcp-http", "task-claim", "task-list":
 		return true
 	default:
 		return false

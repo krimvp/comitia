@@ -96,6 +96,7 @@ type taskDTO struct {
 	CreatedAt           time.Time              `json:"created_at"`
 	UpdatedAt           time.Time              `json:"updated_at"`
 	LeaseOwnerInstance  *comitia.AgentInstance `json:"lease_owner_instance,omitempty"`
+	LeaseExpired        bool                   `json:"lease_expired,omitempty"`
 }
 
 type credentialDTO struct {
@@ -250,11 +251,15 @@ type taskRequest struct {
 }
 
 type listTasksRequest struct {
-	ContextID string             `json:"context_id"`
-	Status    comitia.TaskStatus `json:"status,omitempty"`
-	AfterID   string             `json:"after_id,omitempty"`
-	Limit     *int               `json:"limit,omitempty"`
-	Page      bool               `json:"page,omitempty"`
+	Claimable     bool               `json:"claimable,omitempty"`
+	OwnerSession  string             `json:"owner_session,omitempty"`
+	OwnerInstance string             `json:"owner_instance,omitempty"`
+	Mine          bool               `json:"mine,omitempty"`
+	ContextID     string             `json:"context_id"`
+	Status        comitia.TaskStatus `json:"status,omitempty"`
+	AfterID       string             `json:"after_id,omitempty"`
+	Limit         *int               `json:"limit,omitempty"`
+	Page          bool               `json:"page,omitempty"`
 }
 
 type claimRequest struct {

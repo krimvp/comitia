@@ -78,6 +78,12 @@ values from its response. Complete using the latest token/version; release via
 `release_task` when handing back ownership. Default leases are 300 seconds;
 `open_ended:true` needs explicit supervision, since it does not expire.
 
+Task get/list/page mark recoverable leases with `lease_expired:true`; stored
+status stays unchanged. Use `list_tasks(claimable:true)` for pending or expired
+work, or `mine:true` for your live leases (configured instance when available).
+`owner_session` / `owner_instance` select live holders; keep filters fixed while
+paging. See [task discovery](https://github.com/krimvp/comitia/blob/main/docs/task-validation.md).
+
 With `instance_claims`, attribute a claim to the process, without treating the
 instance as authorization. Where supported, send task results with `task_fence`
 (current token/version) for validated live-attempt provenance. Never put a claim

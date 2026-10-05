@@ -217,7 +217,7 @@ func schemaConformanceFixture(t *testing.T, name string) (*Server, map[string]an
 		"release_task":      {"task_id": task.ID, "claim_token": claim.Token, "lease_version": claim.Task.LeaseVersion},
 		"fail_task":         {"task_id": task.ID, "claim_token": claim.Token, "lease_version": claim.Task.LeaseVersion, "reason": "failed", "operation_id": "fail"},
 		"cancel_task":       {"task_id": pending.ID, "claim_token": "", "lease_version": 0, "reason": "unneeded", "operation_id": "cancel"},
-		"get_task":          {"task_id": task.ID}, "list_tasks": {"context_id": parent.ID, "status": "leased", "limit": 10, "page": false, "after_id": ""},
+		"get_task":          {"task_id": task.ID}, "list_tasks": {"claimable": false, "mine": false, "owner_session": "", "owner_instance": "", "context_id": parent.ID, "status": "leased", "limit": 10, "page": false, "after_id": ""},
 		"get_context": {"context_id": parent.ID}, "archive_context": {"context_id": parent.ID},
 		"add_reference":  {"context_id": parent.ID, "kind": "issue", "uri": "https://example.test/63"},
 		"create_context": {"parent_context_id": parent.ID, "name": "child", "task_id": task.ID, "parent_readable": false},
