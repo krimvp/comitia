@@ -35,13 +35,13 @@ func (h *handler) taskRoutes() map[string]endpoint {
 				return listTasksResult{}, err
 			}
 			if q.Page || q.AfterID != "" {
-				v, err := comitia.ListTaskPage(ctx, h.api, token, q.ContextID, q.Status, q.AfterID, limit)
+				v, err := comitia.ListTaskPageFiltered(ctx, h.api, token, q.ContextID, q.Status, q.filters(), q.AfterID, limit)
 				if err != nil {
 					return listTasksResult{}, err
 				}
 				return listTasksResult{TaskPage: ptr(wireTaskPage(v))}, nil
 			}
-			v, err := h.api.ListTasks(ctx, token, q.ContextID, q.Status, limit)
+			v, err := comitia.ListTasksFiltered(ctx, h.api, token, q.ContextID, q.Status, q.filters(), limit)
 			return listTasksResult{Tasks: ptr(mapSlice(v, func(t comitia.Task) taskDTO { return taskDTO(t) }))}, err
 		}),
 		"tasks/claim": typedEndpoint(func(ctx context.Context, token string, q claimRequest) (claimResult, error) {

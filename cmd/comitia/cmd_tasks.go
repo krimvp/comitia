@@ -48,6 +48,10 @@ func runTasks(ctx context.Context, cfg config, api comitia.API, out *json.Encode
 		return out.Encode(v)
 	case "task-list":
 		fs := newFlags(cmd)
+		claimable := fs.Bool("claimable", false, "pending tasks and expired leases")
+		ownerSession := fs.String("owner-session", "", "session ID holding live leases")
+		ownerInstance := fs.String("owner-instance", "", "instance ID holding live leases")
+		mine := fs.Bool("mine", false, "caller live leases, scoped to configured instance when available")
 		page := fs.Bool("page", false, "return items, next_after and has_more")
 		after := fs.String("after-id", "", "exclusive cursor from next_after (implies --page)")
 		cid := fs.String("context-id", "", "context ID")
@@ -69,14 +73,15 @@ func runTasks(ctx context.Context, cfg config, api comitia.API, out *json.Encode
 		if e != nil {
 			return e
 		}
+		f := (comitia.TaskFilters{Claimable: *claimable, OwnerSession: *ownerSession, OwnerInstance: *ownerInstance, Mine: *mine}).WithInstance(cfg.instances)
 		if *page || *after != "" {
-			v, e := comitia.ListTaskPage(ctx, api, needCredential(cfg), *cid, st, *after, *limit)
+			v, e := comitia.ListTaskPageFiltered(ctx, api, needCredential(cfg), *cid, st, f, *after, *limit)
 			if e != nil {
 				return e
 			}
 			return out.Encode(v)
 		}
-		v, e := api.ListTasks(ctx, needCredential(cfg), *cid, st, *limit)
+		v, e := comitia.ListTasksFiltered(ctx, api, needCredential(cfg), *cid, st, f, *limit)
 		if e != nil {
 			return e
 		}

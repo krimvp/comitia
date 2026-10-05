@@ -59,11 +59,28 @@ func (x *sqlStore) Tasks(cid string, status TaskStatus, limit int) ([]Task, erro
 	return x.TasksAfter(cid, status, "", "", limit)
 }
 func (x *sqlStore) TasksAfter(cid string, status TaskStatus, created, afterID string, limit int) ([]Task, error) {
+	return x.TasksFilteredAfter(cid, status, TaskFilters{}, created, afterID, limit)
+}
+func (x *sqlStore) TasksFilteredAfter(cid string, status TaskStatus, f TaskFilters, created, afterID string, limit int) ([]Task, error) {
 	q := taskSelect + " WHERE t.context_id=?"
 	args := []any{cid}
 	if status != "" {
 		q += " AND t.status=?"
 		args = append(args, status)
+	}
+	if f.Claimable {
+		q += " AND t.status IN ('pending','leased')"
+	}
+	if f.OwnerSession != "" || f.OwnerInstance != "" {
+		q += " AND t.status='leased'"
+	}
+	if f.OwnerSession != "" {
+		q += " AND t.lease_owner_session_id=?"
+		args = append(args, f.OwnerSession)
+	}
+	if f.OwnerInstance != "" {
+		q += " AND i.instance_id=?"
+		args = append(args, f.OwnerInstance)
 	}
 	if afterID != "" {
 		q += " AND (t.created_at,t.id)>(?,?)"

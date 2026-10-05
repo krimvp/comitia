@@ -28,6 +28,21 @@ service fall back to the existing list when a 1,000-entry read returns fewer
 than 1,000 tasks. At that ceiling, paging returns an explicit unsupported error
 because the legacy list cannot establish whether a tail remains.
 
+Task get/list/page expose `lease_expired:true` for leased tasks whose deadline
+has passed or whose holder lost claim authority. False is omitted. Stored status
+and events stay unchanged. `task-list --claimable` (MCP/HTTP `claimable:true`)
+returns pending tasks and expired leases. `--owner-session ID` / `--owner-instance ID`
+(MCP/HTTP `owner_session` / `owner_instance`) return matching live leases.
+`--mine` (`mine:true`) selects the authenticated caller's live leases, narrowed
+to the configured `COMITIA_AGENT_INSTANCE` when available; explicit
+`owner_instance` overrides that default. Without an instance default, mine covers
+the caller's entire session. Mine excludes `owner_session`; other filters
+intersect with each other and stored `status`. Keep every filter unchanged while
+paging. Unknown owners in readable contexts return empty lists.
+Go uses `TaskFilters`, optional `TaskFilterAPI`, and `ListTasksFiltered` /
+`ListTaskPageFiltered`. Legacy APIs reject requested filters; old HTTP servers
+produce `httpapi.ErrTaskFiltersUnsupported`. Clients never drop filters on retry.
+
 `task-claim --agent-instance ID` records which process of a shared session holds
 a claim (shown as `lease_owner_instance`). Omitted instances default to
 `COMITIA_AGENT_INSTANCE` / `COMITIA_AGENT_INSTANCE_LABEL` on CLI claims, MCP

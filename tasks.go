@@ -30,6 +30,7 @@ type Task struct {
 	LeaseTokenHash             string `json:"-"`
 	CreatedAt, UpdatedAt       time.Time
 	LeaseOwnerInstance         *AgentInstance `json:"lease_owner_instance,omitempty"`
+	LeaseExpired               bool           `json:"lease_expired,omitempty"`
 }
 type TaskClaim struct {
 	Task  Task
@@ -132,9 +133,8 @@ func (s *Service) GetTask(ctx context.Context, raw, id string) (Task, error) {
 		if _, _, e = s.require(r, raw, found.ContextID, PermissionRead); e != nil {
 			return e
 		}
-		found.LeaseTokenHash = ""
-		t = found
-		return nil
+		t, e = s.taskLeaseView(r, found, s.now().UTC())
+		return e
 	})
 	if e != nil {
 		return Task{}, e
@@ -155,6 +155,15 @@ func (s *Service) ListTasks(ctx context.Context, raw, cid string, status TaskSta
 		}
 		var e error
 		out, e = r.Tasks(cid, status, limit)
+		if e == nil {
+			now := s.now().UTC()
+			for i := range out {
+				out[i], e = s.taskLeaseView(r, out[i], now)
+				if e != nil {
+					return e
+				}
+			}
+		}
 		return e
 	})
 	return out, e
