@@ -73,17 +73,18 @@ func TestStrictRecipientSelection(t *testing.T) {
 				t.Fatalf("strict sequences %v", got)
 			}
 			waited, err := f.svc.WaitMessages(ctx, f.admin.Token, f.context.ID, 0, 0, filter)
-			if err != nil || len(waited) != len(want) {
-				t.Fatalf("wait: %v %v", waited, err)
+			if err != nil || !reflect.DeepEqual(messageSequences(waited), want) {
+				t.Fatalf("wait: %v %v", messageSequences(waited), err)
 			}
 		})
 	}
 	legacy, err := f.svc.ReplayMessages(ctx, f.admin.Token, f.context.ID, 0, 100, MessageFilters{ForInstance: "worker"})
-	if err != nil || len(legacy) != 6 || legacy[0].Sequence != 1 {
-		t.Fatalf("legacy precedence: %v %v", legacy, err)
+	// Legacy instance precedence delivers 2 (instance worker, other session) and omits 7 (instance other, caller session).
+	if got := messageSequences(legacy); err != nil || !reflect.DeepEqual(got, []int64{1, 2, 3, 4, 6, 8}) {
+		t.Fatalf("legacy precedence: %v %v", got, err)
 	}
 	unfiltered, err := f.svc.ReplayMessages(ctx, f.admin.Token, f.context.ID, 0, 100)
-	if err != nil || len(unfiltered) != 8 {
+	if err != nil || !reflect.DeepEqual(messageSequences(unfiltered), []int64{1, 2, 3, 4, 5, 6, 7, 8}) {
 		t.Fatalf("shared log: %v %v", unfiltered, err)
 	}
 	if _, err := f.svc.ReplayMessages(ctx, "invalid", f.context.ID, 0, 100, strict); !errors.Is(err, ErrUnauthenticated) {
@@ -94,4 +95,12 @@ func TestStrictRecipientSelection(t *testing.T) {
 	if _, err := f.svc.ReplayMessages(ctx, f.admin.Token, f.context.ID, 0, 100, missing); !errors.Is(err, ErrInvalid) {
 		t.Fatalf("missing selector: %v", err)
 	}
+}
+
+func messageSequences(messages []Message) []int64 {
+	out := []int64{}
+	for _, m := range messages {
+		out = append(out, m.Sequence)
+	}
+	return out
 }
