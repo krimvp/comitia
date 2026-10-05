@@ -5,7 +5,7 @@ import (
 	"net/http"
 )
 
-//go:embed ui/index.html ui/app.js ui/dom.mjs ui/model.mjs ui/graph.mjs ui/sequence.mjs ui/tree.mjs ui/presence.mjs ui/wire.mjs ui/style.css
+//go:embed ui/index.html ui/app.js ui/dom.mjs ui/model.mjs ui/graph.mjs ui/sequence.mjs ui/tree.mjs ui/presence.mjs ui/wire.mjs ui/style.css ui/*.woff2 ui/OFL.txt
 var inspectorAssets embed.FS
 
 // The public shell contains no state or credential. Data requests use the same
@@ -16,7 +16,7 @@ func inspectorHandler() http.Handler {
 		w.Header().Set("X-Content-Type-Options", "nosniff")
 		w.Header().Set("Referrer-Policy", "no-referrer")
 		w.Header().Set("X-Frame-Options", "DENY")
-		w.Header().Set("Content-Security-Policy", "default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'")
+		w.Header().Set("Content-Security-Policy", "default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self'; font-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'")
 		if r.Method != http.MethodGet && r.Method != http.MethodHead {
 			w.Header().Set("Allow", "GET, HEAD")
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
@@ -44,6 +44,10 @@ func inspectorHandler() http.Handler {
 			path, mime = "ui/wire.mjs", "text/javascript; charset=utf-8"
 		case "/ui/style.css":
 			path, mime = "ui/style.css", "text/css; charset=utf-8"
+		case "/ui/IBMPlexSans-Regular-Latin1.woff2", "/ui/IBMPlexSans-SemiBold-Latin1.woff2", "/ui/IBMPlexMono-Regular-Latin1.woff2", "/ui/IBMPlexMono-SemiBold-Latin1.woff2":
+			path, mime = r.URL.Path[1:], "font/woff2"
+		case "/ui/OFL.txt":
+			path, mime = "ui/OFL.txt", "text/plain; charset=utf-8"
 		default:
 			http.NotFound(w, r)
 			return

@@ -43,7 +43,7 @@ before(async () => {
         const name = req.url === '/ui/' ? 'index.html' : req.url.slice(4);
         if (!/^[\w.-]+$/.test(name)) {res.writeHead(404).end();return;}
         if(embedded) {const response=await fetch(`${embedded}${req.url}`);res.writeHead(response.status,{'Content-Type':response.headers.get('content-type')});res.end(Buffer.from(await response.arrayBuffer()));return;}
-        res.setHeader('Content-Type',name.endsWith('.css')?'text/css':name.endsWith('.html')?'text/html':'text/javascript');
+        res.setHeader('Content-Type',name.endsWith('.css')?'text/css':name.endsWith('.html')?'text/html':name.endsWith('.woff2')?'font/woff2':name.endsWith('.txt')?'text/plain':'text/javascript');
         res.end(await readFile(new URL(name,new URL(process.env.COMITIA_UI_URL || '../../ui/',import.meta.url))));return;
       }
       let input='';for await(const chunk of req) input+=chunk;
@@ -389,3 +389,23 @@ for(const width of [390,1440]) for(const colorScheme of ['light','dark']) {
     await page.locator('#sequence-follow').click();await assertClear('timed');
   });
 }
+
+for(const colorScheme of ['light','dark']) browserTest(`identity fonts and colours load locally in ${colorScheme}`,async t=>{
+  const page=await pageFor(t,1440,{colorScheme});await page.locator('#pause').click();
+  const result=await page.evaluate(async()=>{
+    await Promise.all(['400 16px "IBM Plex Sans"','600 16px "IBM Plex Sans"','400 12px "IBM Plex Mono"','600 12px "IBM Plex Mono"'].map(font=>document.fonts.load(font)));
+    const style=selector=>{const s=getComputedStyle(document.querySelector(selector));return {color:s.color,fill:s.fill,background:s.backgroundColor,font:s.fontFamily};};
+    return {body:style('body'),canvas:style('.sequence-canvas'),time:style('.sequence-time'),id:style('.sequence-id'),input:style('#search'),fonts:[...document.fonts].map(f=>f.status),urls:performance.getEntriesByType('resource').map(r=>r.name)};
+  });
+  assert.deepEqual(result.fonts,['loaded','loaded','loaded','loaded']);
+  assert.match(result.body.font,/IBM Plex Sans/);assert.match(result.id.font,/IBM Plex Mono/);
+  const fontURLs=result.urls.filter(url=>url.endsWith('.woff2'));assert.equal(fontURLs.length,4);
+  for(const url of result.urls)assert.equal(new URL(url).origin,new URL(page.url()).origin);
+  const lum=color=>{const [r,g,b]=color.match(/[\d.]+/g).slice(0,3).map(Number).map(v=>{v/=255;return v<=.04045?v/12.92:((v+.055)/1.055)**2.4;});return .2126*r+.7152*g+.0722*b;};
+  const check=(fg,bg)=>{const [hi,lo]=[lum(fg),lum(bg)].sort((a,b)=>b-a);assert.ok((hi+.05)/(lo+.05)>=4.5,`${fg} on ${bg}`);};
+  check(result.body.color,result.input.background);check(result.time.fill,result.canvas.background);check(result.id.fill,result.canvas.background);
+  await page.locator('#show-map').click();
+  const map=await page.locator('.node-id').first().evaluate(e=>({fg:getComputedStyle(e).fill,bg:getComputedStyle(document.querySelector('.node-bg')).fill}));check(map.fg,map.bg);
+  await page.locator('#disconnect').click();
+  const primary=await page.locator('.primary').evaluate(e=>({fg:getComputedStyle(e).color,bg:getComputedStyle(e).backgroundColor}));check(primary.fg,primary.bg);
+});
