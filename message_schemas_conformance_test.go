@@ -93,7 +93,7 @@ func TestMessageSchemaPayloadConformance(t *testing.T) {
 							if err != nil {
 								t.Fatal(err)
 							}
-							if descriptor.ID == ExecutionEventSchema && field == "occurred_at" && (value == `" \t\n"` || value == `"\u00a0"` || value == `"\u2003"` || value == `"value"`) {
+							if (descriptor.ID == ExecutionEventSchema && field == "occurred_at" || descriptor.ID == RequestSchema && field == "deadline" || descriptor.ID == MergeCertificateSchema && (field == "issued_at" || field == "expires_at")) && (value == `" \t\n"` || value == `"\u00a0"` || value == `"\u2003"` || value == `"value"`) {
 								check(t, raw, "RFC3339")
 							} else {
 								check(t, raw)

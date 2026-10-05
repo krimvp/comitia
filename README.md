@@ -48,6 +48,7 @@ its flags. Help exits successfully without opening storage or contacting a serve
 | [Local sessions](docs/local-sessions.md) | Installed macOS session helpers. |
 | [Child contexts](docs/child-contexts.md) | Private sub-teams, quotas, and archival. |
 | [Tasks and validation](docs/task-validation.md) | Task discovery, leases, and process stress checks. |
+| [Durable coordination](docs/durable-coordination.md) | Process-then-ack consumers, request deadlines/receipts, supervised processes and external merge reconciliation. |
 | [Message protocol](docs/message-protocol.md) | Typed envelopes, addressing, approvals, and identity. |
 | [Presence](docs/presence.md) | Self-reported instances, activity, and resume metadata. |
 | [Inspector](docs/inspector.md) | Conversation browsing, context trees, and display limits. |

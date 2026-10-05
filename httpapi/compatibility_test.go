@@ -629,3 +629,165 @@ func TestClientReportsUnsupportedTaskOutcomeFields(t *testing.T) {
 		server.Close()
 	}
 }
+
+// Optional lookup/scoped queries never add methods to API. Old clients retain
+// plain reads against new handlers; new clients refuse old union handlers that
+// would otherwise silently ignore a scoped query member.
+func TestV1ScopedMessageUpgradeOrder(t *testing.T) {
+	for _, newServer := range []bool{false, true} {
+		for _, newClient := range []bool{false, true} {
+			t.Run(fmt.Sprintf("new-client=%v/new-server=%v", newClient, newServer), func(t *testing.T) {
+				ctx := context.Background()
+				store, err := comitia.OpenSQLite(":memory:")
+				if err != nil {
+					t.Fatal(err)
+				}
+				defer store.Close()
+				svc, err := comitia.New(comitia.Config{Store: store, BootstrapCredential: "boot"})
+				if err != nil {
+					t.Fatal(err)
+				}
+				_, owner, err := svc.Bootstrap(ctx, comitia.BootstrapInput{Credential: "boot", AdminName: "owner", SessionTTL: time.Hour})
+				if err != nil {
+					t.Fatal(err)
+				}
+				w, err := svc.CreateWorkspace(ctx, owner.Token, "w")
+				if err != nil {
+					t.Fatal(err)
+				}
+				c, err := svc.CreateContext(ctx, owner.Token, comitia.CreateContextInput{WorkspaceID: w.ID, Name: "c"})
+				if err != nil {
+					t.Fatal(err)
+				}
+				root, err := svc.AppendMessage(ctx, owner.Token, c.ID, comitia.MessageInput{DedupeKey: "root", Body: "root"})
+				if err != nil {
+					t.Fatal(err)
+				}
+				reply, err := svc.AppendMessage(ctx, owner.Token, c.ID, comitia.MessageInput{DedupeKey: "reply", Body: "full\nreply", Envelope: &comitia.MessageEnvelope{Schema: "comitia.discussion.v1", ReplyTo: root.ID, Payload: json.RawMessage(`{}`)}})
+				if err != nil {
+					t.Fatal(err)
+				}
+				h := legacy.NewHandler(svc)
+				if newServer {
+					h = httpapi.NewHandler(svc)
+				}
+				server := httptest.NewServer(h)
+				defer server.Close()
+				var api comitia.API
+				if newClient {
+					api, err = httpapi.NewClientWithInstanceDefaults(server.URL, server.Client(), comitia.InstanceDefaults{})
+				} else {
+					api, err = legacy.NewClientWithInstanceDefaults(server.URL, server.Client(), comitia.InstanceDefaults{})
+				}
+				if err != nil {
+					t.Fatal(err)
+				}
+				plain, err := api.ReplayMessages(ctx, owner.Token, c.ID, 0, 100)
+				if err != nil || len(plain) != 2 || plain[1].ID != reply.ID {
+					t.Fatalf("plain upgrade: %v %v", plain, err)
+				}
+				if !newClient {
+					if _, err := comitia.LookupMessage(ctx, api, owner.Token, c.ID, root.ID); !errors.Is(err, comitia.ErrInvalid) {
+						t.Fatalf("old optional API: %v", err)
+					}
+					return
+				}
+				lookup, err := comitia.LookupMessage(ctx, api, owner.Token, c.ID, reply.ID)
+				if newServer {
+					if err != nil || lookup.SessionID != owner.Session.ID || lookup.Body != reply.Body || lookup.Envelope.ReplyTo != root.ID {
+						t.Fatalf("lookup metadata: %+v %v", lookup, err)
+					}
+				} else if !errors.Is(err, comitia.ErrInvalid) || !strings.Contains(err.Error(), "unsupported by this server") {
+					t.Fatalf("old lookup: %v", err)
+				}
+				filters := []comitia.MessageFilters{{ReplyTo: root.ID}, {ThreadID: root.ID}, {FromSession: owner.Session.ID}, {ReplyTo: root.ID, ThreadID: root.ID, FromSession: owner.Session.ID}}
+				for _, filter := range filters {
+					for _, read := range []string{"replay", "wait", "replay-page", "wait-page"} {
+						var messages []comitia.Message
+						switch read {
+						case "replay":
+							messages, err = api.ReplayMessages(ctx, owner.Token, c.ID, 0, 100, filter)
+						case "wait":
+							messages, err = api.WaitMessages(ctx, owner.Token, c.ID, 0, 0, filter)
+						case "replay-page":
+							var page comitia.MessagePage
+							page, err = comitia.ReplayMessagePage(ctx, api, owner.Token, c.ID, 0, 100, filter)
+							messages = page.Messages
+						case "wait-page":
+							var page comitia.MessagePage
+							page, err = comitia.WaitMessagePage(ctx, api, owner.Token, c.ID, 0, 0, filter)
+							messages = page.Messages
+						}
+						if !newServer {
+							if !errors.Is(err, comitia.ErrInvalid) || !strings.Contains(err.Error(), "unsupported by this server") || messages != nil {
+								t.Fatalf("widened old %s %+v: %v %v", read, filter, messages, err)
+							}
+						} else {
+							want := 2
+							if filter.ReplyTo != "" {
+								want = 1
+							}
+							if err != nil || len(messages) != want || messages[len(messages)-1].ID != reply.ID {
+								t.Fatalf("new %s %+v: %v %v", read, filter, messages, err)
+							}
+						}
+					}
+				}
+			})
+		}
+	}
+}
+
+// A DTO predecessor rejects new filters. Do not retry without them even if a
+// proxy/embedding advertises query support too optimistically.
+func TestClientScopedQueryDTORejection(t *testing.T) {
+	requests := 0
+	field := ""
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		if r.URL.Path == "/v1/messages/query-support" {
+			_, _ = io.WriteString(w, `{"ok":true}`)
+			return
+		}
+		requests++
+		w.WriteHeader(http.StatusBadRequest)
+		_ = json.NewEncoder(w).Encode(comitia.ErrorInfo{Code: "invalid", Message: fmt.Sprintf("invalid: unknown field %q", field)})
+	}))
+	defer server.Close()
+	client, err := httpapi.NewClientWithInstanceDefaults(server.URL, server.Client(), comitia.InstanceDefaults{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, tc := range []struct {
+		name   string
+		filter comitia.MessageFilters
+	}{{"reply_to", comitia.MessageFilters{ReplyTo: "message"}}, {"thread_id", comitia.MessageFilters{ThreadID: "message"}}, {"from_session", comitia.MessageFilters{FromSession: "session"}}} {
+		field, requests = tc.name, 0
+		messages, err := client.ReplayMessages(context.Background(), "token", "context", 0, 100, tc.filter)
+		if !errors.Is(err, comitia.ErrInvalid) || !strings.Contains(err.Error(), "unsupported by this server") || requests != 1 || messages != nil {
+			t.Fatalf("field %s retry/widening: %d %v %v", field, requests, messages, err)
+		}
+	}
+}
+
+func TestClientProtocolSchemasUnsupported(t *testing.T) {
+	requests := 0
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		requests++
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		_ = json.NewEncoder(w).Encode(comitia.ErrorInfo{Code: "invalid", Message: "schema must name a registered message schema"})
+	}))
+	defer server.Close()
+	client, err := httpapi.NewClientWithInstanceDefaults(server.URL, server.Client(), comitia.InstanceDefaults{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, schema := range []string{comitia.RequestSchema, comitia.ReceiptSchema, comitia.MergeCertificateSchema, comitia.MergeReceiptSchema} {
+		requests = 0
+		_, err := client.AppendMessage(context.Background(), "token", "context", comitia.MessageInput{DedupeKey: "stable", Envelope: &comitia.MessageEnvelope{Schema: schema, Payload: json.RawMessage(`{}`)}})
+		if !errors.Is(err, comitia.ErrInvalid) || !strings.Contains(err.Error(), schema+" unsupported by this server") || requests != 1 {
+			t.Fatalf("schema downgrade %s: %v requests=%d", schema, err, requests)
+		}
+	}
+}

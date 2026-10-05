@@ -129,6 +129,9 @@ func (s *Service) scanMessages(ctx context.Context, raw, cid string, after int64
 		if e != nil {
 			return e
 		}
+		if e := validateMessageQuery(r, cid, f); e != nil {
+			return e
+		}
 		sid = a.session.ID
 		if scan, ok := r.(MessageScanStore); ok {
 			out, scanned, e = scan.MessagesScanned(cid, a.session.ID, after, limit, f)

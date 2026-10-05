@@ -164,6 +164,9 @@ Empty values disable a filter; all nonempty filters must match.
 | --- | --- |
 | `for_instance` | Envelope `recipient_instances` contains this exact ID; or instance recipients are absent/empty and `recipient_session_ids` contains the caller's authenticated session; or both recipient lists are absent/empty (including legacy messages without an envelope). Session-addressed messages without instance recipients reach every instance of that session. |
 | `strict_recipients` | Opt-in boolean, default `false`; requires `for_instance`. Every nonempty recipient list must match: session recipients must contain the authenticated caller session and instance recipients must contain `for_instance`. Empty lists are unrestricted; broadcasts and legacy messages still match. |
+| `reply_to` | Direct replies to a message in this readable context; missing/foreign roots are forbidden. |
+| `thread_id` | Root message and recursive reply descendants in this readable context. |
+| `from_session` | Exact authenticated sender session ID. |
 | `from_instance` | The message's self-reported `agent_instance.id` equals this exact ID. Legacy senders without a claim do not match. |
 | `task_id` | Envelope `task_id` equals this exact ID. |
 | `schema` | Envelope `schema` equals this exact versioned name. |
@@ -337,7 +340,10 @@ UTF-8 bytes become `\xNN`, and every non-graphic character (C0 controls
 including TAB, CR, ESC and BEL, DEL, C1 controls, Unicode format/bidi and
 line/paragraph separators) uses its Go escape, such as `\t`, `\r`, `\a`,
 `\x1b` or `\u202e`. Raw tabs only separate fields. Use `replay` for the exact
-JSON body. Every successful print is followed by a monotonic acknowledgement
+JSON body, or `watch --json-lines --manual-ack` for complete records. The
+[durable consumer recipe](durable-coordination.md#process-then-acknowledge) commits business
+effects before a separate ack; terminal display alone does not prove handling.
+Every successful default terminal print is followed by a monotonic acknowledgement
 using the same instance. `--no-ack` disables these writes while retaining the
 in-memory sequence and resuming from the persisted cursor on startup. Filtered
 watch therefore consumes a particular view of the log: use a separate instance
@@ -432,6 +438,10 @@ the version; discovery reflects the running service's registry.
 | `comitia.approval.v1` | No | Exact `artifact_refs`, `verdict`, nonempty `checks`, `blocking_count`; see [Approvals](#approvals-and-merge-gates) |
 | `comitia.evaluation-result.v1` | Yes | `evaluation_id`, `outcome`, `grader`, nonempty `criteria`; optional `cost`; see below |
 | `comitia.execution-event.v1` | Yes | `run_id`, positive `event_sequence`, `kind`, and kind-specific measurements; see [Execution telemetry](execution-telemetry.md) |
+| `comitia.request.v1` | No | Durable expected responder sessions, operation/instructions and absolute deadline; optional exact artifacts |
+| `comitia.receipt.v1` | Matches request | accepted/completed/rejected semantic receipt replying to a request |
+| `comitia.merge-certificate.v1` | Matches request | Exact PR head, approval IDs, policy/freshness and one-shot consumption key |
+| `comitia.merge-receipt.v1` | Matches certificate | External reconciled merge outcome, exact head/merge SHA and evidence |
 | `comitia.task-status.v1` | Yes | `state`, `summary`; optional `child_context_id`, `blockers`, `links`; see [Task status](#task-status) |
 | `comitia.task-event.v1` | Server-authored | Not appendable; replayed `kind`, `status`, optional `lease_version`; see [Authoritative task events](#authoritative-task-events) |
 
@@ -462,6 +472,10 @@ message does not accept work, and a work-submitted message does not complete a
 task. Task state changes only through its existing authorized API operations.
 
 ## Approvals and merge gates
+
+See [durable requests and exact-SHA certificate reconciliation](durable-coordination.md)
+for authenticated role assignments, scoped lookup, deadlines, one-shot reservations
+and merge receipts. GitHub execution remains external.
 
 `comitia.approval.v1` records a reviewer's verdict on exact artifacts:
 

@@ -82,11 +82,14 @@ to retryable pending. Follow the owner guide's
 for fences, reasons, CLI/MCP calls and retry recovery, and the
 [event payload reference](message-protocol.md#authoritative-task-events) for replay fields.
 
-## Pending workflow additions
+## Durable consumers and external coordination
 
-Placeholder: [durable consumers, request/reply and merge gates (#65)](https://github.com/krimvp/comitia/issues/65)
-is still in review. Its final workflows will be linked here after merge.
-The existing watch contract below is retained pending that pass.
+Use the [process-then-ack workflow](durable-coordination.md#process-then-acknowledge)
+for business consumers: commit effects durably before advancing a separate cursor.
+The same owner guide covers [request deadlines and semantic receipts](durable-coordination.md#scoped-conversations-and-durable-requests),
+[exact-SHA merge reconciliation](durable-coordination.md#exact-sha-certificates-and-merge-reconciliation)
+and [supervised processes and steering](durable-coordination.md#supervised-process-registry-and-steering).
+Process launching and GitHub actions remain external.
 
 ## Watch from any terminal or harness
 
