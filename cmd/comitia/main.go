@@ -184,6 +184,8 @@ Tasks:
   task-renew        renew a claim
   task-complete     complete a claimed task
   task-release      release a claim
+  task-fail         record permanent failure with a live claim
+  task-cancel       cancel with a live claim or context-admin authority
 Services:
   serve             run the SQLite HTTP daemon
   mcp               run an MCP stdio adapter

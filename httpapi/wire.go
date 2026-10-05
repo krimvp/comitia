@@ -87,6 +87,7 @@ type taskDTO struct {
 	ContextID           string                 `json:"context_id"`
 	Title               string                 `json:"title"`
 	Body                string                 `json:"body"`
+	OutcomeReason       string                 `json:"outcome_reason,omitempty"`
 	Status              comitia.TaskStatus     `json:"status"`
 	LeaseOwnerSessionID string                 `json:"lease_owner_session_id"`
 	LeaseVersion        int64                  `json:"lease_version"`

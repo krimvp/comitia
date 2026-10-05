@@ -16,6 +16,8 @@ var ErrTaskMutationReceiptsUnsupported = fmt.Errorf("%w: server does not support
 
 func (h *handler) taskRoutes() map[string]endpoint {
 	return map[string]endpoint{
+		"tasks/fail":   h.taskOutcomeEndpoint(false),
+		"tasks/cancel": h.taskOutcomeEndpoint(true),
 		"tasks/create": typedEndpoint(func(ctx context.Context, token string, q createTaskRequest) (taskResult, error) {
 			if q.Task == nil {
 				return taskResult{}, comitia.Invalidf("task required")

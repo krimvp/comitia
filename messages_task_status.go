@@ -41,9 +41,9 @@ func validTaskStatus(raw json.RawMessage) error {
 		return Invalidf("summary required, at most 4096 bytes; child_context_id at most 128 bytes")
 	}
 	switch p.State {
-	case "planned", "in_progress", "blocked", "review", "done":
+	case "planned", "in_progress", "blocked", "review", "done", "failed", "cancelled":
 	default:
-		return Invalidf("state must be planned, in_progress, blocked, review or done")
+		return Invalidf("state must be planned, in_progress, blocked, review, done, failed or cancelled")
 	}
 	if !boundedList(p.Blockers) || !boundedList(p.Links) {
 		return Invalidf("blockers and links must contain at most 64 nonempty entries of at most 1024 bytes")
@@ -86,6 +86,9 @@ func validateTaskStatusReferences(r ReadStore, cid string, env *MessageEnvelope)
 	}
 	if err != nil || child.ParentContextID != cid {
 		return fmt.Errorf("%w: child_context_id is not a child of this context", ErrInvalid)
+	}
+	if child.TaskID != "" && child.TaskID != env.TaskID {
+		return fmt.Errorf("%w: child_context_id serves a different task", ErrInvalid)
 	}
 	return nil
 }

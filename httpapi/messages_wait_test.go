@@ -101,7 +101,7 @@ func TestHTTPFilteredReplayAndWait(t *testing.T) {
 	case <-time.After(time.Second):
 		t.Fatal("HTTP wait did not return within a second of append")
 	}
-	got, err := client.WaitMessages(ctx, owner.Token, c.ID, 2, 20*time.Millisecond, filter)
+	got, err := client.WaitMessages(ctx, owner.Token, c.ID, m.Sequence+1, 20*time.Millisecond, filter)
 	if err != nil || len(got) != 0 || got == nil {
 		t.Fatalf("HTTP timeout: %v %v", got, err)
 	}

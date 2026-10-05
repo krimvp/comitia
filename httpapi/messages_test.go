@@ -44,8 +44,11 @@ func TestTypedHTTPMessagesAndParticipantDiscovery(t *testing.T) {
 		t.Fatal(err)
 	}
 	descriptors, err := client.ListMessageSchemas(ctx, owner.Token)
-	if err != nil || len(descriptors) != 11 {
+	if err != nil || len(descriptors) != 12 {
 		t.Fatalf("HTTP schemas: %v %v", descriptors, err)
+	}
+	if event, err := client.GetMessageSchema(ctx, owner.Token, comitia.TaskEventSchema); err != nil || !event.ServerAuthored {
+		t.Fatalf("HTTP task-event schema: %+v %v", event, err)
 	}
 	descriptor, err := client.GetMessageSchema(ctx, owner.Token, "comitia.discussion.v1")
 	if err != nil || !descriptor.BodyRequired || len(descriptor.Examples) != 1 {

@@ -13,6 +13,7 @@ import (
 // MessageSchemaDescriptor describes the registered payload contract. Requirements
 // document semantic checks beyond JSON Schema; the payload validator is authoritative.
 // Opaque marks legacy extensions whose validator has no supplied descriptor.
+// ServerAuthored marks built-ins that replay can return but append rejects.
 type MessageSchemaDescriptor struct {
 	ID                 string                 `json:"id"`
 	PayloadSchema      json.RawMessage        `json:"payload_schema"`
@@ -22,6 +23,7 @@ type MessageSchemaDescriptor struct {
 	Requirements       []string               `json:"requirements"`
 	Examples           []MessageSchemaExample `json:"examples"`
 	Opaque             bool                   `json:"opaque,omitempty"`
+	ServerAuthored     bool                   `json:"server_authored,omitempty"`
 }
 
 type MessageSchemaExample struct {
@@ -82,7 +84,7 @@ func (s *Service) configureMessageSchemaDescriptors(configured map[string]Messag
 		}
 	}
 	for id, d := range configured {
-		if _, ok := s.messageSchemas[id]; !ok || d.ID != "" && d.ID != id || d.Opaque {
+		if _, ok := s.messageSchemas[id]; !ok || d.ID != "" && d.ID != id || d.Opaque || d.ServerAuthored {
 			return Invalidf("invalid extension message schema descriptor")
 		}
 		if _, builtin := builtinMessageSchemas()[id]; builtin {

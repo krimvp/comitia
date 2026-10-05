@@ -79,7 +79,7 @@ func TestTypedMessagesDuplicateNamesAndPersistence(t *testing.T) {
 		t.Fatal(err)
 	}
 	msgs, err := svc.ReplayMessages(ctx, b.Token, f.context.ID, 0, 100)
-	if err != nil || len(msgs) != 2 || msgs[0].Envelope != nil || !sameEnvelope(msgs[1].Envelope, m.Envelope) {
+	if err != nil || len(msgs) != 3 || msgs[0].Envelope.Schema != TaskEventSchema || msgs[1].Envelope != nil || !sameEnvelope(msgs[2].Envelope, m.Envelope) {
 		t.Fatalf("replay lost envelope: %v %v", msgs, err)
 	}
 	got, err := svc.GetTask(ctx, a.Token, task.ID)

@@ -10,6 +10,8 @@ import (
 
 func runTasks(ctx context.Context, cfg config, api comitia.API, out *json.Encoder, cmd string, args []string) error {
 	switch cmd {
+	case "task-fail", "task-cancel":
+		return runTaskOutcome(ctx, cfg, api, out, cmd, args)
 	case "task-create":
 		fs := newFlags(cmd)
 		operationID := fs.String("operation-id", "", "stable session-scoped mutation ID for recovery after lost responses")
@@ -49,7 +51,7 @@ func runTasks(ctx context.Context, cfg config, api comitia.API, out *json.Encode
 		page := fs.Bool("page", false, "return items, next_after and has_more")
 		after := fs.String("after-id", "", "exclusive cursor from next_after (implies --page)")
 		cid := fs.String("context-id", "", "context ID")
-		status := fs.String("status", "", "task status (pending, leased, completed)")
+		status := fs.String("status", "", "task status (pending, leased, completed, failed, cancelled)")
 		limit := fs.Int("limit", 100, "maximum tasks (1-1000)")
 		if err := fs.Parse(args); err != nil {
 			return err
@@ -181,10 +183,14 @@ func parseTaskStatus(s string) (comitia.TaskStatus, error) {
 		return comitia.TaskPending, nil
 	case string(comitia.TaskLeased):
 		return comitia.TaskLeased, nil
+	case string(comitia.TaskFailed):
+		return comitia.TaskFailed, nil
+	case string(comitia.TaskCancelled):
+		return comitia.TaskCancelled, nil
 	case string(comitia.TaskCompleted):
 		return comitia.TaskCompleted, nil
 	default:
-		return "", comitia.Invalidf("status must be pending, leased or completed")
+		return "", comitia.Invalidf("status must be pending, leased, completed, failed or cancelled")
 	}
 }
 

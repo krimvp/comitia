@@ -51,7 +51,7 @@ func TestMessageProjectionMissingTriggerRecovery(t *testing.T) {
 					{MessageFilters{FromInstance: "worker"}, 1},
 					{MessageFilters{ForInstance: "other", Schema: "comitia.discussion.v1", TaskID: task.ID, FromInstance: "worker"}, 1},
 				} {
-					got, err := r.Messages(f.context.ID, f.admin.Session.ID, 0, 100, tc.f)
+					got, err := r.Messages(f.context.ID, f.admin.Session.ID, 1, 100, tc.f)
 					if err != nil {
 						return err
 					}

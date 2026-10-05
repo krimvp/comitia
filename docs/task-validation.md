@@ -7,7 +7,7 @@ for payload types, CLI/MCP examples, evidence-backed evaluation reports,
 extension points and shared-context visibility.
 
 Use `task-get --task-id ID` to inspect a task, or `task-list --context-id ID`
-to list tasks. Optional `--status pending|leased|completed` filters the list;
+to list tasks. Optional `--status pending|leased|completed|failed|cancelled` filters the list;
 `--limit` defaults to 100 and accepts 1–1000. An empty CLI result is `[]`.
 The equivalent MCP tools are `get_task` and `list_tasks`, with the same
 context authorization and bound session credential as other tools.
@@ -37,6 +37,63 @@ an explicit empty ID is invalid. `--open-ended` holds the lease until
 context admin can `task-release` a silent worker's task without its token. Typed
 `comitia.approval.v1` messages carry review verdicts on exact commits for merge
 gates; see [Approvals and merge gates](message-protocol.md#approvals-and-merge-gates).
+
+## Authoritative events and terminal outcomes
+
+Each successful create, claim, renew, complete, release, failure or cancellation
+appends a server-authored `comitia.task-event.v1` message in the task's context,
+in the same transaction as the task and any mutation receipt. Replay and wait
+return these events, including to readers that cannot write or claim; task
+changes therefore consume message sequence numbers. Filter with
+`--schema comitia.task-event.v1` and optionally `--task-id ID`. Messages identify
+the authorized actor by `SessionID`, with the task ID in the envelope and kind,
+previous/current status, lease version, holder metadata and terminal reason in
+the payload. Claim tokens and hashes are absent. Clients cannot append this
+reserved schema. Notifications follow commit; reconciliation polling still
+handles other server processes and lease expiry. Expiry alone does not mutate
+stored status or create an event; reclaim records a new `claimed` event.
+Operation receipt recovery and token rotation do not create duplicate events.
+Existing databases retain their tasks; historical transitions are not invented.
+
+`failed` and `cancelled` are terminal alongside `completed`. They cannot be
+claimed, renewed, released or overwritten. `task-release` continues to return
+unfinished work to retryable `pending`.
+
+```sh
+comitia task-fail --task-id "$task_id" --claim-token "$claim_token" \
+  --lease-version "$lease_version" --reason 'Acceptance checks failed' \
+  --operation-id fail-1
+comitia task-cancel --task-id "$task_id" --claim-token "$claim_token" \
+  --lease-version "$lease_version" --reason 'Work no longer needed'
+```
+
+Failure requires the live holder's current token and version. Cancellation
+accepts that same fence or context-admin permission without a token. Admins
+must supply the current version too, and may cancel pending tasks (initial
+version 0) or expired leases. Reasons must be nonempty UTF-8, at most 4096 bytes;
+do not put secrets in them. The task exposes `outcome_reason` on get/list/page
+and the terminal event carries `reason`. Failure/cancellation accept an optional
+session-scoped `operation_id` for exact lost-response recovery. Changed retries
+conflict; revoked credentials or lost authority cannot recover receipts.
+
+MCP tools `fail_task` and `cancel_task`, and HTTP endpoints `/v1/tasks/fail` and
+`/v1/tasks/cancel`, take `task_id`, `lease_version`, `reason`, optional
+`operation_id`, and `claim_token` (required for failure and holder cancellation).
+They return a task; HTTP wraps it under `task`. Go callers use the optional
+`TaskOutcomeAPI`, or `FailTask`/`CancelTask` helpers, with `TaskOutcomeInput`.
+MCP schemas allow `null` for optional properties as an omitted/default value,
+including `operation_id` and admin cancellation's `claim_token`. Required
+failure claim tokens, lease versions and reasons cannot be null.
+Existing exported interfaces keep their method sets. Older APIs/servers return
+a clear unsupported error; clients never retry by dropping the requested
+outcome or recovery semantics. Old clients can still use ordinary task calls
+and read terminal statuses and authoritative events from upgraded servers.
+
+Agent-authored task-status and execution-event messages remain advisory,
+including reports of failed/cancelled work. They cannot set the task's outcome.
+A task-status child link must name a direct child; if that child serves a task,
+its `TaskID` must match the envelope's task ID. Taskless team children may be
+shared across tasks.
 
 ## Complete lease loop
 

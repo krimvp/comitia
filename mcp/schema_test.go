@@ -89,7 +89,8 @@ func TestMessageCapabilitiesAdvertised(t *testing.T) {
 				valid["schema"] = "comitia.review-request.v1"
 			case "replay_messages", "wait_messages":
 				property, ok := input["properties"].(map[string]any)["strict_recipients"].(map[string]any)
-				if !ok || property["type"] != "boolean" {
+				// Optional properties are nullable because the handler treats null as omitted.
+				if typ, _ := json.Marshal(property["type"]); !ok || string(typ) != `["boolean","null"]` {
 					t.Fatal("strict_recipients must be advertised as boolean")
 				}
 				valid = map[string]any{"context_id": "context", "for_instance": "worker", "strict_recipients": true}

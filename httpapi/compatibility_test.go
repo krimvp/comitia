@@ -135,7 +135,7 @@ func TestV1UpgradeOrderCompatibility(t *testing.T) {
 					t.Fatalf("reference: %+v %v", ref, err)
 				}
 				message, err := client.AppendMessage(ctx, owner.Token, parent.ID, comitia.MessageInput{DedupeKey: "mixed", Body: "hello", Envelope: &comitia.MessageEnvelope{Schema: "comitia.discussion.v1", Payload: []byte(`{}`)}})
-				if err != nil || message.ContextID != parent.ID || message.SessionID != owner.Session.ID || message.DedupeKey != "mixed" || message.Sequence != 1 {
+				if err != nil || message.ContextID != parent.ID || message.SessionID != owner.Session.ID || message.DedupeKey != "mixed" || message.Sequence != 8 {
 					t.Fatalf("message metadata lost: %+v %v", message, err)
 				}
 				// Filtered pages report progress past nonmatches separately from the
@@ -359,7 +359,7 @@ func TestV1TaskRecoveryUpgradeOrder(t *testing.T) {
 					if err != nil || fenced.TaskAttempt == nil {
 						t.Fatalf("fenced append: %+v %v", fenced, err)
 					}
-					messages, err := client.ReplayMessages(ctx, owner.Token, room.ID, 0, 10)
+					messages, err := client.ReplayMessages(ctx, owner.Token, room.ID, 0, 10, comitia.MessageFilters{Schema: "comitia.discussion.v1"})
 					if err != nil || len(messages) != 1 || messages[0].ID != fenced.ID {
 						t.Fatalf("old client reads fenced result: %+v %v", messages, err)
 					}
@@ -392,7 +392,7 @@ func TestV1TaskRecoveryUpgradeOrder(t *testing.T) {
 					if _, err := client.AppendMessage(ctx, owner.Token, room.ID, result("fenced", task.ID, fence)); !errors.Is(err, httpapi.ErrTaskResultFencingUnsupported) {
 						t.Fatalf("fence on old server: %v", err)
 					}
-					if messages, _ := svc.ReplayMessages(ctx, owner.Token, room.ID, 0, 10); len(messages) != 0 {
+					if messages, _ := svc.ReplayMessages(ctx, owner.Token, room.ID, 0, 10, comitia.MessageFilters{Schema: "comitia.discussion.v1"}); len(messages) != 0 {
 						t.Fatalf("unfenced copy appended: %+v", messages)
 					}
 				default:
@@ -496,5 +496,136 @@ func TestClientReportsUnsupportedTaskRecoveryFromDTOHandler(t *testing.T) {
 	requests, field = 0, "operation_id"
 	if _, err := client.CreateTask(ctx, "tok", "c", comitia.TaskInput{Title: "x"}); errors.Is(err, httpapi.ErrTaskMutationReceiptsUnsupported) || !errors.Is(err, comitia.ErrInvalid) {
 		t.Fatalf("plain create: %v", err)
+	}
+}
+
+func TestV1TaskOutcomeUpgradeOrder(t *testing.T) {
+	for _, newServer := range []bool{false, true} {
+		for _, newClient := range []bool{false, true} {
+			t.Run(fmt.Sprintf("server=%v/client=%v", newServer, newClient), func(t *testing.T) {
+				ctx := context.Background()
+				store, err := comitia.OpenSQLite(":memory:")
+				if err != nil {
+					t.Fatal(err)
+				}
+				defer store.Close()
+				svc, err := comitia.New(comitia.Config{Store: store, BootstrapCredential: "boot"})
+				if err != nil {
+					t.Fatal(err)
+				}
+				_, owner, err := svc.Bootstrap(ctx, comitia.BootstrapInput{Credential: "boot", AdminName: "owner", SessionTTL: time.Hour})
+				if err != nil {
+					t.Fatal(err)
+				}
+				workspace, err := svc.CreateWorkspace(ctx, owner.Token, "w")
+				if err != nil {
+					t.Fatal(err)
+				}
+				room, err := svc.CreateContext(ctx, owner.Token, comitia.CreateContextInput{WorkspaceID: workspace.ID, Name: "c"})
+				if err != nil {
+					t.Fatal(err)
+				}
+				handler := legacy.NewHandler(svc)
+				if newServer {
+					handler = httpapi.NewHandler(svc)
+				}
+				server := httptest.NewServer(handler)
+				defer server.Close()
+				var client comitia.API
+				if newClient {
+					client, err = httpapi.NewClientWithInstanceDefaults(server.URL, server.Client(), comitia.InstanceDefaults{})
+				} else {
+					client, err = legacy.NewClientWithInstanceDefaults(server.URL, server.Client(), comitia.InstanceDefaults{})
+				}
+				if err != nil {
+					t.Fatal(err)
+				}
+				for _, status := range []comitia.TaskStatus{comitia.TaskFailed, comitia.TaskCancelled} {
+					task, err := client.CreateTask(ctx, owner.Token, room.ID, comitia.TaskInput{Title: "job"})
+					if err != nil {
+						t.Fatal(err)
+					}
+					c, err := client.ClaimTask(ctx, owner.Token, task.ID, time.Minute)
+					if err != nil {
+						t.Fatal(err)
+					}
+					in := comitia.TaskOutcomeInput{ClaimToken: c.Token, LeaseVersion: c.Task.LeaseVersion, Reason: "stopped", OperationID: string(status)}
+					call := comitia.FailTask
+					if status == comitia.TaskCancelled {
+						call = comitia.CancelTask
+					}
+					result, err := call(ctx, client, owner.Token, task.ID, in)
+					if !newClient || !newServer {
+						if !errors.Is(err, comitia.ErrInvalid) {
+							t.Fatalf("unsupported outcome: %v", err)
+						}
+						if newClient && !errors.Is(err, httpapi.ErrTaskOutcomesUnsupported) {
+							t.Fatalf("old server: %v", err)
+						}
+						current, e := svc.GetTask(ctx, owner.Token, task.ID)
+						if e != nil || current.Status != comitia.TaskLeased {
+							t.Fatalf("unsupported outcome applied: %+v %v", current, e)
+						}
+						if status == comitia.TaskFailed {
+							result, err = svc.FailTask(ctx, owner.Token, task.ID, in)
+						} else {
+							result, err = svc.CancelTask(ctx, owner.Token, task.ID, in)
+						}
+					}
+					if err != nil || result.Status != status || result.OutcomeReason != in.Reason {
+						t.Fatalf("outcome: %+v %v", result, err)
+					}
+					current, err := client.GetTask(ctx, owner.Token, task.ID)
+					if err != nil || current.Status != status || current.OutcomeReason != in.Reason {
+						t.Fatalf("outcome read: %+v %v", current, err)
+					}
+					if newClient && newServer {
+						again, err := call(ctx, client, owner.Token, task.ID, in)
+						if err != nil || again.Status != status {
+							t.Fatalf("outcome receipt: %+v %v", again, err)
+						}
+						listed, err := client.ListTasks(ctx, owner.Token, room.ID, status, 10)
+						if err != nil || len(listed) != 1 || listed[0].OutcomeReason != in.Reason {
+							t.Fatalf("outcome list: %+v %v", listed, err)
+						}
+					}
+					messages, err := client.ReplayMessages(ctx, owner.Token, room.ID, 0, 100, comitia.MessageFilters{TaskID: task.ID})
+					if err != nil || len(messages) != 3 || messages[2].Envelope.Schema != comitia.TaskEventSchema {
+						t.Fatalf("events: %+v %v", messages, err)
+					}
+				}
+			})
+		}
+	}
+}
+
+func TestClientReportsUnsupportedTaskOutcomeFields(t *testing.T) {
+	for _, field := range []string{"reason", "operation_id"} {
+		requests := 0
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			requests++
+			var body map[string]any
+			if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+				t.Error(err)
+			}
+			if body["reason"] != "stopped" || body["operation_id"] != "finish" {
+				t.Errorf("semantics missing: %+v", body)
+			}
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusBadRequest)
+			_ = json.NewEncoder(w).Encode(comitia.ErrorInfo{Code: "invalid", Message: fmt.Sprintf("invalid: unknown field %q", field)})
+		}))
+		client, err := httpapi.NewClient(server.URL, server.Client())
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, call := range []func(context.Context, string, string, comitia.TaskOutcomeInput) (comitia.Task, error){client.FailTask, client.CancelTask} {
+			requests = 0
+			_, err := call(context.Background(), "tok", "t", comitia.TaskOutcomeInput{ClaimToken: "claim", LeaseVersion: 1, Reason: "stopped", OperationID: "finish"})
+			if !errors.Is(err, httpapi.ErrTaskOutcomesUnsupported) || requests != 1 {
+				t.Fatalf("field %s: requests=%d err=%v", field, requests, err)
+			}
+		}
+		server.Close()
 	}
 }

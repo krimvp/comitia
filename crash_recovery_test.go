@@ -105,7 +105,7 @@ func TestCrashRecoveryCommittedState(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(msgs) != 1 || msgs[0].Body != "durable" {
+	if len(msgs) != 3 || msgs[1].Body != "durable" || msgs[0].Envelope.Schema != TaskEventSchema || msgs[2].Envelope.Schema != TaskEventSchema {
 		t.Fatalf("messages after crash: %#v", msgs)
 	}
 	cursor, err := svc.MessageCursor(context.Background(), f.admin.Token, f.context.ID)

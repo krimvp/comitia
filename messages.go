@@ -319,6 +319,7 @@ func builtinMessageSchemas() map[string]PayloadValidator {
 		EvaluationResultSchema: appendPayloadValidator(&EvaluationResultPayload{}, validEvaluationResult),
 		ExecutionEventSchema:   appendPayloadValidator(&executionEventPayload{}, validExecutionEvent),
 		TaskStatusSchema:       appendPayloadValidator(&TaskStatusPayload{}, validTaskStatus),
+		TaskEventSchema:        appendPayloadValidator(&TaskEventPayload{}, validTaskEvent),
 		ApprovalSchema:         appendPayloadValidator(&ApprovalPayload{}, validApproval),
 	}
 }
@@ -328,6 +329,9 @@ func builtinMessageSchemas() map[string]PayloadValidator {
 func (s *Service) normalizeEnvelope(in *MessageEnvelope, body string) (*MessageEnvelope, error) {
 	if in == nil {
 		return nil, nil
+	}
+	if in.Schema == TaskEventSchema {
+		return nil, Invalidf("task events are server-authored")
 	}
 	raw, err := json.Marshal(in)
 	if err != nil || len(raw) > 65536 || len(in.RecipientSessionIDs) > 64 || len(in.RecipientInstances) > 64 {

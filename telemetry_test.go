@@ -21,7 +21,7 @@ func TestExecutionEventValidationAndReplay(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	messages, err := f.svc.ReplayMessages(ctx, f.admin.Token, f.context.ID, 0, 10)
+	messages, err := f.svc.ReplayMessages(ctx, f.admin.Token, f.context.ID, 0, 10, MessageFilters{Schema: ExecutionEventSchema})
 	if err != nil || len(messages) != 1 || !sameEnvelope(messages[0].Envelope, message.Envelope) {
 		t.Fatalf("execution event replay: %v %v", messages, err)
 	}

@@ -73,6 +73,9 @@ func TestBuiltinPayloadKeysAreCaseSensitive(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, d := range descriptors {
+		if d.ServerAuthored {
+			continue
+		}
 		t.Run(d.ID, func(t *testing.T) {
 			for i, example := range d.Examples {
 				env := example.Envelope

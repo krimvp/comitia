@@ -16,10 +16,13 @@ const (
 	TaskPending   TaskStatus = "pending"
 	TaskLeased    TaskStatus = "leased"
 	TaskCompleted TaskStatus = "completed"
+	TaskFailed    TaskStatus = "failed"
+	TaskCancelled TaskStatus = "cancelled"
 )
 
 type Task struct {
 	ID, ContextID, Title, Body string
+	OutcomeReason              string `json:"outcome_reason,omitempty"`
 	Status                     TaskStatus
 	LeaseOwnerSessionID        string
 	LeaseVersion               int64
@@ -81,6 +84,7 @@ type TaskWriteStore interface {
 
 func (s *Service) CreateTask(ctx context.Context, raw, cid string, in TaskInput) (Task, error) {
 	var t Task
+	eventContext := ""
 	if e := validOperationID(in.OperationID); e != nil {
 		return t, e
 	}
@@ -106,11 +110,16 @@ func (s *Service) CreateTask(ctx context.Context, raw, cid string, in TaskInput)
 		if e := w.PutTask(t); e != nil {
 			return e
 		}
+		if e := putTaskEvent(w, a.session.ID, t, "created", ""); e != nil {
+			return e
+		}
+		eventContext = t.ContextID
 		return putTaskReceipt(w, a.session.ID, in.OperationID, fingerprint, t)
 	})
 	if e != nil {
 		return Task{}, e
 	}
+	s.notifyTaskEvent(eventContext)
 	return t, e
 }
 func (s *Service) GetTask(ctx context.Context, raw, id string) (Task, error) {
@@ -137,8 +146,8 @@ func (s *Service) ListTasks(ctx context.Context, raw, cid string, status TaskSta
 	if limit < 1 || limit > 1000 {
 		return nil, Invalidf("limit must be between 1 and 1000")
 	}
-	if status != "" && status != TaskPending && status != TaskLeased && status != TaskCompleted {
-		return nil, Invalidf("status must be pending, leased or completed")
+	if !validTaskStatusFilter(status) {
+		return nil, Invalidf("status must be pending, leased, completed, failed or cancelled")
 	}
 	e := s.store.View(ctx, func(r ReadStore) error {
 		if _, _, e := s.require(r, raw, cid, PermissionRead); e != nil {
@@ -161,6 +170,7 @@ func (s *Service) ClaimTask(ctx context.Context, raw, taskID string, lease time.
 // A retry rotates the token while the recorded lease is still current.
 func (s *Service) ClaimTaskWithOperation(ctx context.Context, raw, taskID string, lease time.Duration, operationID string, instance ...AgentInstance) (TaskClaim, error) {
 	var c TaskClaim
+	eventContext := ""
 	if e := validOperationID(operationID); e != nil {
 		return c, e
 	}
@@ -193,7 +203,7 @@ func (s *Service) ClaimTaskWithOperation(ctx context.Context, raw, taskID string
 			return e
 		}
 		now := s.now().UTC()
-		if t.Status == TaskCompleted {
+		if terminalTaskStatus(t.Status) {
 			return ErrConflict
 		}
 		if t.LeaseExpiresAt != nil && t.LeaseExpiresAt.After(now) {
@@ -205,6 +215,7 @@ func (s *Service) ClaimTaskWithOperation(ctx context.Context, raw, taskID string
 				return ErrConflict
 			}
 		}
+		previous := t.Status
 		t.Status = TaskLeased
 		t.LeaseOwnerSessionID = a.session.ID
 		t.LeaseOwnerInstance = owner
@@ -219,11 +230,16 @@ func (s *Service) ClaimTaskWithOperation(ctx context.Context, raw, taskID string
 		if e := w.PutTask(t); e != nil {
 			return e
 		}
+		if e := putTaskEvent(w, a.session.ID, t, "claimed", previous); e != nil {
+			return e
+		}
+		eventContext = t.ContextID
 		return putTaskReceipt(w, a.session.ID, operationID, fingerprint, c.Task)
 	})
 	if e != nil {
 		return TaskClaim{}, e
 	}
+	s.notifyTaskEvent(eventContext)
 	return c, e
 }
 func (s *Service) RenewClaim(ctx context.Context, raw, taskID, claimToken string, version int64, lease time.Duration) (TaskClaim, error) {
@@ -238,6 +254,7 @@ func (s *Service) CompleteTask(ctx context.Context, raw, taskID, claimToken stri
 }
 func (s *Service) changeLease(ctx context.Context, raw, taskID, claimToken string, version int64, lease time.Duration, complete bool, operationID string) (TaskClaim, error) {
 	var c TaskClaim
+	eventContext := ""
 	if e := validOperationID(operationID); e != nil {
 		return c, e
 	}
@@ -283,11 +300,20 @@ func (s *Service) changeLease(ctx context.Context, raw, taskID, claimToken strin
 		if e := w.PutTask(t); e != nil {
 			return e
 		}
+		kind := "renewed"
+		if complete {
+			kind = "completed"
+		}
+		if e := putTaskEvent(w, a.session.ID, t, kind, TaskLeased); e != nil {
+			return e
+		}
+		eventContext = t.ContextID
 		return putTaskReceipt(w, a.session.ID, operationID, fingerprint, c.Task)
 	})
 	if e != nil {
 		return TaskClaim{}, e
 	}
+	s.notifyTaskEvent(eventContext)
 	return c, e
 }
 
@@ -330,6 +356,7 @@ func leaseExpiry(now time.Time, lease time.Duration, holder Session) time.Time {
 // expired lease is allowed and just tidies the task.
 func (s *Service) ReleaseTask(ctx context.Context, raw, taskID, claimToken string, version int64) (Task, error) {
 	var t Task
+	eventContext := ""
 	e := s.store.Update(ctx, func(w WriteStore) error {
 		found, e := s.privateTask(w, raw, taskID)
 		if e != nil {
@@ -338,7 +365,7 @@ func (s *Service) ReleaseTask(ctx context.Context, raw, taskID, claimToken strin
 		a, _, e := s.require(w, raw, found.ContextID, PermissionClaim)
 		holder := e == nil && found.LeaseOwnerSessionID == a.session.ID && claimToken != "" && subtle.ConstantTimeCompare([]byte(found.LeaseTokenHash), []byte(tokenHash(claimToken))) == 1
 		if !holder {
-			if _, _, e = s.require(w, raw, found.ContextID, PermissionAdmin); e != nil {
+			if a, _, e = s.require(w, raw, found.ContextID, PermissionAdmin); e != nil {
 				return e
 			}
 		}
@@ -357,11 +384,19 @@ func (s *Service) ReleaseTask(ctx context.Context, raw, taskID, claimToken strin
 		found.LeaseVersion++
 		found.UpdatedAt = now
 		t = found
-		return w.PutTask(found)
+		if e := w.PutTask(found); e != nil {
+			return e
+		}
+		if e := putTaskEvent(w, a.session.ID, found, "released", TaskLeased); e != nil {
+			return e
+		}
+		eventContext = found.ContextID
+		return nil
 	})
 	if e != nil {
 		return Task{}, e
 	}
+	s.notifyTaskEvent(eventContext)
 	return t, nil
 }
 

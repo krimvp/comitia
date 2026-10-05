@@ -25,7 +25,7 @@ func TestCLIHelpProcess(t *testing.T) {
 }
 
 func TestHelpSucceedsBeforeOpeningStorageOrValidatingRuntime(t *testing.T) {
-	commands := strings.Fields("server-info bootstrap delegate revoke workspace-create context-create context-list context-get context-children context-archive reference-add grant grant-revoke credential-check send participants replay wait watch ack cursor instances instance-resume task-create task-get task-list task-claim task-renew task-complete task-release serve mcp mcp-http")
+	commands := strings.Fields("server-info bootstrap delegate revoke workspace-create context-create context-list context-get context-children context-archive reference-add grant grant-revoke credential-check send participants replay wait watch ack cursor instances instance-resume task-create task-get task-list task-claim task-renew task-complete task-release task-fail task-cancel serve mcp mcp-http")
 	for _, command := range append([]string{""}, commands...) {
 		t.Run(command, func(t *testing.T) {
 			dir := t.TempDir()
