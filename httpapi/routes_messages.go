@@ -13,6 +13,22 @@ import (
 
 func (h *handler) messageRoutes() map[string]endpoint {
 	return map[string]endpoint{
+		"messages/schemas/list": typedEndpoint(func(ctx context.Context, token string, _ emptyRequest) (messageSchemasResult, error) {
+			api, ok := h.api.(comitia.MessageSchemaAPI)
+			if !ok {
+				return messageSchemasResult{}, comitia.Invalidf("message schema discovery unsupported by API")
+			}
+			v, err := api.ListMessageSchemas(ctx, token)
+			return messageSchemasResult{v}, err
+		}),
+		"messages/schemas/get": typedEndpoint(func(ctx context.Context, token string, q messageSchemaRequest) (messageSchemaResult, error) {
+			api, ok := h.api.(comitia.MessageSchemaAPI)
+			if !ok {
+				return messageSchemaResult{}, comitia.Invalidf("message schema discovery unsupported by API")
+			}
+			v, err := api.GetMessageSchema(ctx, token, q.Schema)
+			return messageSchemaResult{&v}, err
+		}),
 		"participants/list": typedEndpoint(func(ctx context.Context, token string, q participantsRequest) (listParticipantsResult, error) {
 			limit, err := listLimit(q.Limit)
 			if err != nil {
@@ -87,17 +103,17 @@ func (h *handler) messageRoutes() map[string]endpoint {
 }
 
 func (q replayRequest) messageFilters() comitia.MessageFilters {
-	f := comitia.MessageFilters{MaxBytes: q.MaxBytes, ForInstance: q.ForInstance, FromInstance: q.FromInstance, TaskID: q.TaskID, Schema: q.Schema}
+	f := comitia.MessageFilters{MaxBytes: q.MaxBytes, StrictRecipients: q.StrictRecipients, ForInstance: q.ForInstance, FromInstance: q.FromInstance, TaskID: q.TaskID, Schema: q.Schema}
 	if q.AgentInstance != "" {
 		f.AgentInstance = &q.AgentInstance
 	}
 	return f
 }
 func (q replayRequest) wait(seconds float64) waitRequest {
-	return waitRequest{ContextID: q.ContextID, After: q.After, MaxBytes: q.MaxBytes, Page: q.Page, AgentInstance: q.AgentInstance, ForInstance: q.ForInstance, FromInstance: q.FromInstance, TaskID: q.TaskID, Schema: q.Schema, TimeoutSeconds: &seconds}
+	return waitRequest{ContextID: q.ContextID, After: q.After, MaxBytes: q.MaxBytes, Page: q.Page, AgentInstance: q.AgentInstance, ForInstance: q.ForInstance, FromInstance: q.FromInstance, TaskID: q.TaskID, Schema: q.Schema, TimeoutSeconds: &seconds, StrictRecipients: q.StrictRecipients}
 }
 func (q waitRequest) replay() replayRequest {
-	return replayRequest{ContextID: q.ContextID, After: q.After, MaxBytes: q.MaxBytes, Page: q.Page, AgentInstance: q.AgentInstance, ForInstance: q.ForInstance, FromInstance: q.FromInstance, TaskID: q.TaskID, Schema: q.Schema}
+	return replayRequest{ContextID: q.ContextID, After: q.After, MaxBytes: q.MaxBytes, Page: q.Page, AgentInstance: q.AgentInstance, ForInstance: q.ForInstance, FromInstance: q.FromInstance, TaskID: q.TaskID, Schema: q.Schema, StrictRecipients: q.StrictRecipients}
 }
 
 // A nil AgentInstance uses the client's default presence instance.
@@ -109,7 +125,7 @@ func (c *Client) messageReadRequest(cid string, after int64, filters []comitia.M
 	var instances []string
 	if len(filters) == 1 {
 		f := filters[0]
-		q.MaxBytes = f.MaxBytes
+		q.MaxBytes, q.StrictRecipients = f.MaxBytes, f.StrictRecipients
 		q.ForInstance, q.FromInstance, q.TaskID, q.Schema = f.ForInstance, f.FromInstance, f.TaskID, f.Schema
 		if f.AgentInstance != nil {
 			instances = []string{*f.AgentInstance}
@@ -118,6 +134,42 @@ func (c *Client) messageReadRequest(cid string, after int64, filters []comitia.M
 	var err error
 	q.AgentInstance, err = c.InstanceDefaults.ID(instances...)
 	return q, err
+}
+
+// Servers before strict recipient selection reject the member. Never retry
+// without it: that would silently widen the selected recipients.
+func strictRecipientsUnsupported(q replayRequest, err error) error {
+	if q.StrictRecipients && errors.Is(err, comitia.ErrInvalid) && strings.Contains(err.Error(), `unknown field "strict_recipients"`) {
+		return fmt.Errorf("%w: strict_recipients unsupported by this server", comitia.ErrInvalid)
+	}
+	return err
+}
+
+// Servers before schema discovery have no route. List never reports a missing
+// record, so it identifies the server; get reuses it to disambiguate.
+func (c *Client) ListMessageSchemas(ctx context.Context, token string) ([]comitia.MessageSchemaDescriptor, error) {
+	var out messageSchemasResult
+	err := c.call(ctx, token, "messages/schemas/list", emptyRequest{}, &out)
+	if errors.Is(err, comitia.ErrNotFound) {
+		return nil, fmt.Errorf("%w: message schema discovery unsupported by this server", comitia.ErrInvalid)
+	}
+	if err != nil {
+		return nil, err
+	}
+	return out.MessageSchemas, nil
+}
+func (c *Client) GetMessageSchema(ctx context.Context, token, schema string) (comitia.MessageSchemaDescriptor, error) {
+	var out messageSchemaResult
+	err := c.call(ctx, token, "messages/schemas/get", messageSchemaRequest{schema}, &out)
+	if errors.Is(err, comitia.ErrNotFound) {
+		if _, listErr := c.ListMessageSchemas(ctx, token); listErr != nil {
+			return comitia.MessageSchemaDescriptor{}, listErr
+		}
+	}
+	if err = requiredResult(err, out.MessageSchema); err != nil {
+		return comitia.MessageSchemaDescriptor{}, err
+	}
+	return *out.MessageSchema, nil
 }
 func (c *Client) AppendMessage(ctx context.Context, token, id string, input comitia.MessageInput) (comitia.Message, error) {
 	input.AgentInstance = c.InstanceDefaults.Message(input.AgentInstance)
@@ -138,7 +190,7 @@ func (c *Client) ReplayMessages(ctx context.Context, token, id string, after int
 	}
 	q.Limit = ptr(limit)
 	var out readMessagesResult
-	err = c.call(ctx, token, "messages/replay", q, &out)
+	err = strictRecipientsUnsupported(q, c.call(ctx, token, "messages/replay", q, &out))
 	if err = requiredResult(err, out.Messages); err != nil {
 		return nil, err
 	}
@@ -156,7 +208,7 @@ func (c *Client) WaitMessages(ctx context.Context, token, id string, after int64
 		return nil, err
 	}
 	var out readMessagesResult
-	err = c.call(ctx, token, "messages/wait", q.wait(timeout.Seconds()), &out)
+	err = strictRecipientsUnsupported(q, c.call(ctx, token, "messages/wait", q.wait(timeout.Seconds()), &out))
 	if err = requiredResult(err, out.Messages); err != nil {
 		return nil, err
 	}
@@ -169,7 +221,7 @@ func (c *Client) ReplayMessagesPage(ctx context.Context, token, id string, after
 	}
 	q.Limit, q.Page = ptr(limit), true
 	var out readMessagesResult
-	err = c.call(ctx, token, "messages/replay", q, &out)
+	err = strictRecipientsUnsupported(q, c.call(ctx, token, "messages/replay", q, &out))
 	if err = requiredResult(err, out.Page); err != nil {
 		return comitia.MessagePage{}, err
 	}
@@ -188,7 +240,7 @@ func (c *Client) WaitMessagesPage(ctx context.Context, token, id string, after i
 	}
 	q.Page = true
 	var out readMessagesResult
-	err = c.call(ctx, token, "messages/wait", q.wait(timeout.Seconds()), &out)
+	err = strictRecipientsUnsupported(q, c.call(ctx, token, "messages/wait", q.wait(timeout.Seconds()), &out))
 	if err = requiredResult(err, out.Page); err != nil {
 		return comitia.MessagePage{}, err
 	}

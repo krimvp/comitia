@@ -47,6 +47,8 @@ type Config struct {
 	Clock               Clock
 	BootstrapCredential string
 	MessageSchemas      map[string]PayloadValidator
+	// MessageSchemaDescriptors documents extension validators for runtime discovery.
+	MessageSchemaDescriptors map[string]MessageSchemaDescriptor
 	// Top-level contexts have depth 0. Zero values use defaults (3 and 20).
 	MaxContextDepth          int
 	MaxChildContextsPerGrant int

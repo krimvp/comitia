@@ -311,16 +311,17 @@ type resumeRequest struct {
 }
 
 type replayRequest struct {
-	ContextID     string `json:"context_id"`
-	After         int64  `json:"after,omitempty"`
-	MaxBytes      int    `json:"max_bytes,omitempty"`
-	Page          bool   `json:"page,omitempty"`
-	AgentInstance string `json:"agent_instance,omitempty"`
-	ForInstance   string `json:"for_instance,omitempty"`
-	FromInstance  string `json:"from_instance,omitempty"`
-	TaskID        string `json:"task_id,omitempty"`
-	Schema        string `json:"schema,omitempty"`
-	Limit         *int   `json:"limit,omitempty"`
+	ContextID        string `json:"context_id"`
+	After            int64  `json:"after,omitempty"`
+	MaxBytes         int    `json:"max_bytes,omitempty"`
+	Page             bool   `json:"page,omitempty"`
+	AgentInstance    string `json:"agent_instance,omitempty"`
+	ForInstance      string `json:"for_instance,omitempty"`
+	FromInstance     string `json:"from_instance,omitempty"`
+	TaskID           string `json:"task_id,omitempty"`
+	Schema           string `json:"schema,omitempty"`
+	Limit            *int   `json:"limit,omitempty"`
+	StrictRecipients bool   `json:"strict_recipients,omitempty"`
 }
 
 type waitRequest struct {
@@ -334,6 +335,13 @@ type waitRequest struct {
 	TaskID         string   `json:"task_id,omitempty"`
 	Schema         string   `json:"schema,omitempty"`
 	TimeoutSeconds *float64 `json:"timeout_seconds,omitempty"`
+	// StrictRecipients is omitted unless set, so older servers still accept
+	// ordinary reads; when set, they reject it instead of widening results.
+	StrictRecipients bool `json:"strict_recipients,omitempty"`
+}
+
+type messageSchemaRequest struct {
+	Schema string `json:"schema"`
 }
 
 type principalResult struct {
@@ -399,6 +407,15 @@ type listTasksResult struct {
 type listParticipantsResult struct {
 	Participants    *[]participantDTO   `json:"participants,omitempty"`
 	ParticipantPage *participantPageDTO `json:"participant_page,omitempty"`
+}
+
+// Schema descriptors were introduced with snake_case JSON names, so both
+// representations use the same record spelling.
+type messageSchemasResult struct {
+	MessageSchemas []comitia.MessageSchemaDescriptor `json:"message_schemas"`
+}
+type messageSchemaResult struct {
+	MessageSchema *comitia.MessageSchemaDescriptor `json:"message_schema"`
 }
 type readMessagesResult struct {
 	Messages *[]messageDTO `json:"messages,omitempty"`

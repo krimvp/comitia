@@ -11,26 +11,28 @@ import (
 // ordering, and idempotent ingestion.
 const ExecutionEventSchema = "comitia.execution-event.v1"
 
+type executionEventPayload struct {
+	RunID             string            `json:"run_id"`
+	EventSequence     int64             `json:"event_sequence"`
+	Kind              string            `json:"kind"`
+	OccurredAt        string            `json:"occurred_at,omitempty"`
+	Provider          string            `json:"provider,omitempty"`
+	Model             string            `json:"model,omitempty"`
+	ToolName          string            `json:"tool_name,omitempty"`
+	InputTokens       *int64            `json:"input_tokens,omitempty"`
+	OutputTokens      *int64            `json:"output_tokens,omitempty"`
+	CachedInputTokens *int64            `json:"cached_input_tokens,omitempty"`
+	ReasoningTokens   *int64            `json:"reasoning_tokens,omitempty"`
+	DurationMS        *int64            `json:"duration_ms,omitempty"`
+	CostMicros        *int64            `json:"cost_micros,omitempty"`
+	Currency          string            `json:"currency,omitempty"`
+	CostSource        string            `json:"cost_source,omitempty"`
+	Status            string            `json:"status,omitempty"`
+	Dimensions        map[string]string `json:"dimensions,omitempty"`
+}
+
 func validExecutionEvent(raw json.RawMessage) error {
-	var p struct {
-		RunID             string            `json:"run_id"`
-		EventSequence     int64             `json:"event_sequence"`
-		Kind              string            `json:"kind"`
-		OccurredAt        string            `json:"occurred_at,omitempty"`
-		Provider          string            `json:"provider,omitempty"`
-		Model             string            `json:"model,omitempty"`
-		ToolName          string            `json:"tool_name,omitempty"`
-		InputTokens       *int64            `json:"input_tokens,omitempty"`
-		OutputTokens      *int64            `json:"output_tokens,omitempty"`
-		CachedInputTokens *int64            `json:"cached_input_tokens,omitempty"`
-		ReasoningTokens   *int64            `json:"reasoning_tokens,omitempty"`
-		DurationMS        *int64            `json:"duration_ms,omitempty"`
-		CostMicros        *int64            `json:"cost_micros,omitempty"`
-		Currency          string            `json:"currency,omitempty"`
-		CostSource        string            `json:"cost_source,omitempty"`
-		Status            string            `json:"status,omitempty"`
-		Dimensions        map[string]string `json:"dimensions,omitempty"`
-	}
+	var p executionEventPayload
 	if err := strictPayload(raw, &p); err != nil {
 		return err
 	}

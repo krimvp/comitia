@@ -131,6 +131,7 @@ Empty values disable a filter; all nonempty filters must match.
 | Field | Match |
 | --- | --- |
 | `for_instance` | Envelope `recipient_instances` contains this exact ID; or instance recipients are absent/empty and `recipient_session_ids` contains the caller's authenticated session; or both recipient lists are absent/empty (including legacy messages without an envelope). Session-addressed messages without instance recipients reach every instance of that session. |
+| `strict_recipients` | Opt-in boolean, default `false`; requires `for_instance`. Every nonempty recipient list must match: session recipients must contain the authenticated caller session and instance recipients must contain `for_instance`. Empty lists are unrestricted; broadcasts and legacy messages still match. |
 | `from_instance` | The message's self-reported `agent_instance.id` equals this exact ID. Legacy senders without a claim do not match. |
 | `task_id` | Envelope `task_id` equals this exact ID. |
 | `schema` | Envelope `schema` equals this exact versioned name. |
@@ -143,7 +144,13 @@ convenience selectors over the same shared context log. They neither grant
 access nor restrict what an authorized reader can obtain with another replay.
 `for_instance` uses the authenticated caller session for session-only messages.
 If instance recipients are present, the exact instance match takes precedence;
-a consumer targeting one session should check any session recipients separately.
+a consumer targeting one session can set `strict_recipients: true` (CLI
+`--strict-recipients`) to apply both lists. A strict replay is still a convenience
+selector over the context log; another authorized reader can replay without it.
+The HTTP Client sends `strict_recipients` only when it is set, so ordinary reads
+still work against older servers. A strict read against a server that rejects
+the member returns `ErrInvalid` ("strict_recipients unsupported by this
+server"); the Client never retries without it, because that would widen results.
 
 Replay keeps its existing output, ordering, exclusive `after` cursor and
 1–1000 `limit`. Filtering happens **in SQL before ORDER BY/LIMIT**, so a page
@@ -153,7 +160,7 @@ there are currently no later matches. Skipped sequences need no separate scan
 cursor. The default output shape, including empty-result serialization, is unchanged.
 
 ```go
-filters := comitia.MessageFilters{ForInstance: "issue-3-worker"}
+filters := comitia.MessageFilters{ForInstance: "issue-3-worker", StrictRecipients: true}
 messages, err := svc.ReplayMessages(ctx, credential, contextID, after, 100, filters)
 messages, err = svc.WaitMessages(ctx, credential, contextID, after, 30*time.Second, filters)
 ```
@@ -352,6 +359,34 @@ New messages validate all task/reply references and recipients in the same
 transaction as insertion. Revoked/expired sessions, names used as IDs,
 cross-context references, unknown schemas and invalid payloads are rejected.
 
+Runtime discovery returns all registered names, including configured extensions:
+MCP `list_message_schemas` takes `{}` and `get_message_schema` takes
+`{"schema":"comitia.review-request.v1"}`. HTTP POST
+`/v1/messages/schemas/list` takes `{}` and `/v1/messages/schemas/get` takes the
+same schema argument, returning `message_schemas` and `message_schema`,
+respectively. The optional Go `MessageSchemaAPI` supplies `ListMessageSchemas`
+and `GetMessageSchema`. Both require a valid session, independent of context
+grants; descriptors contain contracts and illustrative IDs, never context data.
+Unknown IDs return `ErrNotFound`; adapters whose API lacks the optional
+capability return an explicit unsupported error. List order is lexicographic.
+Descriptor fields use the same snake_case names in legacy and canonical HTTP
+responses. Against a server without these routes, the HTTP Client returns
+`ErrInvalid` ("message schema discovery unsupported by this server") instead of
+`ErrNotFound`, so a missing route is never mistaken for an unknown schema.
+
+Each descriptor includes `id`, a draft 2020-12 `payload_schema` for built-ins,
+`body_required`, `task_required`, `task_or_artifact_refs`, semantic
+`requirements`, and `examples` with body/envelope pairs. JSON Schema describes
+payload shape; requirements describe additional checks such as exact artifact
+references, byte limits and conditional evidence. The registered validator is
+authoritative: JSON Schema may be looser for documented semantic checks, such as
+UTF-8 byte lengths, RFC3339 parsing and uniqueness after trimming criterion
+names. Go integer fields also reject decimal/exponent JSON lexemes such as `1.0`
+even though JSON Schema calls them integers. Supported optional null values
+are included in the schemas. Replace example task IDs with real tasks in the destination
+context before sending. Built-in IDs and their JSON Schema `$id` URNs include
+the version; discovery reflects the running service's registry.
+
 | Schema | Task required | Required payload fields |
 | --- | --- | --- |
 | `comitia.discussion.v1` | No | Empty object `{}`; nonblank message body required |
@@ -368,6 +403,13 @@ cross-context references, unknown schemas and invalid payloads are rejected.
 
 Verification status is `passed`, `failed`, or `not_run`. Passed/failed results
 require nonempty `evidence_refs`; not-run results require a nonblank `reason`.
+Payload keys are case-sensitive; mis-cased keys are rejected since PR #89
+(issue #64), including nested fields such as evaluation `grader.id` and
+`criteria[].name`. This deliberately tightens validation of new appends;
+duplicate keys at every object level are also rejected for built-in appends.
+Previously stored messages are neither rewritten nor revalidated during replay.
+Evaluation parsers and reports retain historical case-insensitive decoding and
+duplicate-field merging, with their existing semantic validation.
 Unknown built-in payload fields are rejected. References are nonempty strings,
 not artifacts fetched or verified by Comitia.
 
@@ -377,7 +419,9 @@ rejected. A given `task_id` must still name a task in the same context. Without
 a `task_id`, every artifact ref must be exact by the same rule as approvals
 (below): `main` or `git:abcdef1` is refused, `git:<full sha>` or an opaque
 lowercase `scheme:value` such as `build:1842` is accepted. With a `task_id`,
-refs stay free-form nonempty strings.
+refs stay free-form nonempty strings. A task-backed verification may omit
+`artifact_refs` or set it to `null`; a supplied array must be nonempty and contain
+nonblank strings. Taskless verification still requires exact artifact refs.
 
 These are structured claims, **not proof of correctness**. A verification-result
 message does not accept work, and a work-submitted message does not complete a
@@ -542,11 +586,24 @@ reject unknown envelope fields.
 
 Embedded applications can register additional versioned names and payload
 validators in `Config.MessageSchemas`, a map of names to `PayloadValidator`
-functions. Built-ins under `comitia.` cannot be replaced. Custom schemas still
+functions. Add matching entries in `Config.MessageSchemaDescriptors` to expose
+extension payload JSON Schemas, requirements and examples. Descriptor IDs default
+to their map keys; supplied IDs must match. Descriptors must describe an object,
+be self-contained (external references are not loaded), and provide at least one
+example accepted by both JSON Schema and the registered validator. Declared
+body/task requirements also apply to sends. New copies descriptor data; discovery
+returns copies, so later caller mutations cannot change the registry. Legacy
+validator-only registrations remain supported and discoverable with `opaque: true`,
+a generic object schema and no examples, since arbitrary validator functions
+cannot be reverse-engineered into field contracts. Supply descriptors for complete
+extension discovery. Built-ins under `comitia.` cannot be replaced. Custom schemas still
 receive the common recipient, context, reference, size and deduplication checks.
 Payload validators must be safe for concurrent calls; they should be pure and
-must return an error for invalid data. Registration is trusted application code,
-not an API that agents can use to weaken validation. The stock binary registers
+must return an error for invalid data. Custom validators retain their own key
+matching rules, including those using the historical `strictPayload` decoder.
+The canonical-key and duplicate-key append checks apply only to built-ins;
+dictionary keys remain caller data. Registration is
+trusted application code, not an API that agents can use to weaken validation. The stock binary registers
 the built-ins only.
 
 SQLite adds a `message_envelopes` side table atomically updated with the original
@@ -579,7 +636,9 @@ Custom API/store implementations must accept optional `MessageFilters` in
 `ReplayMessages`/`Messages` and implement `API.WaitMessages`. Existing Go replay
 calls without filters remain valid. The `Messages` store method additionally
 receives the authenticated caller session ID after the context ID, so it can
-match session-addressed messages.
+match session-addressed messages. When `StrictRecipients` is true it must also
+match session recipients for instance-addressed messages; empty lists impose no
+condition.
 A custom store must filter before limiting (or provide equivalent paging) while
 the service retains the read-grant check.
 A `ReadStore` may additionally implement the exported optional `MessageScanStore`:

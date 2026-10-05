@@ -192,6 +192,7 @@ func messageInstance(cfg config, fs *flag.FlagSet, id, label string) *comitia.Ag
 func messageFilterFlags(fs *flag.FlagSet) *comitia.MessageFilters {
 	f := new(comitia.MessageFilters)
 	fs.StringVar(&f.ForInstance, "for-instance", "", "recipient instance, caller session with no instance recipients, or broadcast")
+	fs.BoolVar(&f.StrictRecipients, "strict-recipients", false, "require both recipient lists to match caller session and --for-instance")
 	fs.StringVar(&f.FromInstance, "from-instance", "", "self-reported sender instance")
 	fs.StringVar(&f.TaskID, "task-id", "", "envelope task ID")
 	fs.StringVar(&f.Schema, "schema", "", "exact envelope schema ID")

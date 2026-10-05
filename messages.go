@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"reflect"
 	"sort"
 	"strings"
 	"time"
@@ -52,6 +53,9 @@ type MessageFilters struct {
 	FromInstance string `json:"from_instance,omitempty"`
 	TaskID       string `json:"task_id,omitempty"`
 	Schema       string `json:"schema,omitempty"`
+	// StrictRecipients requires both nonempty recipient lists to match.
+	// It is opt-in and requires ForInstance.
+	StrictRecipients bool `json:"strict_recipients,omitempty"`
 	// AgentInstance names the caller's own instance for presence; it never
 	// narrows results. Adapters apply configured defaults when it is nil.
 	AgentInstance *string `json:"agent_instance,omitempty"`
@@ -95,6 +99,111 @@ func strictPayload(raw json.RawMessage, target any) error {
 	return nil
 }
 
+// Append validation inspects every member before encoding/json can merge duplicate
+// objects or accept case-insensitive field aliases. Historical readers use strictPayload.
+func strictAppendPayload(raw json.RawMessage, target any) error {
+	if err := exactPayloadFields(raw, reflect.TypeOf(target)); err != nil {
+		return err
+	}
+	return strictPayload(raw, target)
+}
+
+func appendPayloadValidator(target any, validator PayloadValidator) PayloadValidator {
+	return func(raw json.RawMessage) error {
+		if err := exactPayloadFields(raw, reflect.TypeOf(target)); err != nil {
+			return err
+		}
+		return validator(raw)
+	}
+}
+
+func exactPayloadFields(raw json.RawMessage, target reflect.Type) error {
+	d := json.NewDecoder(bytes.NewReader(raw))
+	d.UseNumber()
+	if err := scanPayloadValue(d, target); err != nil {
+		return err
+	}
+	if _, err := d.Token(); err != io.EOF {
+		return Invalidf("payload must contain one JSON value")
+	}
+	return nil
+}
+
+func scanPayloadValue(d *json.Decoder, target reflect.Type) error {
+	for target != nil && target.Kind() == reflect.Pointer {
+		target = target.Elem()
+	}
+	token, err := d.Token()
+	if err != nil {
+		return InvalidJSON(err, "payload")
+	}
+	switch token {
+	case json.Delim('{'):
+		var fields map[string]reflect.Type
+		if target != nil && target.Kind() == reflect.Struct {
+			fields = make(map[string]reflect.Type, target.NumField())
+			for i := 0; i < target.NumField(); i++ {
+				field := target.Field(i)
+				if field.PkgPath != "" {
+					continue
+				}
+				name, _, _ := strings.Cut(field.Tag.Get("json"), ",")
+				if name == "-" {
+					continue
+				}
+				if name == "" {
+					name = field.Name
+				}
+				fields[name] = field.Type
+			}
+		}
+		seen := make(map[string]bool)
+		for d.More() {
+			token, err := d.Token()
+			if err != nil {
+				return InvalidJSON(err, "payload")
+			}
+			key, ok := token.(string)
+			if !ok {
+				return Invalidf("payload object key must be a string")
+			}
+			if seen[key] {
+				return Invalidf("payload: duplicate key %q", key)
+			}
+			seen[key] = true
+			var child reflect.Type
+			if fields != nil {
+				child, ok = fields[key]
+				if !ok {
+					return Invalidf("payload: unknown field %q; keys are case-sensitive", key)
+				}
+			} else if target != nil && target.Kind() == reflect.Map {
+				child = target.Elem()
+			}
+			if err := scanPayloadValue(d, child); err != nil {
+				return err
+			}
+		}
+		if _, err := d.Token(); err != nil {
+			return InvalidJSON(err, "payload")
+		}
+	case json.Delim('['):
+		var child reflect.Type
+		if target != nil && (target.Kind() == reflect.Slice || target.Kind() == reflect.Array) {
+			child = target.Elem()
+		}
+		for d.More() {
+			if err := scanPayloadValue(d, child); err != nil {
+				return err
+			}
+		}
+		if _, err := d.Token(); err != nil {
+			return InvalidJSON(err, "payload")
+		}
+	}
+	return nil
+}
+
 func nonempty(values []string) bool {
 	if len(values) == 0 {
 		return false
@@ -109,13 +218,13 @@ func nonempty(values []string) bool {
 
 func builtinMessageSchemas() map[string]PayloadValidator {
 	return map[string]PayloadValidator{
-		"comitia.discussion.v1": func(raw json.RawMessage) error { return strictPayload(raw, &struct{}{}) },
+		"comitia.discussion.v1": func(raw json.RawMessage) error { return strictAppendPayload(raw, &struct{}{}) },
 		"comitia.assignment.v1": func(raw json.RawMessage) error {
 			var p struct {
 				Instructions       string   `json:"instructions"`
 				AcceptanceCriteria []string `json:"acceptance_criteria"`
 			}
-			if err := strictPayload(raw, &p); err != nil {
+			if err := strictAppendPayload(raw, &p); err != nil {
 				return err
 			}
 			if strings.TrimSpace(p.Instructions) == "" || !nonempty(p.AcceptanceCriteria) {
@@ -128,7 +237,7 @@ func builtinMessageSchemas() map[string]PayloadValidator {
 				ArtifactRefs []string `json:"artifact_refs"`
 				Checks       []string `json:"checks"`
 			}
-			if err := strictPayload(raw, &p); err != nil {
+			if err := strictAppendPayload(raw, &p); err != nil {
 				return err
 			}
 			if !nonempty(p.ArtifactRefs) || !nonempty(p.Checks) {
@@ -142,7 +251,7 @@ func builtinMessageSchemas() map[string]PayloadValidator {
 				Summary      string   `json:"summary"`
 				EvidenceRefs []string `json:"evidence_refs,omitempty"`
 			}
-			if err := strictPayload(raw, &p); err != nil {
+			if err := strictAppendPayload(raw, &p); err != nil {
 				return err
 			}
 			if strings.TrimSpace(p.Summary) == "" {
@@ -158,7 +267,7 @@ func builtinMessageSchemas() map[string]PayloadValidator {
 				Reason string   `json:"reason"`
 				Needs  []string `json:"needs"`
 			}
-			if err := strictPayload(raw, &p); err != nil {
+			if err := strictAppendPayload(raw, &p); err != nil {
 				return err
 			}
 			if strings.TrimSpace(p.Reason) == "" || !nonempty(p.Needs) {
@@ -171,7 +280,7 @@ func builtinMessageSchemas() map[string]PayloadValidator {
 				ArtifactRefs []string `json:"artifact_refs"`
 				Summary      string   `json:"summary"`
 			}
-			if err := strictPayload(raw, &p); err != nil {
+			if err := strictAppendPayload(raw, &p); err != nil {
 				return err
 			}
 			if !nonempty(p.ArtifactRefs) || strings.TrimSpace(p.Summary) == "" {
@@ -187,7 +296,7 @@ func builtinMessageSchemas() map[string]PayloadValidator {
 				ArtifactRefs []string `json:"artifact_refs,omitempty"`
 				Reason       string   `json:"reason,omitempty"`
 			}
-			if err := strictPayload(raw, &p); err != nil {
+			if err := strictAppendPayload(raw, &p); err != nil {
 				return err
 			}
 			if !nonempty(p.Checks) || p.ArtifactRefs != nil && !nonempty(p.ArtifactRefs) {
@@ -207,10 +316,10 @@ func builtinMessageSchemas() map[string]PayloadValidator {
 			}
 			return nil
 		},
-		EvaluationResultSchema: validEvaluationResult,
-		ExecutionEventSchema:   validExecutionEvent,
-		TaskStatusSchema:       validTaskStatus,
-		ApprovalSchema:         validApproval,
+		EvaluationResultSchema: appendPayloadValidator(&EvaluationResultPayload{}, validEvaluationResult),
+		ExecutionEventSchema:   appendPayloadValidator(&executionEventPayload{}, validExecutionEvent),
+		TaskStatusSchema:       appendPayloadValidator(&TaskStatusPayload{}, validTaskStatus),
+		ApprovalSchema:         appendPayloadValidator(&ApprovalPayload{}, validApproval),
 	}
 }
 
@@ -251,19 +360,14 @@ func (s *Service) normalizeEnvelope(in *MessageEnvelope, body string) (*MessageE
 	if err != nil {
 		return nil, Invalidf("payload must be valid JSON")
 	}
-	if out.Schema == "comitia.discussion.v1" && strings.TrimSpace(body) == "" {
-		return nil, Invalidf("body required for discussion schema")
+	descriptor := s.messageSchemaDescriptors[out.Schema]
+	if descriptor.BodyRequired && strings.TrimSpace(body) == "" {
+		return nil, Invalidf("body required for %s", out.Schema)
 	}
-	switch out.Schema {
-	case "comitia.assignment.v1", "comitia.review-request.v1", "comitia.blocker.v1", EvaluationResultSchema, ExecutionEventSchema:
-		if out.TaskID == "" {
-			return nil, fmt.Errorf("%w: task_id required", ErrInvalid)
-		}
-	case "comitia.work-submitted.v1", "comitia.verification-result.v1":
-		// Without a task, exact artifact refs must identify the work instead.
-		if out.TaskID != "" {
-			break
-		}
+	if descriptor.TaskRequired && out.TaskID == "" {
+		return nil, fmt.Errorf("%w: task_id required", ErrInvalid)
+	}
+	if descriptor.TaskOrArtifactRefs && out.TaskID == "" {
 		var p struct {
 			ArtifactRefs []string `json:"artifact_refs"`
 		}
@@ -275,9 +379,6 @@ func (s *Service) normalizeEnvelope(in *MessageEnvelope, body string) (*MessageE
 				return nil, fmt.Errorf("%w: artifact_refs must be exact without task_id", ErrInvalid)
 			}
 		}
-	}
-	if out.Schema == TaskStatusSchema && out.TaskID == "" {
-		return nil, fmt.Errorf("%w: task_id required", ErrInvalid)
 	}
 	sort.Strings(out.RecipientSessionIDs)
 	for i, id := range out.RecipientSessionIDs {

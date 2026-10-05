@@ -137,6 +137,7 @@ func FailureClass(err error) string {
 }
 
 var operationNames = map[string]string{
+	"messages/schemas/list": "list_message_schemas", "messages/schemas/get": "get_message_schema",
 	"messages/append": "send_message", "messages/replay": "replay_messages", "messages/wait": "wait_messages", "messages/ack": "ack_messages", "messages/cursor": "message_cursor", "participants/list": "list_participants",
 	"tasks/create": "create_task", "tasks/get": "get_task", "tasks/list": "list_tasks", "tasks/claim": "claim_task", "tasks/renew": "renew_task", "tasks/complete": "complete_task", "tasks/release": "release_task",
 	"instances/list": "list_instances", "instances/resume": "set_instance_resume",
