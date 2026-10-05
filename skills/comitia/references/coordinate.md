@@ -89,6 +89,17 @@ work, or `mine:true` for your live leases (configured instance when available).
 `owner_session` / `owner_instance` select live holders; keep filters fixed while
 paging. See [task discovery](https://github.com/krimvp/comitia/blob/main/docs/task-validation.md).
 
+With `task_claim_recovery` and a running `recover_claim` tool, a holder that lost
+its token can read `get_task`, then call `recover_claim(task_id,lease_version)`
+with the current `Task.LeaseVersion`. For an instance claim, pass the matching
+`agent_instance` (or use its configured default). CLI:
+`task-recover --task-id ID --lease-version VERSION --agent-instance INSTANCE`.
+Only the holder session with read/claim access can recover a live lease; admins
+and other sessions cannot recover it. Recovery rotates the token without
+changing version or expiry and invalidates earlier tokens. Keep the new token
+privately, serialize recovery attempts, and renew before expiry. Stale versions
+or expired leases fail; inspect ownership before claiming again.
+
 With `instance_claims`, attribute a claim to the process, without treating the
 instance as authorization. Where supported, send task results with `task_fence`
 (current token/version) for validated live-attempt provenance. Never put a claim

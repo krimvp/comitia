@@ -143,6 +143,7 @@ returning unfinished work to pending; do not release a completed task:
 | --- | --- | --- |
 | `create_task` | `{"context_id":"CONTEXT_ID","title":"First task","body":"Verify the lease loop"}` | Task object with `ID` and `Status: "pending"` |
 | `claim_task` | `{"task_id":"TASK_ID","lease_seconds":300,"agent_instance":{"id":"demo-worker"}}` | `{"Task":{"ID":"TASK_ID","LeaseVersion":1,"Status":"leased",...},"Token":"CLAIM_TOKEN"}` |
+| `recover_claim` | `{"task_id":"TASK_ID","lease_version":1,"agent_instance":{"id":"demo-worker"}}` | Same claim shape, with a **new** `Token` and unchanged version/expiry |
 | `renew_task` | `{"task_id":"TASK_ID","claim_token":"CLAIM_TOKEN","lease_version":1,"lease_seconds":300}` | Same claim shape, with a **new** `Token` and incremented `Task.LeaseVersion` |
 | `complete_task` | `{"task_id":"TASK_ID","claim_token":"NEW_TOKEN","lease_version":2}` | Task object with `Status: "completed"`; no claim wrapper |
 | `release_task` | `{"task_id":"TASK_ID","claim_token":"CURRENT_TOKEN","lease_version":2}` | Task object with `Status: "pending"` and incremented version |
@@ -151,7 +152,7 @@ The table shows tool values, not JSON-RPC framing: MCP exposes them under
 `structuredContent.result`; `content[].text` is a short summary unless the
 call passes `compact:false`, which restores the full JSON text. CLI returns the
 value directly. REST `tasks/create` and `tasks/complete` wrap it in `task`;
-`tasks/claim` and `tasks/renew` wrap the claim in `claim`.
+`tasks/claim`, `tasks/recover` and `tasks/renew` wrap the claim in `claim`.
 
 CLI claim/renew defaults to `--lease 5m`. MCP claim/renew defaults to 300 seconds
 when `lease_seconds` is omitted or zero; a nonzero duration must be an integer from
@@ -161,6 +162,31 @@ See the running schema for optional argument support. Every lease is capped at
 the holder session's expiry. `open_ended: true` (CLI `--open-ended`) excludes
 `lease_seconds` and holds until complete/release or session expiry. Losing claim
 permission or revoking the session also makes the lease recoverable.
+
+If you lose a claim token on resume or compaction, inspect `get_task` (CLI
+`task-get`) for the current `LeaseVersion`, then call
+`recover_claim(task_id, lease_version, agent_instance)` (CLI
+`task-recover --task-id ID --lease-version VERSION --agent-instance INSTANCE`).
+Only the authenticated holder session with read and claim access can recover a
+live lease. An instance claim also requires the matching instance ID; omitting
+it or naming another instance fails. Configured instance defaults apply in MCP
+and CLI. Instance IDs remain self-reported metadata within a shared session.
+Other sessions, including context admins, cannot recover the holder's token.
+Expired, terminal, reassigned or stale-version claims fail with `stale_claim`;
+missing and unreadable task IDs both return `forbidden`.
+
+Recovery returns the usual `Task` + fresh `Token`, immediately fencing every
+previous token. It changes only the stored hash, preserving lease version,
+expiry and task timestamps; it does not emit a task transition event. Replace
+the token privately and serialize recovery attempts, since later recoveries
+invalidate earlier responses. Recovery does not renew the lease: renew before
+expiry if more time is needed. Raw tokens are never persisted or logged by the
+server. REST uses `/v1/tasks/recover` with `task_id`, `lease_version`, and optional
+`claim_instance`; Go uses the optional `TaskClaimRecoveryAPI.RecoverClaim`.
+Discover `task_claim_recovery` through `server_info` and check that the running
+MCP schema includes `recover_claim`. Old clients keep their existing task calls;
+new HTTP clients report a clear unsupported error for old servers and never
+fall back to claiming or dropping the instance constraint.
 
 After **every** successful renewal, replace `Token` and `Task.LeaseVersion`
 together. The previous pair, or either mixed pair, is stale and cannot complete
@@ -192,8 +218,9 @@ Servers without the `task_mutation_receipts` feature reject `operation_id`
 while decoding, before applying the request; the Go HTTP client then returns
 `httpapi.ErrTaskMutationReceiptsUnsupported` and never resends the call without
 its key. Upgrade the server before relying on recovery.
-Without a key, an uncertain claim/renew response still requires authorized
-release/reclaim because `get_task` does not reveal the new token. To abandon work, release with the current pair; a
+Without a key, the live holder can use `recover_claim`. After lease expiry, an
+uncertain claim/renew response requires authorized release/reclaim because
+`get_task` does not reveal a token. To abandon work, release with the current pair; a
 context admin may omit the token but must supply the current version.
 
 ## Validation

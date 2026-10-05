@@ -212,6 +212,7 @@ func schemaConformanceFixture(t *testing.T, name string) (*Server, map[string]an
 		"message_cursor":    {"context_id": parent.ID, "agent_instance": "schema-worker"},
 		"create_task":       {"context_id": parent.ID, "title": "new", "body": "details", "operation_id": "create"},
 		"claim_task":        {"task_id": pending.ID, "operation_id": "claim", "lease_seconds": 60, "open_ended": false, "agent_instance": instance},
+		"recover_claim":     {"task_id": task.ID, "lease_version": claim.Task.LeaseVersion, "agent_instance": instance},
 		"renew_task":        {"task_id": task.ID, "claim_token": claim.Token, "lease_version": claim.Task.LeaseVersion, "operation_id": "renew", "lease_seconds": 60, "open_ended": false},
 		"complete_task":     {"task_id": task.ID, "claim_token": claim.Token, "lease_version": claim.Task.LeaseVersion},
 		"release_task":      {"task_id": task.ID, "claim_token": claim.Token, "lease_version": claim.Task.LeaseVersion},

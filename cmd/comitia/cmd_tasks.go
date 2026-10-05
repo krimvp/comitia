@@ -121,6 +121,30 @@ func runTasks(ctx context.Context, cfg config, api comitia.API, out *json.Encode
 			return e
 		}
 		return out.Encode(v)
+	case "task-recover":
+		fs := newFlags(cmd)
+		tid := fs.String("task-id", "", "task ID")
+		ver := fs.Int64("lease-version", 0, "current positive lease version from task-get")
+		instanceID := fs.String("agent-instance", "", "matching holder instance ID (defaults to COMITIA_AGENT_INSTANCE)")
+		if err := fs.Parse(args); err != nil {
+			return err
+		}
+		if cfg.parseOnly {
+			return nil
+		}
+		owner := cfg.instances.Message(nil)
+		if flagProvided(fs, "agent-instance") {
+			owner = &comitia.AgentInstance{ID: *instanceID}
+		}
+		var instance []comitia.AgentInstance
+		if owner != nil {
+			instance = append(instance, *owner)
+		}
+		v, e := comitia.RecoverClaim(ctx, api, needCredential(cfg), *tid, *ver, instance...)
+		if e != nil {
+			return e
+		}
+		return out.Encode(v)
 	case "task-renew":
 		fs := newFlags(cmd)
 		operationID := fs.String("operation-id", "", "stable session-scoped mutation ID for recovery after lost responses")
