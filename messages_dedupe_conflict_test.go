@@ -7,6 +7,7 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestDedupeConflictIdentifiesExistingMessage(t *testing.T) {
@@ -80,5 +81,61 @@ func TestDedupeKeyLengthCap(t *testing.T) {
 	replay, err := f.svc.ReplayMessages(ctx, a.Token, f.context.ID, 0, 100)
 	if err != nil || len(replay) != 2 || replay[1].DedupeKey != long || replay[1].Body != "legacy" {
 		t.Fatalf("legacy key replay: %+v %v", replay, err)
+	}
+}
+
+func TestDedupeConflictDetailsRequireReadableContext(t *testing.T) {
+	f := setup(t, ":memory:")
+	ctx := context.Background()
+	child, err := f.svc.CreateChildContext(ctx, f.admin.Token, CreateChildContextInput{ParentContextID: f.context.ID, Name: "child", ParentReadable: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	session := func(name string, grants ...DelegatedGrant) (Credential, []Grant) {
+		_, c, gs, err := f.svc.DelegateSession(ctx, f.admin.Token, DelegateInput{PrincipalName: name, TTL: time.Hour, Grants: grants})
+		if err != nil {
+			t.Fatal(err)
+		}
+		return c, gs
+	}
+	grant := func(cid string, p Permission) DelegatedGrant {
+		return DelegatedGrant{ContextID: cid, Permissions: p, ExpiresAt: f.now.Add(time.Hour)}
+	}
+	writeOnly, _ := session("write-only", grant(f.context.ID, PermissionWrite))
+	revoked, revokedGrants := session("revoked", grant(f.context.ID, PermissionRead), grant(f.context.ID, PermissionWrite))
+	inherited, _ := session("inherited", grant(f.context.ID, PermissionRead), grant(child.ID, PermissionWrite))
+	for _, tc := range []struct {
+		name     string
+		c        Credential
+		cid      string
+		readable bool
+		before   func()
+	}{
+		{"write-only", writeOnly, f.context.ID, false, nil},
+		{"read-revoked", revoked, f.context.ID, false, func() {
+			for _, g := range revokedGrants {
+				if g.Permissions == PermissionRead {
+					if err := f.svc.RevokeGrant(ctx, f.admin.Token, g.ID); err != nil {
+						t.Fatal(err)
+					}
+				}
+			}
+		}},
+		{"inherited-read", inherited, child.ID, true, nil},
+	} {
+		original, err := f.svc.AppendMessage(ctx, tc.c.Token, tc.cid, MessageInput{DedupeKey: "key", Body: "first"})
+		if err != nil {
+			t.Fatalf("%s: %v", tc.name, err)
+		}
+		if tc.before != nil {
+			tc.before()
+		}
+		_, err = f.svc.AppendMessage(ctx, tc.c.Token, tc.cid, MessageInput{DedupeKey: "key", Body: "second"})
+		var typed *DedupeConflictError
+		public, _ := json.Marshal(SafeError("send_message", err, "request"))
+		leaked := errors.As(err, &typed) || strings.Contains(string(public), original.ID) || strings.Contains(string(public), "details") || strings.Contains(string(public), "get_message")
+		if !errors.Is(err, ErrConflict) || leaked == !tc.readable {
+			t.Fatalf("%s: readable=%v err=%v public=%s", tc.name, tc.readable, err, public)
+		}
 	}
 }

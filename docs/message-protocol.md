@@ -650,7 +650,9 @@ attempt returns the original message. A different send under a used key fails
 with `conflict`; the error message and its additive `details` object
 (`message_id`, `sequence`, `differs`) identify the caller's own existing message
 and name the differing parts (`body`, `envelope`, `agent_instance`,
-`task_attempt`) without their values. The Go API returns
+`task_attempt`) without their values. A session that cannot currently read the
+context (write-only, or read revoked/expired) gets the plain `conflict` without
+ID, sequence or details. The Go API returns
 `*comitia.DedupeConflictError` (also via the HTTP client); older clients still
 see `conflict` with the ID in the message text.
 

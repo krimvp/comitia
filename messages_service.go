@@ -12,7 +12,8 @@ import (
 const MaxDedupeKeyBytes = 256
 
 // DedupeConflictError reports a send whose dedupe scope already holds a different
-// message. That message belongs to the caller's own session and instance scope.
+// message. That message belongs to the caller's own session and instance scope;
+// callers that cannot read the context get a plain ErrConflict instead.
 type DedupeConflictError struct {
 	MessageID string
 	Sequence  int64
@@ -65,6 +66,13 @@ func (s *Service) AppendMessage(ctx context.Context, raw, cid string, in Message
 		old, e := w.MessageByDedupe(cid, a.session.ID, in.DedupeKey, instanceID)
 		if e == nil {
 			if differs := dedupeDiffers(old, in.Body, envelope, instance, attempt); len(differs) > 0 {
+				// Identify the message only to a caller that can currently read it.
+				if _, _, e := s.requireAuthenticated(w, a, cid, PermissionRead); e != nil {
+					if errors.Is(e, ErrForbidden) {
+						return ErrConflict
+					}
+					return e
+				}
 				return &DedupeConflictError{MessageID: old.ID, Sequence: old.Sequence, Differs: differs}
 			}
 			m = old
