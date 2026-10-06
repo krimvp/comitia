@@ -189,4 +189,3 @@ func TestStaleClientMCP(t *testing.T) {
 		})
 	}
 }
-
