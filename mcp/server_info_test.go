@@ -183,7 +183,7 @@ func TestStaleClientMCP(t *testing.T) {
 			}
 			_, err := s.call(context.Background(), "get_task", json.RawMessage(`{"task_id":"t","after_sequence":1}`))
 			text := publicError(err).Error()
-			if !errors.Is(err, comitia.ErrInvalid) || !strings.HasPrefix(text, `invalid input: unknown field "after_sequence" (this client is comitia `+client.Version) || !strings.Contains(text, tc.want) || strings.Contains(text, tc.avoid) || strings.Contains(text, "fixed-secret") {
+			if !errors.Is(err, comitia.ErrInvalid) || !strings.HasPrefix(text, `invalid input: unknown field "after_sequence";`) || !strings.Contains(text, `(this client is comitia `+client.Version) || !strings.Contains(text, tc.want) || strings.Contains(text, tc.avoid) || strings.Contains(text, "fixed-secret") {
 				t.Fatalf("error=%v", text)
 			}
 		})

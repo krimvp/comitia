@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"reflect"
@@ -103,7 +104,7 @@ func strictPayload(raw json.RawMessage, target any) error {
 	d := json.NewDecoder(bytes.NewReader(raw))
 	d.DisallowUnknownFields()
 	if err := d.Decode(target); err != nil {
-		return InvalidJSON(err, "payload")
+		return InvalidJSONFields(err, "payload", raw, target)
 	}
 	if err := d.Decode(new(any)); err != io.EOF {
 		return Invalidf("payload must contain one JSON value")
@@ -187,7 +188,12 @@ func scanPayloadValue(d *json.Decoder, target reflect.Type) error {
 			if fields != nil {
 				child, ok = fields[key]
 				if !ok {
-					return Invalidf("payload: unknown field %q; keys are case-sensitive", key)
+					keys := make([]string, 0, len(fields))
+					for name := range fields {
+						keys = append(keys, name)
+					}
+					detail := strings.TrimPrefix(UnknownField(key, keys).Error(), ErrInvalid.Error()+": ")
+					return Invalidf("payload: %s; keys are case-sensitive", detail)
 				}
 			} else if target != nil && target.Kind() == reflect.Map {
 				child = target.Elem()
@@ -392,7 +398,7 @@ func (s *Service) normalizeEnvelope(in *MessageEnvelope, body string) (*MessageE
 	}
 	validator, ok := s.messageSchemas[out.Schema]
 	if !ok {
-		return nil, Invalidf("schema must name a registered message schema")
+		return nil, s.invalidMessageSchema()
 	}
 	var payload map[string]any
 	d := json.NewDecoder(bytes.NewReader(out.Payload))
@@ -464,23 +470,24 @@ func (s *Service) validateEnvelopeReferences(r ReadStore, cid string, env *Messa
 	if env.TaskID != "" {
 		task, err := r.Task(env.TaskID)
 		if err != nil || task.ContextID != cid {
-			return ErrForbidden
+			return referenceError{"task_id"}
 		}
 	}
 	if env.ReplyTo != "" {
 		message, err := r.Message(env.ReplyTo)
 		if err != nil || message.ContextID != cid {
-			return ErrForbidden
+			return referenceError{"reply_to"}
 		}
 	}
 	if err := validateTaskStatusReferences(r, cid, env); err != nil {
 		return err
 	}
 	now := s.now().UTC()
-	for _, sid := range env.RecipientSessionIDs {
+	for i, sid := range env.RecipientSessionIDs {
+		failure := referenceError{fmt.Sprintf("recipient_session_ids[%d]", i)}
 		session, err := r.Session(sid)
 		if err != nil || session.RevokedAt != nil || !session.ExpiresAt.After(now) {
-			return ErrForbidden
+			return failure
 		}
 		grants, err := r.Grants(sid, cid, now)
 		if err != nil {
@@ -494,7 +501,7 @@ func (s *Service) validateEnvelopeReferences(r ReadStore, cid string, env *Messa
 			}
 		}
 		if !readable {
-			return ErrForbidden
+			return failure
 		}
 	}
 	return nil
@@ -571,4 +578,40 @@ func sameAgentInstance(a, b *AgentInstance) bool {
 		return a == b
 	}
 	return *a == *b
+}
+
+func (s *Service) invalidMessageSchema() error {
+	ids := make([]string, 0, len(s.messageSchemas))
+	for id := range s.messageSchemas {
+		ids = append(ids, id)
+	}
+	sort.Strings(ids)
+	return Invalidf("schema must name a registered message schema; use list_message_schemas or get_message_schema; registered schemas: %s", strings.Join(ids, ", "))
+}
+
+func (s *Service) validateMessageReferenceAccess(r ReadStore, a authInfo, cid string, env *MessageEnvelope) error {
+	if env == nil {
+		return nil
+	}
+	field := ""
+	switch {
+	case env.ReplyTo != "":
+		field = "reply_to"
+	case env.TaskID != "":
+		field = "task_id"
+	case len(env.RecipientSessionIDs) > 0:
+		field = "recipient_session_ids[0]"
+	}
+	if field == "" {
+		return nil
+	}
+	// Check effective (including inherited) read before looking up any target or
+	// returning a deduplicated reply, so write-only callers cannot probe IDs.
+	if _, _, err := s.requireAuthenticated(r, a, cid, PermissionRead); err != nil {
+		if errors.Is(err, ErrForbidden) {
+			return referenceError{field}
+		}
+		return err
+	}
+	return nil
 }

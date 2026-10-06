@@ -7,17 +7,17 @@ Contents: [instance mode](#discover-and-choose-one-instance-mode),
 
 ## Discover and choose one instance mode
 
-Use the assigned context/session, or the managed instruction block's defaults.
+Use the assigned context/session or managed defaults.
 Call `server_info` first: optional fields need both the server feature and the
-running MCP tool schema. Upgraded instructions may precede a client restart;
+running MCP tool schema. Instructions may precede restart;
 `client_stale: true` means this MCP client is older or differs, so follow
 `client_hint` and ask for the session to be restarted.
-Choose a distinct stable process instance ID (1–64 ASCII letters, digits, `.`,
-`_`, `-`); use a new cursor for a separate consumer, viewer or watcher.
+Choose a distinct stable instance ID (1–64 ASCII letters, digits, `.`,
+`_`, `-`); use a new cursor for each consumer, viewer or watcher.
 
 - **Default:** When `server_info` lists `default_agent_instance` and the launcher
   sets `COMITIA_AGENT_INSTANCE` (optionally `COMITIA_AGENT_INSTANCE_LABEL`) in the
-  Comitia process environment, omit per-call instance fields. Natural dedupe keys
+  Comitia process environment, omit per-call instance fields. Keys
   such as `started` work: send dedupe and cursor/ack scope default to the instance.
 - **Otherwise explicit:** With `agent_instances` and a tool schema accepting it,
   send `agent_instance:{"id":"INSTANCE","label":"LABEL"}` and use the ID
@@ -40,13 +40,17 @@ harness run ID, cwd and checkpoint metadata. `seen_seconds_ago` uses the server
 clock; `recent` means activity within 90 seconds (optional on older servers).
 Claim, renew and complete record activity for the claim's instance. Recent
 activity does not prove a process is running; `active` describes the credential
-session. A launcher must check actual process state before resuming or replacing work.
+session. Check process state before resuming or replacing work.
 
 ## Send, read, wait, handle, acknowledge
 
-1. Send each logical message with a unique stable `dedupe_key` (at most 256
+Unknown schema errors point to discovery; unknown fields list accepted keys.
+Forbidden references name the field without revealing target existence. All replies
+require context read permission, including inherited read.
+
+1. Send each message with a unique stable `dedupe_key` (at most 256
    bytes); a retry repeats the same body, envelope and instance. A `conflict`
-   names the existing message ID and sequence: read it, do not suffix the key. Discover typed payloads with
+   names the existing message ID and sequence: read it, do not suffix the key. Discover payloads with
    `list_message_schemas`/`get_message_schema`; do not invent envelope fields.
    For a routed note use `comitia.discussion.v1`, nonempty body, `payload:{}`,
    `recipient_session_ids:[SESSION]` and `recipient_instances:[INSTANCE]`.
@@ -55,20 +59,20 @@ session. A launcher must check actual process state before resuming or replacing
    skips your session+instance messages. Each nonempty recipient list must match
    your session or instance respectively; both empty means broadcast. Addressing is not privacy.
 3. When caught up, use `wait_messages` with `after` and `timeout_seconds:30`
-   (maximum 60). Bound the overall wait by the task/request deadline. Without
+   (maximum 60). Bound waits by the task/request deadline. Without
    supported wait, use bounded replay polling only during active collaboration.
 4. With `replay_filters`, fixed filters can narrow reads. `for_instance` alone
    may match another session; add `strict_recipients:true` when supported or
    check both lists locally. Read full results from `structuredContent`;
-   MCP text defaults to short summaries. Clients needing full JSON text can
+   MCP text defaults to short summaries. For full JSON text,
    pass `compact:false` when the loaded tool schema supports it.
    Default reads skip renewed task events; select `schema:"comitia.task-event.v1"`
    to include them. Compact text always gives `next_after`. With `page:true`,
    continue from `scanned_through`/`next_after` until caught up;
    these describe scan progress, not completed work.
 5. Handle messages in sequence, then `ack_messages` on the same instance
-   through the last consecutively handled sequence. With a fixed filter policy,
-   skipped nonmatches may be acknowledged after processing the entire page.
+   through the last consecutively handled sequence. With fixed filters,
+   acknowledge skipped nonmatches after processing the entire page.
    Never advance past unfinished work. A changed filter policy needs a new cursor
    or earlier replay. An ack proves handling, not execution or task completion.
 
@@ -97,21 +101,20 @@ its token can read `get_task`, then call `recover_claim(task_id,lease_version)`
 with the current `Task.LeaseVersion`. For an instance claim, pass the matching
 `agent_instance` (or use its configured default). CLI:
 `task-recover --task-id ID --lease-version VERSION --agent-instance INSTANCE`.
-Only the holder session with read/claim access can recover a live lease; admins
-and other sessions cannot recover it. Recovery rotates the token without
-changing version or expiry and invalidates earlier tokens. Keep the new token
+Only the holder session with read/claim access can recover a live lease.
+Recovery rotates the token without changing version or expiry and invalidates earlier tokens. Keep the new token
 privately, serialize recovery attempts, and renew before expiry. Stale versions
 or expired leases fail; inspect ownership before claiming again.
 
 With `instance_claims`, attribute a claim to the process, without treating the
 instance as authorization. Where supported, send task results with `task_fence`
-(current token/version) for validated live-attempt provenance. Never put a claim
+(current token/version) for live-attempt provenance. Never put a claim
 token in body/envelope/artifacts. A result message does not complete a task;
 server-authored task events record authoritative transitions. See
 [task outcomes](https://github.com/krimvp/comitia/blob/main/docs/task-validation.md#authoritative-events-and-terminal-outcomes).
 
 For a handoff, record the exact artifact/commit, task, expected checks, deadline
-and recipient. For simple flows use `comitia.assignment.v1`, `comitia.work-submitted.v1`
+and recipient. Use `comitia.assignment.v1`, `comitia.work-submitted.v1`
 or `comitia.review-request.v1` (check `list_message_schemas`), or `comitia.request.v1` with expected
 responder session IDs and an absolute future RFC3339 deadline for durable replies. Respond with `comitia.receipt.v1`
 replying to the request: `accepted`, then `completed` with exact `result_refs`,
@@ -127,7 +130,7 @@ and [merge policy](orchestrate.md#certify-and-merge).
 
 ## Child contexts and delegated owners
 
-For a task owner, prefer `delegate_session` with only needed permissions and
+For task owners, prefer `delegate_session` with only needed permissions and
 expiry. It returns IDs and an exclusive private `credential_file`; pass that
 path to a trusted launcher with `comitia-client --credential-file PATH mcp`.
 Never read its token into the model. Delegation does not launch the helper.
@@ -140,7 +143,7 @@ holder. Private children expose metadata to parent readers, not their messages.
 parent readers in the child. Delegate `grant` only when further delegation is
 needed. Relay summaries explicitly; there is no automatic context relay.
 
-At the end, reconcile results and outstanding effects, release/complete tasks,
+Finally, reconcile results and effects, release/complete tasks,
 revoke delegated sessions or grants, and stop helpers through the launcher.
 Archiving a context is irreversible and preserves readable history; do it only
 within the authorized task lifecycle. `comitia-client sessions --prune` removes

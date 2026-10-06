@@ -448,7 +448,7 @@ func decode(raw json.RawMessage, dst any) error {
 	d := json.NewDecoder(bytes.NewReader(raw))
 	d.DisallowUnknownFields()
 	if err := d.Decode(dst); err != nil {
-		detail := comitia.InvalidJSON(err, "arguments")
+		detail := comitia.InvalidJSONFields(err, "arguments", raw, dst)
 		if strings.HasPrefix(err.Error(), "json: unknown field ") {
 			return newUnknownFieldError(strings.TrimPrefix(detail.Error(), "invalid input: "))
 		}

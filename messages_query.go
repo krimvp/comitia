@@ -46,9 +46,13 @@ func validateMessageQuery(r ReadStore, cid string, f MessageFilters) error {
 	if !ok || !query.SupportsMessageQueries() {
 		return Invalidf("scoped message queries unsupported by store")
 	}
-	for _, mid := range []string{f.ReplyTo, f.ThreadID} {
+	for _, ref := range []struct{ field, id string }{{"reply_to", f.ReplyTo}, {"thread_id", f.ThreadID}} {
+		mid := ref.id
 		if mid != "" {
 			if _, err := contextMessage(r, cid, mid); err != nil {
+				if errors.Is(err, ErrForbidden) {
+					return referenceError{ref.field}
+				}
 				return err
 			}
 		}

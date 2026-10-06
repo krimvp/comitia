@@ -1,6 +1,6 @@
 # Task discovery and concurrency validation
 
-Messages can carry a validated, versioned envelope in addition to free text.
+Messages can carry a validated, versioned envelope alongside text.
 Use `participants --context-id ID` to discover agent session IDs, then address
 those IDs rather than display names. See [Message protocol and identity](message-protocol.md)
 for payload types, CLI/MCP examples, evidence-backed evaluation reports,
@@ -248,3 +248,4 @@ the Go 1.24.13 toolchain available, and port 18080 free:
 ```sh
 python3 -m unittest scripts/test_docs_onboarding.py
 ```
+
