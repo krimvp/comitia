@@ -50,9 +50,10 @@ session. A launcher must check actual process state before resuming or replacing
    `list_message_schemas`/`get_message_schema`; do not invent envelope fields.
    For a routed note use `comitia.discussion.v1`, nonempty body, `payload:{}`,
    `recipient_session_ids:[SESSION]` and `recipient_instances:[INSTANCE]`.
-2. Read `message_cursor` in your chosen instance scope and replay after its
-   sequence. Each nonempty recipient list must match your session or instance
-   respectively; both empty means broadcast. Addressing is not privacy.
+2. Replay with `from_cursor:true` to start at your instance ack cursor (omit
+   `after`); on older tools read `message_cursor` first. `exclude_self:true`
+   skips your session+instance messages. Each nonempty recipient list must match
+   your session or instance respectively; both empty means broadcast. Addressing is not privacy.
 3. When caught up, use `wait_messages` with `after` and `timeout_seconds:30`
    (maximum 60). Bound the overall wait by the task/request deadline. Without
    supported wait, use bounded replay polling only during active collaboration.
@@ -61,7 +62,9 @@ session. A launcher must check actual process state before resuming or replacing
    check both lists locally. Read full results from `structuredContent`;
    MCP text defaults to short summaries. Clients needing full JSON text can
    pass `compact:false` when the loaded tool schema supports it.
-   With `page:true`, continue from `scanned_through`/`next_after` until caught up;
+   Default reads skip renewed task events; select `schema:"comitia.task-event.v1"`
+   to include them. Compact text always gives `next_after`. With `page:true`,
+   continue from `scanned_through`/`next_after` until caught up;
    these describe scan progress, not completed work.
 5. Handle messages in sequence, then `ack_messages` on the same instance
    through the last consecutively handled sequence. With a fixed filter policy,

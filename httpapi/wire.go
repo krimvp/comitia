@@ -327,23 +327,29 @@ type messageGetRequest struct {
 	MessageID string `json:"message_id"`
 }
 type replayRequest struct {
-	ReplyTo          string `json:"reply_to,omitempty"`
-	ThreadID         string `json:"thread_id,omitempty"`
-	FromSession      string `json:"from_session,omitempty"`
-	ContextID        string `json:"context_id"`
-	After            int64  `json:"after,omitempty"`
-	MaxBytes         int    `json:"max_bytes,omitempty"`
-	Page             bool   `json:"page,omitempty"`
-	AgentInstance    string `json:"agent_instance,omitempty"`
-	ForInstance      string `json:"for_instance,omitempty"`
-	FromInstance     string `json:"from_instance,omitempty"`
-	TaskID           string `json:"task_id,omitempty"`
-	Schema           string `json:"schema,omitempty"`
-	Limit            *int   `json:"limit,omitempty"`
-	StrictRecipients bool   `json:"strict_recipients,omitempty"`
+	ExcludeSelf      bool     `json:"exclude_self,omitempty"`
+	FromCursor       bool     `json:"from_cursor,omitempty"`
+	Schemas          []string `json:"schemas,omitempty"`
+	ReplyTo          string   `json:"reply_to,omitempty"`
+	ThreadID         string   `json:"thread_id,omitempty"`
+	FromSession      string   `json:"from_session,omitempty"`
+	ContextID        string   `json:"context_id"`
+	After            int64    `json:"after,omitempty"`
+	MaxBytes         int      `json:"max_bytes,omitempty"`
+	Page             bool     `json:"page,omitempty"`
+	AgentInstance    string   `json:"agent_instance,omitempty"`
+	ForInstance      string   `json:"for_instance,omitempty"`
+	FromInstance     string   `json:"from_instance,omitempty"`
+	TaskID           string   `json:"task_id,omitempty"`
+	Schema           string   `json:"schema,omitempty"`
+	Limit            *int     `json:"limit,omitempty"`
+	StrictRecipients bool     `json:"strict_recipients,omitempty"`
 }
 
 type waitRequest struct {
+	ExcludeSelf    bool     `json:"exclude_self,omitempty"`
+	FromCursor     bool     `json:"from_cursor,omitempty"`
+	Schemas        []string `json:"schemas,omitempty"`
 	ReplyTo        string   `json:"reply_to,omitempty"`
 	ThreadID       string   `json:"thread_id,omitempty"`
 	FromSession    string   `json:"from_session,omitempty"`

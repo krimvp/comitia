@@ -172,6 +172,19 @@ UNION ALL SELECT message_id,seq FROM (SELECT message_id,seq FROM message_recipie
 			recipientArgs = append(recipientArgs, sid)
 		}
 		recipientArgs = append(recipientArgs, limit)
+		// Apply selectors inside each seek before bounding candidates.
+		predicate, predicateArgs := messageReadPredicate(sid, f, "message_recipients.message_id")
+		if predicate != "" {
+			recipients = strings.ReplaceAll(recipients, " ORDER BY seq LIMIT ?", " AND "+predicate+" ORDER BY seq LIMIT ?")
+			var argsWithFilters []any
+			for _, arg := range recipientArgs {
+				if _, isLimit := arg.(int); isLimit {
+					argsWithFilters = append(argsWithFilters, predicateArgs...)
+				}
+				argsWithFilters = append(argsWithFilters, arg)
+			}
+			recipientArgs = argsWithFilters
+		}
 		query = strings.Replace(query, "FROM messages m", "FROM ("+recipients+") p CROSS JOIN messages m ON m.id=p.message_id", 1)
 		where, order, args = "1=1", "p.seq", recipientArgs
 	} else if f.ForInstance != "" {
@@ -183,6 +196,20 @@ UNION ALL SELECT message_id,seq FROM (SELECT message_id,seq FROM message_recipie
 			where += " AND " + strictRecipientSessions("e.envelope")
 			args = append(args, sid)
 		}
+	}
+	if f.ExcludeSelf {
+		where += " AND NOT (m.session_id=? AND COALESCE(i.instance_id,'')=?)"
+		args = append(args, sid, f.agentInstance())
+	}
+	if len(f.Schemas) != 0 {
+		where += " AND COALESCE(json_extract(e.envelope,'$.schema'),'') IN (" + strings.TrimSuffix(strings.Repeat("?,", len(f.Schemas)), ",") + ")"
+		for _, schema := range f.Schemas {
+			args = append(args, schema)
+		}
+	}
+	if !f.includesRenewals() {
+		where += " AND NOT (COALESCE(json_extract(e.envelope,'$.schema'),'')=? AND COALESCE(json_extract(e.envelope,'$.payload.kind'),'')='renewed')"
+		args = append(args, TaskEventSchema)
 	}
 	if f.FromSession != "" {
 		where += " AND m.session_id=?"
@@ -341,4 +368,25 @@ func (x *sqlStore) ParticipantsAfter(cid string, now time.Time, afterID string, 
 		}
 	}
 	return out, nil
+}
+
+// Recipient seeks must apply these selectors before their per-class limit.
+func messageReadPredicate(sid string, f MessageFilters, mid string) (string, []any) {
+	var predicates []string
+	var args []any
+	if f.ExcludeSelf {
+		predicates = append(predicates, "NOT EXISTS (SELECT 1 FROM messages m LEFT JOIN message_instances i ON i.message_id=m.id WHERE m.id="+mid+" AND m.session_id=? AND COALESCE(i.instance_id,'')=?)")
+		args = append(args, sid, f.agentInstance())
+	}
+	if len(f.Schemas) != 0 {
+		predicates = append(predicates, "EXISTS (SELECT 1 FROM message_filters f WHERE f.message_id="+mid+" AND f.schema IN ("+strings.TrimSuffix(strings.Repeat("?,", len(f.Schemas)), ",")+"))")
+		for _, schema := range f.Schemas {
+			args = append(args, schema)
+		}
+	}
+	if !f.includesRenewals() {
+		predicates = append(predicates, "NOT EXISTS (SELECT 1 FROM message_envelopes e WHERE e.message_id="+mid+" AND json_extract(e.envelope,'$.schema')=? AND json_extract(e.envelope,'$.payload.kind')='renewed')")
+		args = append(args, TaskEventSchema)
+	}
+	return strings.Join(predicates, " AND "), args
 }

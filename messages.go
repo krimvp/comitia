@@ -48,6 +48,12 @@ type MessageEnvelope struct {
 // MessageFilters narrow replay within the same context read permission.
 // Nonempty fields are combined with AND; routing metadata is self-reported.
 type MessageFilters struct {
+	// ExcludeSelf omits messages authored by this session and AgentInstance.
+	ExcludeSelf bool `json:"exclude_self,omitempty"`
+	// FromCursor starts at this session's acknowledgement cursor for AgentInstance.
+	FromCursor bool `json:"from_cursor,omitempty"`
+	// Schemas selects any of these exact schemas; combined with Schema using AND.
+	Schemas []string `json:"schemas,omitempty"`
 	// ReplyTo selects direct replies; ThreadID includes the root and descendants.
 	ReplyTo  string `json:"reply_to,omitempty"`
 	ThreadID string `json:"thread_id,omitempty"`
@@ -63,7 +69,7 @@ type MessageFilters struct {
 	// It is opt-in and requires ForInstance.
 	StrictRecipients bool `json:"strict_recipients,omitempty"`
 	// AgentInstance names the caller's own instance for presence; it never
-	// narrows results. Adapters apply configured defaults when it is nil.
+	// identifies self and cursor scope. Adapters apply defaults when it is nil.
 	AgentInstance *string `json:"agent_instance,omitempty"`
 }
 
