@@ -54,6 +54,13 @@ func (s *Service) AppendMessage(ctx context.Context, raw, cid string, in Message
 		if e != nil {
 			return e
 		}
+		// A stance names its reply target; without (inherited) read, replies would
+		// reveal whether an unreadable message exists.
+		if envelope != nil && envelope.Schema == StanceSchema {
+			if _, _, e := s.requireAuthenticated(w, a, cid, PermissionRead); e != nil {
+				return e
+			}
+		}
 		if in.TaskFence != nil {
 			if _, _, e := s.require(w, raw, cid, PermissionClaim); e != nil {
 				return e

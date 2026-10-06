@@ -186,6 +186,21 @@ func messagePayloadSemanticCorpus() map[string][]messagePayloadSample {
 			{"mis-cased-instance-id", `{"kind":"claimed","status":"leased","lease_version":1,"lease_owner_instance":{"ID":"worker-1"}}`, ""},
 			{"integral-decimal-lexeme", `{"kind":"renewed","status":"leased","lease_version":2.0}`, "Integer JSON lexemes"},
 		},
+		"comitia.finding.v1": {
+			{"priority-and-size", `{"severity":"error","summary":"s","priority":"P0","size":"L"}`, ""},
+			{"null-priority-and-size", `{"severity":"info","summary":"s","priority":null,"size":null}`, ""},
+			{"lowercase-priority", `{"severity":"info","summary":"s","priority":"p1"}`, ""},
+			{"unknown-priority", `{"severity":"info","summary":"s","priority":"P4"}`, ""},
+			{"empty-size", `{"severity":"info","summary":"s","size":""}`, ""},
+			{"unknown-size", `{"severity":"info","summary":"s","size":"XL"}`, ""},
+		},
+		StanceSchema: {
+			{"disagree-with-note", `{"stance":"disagree","note":"Breaks old clients"}`, ""},
+			{"null-note", `{"stance":"refine","note":null}`, ""},
+			{"blank-note", `{"stance":"agree","note":"\u00a0"}`, ""},
+			{"unknown-stance", `{"stance":"abstain"}`, ""},
+			{"mis-cased-stance", `{"stance":"Agree"}`, ""},
+		},
 		TaskStatusSchema: {
 			{"failed", `{"state":"failed","summary":"Tests failed"}`, ""},
 			{"cancelled", `{"state":"cancelled","summary":"Superseded"}`, ""},

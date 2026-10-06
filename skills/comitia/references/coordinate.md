@@ -100,7 +100,10 @@ or `comitia.review-request.v1` (check `list_message_schemas`), or `comitia.reque
 responder session IDs and an absolute future RFC3339 deadline for durable replies. Respond with `comitia.receipt.v1`
 replying to the request: `accepted`, then `completed` with exact `result_refs`,
 or `rejected` with a reason. Transport ack and acceptance are not completion.
-Use `comitia.approval.v1` for an exact artifact verdict and checks. Validate the
+Use `comitia.approval.v1` for an exact artifact verdict and checks.
+In review panels, rank `comitia.finding.v1` with optional `priority` (P0-P3) and
+`size` (S/M/L), and answer findings with `comitia.stance.v1` (agree/refine/disagree,
+optional note, `reply_to` required) instead of one-line vote messages. Validate the
 sender's authenticated `SessionID` against the assigned reviewer; shared
 credentials prove session provenance only. See
 [requests and receipts](https://github.com/krimvp/comitia/blob/main/docs/durable-coordination.md#scoped-conversations-and-durable-requests)

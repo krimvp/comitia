@@ -200,9 +200,12 @@ func (c *Client) AppendMessage(ctx context.Context, token, id string, input comi
 	err := c.call(ctx, token, "messages/append", appendRequest{id, ptr(messageInput(input))}, &out)
 	if input.Envelope != nil && errors.Is(err, comitia.ErrInvalid) && strings.Contains(err.Error(), "schema must name a registered message schema") {
 		switch input.Envelope.Schema {
-		case comitia.RequestSchema, comitia.ReceiptSchema, comitia.MergeCertificateSchema, comitia.MergeReceiptSchema:
+		case comitia.RequestSchema, comitia.ReceiptSchema, comitia.MergeCertificateSchema, comitia.MergeReceiptSchema, comitia.StanceSchema:
 			return comitia.Message{}, fmt.Errorf("%w: %s unsupported by this server", comitia.ErrInvalid, input.Envelope.Schema)
 		}
+	}
+	if field := findingFieldUnsupported(input.Envelope, err); field != "" {
+		return comitia.Message{}, fmt.Errorf("%w: comitia.finding.v1 %s unsupported by this server", comitia.ErrInvalid, field)
 	}
 	if input.TaskFence != nil && unknownField(err, "task_fence") {
 		return comitia.Message{}, ErrTaskResultFencingUnsupported
@@ -211,6 +214,24 @@ func (c *Client) AppendMessage(ctx context.Context, token, id string, input comi
 		return comitia.Message{}, err
 	}
 	return comitia.Message(*out.Message), nil
+}
+
+// Servers before finding priority/size reject them as unknown payload fields.
+// Translate only when the request actually sets the field.
+func findingFieldUnsupported(env *comitia.MessageEnvelope, err error) string {
+	if env == nil || env.Schema != "comitia.finding.v1" || !errors.Is(err, comitia.ErrInvalid) {
+		return ""
+	}
+	var payload map[string]json.RawMessage
+	if json.Unmarshal(env.Payload, &payload) != nil {
+		return ""
+	}
+	for _, field := range []string{"priority", "size"} {
+		if _, ok := payload[field]; ok && strings.Contains(err.Error(), `payload: unknown field "`+field+`"`) {
+			return field
+		}
+	}
+	return ""
 }
 func (c *Client) ReplayMessages(ctx context.Context, token, id string, after int64, limit int, filters ...comitia.MessageFilters) ([]comitia.Message, error) {
 	q, err := c.messageReadRequest(id, after, filters)
