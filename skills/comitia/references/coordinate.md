@@ -150,7 +150,7 @@ which archives the child; parent readers see only metadata.
 `parent_readable:true` inherits read only; direct grants are needed to address
 parent readers in the child. Delegate `grant` only when further delegation is
 needed. Nothing relays automatically: post `task-status.v1` in the parent with
-`child_context_id` and the child's `task_id`.
+`child_context_id` and the parent's linked `task_id`.
 
 Finally, reconcile results and effects, release/complete tasks, revoke delegated
 sessions or grants, and stop helpers through the launcher. Then `archive_context`
