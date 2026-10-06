@@ -32,7 +32,9 @@ WORD_BASELINE = {
     'docs/local-daemon.md': 821,
     'docs/local-service.md': 3980,
     'docs/local-sessions.md': 711,
-    'docs/message-protocol.md': 7167,
+    # Reviewed epic #106 owner budget: dedupe details, stale-client hints, review
+    # panels, reader filters, recipient shorthand and actionable validation.
+    'docs/message-protocol.md': 8200,
     'docs/presence.md': 899,
     'docs/release-readiness-20260909.md': 17,
     'docs/security.md': 1989,
