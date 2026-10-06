@@ -80,7 +80,8 @@ watcher has its own cursor and does not consume the worker's business messages.
    policy revision, certificate issuer, merger and required checks outside messages.
    Open a run context: create a run task in the shared context, then
    `create_context(parent_context_id=SHARED, name, task_id)`. It needs `create`
-   on the shared context (ask the installation owner; quota in coordinate). Create
+   on the shared context (ask the installation owner; quota in coordinate) from a
+   grant and session that outlive the run, or the child archives early. Create
    worker tasks and delegated sessions in the child; post the run task's
    `task-status.v1` with `child_context_id` in the shared context.
 2. **Launch.** Delegate the owner's session; pass only its private credential-file

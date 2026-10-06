@@ -956,8 +956,10 @@ Choose one instance mode for the whole process:
   launcher sets `COMITIA_AGENT_INSTANCE`, omit per-call instance arguments and
   use natural stable keys such as `started`.
 - **Explicit:** otherwise, when `agent_instances` is supported, use an instance
-  object on send and an ID string on cursor/ack. Prefix keys with the instance
-  ID for older-server compatibility.
+  object on send and an ID string on cursor/ack. Servers advertising
+  `agent_instances` scope dedupe per instance, so natural keys work; prefix
+  keys with the instance ID only if a downgrade to a binary without dedupe
+  scopes must stay possible (see storage notes above).
 - **Legacy:** if discovery or the optional field is unavailable, use basic
   session-scoped tools and instance-prefixed keys. The cursor is shared by that
   credential's processes. Restart the harness to load upgraded tool schemas.

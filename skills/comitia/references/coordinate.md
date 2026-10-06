@@ -17,16 +17,16 @@ Choose a distinct stable instance ID (1–64 ASCII letters, digits, `.`,
 
 - **Default:** When `server_info` lists `default_agent_instance` and the launcher
   sets `COMITIA_AGENT_INSTANCE` (optionally `COMITIA_AGENT_INSTANCE_LABEL`) in the
-  Comitia process environment, omit per-call instance fields. Keys
-  such as `started` work: send dedupe and cursor/ack scope default to the instance.
+  Comitia process environment, omit per-call instance fields. Send
+  dedupe and cursor/ack scope default to the instance; natural keys work.
 - **Otherwise explicit:** With `agent_instances` and a tool schema accepting it,
   send `agent_instance:{"id":"INSTANCE","label":"LABEL"}` and use the ID
   string on `message_cursor`/`ack_messages`. Dedupe is instance-scoped, so keep
   natural keys.
 - **Legacy:** If discovery is unavailable or an optional instance field is
-  rejected, retry without it; dedupe is then session-wide, so prefix keys with the instance.
-  Report the client version and restart the harness for upgraded schemas. Shared
-  legacy cursors are unsafe for concurrent consumers; avoid concurrent handling.
+  rejected, retry without it and prefix keys with the instance (session-wide
+  dedupe). Report the client version; restart for upgraded schemas. Legacy cursors
+  are shared: avoid concurrent handling.
 
 Explicit arguments override defaults. Send cannot opt out of a configured
 instance; cursor/ack accept an explicit empty string for the legacy cursor.
@@ -46,7 +46,8 @@ process state before resuming or replacing work.
 ## Send, read, wait, handle, acknowledge
 
 Unknown schema errors point to discovery; unknown fields list accepted keys.
-Forbidden references name the field, never revealing whether the target exists.
+Replies, `task_id` and routed sends need read (inherited counts); a forbidden
+reference names the field without revealing whether the target exists.
 
 1. Send each message with a unique stable `dedupe_key` (at most 256
    bytes); a retry repeats the same body, envelope and instance. A `conflict`
@@ -60,14 +61,14 @@ Forbidden references name the field, never revealing whether the target exists.
 2. Replay with `from_cursor:true` to start at your instance ack cursor (omit
    `after`); on older tools read `message_cursor` first. `exclude_self:true`
    skips your session+instance messages. Each nonempty recipient list must match
-   your session or instance respectively; both empty means broadcast. Addressing is not privacy.
+   your session or instance; both empty means broadcast. Addressing is not privacy.
 
 3. When caught up, use `wait_messages` with `after` and `timeout_seconds:30`
    (maximum 60), bounded by the task/request deadline. To be woken instead, run
    `comitia watch --context-id ID --agent-instance WATCHER --for-instance INSTANCE`
    as a Monitor-style background command: one line per message, acking only
    WATCHER's cursor (`--no-ack`: none). Then replay and handle on your instance.
-   Without wait support, poll replay only while actively collaborating.
+   Without wait support, poll replay only during active collaboration.
 4. With `replay_filters`, fixed filters can narrow reads. `for_instance` alone
    may match another session; add `strict_recipients:true` when supported or
    check both lists locally. MCP text is a short summary: read
@@ -83,8 +84,8 @@ Forbidden references name the field, never revealing whether the target exists.
    or earlier replay. An ack proves handling, not execution or task completion.
 
 For durable side effects, commit business dedupe on (context ID, message ID) and
-an outbox/reconciliation record before ack. A crash can replay a committed
-operation: reconcile instead of repeating it. See
+an outbox record before ack; reconcile operations replayed after a crash instead
+of repeating them. See
 [durable consumers](https://github.com/krimvp/comitia/blob/main/docs/durable-coordination.md#process-then-acknowledge).
 
 ## Tasks, leases and handoffs
@@ -93,8 +94,8 @@ Create/list/get tasks to record ownership. `claim_task(task_id,lease_seconds)`
 returns `Token` and `Task.LeaseVersion`; keep both privately. Renew before expiry
 with `renew_task(task_id,claim_token,lease_version,lease_seconds)`, replacing both
 values from its response. Complete using the latest token/version; release via
-`release_task` when handing back ownership. Default leases are 300 seconds;
-`open_ended:true` needs explicit supervision, since it does not expire.
+`release_task` when handing back ownership. Leases default to 300 seconds;
+`open_ended:true` never expires, so supervise it.
 
 Task get/list/page mark recoverable leases with `lease_expired:true`; stored
 status stays unchanged. Use `list_tasks(claimable:true)` for pending or expired
@@ -139,16 +140,17 @@ For task owners, prefer `delegate_session` with only needed permissions and
 expiry. It returns IDs and an exclusive private `credential_file`; pass that
 path to a trusted launcher with `comitia-client --credential-file PATH mcp`.
 Never read its token into the model. Delegation does not launch the helper.
-Give it its assigned context/session rather than installed shared defaults.
+Give it its assigned context/session, not shared defaults.
 
 `create_context(parent_context_id,name,task_id)` requires `create` on the parent;
 installed harness grants omit it; ask the owner or a grant holder. Each creating
 grant may create 20 children by default, archived ones included. The creator gets
-full permissions on the child; parent readers see only its metadata.
+read/write/claim/grant/create there until the creating grant or session ends,
+which archives the child; parent readers see only metadata.
 `parent_readable:true` inherits read only; direct grants are needed to address
 parent readers in the child. Delegate `grant` only when further delegation is
-needed. Nothing relays automatically: post `task-status.v1` with
-`child_context_id` in the parent.
+needed. Nothing relays automatically: post `task-status.v1` in the parent with
+`child_context_id` and the child's `task_id`.
 
 Finally, reconcile results and effects, release/complete tasks, revoke delegated
 sessions or grants, and stop helpers through the launcher. Then `archive_context`

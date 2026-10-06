@@ -294,6 +294,7 @@ class DocsStructure(unittest.TestCase):
         usage = re.search(r'const commandUsage = `(.*?)`', cli, re.S)[1]
         commands = {c for line in re.findall(r'^  ([a-z, -]+?)\s{2,}', usage, re.M) for c in line.split(', ')}
         tools = set(re.findall(r'\btool\("([a-z_]+)"', go))
+        features = set(re.findall(r'^\t"([a-z_]+)",$', (ROOT/'server_info.go').read_text(), re.M))
         for path in sorted((ROOT/'skills/comitia').rglob('*.md')):
             text = re.sub(r'\\\n\s*', ' ', path.read_text())
             spans = re.findall(r'`([^`\n]+)`', text) + re.findall(r'^comitia[^\n]*$', text, re.M)
@@ -302,8 +303,8 @@ class DocsStructure(unittest.TestCase):
             for span in spans:
                 words = span.split()
                 call = re.fullmatch(r'([a-z]+(?:_[a-z]+)+)(?:\(.*\))?', span)
-                if call and (span.endswith(')') or call[1].split('_')[0] in ('list', 'get', 'set', 'create', 'archive', 'recover', 'delegate')):
-                    self.assertIn(call[1], tools, f'{path.name}: unknown MCP tool {span}')
+                if call and (span.endswith(')') or call[1].split('_')[0] in {name.split('_')[0] for name in tools}):
+                    self.assertIn(call[1], tools | features, f'{path.name}: unknown MCP tool {span}')
                 if words[0] not in ('comitia', 'comitia-client') or words[1:2] == ['sessions']:
                     continue
                 rest = words[1:]
