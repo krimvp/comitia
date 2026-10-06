@@ -68,6 +68,9 @@ func SafeError(operation string, err error, requestID string) ErrorInfo {
 		info.Message = ErrUnauthenticated.Error()
 	case "forbidden":
 		info.Message = ErrForbidden.Error()
+		if message := safeReferenceMessage(err); message != "" {
+			info.Message = message
+		}
 	case "not_found":
 		info.Message = ErrNotFound.Error()
 	case "bootstrap_used":

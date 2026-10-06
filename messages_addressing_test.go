@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 )
@@ -182,5 +183,33 @@ func TestTopLevelRecipientsWithTypedEnvelope(t *testing.T) {
 	in.RecipientInstances = nil
 	if _, err = f.svc.AppendMessage(ctx, f.admin.Token, f.context.ID, in); !errors.Is(err, ErrInvalid) {
 		t.Fatalf("ambiguous sessions: %v", err)
+	}
+}
+
+func TestTopLevelRecipientPrivacyForWriteOnlySender(t *testing.T) {
+	f := setup(t, ":memory:")
+	defer f.store.Close()
+	ctx := context.Background()
+	_, writer, _, err := f.svc.DelegateSession(ctx, f.admin.Token, DelegateInput{PrincipalName: "writer", TTL: time.Hour, Grants: []DelegatedGrant{{ContextID: f.context.ID, Permissions: PermissionWrite, ExpiresAt: f.now.Add(30 * time.Minute)}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var previous string
+	for i, target := range []string{f.admin.Session.ID, "missing-private-target"} {
+		for _, nested := range []bool{false, true} {
+			in := MessageInput{DedupeKey: fmt.Sprintf("privacy-%d-%t", i, nested), Body: "note", RecipientSessionIDs: []string{target}}
+			if nested {
+				in.Envelope = &MessageEnvelope{Schema: "comitia.discussion.v1", Payload: json.RawMessage(`{}`), RecipientSessionIDs: in.RecipientSessionIDs}
+				in.RecipientSessionIDs = nil
+			}
+			_, err := f.svc.AppendMessage(ctx, writer.Token, f.context.ID, in)
+			if !errors.Is(err, ErrForbidden) || !strings.Contains(err.Error(), "recipient_session_ids[0]") || strings.Contains(err.Error(), target) {
+				t.Fatalf("write-only recipient: %v", err)
+			}
+			if previous != "" && previous != err.Error() {
+				t.Fatalf("recipient existence or entry form leak: %q != %q", previous, err)
+			}
+			previous = err.Error()
+		}
 	}
 }

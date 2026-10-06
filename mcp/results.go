@@ -44,7 +44,7 @@ func resultSummary(name string, value any, arguments json.RawMessage, size int) 
 		if len(v) > 0 {
 			a.After = v[len(v)-1].Sequence
 		}
-		return fmt.Sprintf("%d messages; last_sequence=%d%s", len(v), a.After, suffix)
+		return fmt.Sprintf("%d messages; next_after=%d; last_sequence=%d%s", len(v), a.After, a.After, suffix)
 	case comitia.Message:
 		return fmt.Sprintf("message id=%s; sequence=%d%s", v.ID, v.Sequence, suffix)
 	case comitia.TaskPage:

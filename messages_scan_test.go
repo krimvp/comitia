@@ -52,7 +52,7 @@ func TestFilteredMessagesSeekIndexes(t *testing.T) {
 		name, index string
 		f           MessageFilters
 	}{
-		{"schema", "message_filters_schema", MessageFilters{Schema: "missing"}},
+		{"schema", "message_filters_schema", MessageFilters{Schema: "comitia.finding.v1"}},
 		{"task", "message_filters_task", MessageFilters{TaskID: "missing"}},
 		{"sender", "message_filters_sender", MessageFilters{FromInstance: "missing"}},
 		{"recipient", "message_recipients_lookup", MessageFilters{ForInstance: "missing"}},
@@ -108,7 +108,7 @@ func TestFilteredPageScanProgressWithoutAck(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	filter := MessageFilters{Schema: "missing"}
+	filter := MessageFilters{Schema: "comitia.finding.v1"}
 	for _, wait := range []bool{false, true} {
 		t.Run(fmt.Sprint("wait=", wait), func(t *testing.T) {
 			var page MessagePage

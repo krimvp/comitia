@@ -120,17 +120,17 @@ func (h *handler) messageRoutes() map[string]endpoint {
 }
 
 func (q replayRequest) messageFilters() comitia.MessageFilters {
-	f := comitia.MessageFilters{ReplyTo: q.ReplyTo, ThreadID: q.ThreadID, FromSession: q.FromSession, MaxBytes: q.MaxBytes, StrictRecipients: q.StrictRecipients, ForInstance: q.ForInstance, FromInstance: q.FromInstance, TaskID: q.TaskID, Schema: q.Schema}
+	f := comitia.MessageFilters{ExcludeSelf: q.ExcludeSelf, FromCursor: q.FromCursor, Schemas: q.Schemas, ReplyTo: q.ReplyTo, ThreadID: q.ThreadID, FromSession: q.FromSession, MaxBytes: q.MaxBytes, StrictRecipients: q.StrictRecipients, ForInstance: q.ForInstance, FromInstance: q.FromInstance, TaskID: q.TaskID, Schema: q.Schema}
 	if q.AgentInstance != "" {
 		f.AgentInstance = &q.AgentInstance
 	}
 	return f
 }
 func (q replayRequest) wait(seconds float64) waitRequest {
-	return waitRequest{ReplyTo: q.ReplyTo, ThreadID: q.ThreadID, FromSession: q.FromSession, ContextID: q.ContextID, After: q.After, MaxBytes: q.MaxBytes, Page: q.Page, AgentInstance: q.AgentInstance, ForInstance: q.ForInstance, FromInstance: q.FromInstance, TaskID: q.TaskID, Schema: q.Schema, TimeoutSeconds: &seconds, StrictRecipients: q.StrictRecipients}
+	return waitRequest{ExcludeSelf: q.ExcludeSelf, FromCursor: q.FromCursor, Schemas: q.Schemas, ReplyTo: q.ReplyTo, ThreadID: q.ThreadID, FromSession: q.FromSession, ContextID: q.ContextID, After: q.After, MaxBytes: q.MaxBytes, Page: q.Page, AgentInstance: q.AgentInstance, ForInstance: q.ForInstance, FromInstance: q.FromInstance, TaskID: q.TaskID, Schema: q.Schema, TimeoutSeconds: &seconds, StrictRecipients: q.StrictRecipients}
 }
 func (q waitRequest) replay() replayRequest {
-	return replayRequest{ReplyTo: q.ReplyTo, ThreadID: q.ThreadID, FromSession: q.FromSession, ContextID: q.ContextID, After: q.After, MaxBytes: q.MaxBytes, Page: q.Page, AgentInstance: q.AgentInstance, ForInstance: q.ForInstance, FromInstance: q.FromInstance, TaskID: q.TaskID, Schema: q.Schema, StrictRecipients: q.StrictRecipients}
+	return replayRequest{ExcludeSelf: q.ExcludeSelf, FromCursor: q.FromCursor, Schemas: q.Schemas, ReplyTo: q.ReplyTo, ThreadID: q.ThreadID, FromSession: q.FromSession, ContextID: q.ContextID, After: q.After, MaxBytes: q.MaxBytes, Page: q.Page, AgentInstance: q.AgentInstance, ForInstance: q.ForInstance, FromInstance: q.FromInstance, TaskID: q.TaskID, Schema: q.Schema, StrictRecipients: q.StrictRecipients}
 }
 
 // A nil AgentInstance uses the client's default presence instance.
@@ -142,6 +142,10 @@ func (c *Client) messageReadRequest(cid string, after int64, filters []comitia.M
 	var instances []string
 	if len(filters) == 1 {
 		f := filters[0]
+		q.ExcludeSelf, q.FromCursor = f.ExcludeSelf, f.FromCursor
+		if len(f.Schemas) != 0 {
+			q.Schemas = f.Schemas
+		}
 		q.ReplyTo, q.ThreadID, q.FromSession = f.ReplyTo, f.ThreadID, f.FromSession
 		q.MaxBytes, q.StrictRecipients = f.MaxBytes, f.StrictRecipients
 		q.ForInstance, q.FromInstance, q.TaskID, q.Schema = f.ForInstance, f.FromInstance, f.TaskID, f.Schema
@@ -157,6 +161,14 @@ func (c *Client) messageReadRequest(cid string, after int64, filters []comitia.M
 // Servers before strict recipient selection reject the member. Never retry
 // without it: that would silently widen the selected recipients.
 func strictRecipientsUnsupported(q replayRequest, err error) error {
+	for _, field := range []struct {
+		name    string
+		enabled bool
+	}{{"exclude_self", q.ExcludeSelf}, {"from_cursor", q.FromCursor}, {"schemas", len(q.Schemas) != 0}} {
+		if field.enabled && unknownField(err, field.name) {
+			return fmt.Errorf("%w: %s unsupported by this server; upgrade the server before retrying", comitia.ErrInvalid, field.name)
+		}
+	}
 	for _, field := range []struct{ name, value string }{{"reply_to", q.ReplyTo}, {"thread_id", q.ThreadID}, {"from_session", q.FromSession}} {
 		if field.value != "" && unknownField(err, field.name) {
 			return fmt.Errorf("%w: scoped message queries unsupported by this server", comitia.ErrInvalid)
@@ -200,9 +212,12 @@ func (c *Client) AppendMessage(ctx context.Context, token, id string, input comi
 	err := c.call(ctx, token, "messages/append", appendRequest{id, ptr(messageInput(input))}, &out)
 	if input.Envelope != nil && errors.Is(err, comitia.ErrInvalid) && strings.Contains(err.Error(), "schema must name a registered message schema") {
 		switch input.Envelope.Schema {
-		case comitia.RequestSchema, comitia.ReceiptSchema, comitia.MergeCertificateSchema, comitia.MergeReceiptSchema:
+		case comitia.RequestSchema, comitia.ReceiptSchema, comitia.MergeCertificateSchema, comitia.MergeReceiptSchema, comitia.StanceSchema:
 			return comitia.Message{}, fmt.Errorf("%w: %s unsupported by this server", comitia.ErrInvalid, input.Envelope.Schema)
 		}
+	}
+	if field := findingFieldUnsupported(input.Envelope, err); field != "" {
+		return comitia.Message{}, fmt.Errorf("%w: comitia.finding.v1 %s unsupported by this server", comitia.ErrInvalid, field)
 	}
 	for _, field := range []struct {
 		name   string
@@ -219,6 +234,24 @@ func (c *Client) AppendMessage(ctx context.Context, token, id string, input comi
 		return comitia.Message{}, err
 	}
 	return comitia.Message(*out.Message), nil
+}
+
+// Servers before finding priority/size reject them as unknown payload fields.
+// Translate only when the request actually sets the field.
+func findingFieldUnsupported(env *comitia.MessageEnvelope, err error) string {
+	if env == nil || env.Schema != "comitia.finding.v1" || !errors.Is(err, comitia.ErrInvalid) {
+		return ""
+	}
+	var payload map[string]json.RawMessage
+	if json.Unmarshal(env.Payload, &payload) != nil {
+		return ""
+	}
+	for _, field := range []string{"priority", "size"} {
+		if _, ok := payload[field]; ok && strings.Contains(err.Error(), `payload: unknown field "`+field+`"`) {
+			return field
+		}
+	}
+	return ""
 }
 func (c *Client) ReplayMessages(ctx context.Context, token, id string, after int64, limit int, filters ...comitia.MessageFilters) ([]comitia.Message, error) {
 	q, err := c.messageReadRequest(id, after, filters)
@@ -416,3 +449,5 @@ func (c *Client) GetMessage(ctx context.Context, token, cid, mid string) (comiti
 	}
 	return comitia.Message(*out.Message), nil
 }
+
+func (*Client) SupportsMessageReadOptions() bool { return true }

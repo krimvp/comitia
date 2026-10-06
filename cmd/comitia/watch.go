@@ -43,10 +43,10 @@ func watchMessageOutput(ctx context.Context, api comitia.MessageAPI, token, cid,
 			err = api.AckMessages(ctx, token, cid, after, instance)
 			pendingAck = err != nil
 		default:
-			var messages []comitia.Message
-			messages, err = api.WaitMessages(ctx, token, cid, after, timeout, filters)
+			var page comitia.MessagePage
+			page, err = comitia.WaitMessagePage(ctx, api, token, cid, after, timeout, filters)
 			if err == nil {
-				for _, m := range messages {
+				for _, m := range page.Messages {
 					if jsonLines {
 						if e := json.NewEncoder(out).Encode(m); e != nil {
 							return e
@@ -72,6 +72,13 @@ func watchMessageOutput(ctx context.Context, api comitia.MessageAPI, token, cid,
 							pendingAck = true
 							break
 						}
+					}
+				}
+				if err == nil && page.ScannedThrough > after {
+					after = page.ScannedThrough
+					if ack {
+						err = api.AckMessages(ctx, token, cid, after, instance)
+						pendingAck = err != nil
 					}
 				}
 			}

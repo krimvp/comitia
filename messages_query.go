@@ -2,6 +2,7 @@ package comitia
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 )
 
@@ -32,6 +33,12 @@ func contextMessage(r MessageReadStore, cid, mid string) (Message, error) {
 }
 
 func validateMessageQuery(r ReadStore, cid string, f MessageFilters) error {
+	if f.ExcludeSelf || len(f.Schemas) != 0 {
+		options, ok := r.(MessageReadOptionsStore)
+		if !ok || !options.SupportsMessageReadOptions() {
+			return Invalidf("message read options unsupported by store")
+		}
+	}
 	if !scopedMessageFilters(f) {
 		return nil
 	}
@@ -39,9 +46,13 @@ func validateMessageQuery(r ReadStore, cid string, f MessageFilters) error {
 	if !ok || !query.SupportsMessageQueries() {
 		return Invalidf("scoped message queries unsupported by store")
 	}
-	for _, mid := range []string{f.ReplyTo, f.ThreadID} {
+	for _, ref := range []struct{ field, id string }{{"reply_to", f.ReplyTo}, {"thread_id", f.ThreadID}} {
+		mid := ref.id
 		if mid != "" {
 			if _, err := contextMessage(r, cid, mid); err != nil {
+				if errors.Is(err, ErrForbidden) {
+					return referenceError{ref.field}
+				}
 				return err
 			}
 		}
@@ -72,6 +83,12 @@ func LookupMessage(ctx context.Context, api MessageAPI, token, cid, mid string) 
 
 // CheckMessageQueryAPI prevents adapters from widening reads through old APIs.
 func CheckMessageQueryAPI(api MessageAPI, f MessageFilters) error {
+	if readOptions(f) {
+		options, ok := api.(MessageReadOptionsAPI)
+		if !ok || !options.SupportsMessageReadOptions() {
+			return Invalidf("message read options unsupported by API")
+		}
+	}
 	if !scopedMessageFilters(f) {
 		return nil
 	}
@@ -79,4 +96,58 @@ func CheckMessageQueryAPI(api MessageAPI, f MessageFilters) error {
 		return Invalidf("scoped message queries unsupported by API")
 	}
 	return nil
+}
+
+// MessageReadOptionsAPI opts into self exclusion, cursor starts and schema lists.
+// Older APIs must not silently ignore these read options.
+type MessageReadOptionsAPI interface {
+	SupportsMessageReadOptions() bool
+}
+
+// MessageReadOptionsStore opts into the ExcludeSelf and Schemas predicates.
+type MessageReadOptionsStore interface {
+	SupportsMessageReadOptions() bool
+}
+
+func (*Service) SupportsMessageReadOptions() bool  { return true }
+func (*sqlStore) SupportsMessageReadOptions() bool { return true }
+
+func readOptions(f MessageFilters) bool {
+	return f.ExcludeSelf || f.FromCursor || len(f.Schemas) != 0
+}
+
+// resolveMessageAfter resolves an opt-in cursor start once per read or wait.
+func resolveMessageAfter(ctx context.Context, api MessageAPI, token, cid string, after int64, f MessageFilters) (int64, MessageFilters, error) {
+	if err := CheckMessageQueryAPI(api, f); err != nil {
+		return after, f, err
+	}
+	if !f.FromCursor {
+		return after, f, nil
+	}
+	if after != 0 {
+		return after, f, Invalidf("from_cursor cannot be combined with after")
+	}
+	after, err := api.MessageCursor(ctx, token, cid, f.agentInstance())
+	f.FromCursor = false
+	return after, f, err
+}
+
+func (f MessageFilters) includesRenewals() bool {
+	if f.Schema == TaskEventSchema {
+		return true
+	}
+	for _, schema := range f.Schemas {
+		if schema == TaskEventSchema {
+			return true
+		}
+	}
+	return false
+}
+
+func renewedMessage(m Message) bool {
+	if m.Envelope == nil || m.Envelope.Schema != TaskEventSchema {
+		return false
+	}
+	var p TaskEventPayload
+	return json.Unmarshal(m.Envelope.Payload, &p) == nil && p.Kind == "renewed"
 }

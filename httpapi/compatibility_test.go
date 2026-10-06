@@ -783,7 +783,7 @@ func TestClientProtocolSchemasUnsupported(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, schema := range []string{comitia.RequestSchema, comitia.ReceiptSchema, comitia.MergeCertificateSchema, comitia.MergeReceiptSchema} {
+	for _, schema := range []string{comitia.RequestSchema, comitia.ReceiptSchema, comitia.MergeCertificateSchema, comitia.MergeReceiptSchema, comitia.StanceSchema} {
 		requests = 0
 		_, err := client.AppendMessage(context.Background(), "token", "context", comitia.MessageInput{DedupeKey: "stable", Envelope: &comitia.MessageEnvelope{Schema: schema, Payload: json.RawMessage(`{}`)}})
 		if !errors.Is(err, comitia.ErrInvalid) || !strings.Contains(err.Error(), schema+" unsupported by this server") || requests != 1 {

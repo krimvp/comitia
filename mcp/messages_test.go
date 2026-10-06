@@ -41,7 +41,7 @@ func TestTypedMCPUsesRealService(t *testing.T) {
 	}
 	encoded, _ := json.Marshal(listed)
 	var descriptors []map[string]any
-	if err := json.Unmarshal(encoded, &descriptors); err != nil || len(descriptors) != 16 {
+	if err := json.Unmarshal(encoded, &descriptors); err != nil || len(descriptors) != 17 {
 		t.Fatalf("descriptors: %s %v", encoded, err)
 	}
 	gotSchema, discoveryErr := s.call(ctx, "get_message_schema", json.RawMessage(`{"schema":"comitia.review-request.v1"}`))

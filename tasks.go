@@ -68,6 +68,63 @@ type TaskMutationAPI interface {
 	RenewClaimWithOperation(context.Context, string, string, string, int64, time.Duration, string) (TaskClaim, error)
 }
 
+// TaskClaimRecoveryAPI is optional; recovery never extends the current lease.
+type TaskClaimRecoveryAPI interface {
+	RecoverClaim(context.Context, string, string, int64, ...AgentInstance) (TaskClaim, error)
+}
+
+// RecoverClaim selects holder recovery without changing the original task API.
+func RecoverClaim(ctx context.Context, api TaskAPI, raw, taskID string, version int64, instance ...AgentInstance) (TaskClaim, error) {
+	recovery, ok := api.(TaskClaimRecoveryAPI)
+	if !ok {
+		return TaskClaim{}, Invalidf("claim recovery unsupported by this API")
+	}
+	return recovery.RecoverClaim(ctx, raw, taskID, version, instance...)
+}
+
+// RecoverClaim rotates a live holder's token, preserving version and expiry.
+// Instance IDs fence processes sharing a session but are still self-reported.
+func (s *Service) RecoverClaim(ctx context.Context, raw, taskID string, version int64, instance ...AgentInstance) (TaskClaim, error) {
+	var c TaskClaim
+	if taskID == "" || version < 1 || len(instance) > 1 {
+		return c, Invalidf("task_id and positive lease_version required; agent_instance accepts at most one instance")
+	}
+	var owner *AgentInstance
+	if len(instance) == 1 {
+		var e error
+		if owner, e = normalizeAgentInstance(&instance[0]); e != nil {
+			return c, e
+		}
+	}
+	e := s.store.Update(ctx, func(w WriteStore) error {
+		t, e := s.privateTask(w, raw, taskID)
+		if e != nil {
+			return e
+		}
+		if _, _, e := s.require(w, raw, t.ContextID, PermissionRead); e != nil {
+			return e
+		}
+		a, _, e := s.require(w, raw, t.ContextID, PermissionClaim)
+		if e != nil {
+			return e
+		}
+		if t.Status != TaskLeased || t.LeaseOwnerSessionID != a.session.ID || t.LeaseVersion != version || t.LeaseExpiresAt == nil || !t.LeaseExpiresAt.After(s.now().UTC()) {
+			return ErrStaleClaim
+		}
+		if t.LeaseOwnerInstance != nil && (owner == nil || owner.ID != t.LeaseOwnerInstance.ID) {
+			return ErrStaleClaim
+		}
+		c = TaskClaim{Task: t, Token: token()}
+		c.Task.LeaseTokenHash = ""
+		t.LeaseTokenHash = tokenHash(c.Token)
+		return w.PutTask(t)
+	})
+	if e != nil {
+		return TaskClaim{}, e
+	}
+	return c, nil
+}
+
 type TaskReceiptReadStore interface {
 	TaskReceipt(string, string) (TaskReceipt, error)
 }
@@ -209,6 +266,9 @@ func (s *Service) ClaimTaskWithOperation(ctx context.Context, raw, taskID string
 		}
 		if found {
 			c, e = s.recoverTaskClaim(w, t, receipt, a.session.ID)
+			if e == nil {
+				s.touchInstanceIn(w, a.session.ID, t.ContextID, t.LeaseOwnerInstance)
+			}
 			return e
 		}
 		now := s.now().UTC()
@@ -242,6 +302,7 @@ func (s *Service) ClaimTaskWithOperation(ctx context.Context, raw, taskID string
 		if e := putTaskEvent(w, a.session.ID, t, "claimed", previous); e != nil {
 			return e
 		}
+		s.touchInstanceIn(w, a.session.ID, t.ContextID, t.LeaseOwnerInstance)
 		eventContext = t.ContextID
 		return putTaskReceipt(w, a.session.ID, operationID, fingerprint, c.Task)
 	})
@@ -279,6 +340,10 @@ func (s *Service) changeLease(ctx context.Context, raw, taskID, claimToken strin
 		if e != nil {
 			return e
 		}
+		instance := t.LeaseOwnerInstance
+		if instance != nil {
+			instance = &AgentInstance{ID: instance.ID}
+		}
 		fingerprint := taskFingerprint("renew", taskID, tokenHash(claimToken), version, lease)
 		receipt, found, e := taskReceipt(w, a.session.ID, operationID, fingerprint)
 		if e != nil {
@@ -286,6 +351,9 @@ func (s *Service) changeLease(ctx context.Context, raw, taskID, claimToken strin
 		}
 		if found {
 			c, e = s.recoverTaskClaim(w, t, receipt, a.session.ID)
+			if e == nil {
+				s.touchInstanceIn(w, a.session.ID, t.ContextID, instance)
+			}
 			return e
 		}
 		now := s.now().UTC()
@@ -316,6 +384,7 @@ func (s *Service) changeLease(ctx context.Context, raw, taskID, claimToken strin
 		if e := putTaskEvent(w, a.session.ID, t, kind, TaskLeased); e != nil {
 			return e
 		}
+		s.touchInstanceIn(w, a.session.ID, t.ContextID, instance)
 		eventContext = t.ContextID
 		return putTaskReceipt(w, a.session.ID, operationID, fingerprint, c.Task)
 	})

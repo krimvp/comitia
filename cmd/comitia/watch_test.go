@@ -95,7 +95,7 @@ func TestWatchCommandServerRestart(t *testing.T) {
 	}
 	server, addr := startServer("127.0.0.1:0")
 	defer func() { _ = server.Close() }()
-	args, _ := json.Marshal([]string{"--server-url", "http://" + addr, "--credential", owner.Token, "watch", "--context-id", c.ID, "--agent-instance", "reader", "--for-instance", "reader", "--from-instance", "writer", "--task-id", task.ID, "--schema", "comitia.discussion.v1", "--timeout-seconds", "0.3"})
+	args, _ := json.Marshal([]string{"--server-url", "http://" + addr, "--credential", owner.Token, "watch", "--context-id", c.ID, "--agent-instance", "reader", "--from-instance", "writer", "--task-id", task.ID, "--schema", "comitia.discussion.v1", "--timeout-seconds", "0.3"})
 	childCtx, cancel := context.WithTimeout(ctx, 15*time.Second)
 	defer cancel()
 	cmd := exec.CommandContext(childCtx, os.Args[0], "-test.run=^TestWatchCommandServerRestart$")
@@ -330,6 +330,9 @@ func TestReplayAndWaitCommandFilters(t *testing.T) {
 			for i := range otherArgs {
 				if otherArgs[i] == flag {
 					otherArgs[i+1] = "other"
+					if flag == "--schema" {
+						otherArgs[i+1] = "comitia.finding.v1"
+					}
 					break
 				}
 			}

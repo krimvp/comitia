@@ -94,7 +94,11 @@ func normalizeFields(raw json.RawMessage, typ reflect.Type, legacy, strict bool)
 		f, ok := fields[key]
 		if !ok {
 			if strict {
-				return nil, comitia.Invalidf("unknown field %q", key)
+				keys := make([]string, 0, len(fields))
+				for name := range fields {
+					keys = append(keys, name)
+				}
+				return nil, comitia.UnknownField(key, keys)
 			}
 			var ignored json.RawMessage
 			if err := d.Decode(&ignored); err != nil {

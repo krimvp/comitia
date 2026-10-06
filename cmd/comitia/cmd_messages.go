@@ -115,6 +115,17 @@ func runMessages(ctx context.Context, cfg config, api comitia.API, out *json.Enc
 			return nil
 		}
 		filters.AgentInstance = instance
+		if filters.FromCursor && flagProvided(fs, "after") {
+			return comitia.Invalidf("--from-cursor cannot be combined with --after")
+		}
+		if cmd == "watch" {
+			if filters.FromCursor || flagProvided(fs, "after") {
+				return comitia.Invalidf("watch always starts from its instance cursor")
+			}
+			if !flagProvided(fs, "for-instance") {
+				filters.ForInstance = *instance
+			}
+		}
 		if err := comitia.CheckMessageQueryAPI(api, *filters); err != nil {
 			return err
 		}
@@ -226,6 +237,8 @@ func messageInstance(cfg config, fs *flag.FlagSet, id, label string) *comitia.Ag
 
 func messageFilterFlags(fs *flag.FlagSet) *comitia.MessageFilters {
 	f := new(comitia.MessageFilters)
+	fs.BoolVar(&f.ExcludeSelf, "exclude-self", false, "omit this session's own --agent-instance messages")
+	fs.BoolVar(&f.FromCursor, "from-cursor", false, "start at this instance's acknowledgement cursor; omit --after")
 	fs.StringVar(&f.ReplyTo, "reply-to", "", "direct replies to this message in this context")
 	fs.StringVar(&f.ThreadID, "thread-id", "", "root message and recursive descendants in this context")
 	fs.StringVar(&f.FromSession, "from-session", "", "authenticated sender session ID")
@@ -233,6 +246,17 @@ func messageFilterFlags(fs *flag.FlagSet) *comitia.MessageFilters {
 	fs.BoolVar(&f.StrictRecipients, "strict-recipients", false, "require both recipient lists to match caller session and --for-instance")
 	fs.StringVar(&f.FromInstance, "from-instance", "", "self-reported sender instance")
 	fs.StringVar(&f.TaskID, "task-id", "", "envelope task ID")
-	fs.StringVar(&f.Schema, "schema", "", "exact envelope schema ID")
+	fs.Func("schema", "exact envelope schema ID; repeat to match several schemas", func(value string) error {
+		if f.Schema == "" && len(f.Schemas) == 0 {
+			f.Schema = value
+		} else {
+			if len(f.Schemas) == 0 {
+				f.Schemas = append(f.Schemas, f.Schema)
+				f.Schema = ""
+			}
+			f.Schemas = append(f.Schemas, value)
+		}
+		return nil
+	})
 	return f
 }

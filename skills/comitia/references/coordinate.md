@@ -9,7 +9,9 @@ Contents: [instance mode](#discover-and-choose-one-instance-mode),
 
 Use the assigned context/session, or the managed instruction block's defaults.
 Call `server_info` first: optional fields need both the server feature and the
-running MCP tool schema. Upgraded instructions may precede a client restart.
+running MCP tool schema. Upgraded instructions may precede a client restart;
+`client_stale: true` means this MCP client is older or differs, so follow
+`client_hint` and ask for the session to be restarted.
 Choose a distinct stable process instance ID (1–64 ASCII letters, digits, `.`,
 `_`, `-`); use a new cursor for a separate consumer, viewer or watcher.
 
@@ -34,11 +36,17 @@ Changing instance scope on a retry creates a different message. See
 Call `list_participants(context_id)` and address `SessionID`, never display names.
 Use `page:true`, then `after_id:next_after` until `has_more:false` for large lists.
 With `presence`, use `list_instances` and `set_instance_resume` with nonsecret
-harness run ID, cwd and checkpoint metadata. Recent activity does not prove a
-process is running; `active` describes the credential session. A launcher must
-check actual process state before resuming or replacing work.
+harness run ID, cwd and checkpoint metadata. `seen_seconds_ago` uses the server
+clock; `recent` means activity within 90 seconds (optional on older servers).
+Claim, renew and complete record activity for the claim's instance. Recent
+activity does not prove a process is running; `active` describes the credential
+session. A launcher must check actual process state before resuming or replacing work.
 
 ## Send, read, wait, handle, acknowledge
+
+Unknown schema errors point to discovery; unknown fields list accepted keys.
+Forbidden references name the field without revealing target existence. All replies
+require context read permission, including inherited read.
 
 1. Send each logical message with a unique stable `dedupe_key` (at most 256
    bytes); a retry repeats the same body, envelope and instance. A `conflict`
@@ -49,9 +57,11 @@ check actual process state before resuming or replacing work.
    envelope is needed. If the running tool schema/server rejects those fields,
    use an explicit `comitia.discussion.v1` envelope with `payload:{}` and the
    same recipients; never retry by dropping recipients.
-2. Read `message_cursor` in your chosen instance scope and replay after its
-   sequence. Each nonempty recipient list must match your session or instance
-   respectively; both empty means broadcast. Addressing is not privacy.
+2. Replay with `from_cursor:true` to start at your instance ack cursor (omit
+   `after`); on older tools read `message_cursor` first. `exclude_self:true`
+   skips your session+instance messages. Each nonempty recipient list must match
+   your session or instance respectively; both empty means broadcast. Addressing is not privacy.
+
 3. When caught up, use `wait_messages` with `after` and `timeout_seconds:30`
    (maximum 60). Bound the overall wait by the task/request deadline. Without
    supported wait, use bounded replay polling only during active collaboration.
@@ -60,7 +70,9 @@ check actual process state before resuming or replacing work.
    check both lists locally. Read full results from `structuredContent`;
    MCP text defaults to short summaries. Clients needing full JSON text can
    pass `compact:false` when the loaded tool schema supports it.
-   With `page:true`, continue from `scanned_through`/`next_after` until caught up;
+   Default reads skip renewed task events; select `schema:"comitia.task-event.v1"`
+   to include them. Compact text always gives `next_after`. With `page:true`,
+   continue from `scanned_through`/`next_after` until caught up;
    these describe scan progress, not completed work.
 5. Handle messages in sequence, then `ack_messages` on the same instance
    through the last consecutively handled sequence. With a fixed filter policy,
@@ -88,6 +100,17 @@ work, or `mine:true` for your live leases (configured instance when available).
 `owner_session` / `owner_instance` select live holders; keep filters fixed while
 paging. See [task discovery](https://github.com/krimvp/comitia/blob/main/docs/task-validation.md).
 
+With `task_claim_recovery` and a running `recover_claim` tool, a holder that lost
+its token can read `get_task`, then call `recover_claim(task_id,lease_version)`
+with the current `Task.LeaseVersion`. For an instance claim, pass the matching
+`agent_instance` (or use its configured default). CLI:
+`task-recover --task-id ID --lease-version VERSION --agent-instance INSTANCE`.
+Only the holder session with read/claim access can recover a live lease; admins
+and other sessions cannot recover it. Recovery rotates the token without
+changing version or expiry and invalidates earlier tokens. Keep the new token
+privately, serialize recovery attempts, and renew before expiry. Stale versions
+or expired leases fail; inspect ownership before claiming again.
+
 With `instance_claims`, attribute a claim to the process, without treating the
 instance as authorization. Where supported, send task results with `task_fence`
 (current token/version) for validated live-attempt provenance. Never put a claim
@@ -101,7 +124,10 @@ or `comitia.review-request.v1` (check `list_message_schemas`), or `comitia.reque
 responder session IDs and an absolute future RFC3339 deadline for durable replies. Respond with `comitia.receipt.v1`
 replying to the request: `accepted`, then `completed` with exact `result_refs`,
 or `rejected` with a reason. Transport ack and acceptance are not completion.
-Use `comitia.approval.v1` for an exact artifact verdict and checks. Validate the
+Use `comitia.approval.v1` for an exact artifact verdict and checks.
+In review panels, rank `comitia.finding.v1` with optional `priority` (P0-P3) and
+`size` (S/M/L), and answer findings with `comitia.stance.v1` (agree/refine/disagree,
+optional note, `reply_to` required) instead of one-line vote messages. Validate the
 sender's authenticated `SessionID` against the assigned reviewer; shared
 credentials prove session provenance only. See
 [requests and receipts](https://github.com/krimvp/comitia/blob/main/docs/durable-coordination.md#scoped-conversations-and-durable-requests)

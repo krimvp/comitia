@@ -55,7 +55,7 @@ func TestInstancePresenceCommands(t *testing.T) {
 				t.Fatalf("rows: %v", rows)
 			}
 			p := rows[0].(map[string]any)
-			if p["id"] != "worker" || p["label"] != "CLI worker" || p["last_seen"] == nil || p["active"] != true || p["resume"].(map[string]any)["pid"] != float64(123) {
+			if p["id"] != "worker" || p["label"] != "CLI worker" || p["last_seen"] == nil || p["active"] != true || p["seen_seconds_ago"] == nil || p["recent"] != true || p["resume"].(map[string]any)["pid"] != float64(123) {
 				t.Fatalf("presence: %v", p)
 			}
 			if err := os.WriteFile(file, []byte(`[]`), 0600); err != nil {

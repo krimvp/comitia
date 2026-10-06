@@ -178,11 +178,15 @@ Labels do not affect cursors. Acknowledgements remain monotonic and cannot
 exceed the context's current maximum sequence. Cursor operations require the
 same authenticated read access as before, even for unseen instance IDs.
 
-Replay still reads the shared context log using an explicit `after` sequence;
-it does not automatically filter recipients or choose an instance cursor. Read
-your instance cursor, replay or wait after it with optional filters, then
-acknowledge the last matching sequence you consumed using the same instance ID.
-Session recipient checks can still be applied locally when needed.
+Replay and wait start at sequence zero when `after` is omitted. Opt into the
+caller's instance cursor with `from_cursor: true` (CLI `--from-cursor`) and omit
+`after`. `agent_instance` chooses the same session/context/instance scope used
+by acknowledgement; an empty instance uses the legacy session cursor. A wait
+resolves this starting cursor once, so later acknowledgements cannot move its
+in-flight read. MCP/CLI reject combining the opt-in with an explicit `after`;
+Go/HTTP reject combining it with a nonzero `after`.
+Reading never acknowledges messages. Handle the results before acknowledging
+with the same instance ID.
 
 ## Filtered replay and waiting
 
@@ -198,13 +202,16 @@ Empty values disable a filter; all nonempty filters must match.
 | `reply_to` | Direct replies to a message in this readable context; missing/foreign roots are forbidden. |
 | `thread_id` | Root message and recursive reply descendants in this readable context. |
 | `from_session` | Exact authenticated sender session ID. |
+| `exclude_self` | Omit messages whose authenticated sender session and sender instance both equal the caller's session and `agent_instance`. Other instances sharing the session and other sessions reusing the instance remain visible. An empty caller instance excludes only that session's legacy senders. |
 | `from_instance` | The message's self-reported `agent_instance.id` equals this exact ID. Legacy senders without a claim do not match. |
 | `task_id` | Envelope `task_id` equals this exact ID. |
 | `schema` | Envelope `schema` equals this exact versioned name. |
+| `schemas` | Envelope `schema` matches any name in the list. CLI repeats `--schema` to build this list. If both `schema` and `schemas` are supplied, both selectors must match. |
 
 Instance filters use the same 1–64 character ID syntax as sender claims.
-`agent_instance` (an ID string, defaulting to `COMITIA_AGENT_INSTANCE`) is not a
-filter: it names the reader for [instance presence](presence.md).
+`agent_instance` (an ID string, defaulting to `COMITIA_AGENT_INSTANCE`) names the
+reader for [instance presence](presence.md), self exclusion and cursor starts.
+It only narrows results when `exclude_self` is enabled.
 Unknown task IDs and schema names simply match nothing. These filters are
 convenience selectors over the same shared context log. They neither grant
 access nor restrict what an authorized reader can obtain with another replay.
@@ -218,12 +225,24 @@ still work against older servers. A strict read against a server that rejects
 the member returns `ErrInvalid` ("strict_recipients unsupported by this
 server"); the Client never retries without it, because that would widen results.
 
+By default replay, wait and watch skip `comitia.task-event.v1` messages whose
+payload `kind` is `renewed`. Other task transitions remain visible. Select
+`schema: "comitia.task-event.v1"` or include that name in `schemas` (CLI
+`--schema comitia.task-event.v1`) to include renewals. Page `scanned_through`
+advances across skipped renewals, including renewal-only timeout results.
+Renewals remain stored and available through direct message lookup.
+
+The HTTP client omits the new `exclude_self`, `from_cursor` and `schemas`
+fields unless enabled. Older servers reject enabled options with a clear
+unsupported error; the client does not retry with a wider read. Embedded APIs
+and stores opt into optional `MessageReadOptionsAPI`/`MessageReadOptionsStore`;
+existing exported interfaces retain their method sets.
+
 Replay keeps its existing output, ordering, exclusive `after` cursor and
 1–1000 `limit`. Filtering happens **in SQL before ORDER BY/LIMIT**, so a page
 contains up to `limit` matching messages regardless of skipped sequences.
-Advance `after` to the last returned message's `Sequence`; an empty result means
-there are currently no later matches. Skipped sequences need no separate scan
-cursor. The default output shape, including empty-result serialization, is unchanged.
+Legacy arrays expose returned sequences; page mode also exposes progress past
+skipped messages. The default array output shape remains unchanged.
 
 ```go
 filters := comitia.MessageFilters{ForInstance: "issue-3-worker", StrictRecipients: true}
@@ -263,9 +282,9 @@ Default MCP/CLI results remain arrays. To request continuation metadata, pass
 {"messages":[],"next_after":42,"scanned_through":57,"has_more":false}
 ```
 
-`next_after` is the last returned sequence, or the supplied `after` on an empty
-page. `scanned_through` reports safe progress through skipped nonmatches from
-that same read snapshot; an empty filtered page can advance it beyond
+`next_after` is the last returned sequence, or the resolved starting sequence
+on an empty page (including `from_cursor`). `scanned_through` reports safe progress
+through skipped nonmatches from that same read snapshot; an empty filtered page can advance it beyond
 `next_after`. After handling returned messages, continue with `scanned_through`
 and exactly the same filters to avoid scanning the same tail again. Count and
 byte truncation never advance it past an omitted match. Changing filters means
@@ -287,8 +306,8 @@ APIs need no new methods; the helpers derive pages using their legacy reads.
 
 MCP tools default to short text summaries for messages, tasks, collections and
 other large results. `structuredContent.result` retains the full result and its
-existing array or page shape. Replay/wait text includes a count and cursor;
-pages also include `next_after`, `scanned_through` and `has_more`. Send text
+existing array or page shape. Replay/wait summaries always include `next_after`,
+including empty reads; pages also include `scanned_through` and `has_more`. Send text
 includes the message ID and sequence, without echoing its body or envelope.
 Every tool accepts `compact: false` to restore full JSON text for clients that
 ignore structured results; omitted, null or true selects the default summary.
@@ -362,7 +381,10 @@ Watch reads the specified instance's persisted acknowledgement cursor on
 startup. The `--agent-instance` flag selects the cursor and defaults to
 `COMITIA_AGENT_INSTANCE`; without a default, or with an explicit empty
 `--agent-instance=`, watch uses the legacy session cursor. `--for-instance`
-selects recipients and is never defaulted.
+defaults to `--agent-instance`; an explicit value overrides it, and
+`--for-instance=` disables recipient filtering. Repeat `--schema` to watch
+several schemas, for example discussion and task events. `--exclude-self`
+omits messages from this session and instance.
 It then repeatedly waits and prints tab-separated lines:
 
 ```text
@@ -382,7 +404,10 @@ JSON body, or `watch --json-lines --manual-ack` for complete records. The
 effects before a separate ack; terminal display alone does not prove handling.
 Every successful default terminal print is followed by a monotonic acknowledgement
 using the same instance. `--no-ack` disables these writes while retaining the
-in-memory sequence and resuming from the persisted cursor on startup. Filtered
+in-memory sequence and resuming from the persisted cursor on startup. Watch
+advances through skipped rows using page `scanned_through`, including renewals;
+automatic mode acknowledges that progress after all returned messages have been
+printed. Manual/no-ack mode advances only its in-memory cursor. Filtered
 watch therefore consumes a particular view of the log: use a separate instance
 cursor for a different view if you need to revisit skipped messages.
 
@@ -468,7 +493,8 @@ the version; discovery reflects the running service's registry.
 | `comitia.discussion.v1` | No | Empty object `{}`; nonblank message body required |
 | `comitia.assignment.v1` | Yes | `instructions`, nonempty `acceptance_criteria` string array |
 | `comitia.review-request.v1` | Yes | Nonempty `artifact_refs` and `checks` string arrays |
-| `comitia.finding.v1` | No | `severity` (`info`, `warning`, `error`), `summary`; optional `evidence_refs` |
+| `comitia.finding.v1` | No | `severity` (`info`, `warning`, `error`), `summary`; optional `evidence_refs`, `priority` (`P0`-`P3`), `size` (`S`, `M`, `L`); see [Review panels](#review-panels) |
+| `comitia.stance.v1` | No | `stance` (`agree`, `refine`, `disagree`); optional nonblank `note`; `envelope.reply_to` required; see [Review panels](#review-panels) |
 | `comitia.blocker.v1` | Yes | `reason`, nonempty `needs` string array |
 | `comitia.work-submitted.v1` | No | `summary`, nonempty `artifact_refs` string array |
 | `comitia.verification-result.v1` | Unless `artifact_refs` | `status`, nonempty `checks`; optional nonempty `artifact_refs`; see below |
@@ -503,6 +529,35 @@ lowercase `scheme:value` such as `build:1842` is accepted. With a `task_id`,
 refs stay free-form nonempty strings. A task-backed verification may omit
 `artifact_refs` or set it to `null`; a supplied array must be nonempty and contain
 nonblank strings. Taskless verification still requires exact artifact refs.
+
+### Review panels
+
+Reviewers rank a finding with optional `priority` (`P0` most urgent to `P3`)
+and `size` (`S`, `M`, `L` effort); both are case-sensitive, may be omitted or
+`null`, and findings without them stay valid. Other reviewers answer a finding
+(or any proposal message) with a typed `comitia.stance.v1` reply instead of a
+one-line vote message:
+
+```json
+{
+  "schema": "comitia.stance.v1",
+  "reply_to": "FINDING_MESSAGE_ID",
+  "payload": {"stance": "refine", "note": "Also cover the release path"}
+}
+```
+
+`reply_to` is required and must name a message in the same context. Sending a
+stance also needs read on the context (direct or inherited from a
+`parent_readable` parent) besides write; a missing, foreign or unreadable target
+is refused as forbidden, without revealing which. `refine`
+with a `note` amends rather than duplicating the finding. Tally a finding with
+replay `reply_to=<finding ID>` and `schema=comitia.stance.v1`. A stance is a
+claim, not an approval; exact artifact verdicts still use `comitia.approval.v1`.
+Servers older than this schema reject it as an unregistered schema, and reject
+`priority`/`size` as unknown payload fields; the HTTP client reports both as
+invalid input ending `unsupported by this server` (for example
+`comitia.finding.v1 priority unsupported by this server`) and never retries
+without the field. Check `list_message_schemas` first.
 
 These are structured claims, **not proof of correctness**. A verification-result
 message does not accept work, and a work-submitted message does not complete a
@@ -640,9 +695,9 @@ fetched. `child_context_id`, when set, must be a direct child of the context the
 message is sent in, so readers know where the detail lives; a grandchild, a
 sibling or an unknown ID is rejected as invalid. A child with a nonempty
 `TaskID` must serve the same task as the envelope; taskless shared-team children
-remain valid. Naming a child requires read
+remain valid. Naming the task or a child requires read
 on the current context as well as write, so a write-only sender cannot probe
-which contexts are children. The sender does not need read access to the child, and readers still need their own grant to open it. Like the
+task or child membership. The sender does not need read access to the child, and readers still need their own grant to open it. Like the
 other schemas, a status is a claim and does not change the task's state.
 
 The inspector shows status messages with their state and task title, and links
@@ -677,7 +732,8 @@ comitia send --context-id CONTEXT_ID --dedupe-key review-1 \
 A `dedupe_key` is at most 256 bytes (MCP advertises `maxLength`); longer keys
 are rejected as `invalid`, while messages stored with longer keys before the cap
 remain readable. A retry with the same key, body, envelope, instance and task
-attempt returns the original message. A different send under a used key fails
+attempt returns the original message, subject to current read permission for
+resource references. A different send under a used key fails
 with `conflict`; the error message and its additive `details` object
 (`message_id`, `sequence`, `differs`) identify the caller's own existing message
 and name the differing parts (`body`, `envelope`, `agent_instance`,
@@ -838,20 +894,46 @@ See [the complete lease loop](task-validation.md#complete-lease-loop).
 
 ## Validation details and capability discovery
 
+Unknown JSON fields list accepted keys and suggest an unambiguous nearby name
+(`after_sequence` → `after`, `through` → `sequence`). Unregistered envelope schemas
+are rejected on send with registered IDs and pointers to `list_message_schemas` /
+`get_message_schema`. Replay/wait schema filters match stored envelopes without
+requiring a current append validator: consumers can start before schema registration,
+and historical extension messages remain readable after a validator is removed.
+
+Forbidden references name `task_id`, `reply_to`, or `recipient_session_ids[index]`
+and suggest a lookup tool. Recipient indexes refer to the original request order;
+stored recipients remain sorted for dedupe. Missing and unreadable targets have
+identical wording; target IDs are omitted. References to messages, tasks, or reader
+sessions require effective context read
+permission (including inherited read), before target lookup or dedupe recovery.
+This covers `reply_to` in all schemas. Write-only callers can still send messages
+without those references.
+
 Validation errors keep the `invalid input` sentinel and name the rejected field
 or rule, for example `invalid input: task_id required` or
 `invalid input: unknown field "agent_instance"`. HTTP retains status 400 and code
 `invalid`; the HTTP client preserves `errors.Is(err, comitia.ErrInvalid)`. MCP tool
 errors expose the same detail in text with `isError: true`, and CLI errors print it
 as JSON on stderr. Rejected values and credentials are never included. MCP unknown
-argument fields also identify the running client version and suggest a restart.
+argument fields also identify the running client build. They suggest restarting
+the MCP client only when `server_info` reports `client_stale`; when the client
+matches the server they ask to check the field name instead, and when the server
+build cannot be read they suggest calling `server_info`.
 
 Call the `server_info` MCP tool with `{}`, send authenticated `POST /v1/server_info`
 with `{}`, or run `comitia --server-url URL server-info` with a credential. Any
 valid session can discover capabilities, including a session without context
 grants. The result contains `version`, `protocol_version` (the MCP revision),
 `features`, and `build: {version, revision, dirty}`; HTTP wraps it in `server_info`
-and MCP in `result`. The same build identity appears in MCP initialize/discover,
+and MCP in `result`. The MCP tool also reports the adapter's own build as
+`client: {version, revision, dirty}` and `client_stale`, true when the server
+advertises features this client does not know (listed in
+`client_missing_features`) or when both sides report a known, different revision.
+Release version labels are compared only when either revision is `unknown`, so
+builds of one commit with different labels are not stale. A stale result carries `client_hint` with the restart advice;
+restart the agent session so its MCP client loads the upgraded tool schemas. HTTP
+and CLI results omit the client fields. The same build identity appears in MCP initialize/discover,
 unknown-field guidance and internal failure diagnostics. `dirty` is the string
 `true`, `false`, or `unknown`; missing revision metadata is `unknown`. Local source
 builds may still use release version `dev`. Source installers stamp `Revision`
