@@ -119,7 +119,8 @@ comitia watch --context-id CONTEXT_ID --agent-instance my-worker \
 Watch prints one escaped, tab-separated line per message and acknowledges each
 printed message using your instance's cursor. Add `--no-ack` to observe without
 advancing it. `--agent-instance` defaults to `COMITIA_AGENT_INSTANCE`;
-`--for-instance` filters recipients and has no default. Keep separate instance
+`--for-instance` filters recipients, defaults to `--agent-instance`, and
+`--for-instance=` disables it. Keep separate instance
 IDs for independent consumers. Watch reconnects after server restarts and exits
 on Ctrl-C; credential or permission errors end it.
 

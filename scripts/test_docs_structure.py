@@ -288,6 +288,33 @@ class DocsStructure(unittest.TestCase):
                 self.assertLessEqual(counts[name], baseline * 1.10, 'active guide grew past its reviewed +10% budget')
         self.assertLessEqual(sum(counts.values()), sum(WORD_BASELINE.values()) * 1.10)
 
+    def test_skill_names_exist_in_code(self):
+        go = '\n'.join(p.read_text() for p in ROOT.rglob('*.go') if not p.name.endswith('_test.go'))
+        cli = '\n'.join(p.read_text() for p in (ROOT/'cmd/comitia').glob('*.go') if not p.name.endswith('_test.go'))
+        usage = re.search(r'const commandUsage = `(.*?)`', cli, re.S)[1]
+        commands = {c for line in re.findall(r'^  ([a-z, -]+?)\s{2,}', usage, re.M) for c in line.split(', ')}
+        tools = set(re.findall(r'\btool\("([a-z_]+)"', go))
+        for path in sorted((ROOT/'skills/comitia').rglob('*.md')):
+            text = re.sub(r'\\\n\s*', ' ', path.read_text())
+            spans = re.findall(r'`([^`\n]+)`', text) + re.findall(r'^comitia[^\n]*$', text, re.M)
+            for schema in set(re.findall(r'comitia\.[a-z-]+\.v\d+', text)):
+                self.assertTrue(f'"{schema}"' in go, f'{path.name}: unknown schema {schema}')
+            for span in spans:
+                words = span.split()
+                call = re.fullmatch(r'([a-z]+(?:_[a-z]+)+)(?:\(.*\))?', span)
+                if call and (span.endswith(')') or call[1].split('_')[0] in ('list', 'get', 'set', 'create', 'archive', 'recover', 'delegate')):
+                    self.assertIn(call[1], tools, f'{path.name}: unknown MCP tool {span}')
+                if words[0] not in ('comitia', 'comitia-client') or words[1:2] == ['sessions']:
+                    continue
+                rest = words[1:]
+                if words[0] == 'comitia-client' and rest:
+                    rest = rest[2:] if rest[0] in ('--credential-file', '--identity') else rest[1:]
+                if not rest:
+                    continue
+                self.assertIn(rest[0], commands, f'{path.name}: unknown CLI command in {span}')
+                for flag in re.findall(r'(?<!\S)--([a-z-]+)', ' '.join(rest)):
+                    self.assertTrue(f'"{flag}"' in cli, f'{path.name}: unknown flag --{flag} in {span}')
+
     def test_merged_workflows_are_linked(self):
         using = (ROOT/'docs/USING-COMITIA.md').read_text()
         self.assertIn('](task-validation.md#authoritative-events-and-terminal-outcomes)', using)
