@@ -182,6 +182,7 @@ Tasks:
   task-get          get one task
   task-list         list tasks in a context
   task-claim        claim a pending task
+  task-recover      recover a lost token for your live claim
   task-renew        renew a claim
   task-complete     complete a claimed task
   task-release      release a claim
@@ -224,7 +225,7 @@ func parsePermissions(s string) (comitia.Permission, error) {
 
 func usesInstanceDefaults(cmd string) bool {
 	switch cmd {
-	case "send", "replay", "wait", "cursor", "ack", "watch", "instance-resume", "mcp", "mcp-http", "task-claim", "task-list":
+	case "send", "replay", "wait", "cursor", "ack", "watch", "instance-resume", "mcp", "mcp-http", "task-claim", "task-recover", "task-list":
 		return true
 	default:
 		return false

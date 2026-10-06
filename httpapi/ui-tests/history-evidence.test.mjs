@@ -127,6 +127,8 @@ test('preview and recipient formatters tolerate missing and non-string payload f
   assert.equal(messagePreview({envelope:{schema:'comitia.blocker.v1',payload:{reason:{html:'bad'}}}}),'Structured message');
   assert.equal(messagePreview({envelope:{schema:'comitia.verification-result.v1',payload:{status:'failed',reason:'Evidence missing'}}}),'failed · Evidence missing');
   assert.equal(messagePreview({Body:'Body wins',envelope:{schema:'comitia.blocker.v1',payload:{reason:'hidden'}}}),'Body wins');
+  assert.equal(messagePreview({envelope:{schema:'comitia.finding.v1',payload:{severity:'error',priority:'P1',size:'S',summary:'Lease skipped'}}}),'error · P1 · Lease skipped');
+  assert.equal(messagePreview({envelope:{schema:'comitia.stance.v1',reply_to:'m1',payload:{stance:'refine',note:'Cover release too'}}}),'refine · Cover release too');
   assert.equal(recipientLabel({recipient_session_ids:[],recipient_instances:[]}), 'Everyone in this context');
 });
 

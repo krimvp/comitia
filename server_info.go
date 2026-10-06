@@ -61,6 +61,51 @@ type ServerInfo struct {
 	Features        []string `json:"features"`
 
 	Build BuildInfo `json:"build"`
+
+	// Client fields are set only by adapters that report their own build, such
+	// as the MCP server_info tool; see WithClient.
+	Client                *BuildInfo `json:"client,omitempty"`
+	ClientStale           *bool      `json:"client_stale,omitempty"`
+	ClientMissingFeatures []string   `json:"client_missing_features,omitempty"`
+	ClientHint            string     `json:"client_hint,omitempty"`
+}
+
+// Features returns the feature inventory compiled into this binary.
+func Features() []string { return append([]string{}, serverFeatures...) }
+
+// WithClient reports how a client built as client relates to the server. The
+// client is stale when the server advertises features this build does not
+// know, or when both sides report a known, different revision; release
+// version labels are compared only when either revision is unknown.
+func (info ServerInfo) WithClient(client BuildInfo) ServerInfo {
+	info.Client = &client
+	known := make(map[string]bool, len(serverFeatures))
+	for _, f := range serverFeatures {
+		known[f] = true
+	}
+	info.ClientMissingFeatures = nil
+	for _, f := range info.Features {
+		if !known[f] {
+			info.ClientMissingFeatures = append(info.ClientMissingFeatures, f)
+		}
+	}
+	// Builds of one commit may carry different version labels, so a label
+	// counts only when either revision is unknown.
+	set := func(v, unknown string) bool { return v != "" && v != unknown }
+	builds := client.Revision != info.Build.Revision
+	if !set(client.Revision, "unknown") || !set(info.Build.Revision, "unknown") {
+		builds = set(client.Version, "dev") && set(info.Build.Version, "dev") && client.Version != info.Build.Version
+	}
+	stale := len(info.ClientMissingFeatures) > 0 || builds
+	info.ClientStale = &stale
+	info.ClientHint = ""
+	switch {
+	case len(info.ClientMissingFeatures) > 0:
+		info.ClientHint = "the server is newer than this MCP client; restart the MCP client (the agent session) to load the upgraded tool schemas"
+	case stale:
+		info.ClientHint = "this MCP client and the server run different builds; restart the MCP client (the agent session) after upgrading"
+	}
+	return info
 }
 
 type ServerInfoAPI interface {
@@ -79,6 +124,7 @@ var serverFeatures = []string{
 	"approvals",
 	"instance_claims",
 	"task_mutation_receipts",
+	"task_claim_recovery",
 	"task_result_fencing",
 	"replay_filters",
 	"strict_recipients",
@@ -104,5 +150,5 @@ func (s *Service) ServerInfo(ctx context.Context, raw string) (ServerInfo, error
 	if err != nil {
 		return ServerInfo{}, err
 	}
-	return ServerInfo{Build: BuildIdentity(), Version: BuildVersion(), ProtocolVersion: ProtocolVersion, Features: append([]string{}, serverFeatures...)}, nil
+	return ServerInfo{Build: BuildIdentity(), Version: BuildVersion(), ProtocolVersion: ProtocolVersion, Features: Features()}, nil
 }

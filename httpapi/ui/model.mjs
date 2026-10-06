@@ -204,7 +204,8 @@ export function recipientLabel(envelope = {}, sessionLabel = id => id) {
 // become previews; raw envelopes remain available for unknown extensions.
 const previewFields = new Map([
   ['comitia.assignment.v1', ['instructions']],
-  ['comitia.finding.v1', ['severity', 'summary']],
+  ['comitia.finding.v1', ['severity', 'priority', 'summary']],
+  ['comitia.stance.v1', ['stance', 'note']],
   ['comitia.blocker.v1', ['reason']],
   ['comitia.work-submitted.v1', ['summary']],
   ['comitia.verification-result.v1', ['status', 'reason']],

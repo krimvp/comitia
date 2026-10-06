@@ -450,8 +450,7 @@ func decode(raw json.RawMessage, dst any) error {
 	if err := d.Decode(dst); err != nil {
 		detail := comitia.InvalidJSONFields(err, "arguments", raw, dst)
 		if strings.HasPrefix(err.Error(), "json: unknown field ") {
-			build := comitia.BuildIdentity()
-			return comitia.Invalidf("%s (this client is comitia %s, revision %s, dirty %s; restart the MCP client after upgrading)", strings.TrimPrefix(detail.Error(), "invalid input: "), build.Version, build.Revision, build.Dirty)
+			return newUnknownFieldError(strings.TrimPrefix(detail.Error(), "invalid input: "))
 		}
 		return detail
 	}
@@ -500,7 +499,7 @@ var errUnknownTool = errors.New("unknown tool")
 func (s *Server) call(ctx context.Context, name string, raw json.RawMessage) (any, error) {
 	for _, g := range toolGroups {
 		if v, err := g.call(s, ctx, name, raw); err != errUnknownTool {
-			return collectionResult(v), err
+			return collectionResult(v), s.withUnknownFieldHint(ctx, err)
 		}
 	}
 	return nil, comitia.Invalidf("unknown tool")

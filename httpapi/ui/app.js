@@ -1,7 +1,7 @@
 import {taskMarker, taskEvent} from './task-outcomes.mjs';
 import {on, renderChildren} from './dom.mjs';
 import {normalizeResponse} from './wire.mjs';
-import {relativeSeen} from './presence.mjs';
+import {instanceSeen} from './presence.mjs';
 import {ConversationState, HistoryWindows, recipientLabel, messagePreview, PAGE_SIZE, WINDOW_LIMIT, shortID, messageType, typeLabel, filterMessages, interactionGraph, BROADCAST, parseActor, senderActor, recipientActors, instanceClaims, taskStatus, stateLabel} from './model.mjs';
 import {renderInteractionMap} from './graph.mjs';
 import {sequenceLayout, renderSequence, LANE_LIMIT, timeLabel} from './sequence.mjs';
@@ -337,7 +337,7 @@ function renderInstances() {
     item.dataset.key = JSON.stringify([instance.session_id, instance.id]);
     item.append(node('strong', instance.label ? `${instance.label} (${instance.id})` : instance.id), node('small', `${participantName(instance.session_id)} · ${shortID(instance.session_id)}`));
     if (instance.active === false) item.append(node('small', 'Session revoked or expired'));
-    const seen = node('small', `Last seen ${relativeSeen(instance.last_seen)}`);
+    const seen = node('small', instanceSeen(instance));
     seen.title = date(instance.last_seen); item.append(seen);
     if (instance.resume) {
       const details = node('details'); details.dataset.key = 'resume';

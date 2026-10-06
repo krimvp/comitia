@@ -10,10 +10,11 @@ func TestAdvertisedTaskRecoveryAndFenceArguments(t *testing.T) {
 	responses := serve(t, &fakeAPI{}, `{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18"}}`+"\n"+`{"jsonrpc":"2.0","id":2,"method":"tools/list"}`+"\n")
 	listed := responses[1]["result"].(map[string]any)["tools"].([]any)
 	examples := map[string]map[string]any{
-		"create_task":  {"context_id": "c", "title": "job", "operation_id": "create"},
-		"claim_task":   {"task_id": "t", "operation_id": "claim"},
-		"renew_task":   {"task_id": "t", "claim_token": "k", "lease_version": float64(1), "operation_id": "renew"},
-		"send_message": {"context_id": "c", "dedupe_key": "result", "body": "done", "envelope": map[string]any{"schema": "comitia.discussion.v1", "task_id": "t", "payload": map[string]any{}}, "task_fence": map[string]any{"task_id": "t", "claim_token": "k", "lease_version": float64(1)}},
+		"create_task":   {"context_id": "c", "title": "job", "operation_id": "create"},
+		"claim_task":    {"task_id": "t", "operation_id": "claim"},
+		"recover_claim": {"task_id": "t", "lease_version": float64(1), "agent_instance": map[string]any{"id": "worker"}},
+		"renew_task":    {"task_id": "t", "claim_token": "k", "lease_version": float64(1), "operation_id": "renew"},
+		"send_message":  {"context_id": "c", "dedupe_key": "result", "body": "done", "envelope": map[string]any{"schema": "comitia.discussion.v1", "task_id": "t", "payload": map[string]any{}}, "task_fence": map[string]any{"task_id": "t", "claim_token": "k", "lease_version": float64(1)}},
 	}
 	advertised := map[string]any{}
 	for _, entry := range listed {

@@ -68,6 +68,8 @@ func builtinMessageSchemaDescriptors() map[string]MessageSchemaDescriptor {
 			switch id {
 			case ReceiptSchema, MergeCertificateSchema:
 				e.Envelope.ReplyTo = "example-request-message"
+			case StanceSchema:
+				e.Envelope.ReplyTo = "example-finding-message"
 			case MergeReceiptSchema:
 				e.Envelope.ReplyTo = "example-certificate-message"
 			}
@@ -79,7 +81,11 @@ func builtinMessageSchemaDescriptors() map[string]MessageSchemaDescriptor {
 	add("comitia.discussion.v1", payloadObject(map[string]any{}), true, false, false, nil, `{}`)
 	add("comitia.assignment.v1", payloadObject(map[string]any{"instructions": payloadText(), "acceptance_criteria": payloadStrings()}, "instructions", "acceptance_criteria"), false, true, false, nil, `{"instructions":"Implement recovery","acceptance_criteria":["Retries are idempotent"]}`)
 	add("comitia.review-request.v1", payloadObject(map[string]any{"artifact_refs": payloadStrings(), "checks": payloadStrings()}, "artifact_refs", "checks"), false, true, false, nil, `{"artifact_refs":["artifact:patch-1"],"checks":["Lease fencing"]}`)
-	add("comitia.finding.v1", payloadObject(map[string]any{"severity": payloadEnum("info", "warning", "error"), "summary": payloadText(), "evidence_refs": map[string]any{"type": []string{"array", "null"}, "items": map[string]any{"type": []string{"string", "null"}}}}, "severity", "summary"), false, false, false, nil, `{"severity":"warning","summary":"A retry lost its result","evidence_refs":["artifact:trace-1"]}`)
+	optionalEnum := func(values []string) map[string]any {
+		return map[string]any{"enum": append(stringsAny(values), nil)}
+	}
+	add("comitia.finding.v1", payloadObject(map[string]any{"severity": payloadEnum("info", "warning", "error"), "summary": payloadText(), "evidence_refs": map[string]any{"type": []string{"array", "null"}, "items": map[string]any{"type": []string{"string", "null"}}}, "priority": optionalEnum(findingPriorities), "size": optionalEnum(findingSizes)}, "severity", "summary"), false, false, false, []string{"Optional priority ranks urgency (P0 most urgent to P3); optional size estimates effort (S, M, L). Both are case-sensitive."}, `{"severity":"warning","summary":"A retry lost its result","evidence_refs":["artifact:trace-1"]}`, `{"severity":"error","summary":"Lease fencing is skipped on renew","priority":"P1","size":"S"}`)
+	add(StanceSchema, payloadObject(map[string]any{"stance": payloadEnum(stances...), "note": nullablePayload(payloadText())}, "stance"), false, false, false, []string{"envelope.reply_to is required and must identify a message in this context (typically a finding or proposal); replay with reply_to or thread_id to tally stances.", "stance is agree, refine or disagree; optional note must be nonblank. Use refine with a note to amend rather than a new finding."}, `{"stance":"agree"}`, `{"stance":"refine","note":"Also cover the release path"}`)
 	add("comitia.blocker.v1", payloadObject(map[string]any{"reason": payloadText(), "needs": payloadStrings()}, "reason", "needs"), false, true, false, nil, `{"reason":"Missing input","needs":["Expected recovery behavior"]}`)
 	exactNotes := []string{"Without task_id, artifact_refs must identify exact artifacts (scheme:value, at most 512 bytes, no whitespace or control characters); git requires a full lowercase 40/64-character commit SHA; pr requires owner/repo#positive-number@full-SHA."}
 	add("comitia.work-submitted.v1", payloadObject(map[string]any{"artifact_refs": payloadStrings(), "summary": payloadText()}, "artifact_refs", "summary"), false, false, true, exactNotes, `{"artifact_refs":["artifact:patch-1"],"summary":"Recovery implemented"}`)
@@ -130,6 +136,14 @@ func builtinMessageSchemaDescriptors() map[string]MessageSchemaDescriptor {
 	}
 	add(ExecutionEventSchema, telemetry, false, true, false, []string{"event_sequence is positive and fits int64; optional metrics are nonnegative int64 values.", "Nonempty occurred_at must be RFC3339; nonempty status must be succeeded, failed or cancelled.", "cost_micros requires uppercase three-letter currency and cost_source provider_reported, estimated or configured; without cost_micros, currency/cost_source must be empty.", "model_usage requires nonblank model and at least one usage metric; tool_usage requires nonblank tool_name; run_finished requires status."}, `{"run_id":"run-1","event_sequence":1,"kind":"run_started"}`, `{"run_id":"run-1","event_sequence":2,"kind":"model_usage","model":"example-model","input_tokens":100}`)
 	addCoordinationDescriptors(add)
+	return out
+}
+
+func stringsAny(values []string) []any {
+	out := make([]any, 0, len(values)+1)
+	for _, v := range values {
+		out = append(out, v)
+	}
 	return out
 }
 

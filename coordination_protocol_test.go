@@ -42,6 +42,8 @@ func materializeProtocolExample(t *testing.T, f fixture, key string, env Message
 		env.Payload, _ = json.Marshal(p)
 	case ReceiptSchema:
 		env.ReplyTo = request().ID
+	case StanceSchema:
+		env.ReplyTo = appendMessage(protocolInput(key+"-finding", "comitia.finding.v1", "", map[string]string{"severity": "info", "summary": "Example finding"})).ID
 	case MergeCertificateSchema:
 		req := request()
 		approval := appendMessage(protocolInput(key+"-approval", ApprovalSchema, req.ID, ApprovalPayload{ArtifactRefs: []string{"artifact:example"}, Verdict: ApprovalApproved, Checks: []string{"tests"}, BlockingCount: new(int)}))

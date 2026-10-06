@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"reflect"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -48,6 +49,12 @@ type MessageEnvelope struct {
 // MessageFilters narrow replay within the same context read permission.
 // Nonempty fields are combined with AND; routing metadata is self-reported.
 type MessageFilters struct {
+	// ExcludeSelf omits messages authored by this session and AgentInstance.
+	ExcludeSelf bool `json:"exclude_self,omitempty"`
+	// FromCursor starts at this session's acknowledgement cursor for AgentInstance.
+	FromCursor bool `json:"from_cursor,omitempty"`
+	// Schemas selects any of these exact schemas; combined with Schema using AND.
+	Schemas []string `json:"schemas,omitempty"`
 	// ReplyTo selects direct replies; ThreadID includes the root and descendants.
 	ReplyTo  string `json:"reply_to,omitempty"`
 	ThreadID string `json:"thread_id,omitempty"`
@@ -63,7 +70,7 @@ type MessageFilters struct {
 	// It is opt-in and requires ForInstance.
 	StrictRecipients bool `json:"strict_recipients,omitempty"`
 	// AgentInstance names the caller's own instance for presence; it never
-	// narrows results. Adapters apply configured defaults when it is nil.
+	// identifies self and cursor scope. Adapters apply defaults when it is nil.
 	AgentInstance *string `json:"agent_instance,omitempty"`
 }
 
@@ -227,6 +234,15 @@ func nonempty(values []string) bool {
 	return true
 }
 
+// StanceSchema is a typed agree/refine/disagree reply; envelope.reply_to is required.
+const StanceSchema = "comitia.stance.v1"
+
+var (
+	findingPriorities = []string{"P0", "P1", "P2", "P3"}
+	findingSizes      = []string{"S", "M", "L"}
+	stances           = []string{"agree", "refine", "disagree"}
+)
+
 func builtinMessageSchemas() map[string]PayloadValidator {
 	return map[string]PayloadValidator{
 		"comitia.discussion.v1": func(raw json.RawMessage) error { return strictAppendPayload(raw, &struct{}{}) },
@@ -261,6 +277,8 @@ func builtinMessageSchemas() map[string]PayloadValidator {
 				Severity     string   `json:"severity"`
 				Summary      string   `json:"summary"`
 				EvidenceRefs []string `json:"evidence_refs,omitempty"`
+				Priority     *string  `json:"priority,omitempty"`
+				Size         *string  `json:"size,omitempty"`
 			}
 			if err := strictAppendPayload(raw, &p); err != nil {
 				return err
@@ -270,6 +288,28 @@ func builtinMessageSchemas() map[string]PayloadValidator {
 			}
 			if p.Severity != "info" && p.Severity != "warning" && p.Severity != "error" {
 				return Invalidf("severity must be info, warning or error")
+			}
+			if p.Priority != nil && !slices.Contains(findingPriorities, *p.Priority) {
+				return Invalidf("priority must be P0, P1, P2 or P3 when present")
+			}
+			if p.Size != nil && !slices.Contains(findingSizes, *p.Size) {
+				return Invalidf("size must be S, M or L when present")
+			}
+			return nil
+		},
+		StanceSchema: func(raw json.RawMessage) error {
+			var p struct {
+				Stance string  `json:"stance"`
+				Note   *string `json:"note,omitempty"`
+			}
+			if err := strictAppendPayload(raw, &p); err != nil {
+				return err
+			}
+			if !slices.Contains(stances, p.Stance) {
+				return Invalidf("stance must be agree, refine or disagree")
+			}
+			if p.Note != nil && strings.TrimSpace(*p.Note) == "" {
+				return Invalidf("note must be nonblank when present")
 			}
 			return nil
 		},
@@ -382,6 +422,9 @@ func (s *Service) normalizeEnvelope(in *MessageEnvelope, body string) (*MessageE
 	descriptor := s.messageSchemaDescriptors[out.Schema]
 	if descriptor.BodyRequired && strings.TrimSpace(body) == "" {
 		return nil, Invalidf("body required for %s", out.Schema)
+	}
+	if out.Schema == StanceSchema && out.ReplyTo == "" {
+		return nil, Invalidf("reply_to required for %s", out.Schema)
 	}
 	if descriptor.TaskRequired && out.TaskID == "" {
 		return nil, fmt.Errorf("%w: task_id required", ErrInvalid)

@@ -2,9 +2,12 @@
 
 `list_instances(context_id)` lists recorded activity for self-reported processes
 in one readable context. Each row has `id`, optional `label`, `session_id`,
-`context_id`, `last_seen` (UTC timestamp), `active`, and optional `resume` JSON
-object. `active` is false when the credential session is revoked or expired; it
-does not say whether the process is running or still has a grant on the context.
+`context_id`, `last_seen` (UTC timestamp), `active`, `seen_seconds_ago`, `recent`,
+and optional `resume` JSON object. `active` is false when the credential session
+is revoked or expired; it does not say whether the process is running or still has a grant on the context.
+`seen_seconds_ago` is a server-computed whole-second age, clamped to zero for
+future timestamps. `recent` means age < **90 seconds**, independent of `active`.
+Older servers omit these fields.
 Instance IDs and labels follow the [message instance rules](message-protocol.md).
 Rows are keyed by **(authenticated session, context, instance ID)**, so the same
 instance ID in different sessions or contexts has independent metadata.
@@ -19,8 +22,11 @@ for launcher-owned process identity, bounded checkpoints, separate watcher curso
 and semantic control receipts. Never reclaim work solely on stale activity.
 
 Successful `send_message`, `replay_messages`, `wait_messages`, `message_cursor`,
-and `ack_messages` calls that name an instance attempt to update its last seen,
-including send retries and empty replay or timed-out wait results. Replay and wait accept
+and `ack_messages` calls that name an instance attempt to update its last seen.
+`claim_task`, `renew_task`, and `complete_task` (including claim/renew retries)
+touch the claim's instance. Renew/complete preserve labels and resume. Failed
+task calls record no activity. Message activity includes
+send retries and empty replay or timed-out wait results. Replay and wait accept
 an optional **ID string** `agent_instance`, like cursor and ack; CLI `replay`,
 `wait`, and `watch` accept `--agent-instance ID`, and `watch` records activity
 through its waits and acks. When the argument is omitted, MCP, the CLI and the
@@ -29,11 +35,11 @@ empty ID records no activity. Without an instance no anonymous presence row is
 created. Heartbeats do not change replay filtering or acknowledgement cursors.
 
 Heartbeats are normally throttled to at most once every **30 seconds per (session,
-context, instance)**. A changed nonempty label on send also makes a heartbeat due,
-so the label refreshes immediately within that interval. Send and ack check the
-stored timestamp and perform any due upsert inside their existing write
-transaction. A SQLite savepoint isolates heartbeat failures and rolls back their
-effects without undoing the message or ack. Replay,
+context, instance)**. A changed nonempty label on send or claim also makes a
+heartbeat due, so the label refreshes immediately within that interval. Send,
+ack, claim, renew and complete check the stored timestamp and perform any due
+upsert inside their existing write transaction. A SQLite savepoint isolates
+heartbeat failures and rolls back their effects without undoing the message, ack or task mutation. Replay,
 wait and cursor check freshness inside their existing read-only View; recent rows
 skip the Update entirely. A missing or stale row gets a separate small Update,
 which rechecks freshness in case another caller already recorded activity. These
@@ -44,7 +50,7 @@ Heartbeat errors remain best-effort; explicit resume writes are unthrottled and
 return storage errors. Last seen normally lags activity by up to 30 seconds and
 may lag longer when optional writes fail or time out. ID-only activity preserves
 the previous label and resume data; a supplied nonempty label
-replaces a differing label immediately on send. Use set_instance_resume to update
+replaces a differing label immediately on send or claim. Use set_instance_resume to update
 metadata immediately.
 
 A process can set or replace its resume object through MCP (an omitted

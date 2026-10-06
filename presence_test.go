@@ -441,6 +441,9 @@ func TestInstancePresenceSessionActivity(t *testing.T) {
 				if row.Active != want {
 					t.Fatalf("%s activity: %+v", name, row)
 				}
+				if row.Recent == nil || *row.Recent != revoked {
+					t.Fatalf("recency must be independent of session validity: %+v", row)
+				}
 				if string(row.Resume) != `{"pid":123}` {
 					t.Fatal("historical resume changed")
 				}
