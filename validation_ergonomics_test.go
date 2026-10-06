@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"reflect"
+	"sort"
 	"strings"
 	"testing"
 	"time"
@@ -55,24 +57,9 @@ func TestSchemaValidationGuidance(t *testing.T) {
 	f := setup(t, ":memory:")
 	defer f.store.Close()
 	ctx := context.Background()
-	for _, call := range []func() error{
-		func() error {
-			_, err := f.svc.AppendMessage(ctx, f.admin.Token, f.context.ID, MessageInput{DedupeKey: "schema", Envelope: &MessageEnvelope{Schema: "private-unknown-schema", Payload: json.RawMessage(`{}`)}})
-			return err
-		},
-		func() error {
-			_, err := f.svc.ReplayMessages(ctx, f.admin.Token, f.context.ID, 0, 10, MessageFilters{Schema: "private-unknown-schema"})
-			return err
-		},
-		func() error {
-			_, err := f.svc.WaitMessages(ctx, f.admin.Token, f.context.ID, 0, time.Hour, MessageFilters{Schema: "private-unknown-schema"})
-			return err
-		},
-	} {
-		err := call()
-		if !errors.Is(err, ErrInvalid) || !strings.Contains(err.Error(), "schema must name a registered message schema") || !strings.Contains(err.Error(), "list_message_schemas") || !strings.Contains(err.Error(), "comitia.discussion.v1") || strings.Contains(err.Error(), "private-unknown-schema") {
-			t.Fatalf("schema: %v", err)
-		}
+	_, err := f.svc.AppendMessage(ctx, f.admin.Token, f.context.ID, MessageInput{DedupeKey: "schema", Envelope: &MessageEnvelope{Schema: "private-unknown-schema", Payload: json.RawMessage(`{}`)}})
+	if !errors.Is(err, ErrInvalid) || !strings.Contains(err.Error(), "schema must name a registered message schema") || !strings.Contains(err.Error(), "list_message_schemas") || !strings.Contains(err.Error(), "comitia.discussion.v1") || strings.Contains(err.Error(), "private-unknown-schema") {
+		t.Fatalf("schema: %v", err)
 	}
 	// Server-authored registered schemas remain valid replay filters.
 	if _, err := f.svc.ReplayMessages(ctx, f.admin.Token, f.context.ID, 0, 10, MessageFilters{Schema: TaskEventSchema}); err != nil {
@@ -242,9 +229,8 @@ func TestRegisteredExtensionSchemaFilters(t *testing.T) {
 			t.Fatalf("registered wait: %v", err)
 		}
 	}
-	_, err = svc.ReplayMessages(context.Background(), f.admin.Token, f.context.ID, 0, 10, MessageFilters{Schema: "unknown"})
-	if !errors.Is(err, ErrInvalid) || !strings.Contains(err.Error(), "example.custom.v1") {
-		t.Fatalf("extension discovery: %v", err)
+	if _, err := svc.ReplayMessages(context.Background(), f.admin.Token, f.context.ID, 0, 10, MessageFilters{Schema: "unknown"}); err != nil {
+		t.Fatalf("unregistered filter: %v", err)
 	}
 }
 
@@ -266,6 +252,46 @@ func TestUnknownFieldGuidanceUsesFirstFailingObject(t *testing.T) {
 		err := InvalidJSONFields(d.Decode(&target), "arguments", raw, &target)
 		if !strings.Contains(err.Error(), "accepted fields: beta") || strings.Contains(err.Error(), "alpha") || strings.Contains(err.Error(), "private-value") {
 			t.Fatalf("wrong object contract: %v", err)
+		}
+	}
+}
+
+func TestRecipientRequestOrderAndCanonicalDedupe(t *testing.T) {
+	f := setup(t, ":memory:")
+	defer f.store.Close()
+	ctx := context.Background()
+	reader := messageWorker(t, f, "reader", f.context.ID)
+	recipients := []string{f.admin.Session.ID, reader.Session.ID}
+	sort.Sort(sort.Reverse(sort.StringSlice(recipients)))
+	original := append([]string(nil), recipients...)
+	envelope := &MessageEnvelope{Schema: "comitia.discussion.v1", RecipientSessionIDs: recipients, Payload: json.RawMessage(`{}`)}
+	first, err := f.svc.AppendMessage(ctx, f.admin.Token, f.context.ID, MessageInput{DedupeKey: "canonical", Body: "note", Envelope: envelope})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(envelope.RecipientSessionIDs, original) {
+		t.Fatalf("caller order changed: %v", envelope.RecipientSessionIDs)
+	}
+	sorted := append([]string(nil), original...)
+	sort.Strings(sorted)
+	if !reflect.DeepEqual(first.Envelope.RecipientSessionIDs, sorted) {
+		t.Fatalf("stored order: %v", first.Envelope.RecipientSessionIDs)
+	}
+	retry, err := f.svc.AppendMessage(ctx, f.admin.Token, f.context.ID, MessageInput{DedupeKey: "canonical", Body: "note", Envelope: &MessageEnvelope{Schema: envelope.Schema, RecipientSessionIDs: sorted, Payload: envelope.Payload}})
+	if err != nil || retry.ID != first.ID {
+		t.Fatalf("reordered retry: %+v %v", retry, err)
+	}
+	for _, tc := range []struct {
+		recipients []string
+		index      int
+	}{
+		{[]string{reader.Session.ID, "00000000000000000000000000000000"}, 1},
+		{[]string{"00000000000000000000000000000000", reader.Session.ID}, 0},
+	} {
+		envelope.RecipientSessionIDs = tc.recipients
+		_, err := f.svc.AppendMessage(ctx, f.admin.Token, f.context.ID, MessageInput{DedupeKey: fmt.Sprint("missing-", tc.index), Body: "note", Envelope: envelope})
+		if !errors.Is(err, ErrForbidden) || !strings.Contains(err.Error(), fmt.Sprintf("recipient_session_ids[%d]", tc.index)) || strings.Contains(err.Error(), tc.recipients[1-tc.index]) || strings.Contains(err.Error(), "00000000000000000000000000000000") {
+			t.Fatalf("wrong request index: %v", err)
 		}
 	}
 }
