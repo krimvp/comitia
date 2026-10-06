@@ -161,7 +161,7 @@ func TestTaskPresenceAnonymousAndFailures(t *testing.T) {
 			if err != nil || len(rows) != 0 {
 				t.Fatalf("unexpected presence: %v %v", rows, err)
 			}
-			events, err := f.svc.ReplayMessages(ctx, raw, cid, 0, 100)
+			events, err := f.svc.ReplayMessages(ctx, raw, cid, 0, 100, MessageFilters{Schema: TaskEventSchema})
 			if err != nil || len(events) != 4 {
 				t.Fatalf("task events: %d %v", len(events), err)
 			}
