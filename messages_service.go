@@ -45,7 +45,7 @@ func (s *Service) AppendMessage(ctx context.Context, raw, cid string, in Message
 	if in.TaskFence != nil && (in.TaskFence.TaskID == "" || in.TaskFence.ClaimToken == "" || in.TaskFence.LeaseVersion < 1) {
 		return m, Invalidf("task_fence requires task_id, claim_token and positive lease_version")
 	}
-	envelope, err := s.normalizeEnvelope(in.Envelope, in.Body)
+	envelope, err := s.normalizeMessageEnvelope(in)
 	if err != nil {
 		return m, err
 	}
@@ -53,7 +53,11 @@ func (s *Service) AppendMessage(ctx context.Context, raw, cid string, in Message
 	if envelope != nil {
 		// Errors name the caller's indexes; persistence and dedupe use canonical order.
 		copy := *envelope
-		copy.RecipientSessionIDs = append([]string(nil), in.Envelope.RecipientSessionIDs...)
+		recipientSessionIDs := in.RecipientSessionIDs
+		if len(recipientSessionIDs) == 0 && in.Envelope != nil {
+			recipientSessionIDs = in.Envelope.RecipientSessionIDs
+		}
+		copy.RecipientSessionIDs = append([]string(nil), recipientSessionIDs...)
 		references = &copy
 	}
 	e := s.store.Update(ctx, func(w WriteStore) error {
@@ -117,6 +121,32 @@ func (s *Service) AppendMessage(ctx context.Context, raw, cid string, in Message
 	}
 	return m, e
 }
+
+// Routed plain notes use the existing discussion representation, including its
+// validation, recipient indexes and dedupe identity.
+func (s *Service) normalizeMessageEnvelope(in MessageInput) (*MessageEnvelope, error) {
+	if len(in.RecipientSessionIDs) == 0 && len(in.RecipientInstances) == 0 {
+		return s.normalizeEnvelope(in.Envelope, in.Body)
+	}
+	env := MessageEnvelope{Schema: "comitia.discussion.v1", Payload: []byte(`{}`)}
+	if in.Envelope != nil {
+		env = *in.Envelope
+	}
+	if len(in.RecipientSessionIDs) > 0 {
+		if len(env.RecipientSessionIDs) > 0 {
+			return nil, Invalidf("recipient_session_ids must be supplied at top level or in envelope, not both")
+		}
+		env.RecipientSessionIDs = in.RecipientSessionIDs
+	}
+	if len(in.RecipientInstances) > 0 {
+		if len(env.RecipientInstances) > 0 {
+			return nil, Invalidf("recipient_instances must be supplied at top level or in envelope, not both")
+		}
+		env.RecipientInstances = in.RecipientInstances
+	}
+	return s.normalizeEnvelope(&env, in.Body)
+}
+
 func (s *Service) ReplayMessages(ctx context.Context, raw, cid string, after int64, limit int, filters ...MessageFilters) ([]Message, error) {
 	messages, _, err := s.scanMessages(ctx, raw, cid, after, limit, filters)
 	return messages, err

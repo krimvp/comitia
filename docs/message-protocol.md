@@ -49,6 +49,37 @@ contexts, the same recipient must have a valid read grant in the destination
 context. A restarted agent with a newly minted session has a new routing ID;
 there is no silent redirection from an expired session or ambiguous name.
 
+MCP `send_message` and HTTP append's `message` accept top-level
+`recipient_session_ids` and `recipient_instances`, so a routed note needs only
+its body and recipients:
+
+```json
+{"context_id":"CONTEXT_ID","dedupe_key":"note-1","body":"Please review",
+ "recipient_session_ids":["SESSION_ID"],"recipient_instances":["reviewer"]}
+```
+
+For HTTP, put the body, key and recipient lists inside `message`; `context_id`
+stays outside. Go callers use `MessageInput.RecipientSessionIDs` and
+`RecipientInstances`. CLI accepts repeatable flags:
+
+```sh
+comitia send --context-id CONTEXT_ID --dedupe-key note-1 --body 'Please review' \
+  --recipient-session-id SESSION_ID --recipient-instance reviewer
+```
+
+Without an envelope, nonempty recipient lists normalize to
+`comitia.discussion.v1` with `payload:{}` and require a nonblank body. Responses
+and stored messages carry recipients in that envelope, so existing filters,
+readers and equivalent-envelope retries work unchanged. With a typed envelope,
+top-level lists fill absent or empty envelope lists; supplying the same nonempty
+list at both levels is invalid. Empty or null lists are omitted, leaving ordinary
+plain messages unchanged. All existing recipient limits, validation and context
+read checks apply. HTTP clients report rejected new fields as
+`top-level recipient_session_ids unsupported by this server` (or
+`recipient_instances`) and never retry by dropping recipients. On older MCP
+clients, use an explicit discussion envelope; an old tool schema rejects the
+new top-level fields.
+
 The authenticated sender is the server-owned `Message.SessionID`. Envelopes do
 not accept a caller-supplied `from` field. A caller's prose is not identity proof.
 

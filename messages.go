@@ -32,10 +32,13 @@ type AgentInstance struct {
 	Label string `json:"label,omitempty"`
 }
 type MessageInput struct {
-	TaskFence       *TaskFence `json:"task_fence,omitempty"`
-	DedupeKey, Body string
-	Envelope        *MessageEnvelope `json:"envelope,omitempty"`
-	AgentInstance   *AgentInstance   `json:"agent_instance,omitempty"`
+	// Top-level recipients are shorthand for envelope recipients.
+	RecipientSessionIDs []string   `json:"recipient_session_ids,omitempty"`
+	RecipientInstances  []string   `json:"recipient_instances,omitempty"`
+	TaskFence           *TaskFence `json:"task_fence,omitempty"`
+	DedupeKey, Body     string
+	Envelope            *MessageEnvelope `json:"envelope,omitempty"`
+	AgentInstance       *AgentInstance   `json:"agent_instance,omitempty"`
 }
 type MessageEnvelope struct {
 	Schema              string          `json:"schema"`

@@ -10,11 +10,12 @@ import (
 )
 
 func messageTools() []map[string]any {
+	recipients := envelopeSchema()["properties"].(map[string]any)
 	return []map[string]any{
 		tool("get_message", "Read one message in a readable context; authenticated sender is SessionID, instances are self-reported.", schema(map[string]any{"context_id": str("Readable context ID"), "message_id": str("Message ID in this context")}, "context_id", "message_id")),
 		tool("list_message_schemas", "Discover registered message schema IDs, payload JSON Schemas, task/body requirements and examples, including configured extensions.", schema(map[string]any{})),
 		tool("get_message_schema", "Get one registered versioned message schema descriptor; use its example envelope with real context/task IDs.", schema(map[string]any{"schema": str("Exact registered versioned message schema ID")}, "schema")),
-		tool("send_message", "Append a message; optional validated envelope addresses session IDs, not names. Context readers can see all messages. Omitted agent_instance defaults to COMITIA_AGENT_INSTANCE / COMITIA_AGENT_INSTANCE_LABEL.", schema(map[string]any{"context_id": str("Context ID"), "dedupe_key": map[string]any{"type": "string", "maxLength": comitia.MaxDedupeKeyBytes, "description": "Stable caller-chosen key (at most 256 bytes); scoped to this session and instance. A conflict names the existing message ID and sequence"}, "body": str("Message explanation; required for untyped/discussion messages"), "envelope": envelopeSchema(), "agent_instance": agentInstanceSchema(), "task_fence": schema(map[string]any{"task_id": str("Must match envelope.task_id"), "claim_token": str("Current opaque lease token; never published"), "lease_version": integer("Current lease version; requires a live claim owned by this session")}, "task_id", "claim_token", "lease_version")}, "context_id", "dedupe_key")),
+		tool("send_message", "Append a message; top-level recipients route plain notes without an envelope; session IDs, not names. Context readers can see all messages. Omitted agent_instance defaults to COMITIA_AGENT_INSTANCE / COMITIA_AGENT_INSTANCE_LABEL.", schema(map[string]any{"context_id": str("Context ID"), "dedupe_key": map[string]any{"type": "string", "maxLength": comitia.MaxDedupeKeyBytes, "description": "Stable caller-chosen key (at most 256 bytes); scoped to this session and instance. A conflict names the existing message ID and sequence"}, "body": str("Message explanation; required for untyped/discussion messages"), "recipient_session_ids": recipients["recipient_session_ids"], "recipient_instances": recipients["recipient_instances"], "envelope": envelopeSchema(), "agent_instance": agentInstanceSchema(), "task_fence": schema(map[string]any{"task_id": str("Must match envelope.task_id"), "claim_token": str("Current opaque lease token; never published"), "lease_version": integer("Current lease version; requires a live claim owned by this session")}, "task_id", "claim_token", "lease_version")}, "context_id", "dedupe_key")),
 		tool("list_participants", "Discover active readable sessions in a context. Names may repeat; address by SessionID.", schema(map[string]any{"context_id": str("Context ID"), "limit": integer("Maximum participants (default 100)"), "page": map[string]any{"type": "boolean", "description": "Return participants, next_after and has_more"}, "after_id": str("Exclusive session ID from next_after; implies page")}, "context_id")),
 		tool("replay_messages", "Read context messages after a sequence; renewed task events are skipped unless task-event schema is selected", schema(messageReadProperties(false), "context_id")),
 		tool("ack_messages", "Record consumption through a sequence; omitted agent_instance defaults to COMITIA_AGENT_INSTANCE", schema(map[string]any{"context_id": str("Context ID"), "sequence": integer("Inclusive sequence"), "agent_instance": str("Optional instance ID; defaults to COMITIA_AGENT_INSTANCE; isolates this cursor within the authenticated session")}, "context_id", "sequence")),
@@ -83,12 +84,14 @@ func (s *Server) callMessages(ctx context.Context, name string, raw json.RawMess
 		return api.GetMessageSchema(ctx, s.Credential, a.Schema)
 	case "send_message":
 		var a struct {
-			TaskFence     *comitia.TaskFence       `json:"task_fence"`
-			ContextID     string                   `json:"context_id"`
-			DedupeKey     string                   `json:"dedupe_key"`
-			Body          string                   `json:"body"`
-			Envelope      *comitia.MessageEnvelope `json:"envelope"`
-			AgentInstance *comitia.AgentInstance   `json:"agent_instance"`
+			RecipientSessionIDs []string                 `json:"recipient_session_ids"`
+			RecipientInstances  []string                 `json:"recipient_instances"`
+			TaskFence           *comitia.TaskFence       `json:"task_fence"`
+			ContextID           string                   `json:"context_id"`
+			DedupeKey           string                   `json:"dedupe_key"`
+			Body                string                   `json:"body"`
+			Envelope            *comitia.MessageEnvelope `json:"envelope"`
+			AgentInstance       *comitia.AgentInstance   `json:"agent_instance"`
 		}
 		if err := decode(raw, &a); err != nil {
 			return nil, err
@@ -96,7 +99,7 @@ func (s *Server) callMessages(ctx context.Context, name string, raw json.RawMess
 		if err := required("context_id", a.ContextID, "dedupe_key", a.DedupeKey); err != nil {
 			return nil, err
 		}
-		return s.API.AppendMessage(ctx, s.Credential, a.ContextID, comitia.MessageInput{TaskFence: a.TaskFence, DedupeKey: a.DedupeKey, Body: a.Body, Envelope: a.Envelope, AgentInstance: s.InstanceDefaults.Message(a.AgentInstance)})
+		return s.API.AppendMessage(ctx, s.Credential, a.ContextID, comitia.MessageInput{RecipientSessionIDs: a.RecipientSessionIDs, RecipientInstances: a.RecipientInstances, TaskFence: a.TaskFence, DedupeKey: a.DedupeKey, Body: a.Body, Envelope: a.Envelope, AgentInstance: s.InstanceDefaults.Message(a.AgentInstance)})
 	case "list_participants":
 		var a struct {
 			Page      bool   `json:"page"`

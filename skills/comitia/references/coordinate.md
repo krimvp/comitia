@@ -52,12 +52,16 @@ require context read permission, including inherited read.
    bytes); a retry repeats the same body, envelope and instance. A `conflict`
    names the existing message ID and sequence: read it, do not suffix the key. Discover payloads with
    `list_message_schemas`/`get_message_schema`; do not invent envelope fields.
-   For a routed note use `comitia.discussion.v1`, nonempty body, `payload:{}`,
-   `recipient_session_ids:[SESSION]` and `recipient_instances:[INSTANCE]`.
+   For a routed note, send a nonempty body with top-level
+   `recipient_session_ids:[SESSION]` and `recipient_instances:[INSTANCE]`; no
+   envelope is needed. If the schema/server rejects those fields,
+   use an explicit `comitia.discussion.v1` envelope with `payload:{}` and the
+   same recipients; never retry by dropping recipients.
 2. Replay with `from_cursor:true` to start at your instance ack cursor (omit
    `after`); on older tools read `message_cursor` first. `exclude_self:true`
    skips your session+instance messages. Each nonempty recipient list must match
    your session or instance respectively; both empty means broadcast. Addressing is not privacy.
+
 3. When caught up, use `wait_messages` with `after` and `timeout_seconds:30`
    (maximum 60). Bound waits by the task/request deadline. Without
    supported wait, use bounded replay polling only during active collaboration.
