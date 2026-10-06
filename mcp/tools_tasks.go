@@ -14,6 +14,7 @@ func taskTools() []map[string]any {
 		tool("cancel_task", "Cancel a task with a live claim or context-admin authority and current version; admins may cancel pending work at version 0", taskOutcomeSchema(true)),
 		tool("create_task", "Create a task in a context", schema(map[string]any{"context_id": str("Context ID"), "title": str("Task title"), "body": str("Task details"), "operation_id": taskOperationID()}, "context_id", "title")),
 		tool("claim_task", "Claim a pending task; lease_seconds defaults to 300 (1–86400), or use open_ended. Returns Task + Token; keep Token and Task.LeaseVersion for renew/complete. Omitted agent_instance defaults to COMITIA_AGENT_INSTANCE / COMITIA_AGENT_INSTANCE_LABEL; explicit objects replace both defaults and an empty ID is invalid", schema(map[string]any{"task_id": str("Task ID"), "operation_id": taskOperationID(), "lease_seconds": integer("Lease duration in seconds"), "open_ended": openEnded(), "agent_instance": schema(map[string]any{"id": str("Self-reported instance ID holding the claim: 1-64 ASCII letters, digits, dot, underscore or hyphen; never identity proof"), "label": str("Optional self-reported display label (at most 128 bytes)")}, "id")}, "task_id")),
+		tool("recover_claim", "Recover a lost claim token for your own live lease at its current version; matching agent_instance ID required for instance claims. Rotates Token without extending expiry or changing LeaseVersion; earlier tokens become stale. Omitted agent_instance uses configured defaults.", schema(map[string]any{"task_id": str("Task ID"), "lease_version": integer("Current positive lease version from get_task"), "agent_instance": schema(map[string]any{"id": str("Matching holder instance ID; self-reported, never identity proof"), "label": str("Optional display label")}, "id")}, "task_id", "lease_version")),
 		tool("renew_task", "Renew a task claim using claim_token and lease_version; lease_seconds defaults to 300 (1–86400), or use open_ended. Returns Task + Token; replace both Token and Task.LeaseVersion after renewal.", schema(map[string]any{"task_id": str("Task ID"), "claim_token": str("Opaque claim token"), "lease_version": integer("Current lease version"), "operation_id": taskOperationID(), "lease_seconds": integer("Lease duration in seconds"), "open_ended": openEnded()}, "task_id", "claim_token", "lease_version")),
 		tool("complete_task", "Complete a claimed task using the latest Token as claim_token and Task.LeaseVersion as lease_version from claim/renew.", schema(map[string]any{"task_id": str("Task ID"), "claim_token": str("Opaque claim token"), "lease_version": integer("Current lease version")}, "task_id", "claim_token", "lease_version")),
 		tool("release_task", "Return a leased task to pending; the holder passes its claim token, a context admin may omit it", schema(map[string]any{"task_id": str("Task ID"), "claim_token": str("Opaque claim token; optional for a context admin"), "lease_version": integer("Current lease version")}, "task_id", "lease_version")),
@@ -63,6 +64,26 @@ func (s *Server) callTasks(ctx context.Context, name string, raw json.RawMessage
 			instance = append(instance, *owner)
 		}
 		return comitia.ClaimTaskOperation(ctx, s.API, s.Credential, a.TaskID, d, a.OperationID, instance...)
+	case "recover_claim":
+		var a struct {
+			TaskID        string                 `json:"task_id"`
+			LeaseVersion  *int64                 `json:"lease_version"`
+			AgentInstance *comitia.AgentInstance `json:"agent_instance"`
+		}
+		if err := decode(raw, &a); err != nil {
+			return nil, err
+		}
+		if err := required("task_id", a.TaskID); err != nil {
+			return nil, err
+		}
+		if a.LeaseVersion == nil {
+			return nil, comitia.Invalidf("lease_version required")
+		}
+		var instance []comitia.AgentInstance
+		if owner := s.InstanceDefaults.Message(a.AgentInstance); owner != nil {
+			instance = append(instance, *owner)
+		}
+		return comitia.RecoverClaim(ctx, s.API, s.Credential, a.TaskID, *a.LeaseVersion, instance...)
 	case "renew_task":
 		var a struct {
 			OperationID  string `json:"operation_id"`

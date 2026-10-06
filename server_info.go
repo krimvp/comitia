@@ -124,6 +124,7 @@ var serverFeatures = []string{
 	"approvals",
 	"instance_claims",
 	"task_mutation_receipts",
+	"task_claim_recovery",
 	"task_result_fencing",
 	"replay_filters",
 	"strict_recipients",

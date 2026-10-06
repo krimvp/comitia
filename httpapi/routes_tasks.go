@@ -14,6 +14,8 @@ import (
 // the request was not applied. Clients must not retry it without idempotency.
 var ErrTaskMutationReceiptsUnsupported = fmt.Errorf("%w: server does not support task mutation receipts (operation_id); upgrade the server before retrying", comitia.ErrInvalid)
 
+var ErrClaimRecoveryUnsupported = fmt.Errorf("%w: claim recovery unsupported by this server; upgrade the server before retrying", comitia.ErrInvalid)
+
 func (h *handler) taskRoutes() map[string]endpoint {
 	return map[string]endpoint{
 		"tasks/fail":   h.taskOutcomeEndpoint(false),
@@ -54,6 +56,17 @@ func (h *handler) taskRoutes() map[string]endpoint {
 				instances = append(instances, *q.ClaimInstance)
 			}
 			v, err := comitia.ClaimTaskOperation(ctx, h.api, token, q.TaskID, lease, q.OperationID, instances...)
+			return claimResult{ptr(wireClaim(v))}, err
+		}),
+		"tasks/recover": typedEndpoint(func(ctx context.Context, token string, q recoverClaimRequest) (claimResult, error) {
+			if q.LeaseVersion == nil {
+				return claimResult{}, comitia.Invalidf("lease_version required")
+			}
+			var instances []comitia.AgentInstance
+			if q.ClaimInstance != nil {
+				instances = append(instances, *q.ClaimInstance)
+			}
+			v, err := comitia.RecoverClaim(ctx, h.api, token, q.TaskID, *q.LeaseVersion, instances...)
 			return claimResult{ptr(wireClaim(v))}, err
 		}),
 		"tasks/renew": typedEndpoint(func(ctx context.Context, token string, q renewRequest) (claimResult, error) {
@@ -153,6 +166,29 @@ func (c *Client) ClaimTaskWithOperation(ctx context.Context, token, id string, l
 	}
 	return out.Claim.core(), nil
 }
+func (c *Client) RecoverClaim(ctx context.Context, token, id string, version int64, instances ...comitia.AgentInstance) (comitia.TaskClaim, error) {
+	q := recoverClaimRequest{TaskID: id, LeaseVersion: ptr(version)}
+	switch len(instances) {
+	case 0:
+		q.ClaimInstance = c.InstanceDefaults.Message(nil)
+	case 1:
+		q.ClaimInstance = &instances[0]
+	default:
+		return comitia.TaskClaim{}, comitia.Invalidf("claim_instance accepts at most one instance")
+	}
+	var out claimResult
+	err := c.call(ctx, token, "tasks/recover", q, &out)
+	if errors.Is(err, comitia.ErrNotFound) {
+		return comitia.TaskClaim{}, ErrClaimRecoveryUnsupported
+	}
+	if err = requiredResult(err, out.Claim); err != nil {
+		return comitia.TaskClaim{}, err
+	}
+	return out.Claim.core(), nil
+}
+
+var _ comitia.TaskClaimRecoveryAPI = (*Client)(nil)
+
 func (c *Client) RenewClaim(ctx context.Context, token, id, key string, version int64, lease time.Duration) (comitia.TaskClaim, error) {
 	return c.RenewClaimWithOperation(ctx, token, id, key, version, lease, "")
 }

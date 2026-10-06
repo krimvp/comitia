@@ -271,6 +271,12 @@ type claimRequest struct {
 	ClaimInstance *comitia.AgentInstance `json:"claim_instance,omitempty"`
 }
 
+type recoverClaimRequest struct {
+	TaskID        string                 `json:"task_id"`
+	LeaseVersion  *int64                 `json:"lease_version"`
+	ClaimInstance *comitia.AgentInstance `json:"claim_instance,omitempty"`
+}
+
 type renewRequest struct {
 	TaskID       string         `json:"task_id"`
 	OperationID  string         `json:"operation_id,omitempty"`
