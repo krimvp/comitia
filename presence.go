@@ -9,17 +9,20 @@ import (
 
 const MaxInstanceResumeBytes = 4096
 const InstanceHeartbeatInterval = 30 * time.Second
+const InstanceRecentWindow = 90 * time.Second
 const instanceHeartbeatBudget = 25 * time.Millisecond
 
 // InstancePresence is self-reported process metadata, never proof of identity or liveness.
 type InstancePresence struct {
-	ID        string          `json:"id"`
-	Label     string          `json:"label,omitempty"`
-	SessionID string          `json:"session_id"`
-	ContextID string          `json:"context_id"`
-	LastSeen  time.Time       `json:"last_seen"`
-	Resume    json.RawMessage `json:"resume,omitempty"`
-	Active    bool            `json:"active"`
+	ID             string          `json:"id"`
+	Label          string          `json:"label,omitempty"`
+	SessionID      string          `json:"session_id"`
+	ContextID      string          `json:"context_id"`
+	LastSeen       time.Time       `json:"last_seen"`
+	Resume         json.RawMessage `json:"resume,omitempty"`
+	Active         bool            `json:"active"`
+	SeenSecondsAgo *int64          `json:"seen_seconds_ago,omitempty"`
+	Recent         *bool           `json:"recent,omitempty"`
 }
 
 type PresenceAPI interface {
@@ -46,7 +49,21 @@ func (s *Service) ListInstances(ctx context.Context, raw, cid string) ([]Instanc
 			return err
 		}
 		var err error
-		out, err = r.Instances(cid, s.now().UTC())
+		now := s.now().UTC()
+		out, err = r.Instances(cid, now)
+		if err == nil {
+			for i := range out {
+				if out[i].LastSeen.IsZero() {
+					continue
+				}
+				age := now.Sub(out[i].LastSeen)
+				if age < 0 {
+					age = 0
+				}
+				seconds, recent := int64(age/time.Second), age < InstanceRecentWindow
+				out[i].SeenSecondsAgo, out[i].Recent = &seconds, &recent
+			}
+		}
 		return err
 	})
 	return out, err
@@ -82,7 +99,7 @@ func (s *Service) instanceHeartbeatDue(r ReadStore, sid, cid, instance string) b
 	return errors.Is(err, ErrNotFound) || err == nil && !seen.After(s.now().UTC().Add(-InstanceHeartbeatInterval))
 }
 
-// Send and ack reuse their transaction; SQLite isolates the heartbeat with a savepoint.
+// Message and task writes reuse their transaction; SQLite isolates the heartbeat with a savepoint.
 func (s *Service) touchInstanceIn(w WriteStore, sid, cid string, instance *AgentInstance) {
 	if instance == nil || instance.ID == "" {
 		return

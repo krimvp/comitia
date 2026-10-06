@@ -10,3 +10,12 @@ test('instance last seen uses relative time and tolerates clock skew and invalid
   assert.equal(relativeSeen('invalid',now),'Unknown time');
   assert.equal(relativeSeen(undefined,now),'Unknown time');
 });
+
+import {instanceSeen} from '../ui/presence.mjs';
+test('instance presence uses server recency despite browser clock skew', () => {
+  assert.equal(instanceSeen({last_seen:'2000-01-01T00:00:00Z',seen_seconds_ago:0,recent:true}), 'Last seen 0s ago · Recent activity');
+  assert.equal(instanceSeen({last_seen:'2099-01-01T00:00:00Z',seen_seconds_ago:90,recent:false}), 'Last seen 1m ago · No recent activity');
+  assert.equal(instanceSeen({seen_seconds_ago:86400,recent:false}), 'Last seen 1d ago · No recent activity');
+  assert.equal(instanceSeen({last_seen:'invalid'}), 'Last seen Unknown time');
+  assert.equal(instanceSeen({last_seen:'2099-01-01T00:00:00Z',seen_seconds_ago:null}), 'Last seen 0s ago');
+});

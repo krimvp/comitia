@@ -209,6 +209,9 @@ func (s *Service) ClaimTaskWithOperation(ctx context.Context, raw, taskID string
 		}
 		if found {
 			c, e = s.recoverTaskClaim(w, t, receipt, a.session.ID)
+			if e == nil {
+				s.touchInstanceIn(w, a.session.ID, t.ContextID, t.LeaseOwnerInstance)
+			}
 			return e
 		}
 		now := s.now().UTC()
@@ -242,6 +245,7 @@ func (s *Service) ClaimTaskWithOperation(ctx context.Context, raw, taskID string
 		if e := putTaskEvent(w, a.session.ID, t, "claimed", previous); e != nil {
 			return e
 		}
+		s.touchInstanceIn(w, a.session.ID, t.ContextID, t.LeaseOwnerInstance)
 		eventContext = t.ContextID
 		return putTaskReceipt(w, a.session.ID, operationID, fingerprint, c.Task)
 	})
@@ -279,6 +283,10 @@ func (s *Service) changeLease(ctx context.Context, raw, taskID, claimToken strin
 		if e != nil {
 			return e
 		}
+		instance := t.LeaseOwnerInstance
+		if instance != nil {
+			instance = &AgentInstance{ID: instance.ID}
+		}
 		fingerprint := taskFingerprint("renew", taskID, tokenHash(claimToken), version, lease)
 		receipt, found, e := taskReceipt(w, a.session.ID, operationID, fingerprint)
 		if e != nil {
@@ -286,6 +294,9 @@ func (s *Service) changeLease(ctx context.Context, raw, taskID, claimToken strin
 		}
 		if found {
 			c, e = s.recoverTaskClaim(w, t, receipt, a.session.ID)
+			if e == nil {
+				s.touchInstanceIn(w, a.session.ID, t.ContextID, instance)
+			}
 			return e
 		}
 		now := s.now().UTC()
@@ -316,6 +327,7 @@ func (s *Service) changeLease(ctx context.Context, raw, taskID, claimToken strin
 		if e := putTaskEvent(w, a.session.ID, t, kind, TaskLeased); e != nil {
 			return e
 		}
+		s.touchInstanceIn(w, a.session.ID, t.ContextID, instance)
 		eventContext = t.ContextID
 		return putTaskReceipt(w, a.session.ID, operationID, fingerprint, c.Task)
 	})
