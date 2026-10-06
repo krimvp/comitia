@@ -27,28 +27,37 @@ work and reviews higher. Reviewers run at the worker's level or above.
 Keep one stable instance per process, e.g. `codex-repo-issue-10` or
 `claude-repo-orch`. Set `COMITIA_AGENT_INSTANCE` in each MCP launch environment
 when supported; natural dedupe keys and independent cursors then work without
-per-call plumbing. Otherwise follow the explicit/legacy branches in coordinate.
-Use both session and instance recipients; body tags make summaries readable.
+per-call plumbing. Otherwise follow coordinate's explicit/legacy branches; only
+legacy mode needs instance-prefixed keys. Use both session and instance recipients.
 
 Give each task owner a delegated session with minimal grants and a private
 credential-file path; shared harness credentials plus instances suit loose
 collaboration, not isolated authority. Discover participants and presence/resume
 metadata, but do not equate either with running processes. Store harness run IDs,
-worktrees and checkpoint state in the launcher's durable registry; publish only
-nonsecret resume metadata through `set_instance_resume`.
+worktrees and checkpoint state in the launcher's durable registry. After each
+launch or resume, the launcher publishes nonsecret resume metadata itself:
 
-| Message | When |
-| --- | --- |
-| `[tag] started: <plan>` | First thing |
-| `[tag] progress: <milestone>` | Design and each milestone, with numbers |
-| `[tag] question: <decision>` | Blocked; keep working on independent work |
-| `[tag] done: <result>; checks: <...>; not checked: <...>` | Finished |
-| `[tag] failed: <why>` | Cannot finish |
-| `[review-N] round K: approve \| changes-requested, k blocking, m non-blocking` | Reviewer verdict summary; typed approval carries exact evidence |
+```sh
+comitia-client --credential-file PATH instance-resume --context-id RUN_CONTEXT \
+  --agent-instance codex-repo-issue-10 --resume-file resume.json
+```
 
-Full reviews/logs go in scratch files; messages carry the summary and path.
-Use bounded `wait_messages` when caught up, process then ack on the same consumer
-instance. Durable handling deduplicates committed effects before acknowledging.
+`resume.json` is a JSON object (at most 4096 bytes: harness, run ID, cwd,
+checkpoint), so workers need not call `set_instance_resume`.
+
+Workers report with typed messages carrying their `task_id`, not free-text tags:
+
+- `comitia.task-status.v1`: `in_progress` with the plan first and at milestones
+  with numbers; `blocked` with `blockers` plus a routed question, continuing
+  independent work; finally `review`, `done` or `failed` with `links` to results.
+- `comitia.verification-result.v1` per check: `passed`/`failed` with
+  `evidence_refs`, or `not_run` with `reason`.
+
+Status never completes a task. Full reviews/logs go in scratch files; messages
+carry the summary and path. Use bounded `wait_messages` when caught up, or a
+`comitia watch` watcher instance (coordinate step 3) to be woken; process then ack
+on the same consumer instance. Durable handling deduplicates committed effects
+before acknowledging.
 Use requests/receipts with absolute deadlines for handoffs and steering; a
 watcher has its own cursor and does not consume the worker's business messages.
 
@@ -69,9 +78,15 @@ watcher has its own cursor and does not consume the worker's business messages.
 1. **Plan.** Read issues and dependencies; create tasks and explicit file ownership.
    Run independent groundwork early. Record trusted reviewer session assignments,
    policy revision, certificate issuer, merger and required checks outside messages.
+   Open a run context: create a run task in the shared context, then
+   `create_context(parent_context_id=SHARED, name, task_id)`. It needs `create`
+   on the shared context (ask the installation owner; quota in coordinate) from a
+   grant and session that outlive the run, or the child archives early. Create
+   worker tasks and delegated sessions in the child; post the run task's
+   `task-status.v1` with `child_context_id` in the shared context.
 2. **Launch.** Delegate the owner's session; pass only its private credential-file
    path to the launcher. Persist launch intent, then actual process identity and
-   harness run ID. Prompt with acceptance criteria, context/session/instance/tag,
+   harness run ID. Prompt with acceptance criteria, context/session/instance/task,
    worktree/scratch paths, repository rules, done checks and handoff requirements.
    Claim with a bounded lease; preserve token/version privately and renew on time.
 3. **Steer.** Answer questions and scope decisions at design time. For durable
@@ -84,13 +99,18 @@ watcher has its own cursor and does not consume the worker's business messages.
    Use `comitia.request.v1` operation `review`, future deadline, assigned reviewer
    session IDs and exact `pr:owner/repo#N@FULL_SHA` artifact refs. Reviewer reruns
    every check and sends `comitia.approval.v1` replying to that request with exact
-   artifact refs, `verdict`, `checks` and `blocking_count`. Findings need file, line and reproduction.
+   artifact refs, `verdict`, `checks` and `blocking_count`. Each finding is a
+   `comitia.finding.v1` with file, line and reproduction (`priority`, `size`);
+   panelists answer it with `comitia.stance.v1` replies, not votes or duplicate
+   findings. Tally by replaying with `reply_to`.
 6. **Fix rounds.** Confirm findings before relaying. Resume the same worker with
    confirmed changes; fixes need meaningful regressions. Every new head requires
    a new review request, approvals and certificate. Complete the task separately
    with the latest claim token/version after its acceptance criteria are satisfied.
 7. **Certify and merge.** Follow the gate below; a prose “ready” message alone
    cannot authorize merging. Retarget stacked PRs within the approved workflow.
+8. **Close.** Reconcile effects, complete tasks, revoke delegated sessions, post
+   the final run status, then `archive_context` the run context (irreversible).
 
 ## Certify and merge
 
@@ -125,8 +145,9 @@ for the complete reservation and invalidation contract.
   identity, actual exits and harness state. A matching PID or recent presence is
   insufficient. Worktrees and uncommitted changes survive a launcher restart.
 - Resume the recorded harness run in its worktree with missed decisions and
-  outstanding effects. Use `list_instances` resume metadata as a hint, not trusted
-  launch identity. Restarted sessions with new credentials need new routing IDs.
+  outstanding effects, then rerun `comitia instance-resume`. Use `list_instances`
+  resume metadata as a hint, not trusted launch identity. Restarted sessions with
+  new credentials need new routing IDs.
 - Before reclaiming an expired lease or launching a replacement, reconcile effects
   and stop/confirm the old process through the launcher; fence future task results.
   Lease expiry does not stop processes. Never reclaim solely on stale last_seen.
