@@ -32,11 +32,6 @@ func contextMessage(r MessageReadStore, cid, mid string) (Message, error) {
 }
 
 func (s *Service) validateMessageQuery(r ReadStore, cid string, f MessageFilters) error {
-	if f.Schema != "" {
-		if _, ok := s.messageSchemas[f.Schema]; !ok {
-			return s.invalidMessageSchema()
-		}
-	}
 	if !scopedMessageFilters(f) {
 		return nil
 	}

@@ -29,8 +29,6 @@ func TestActionableMessageErrorsAcrossAdapters(t *testing.T) {
 				{"send_message", map[string]any{"context_id": c.ID, "dedupe_key": "payload", "envelope": map[string]any{"schema": "comitia.finding.v1", "payload": map[string]any{"summry": "private-value", "severity": "info"}}}, []string{`unknown field "summry"`, "accepted fields:", `did you mean "summary"?`}},
 				{"send_message", map[string]any{"context_id": c.ID, "dedupe_key": "nested", "envelope": map[string]any{"schma": "private-value", "payload": map[string]any{}}}, []string{`unknown field "schma"`, "accepted fields:", `did you mean "schema"?`}},
 				{"send_message", map[string]any{"context_id": c.ID, "dedupe_key": "schema", "envelope": map[string]any{"schema": "private-value", "payload": map[string]any{}}}, []string{"schema must name a registered message schema", "list_message_schemas", "comitia.discussion.v1"}},
-				{"replay_messages", map[string]any{"context_id": c.ID, "schema": "private-value"}, []string{"schema must name a registered message schema", "list_message_schemas"}},
-				{"wait_messages", map[string]any{"context_id": c.ID, "schema": "private-value", "timeout_seconds": 0}, []string{"schema must name a registered message schema", "list_message_schemas"}},
 			} {
 				info := operationalToolError(t, s, tc.tool, tc.args)
 				if info.Code != "invalid" {
@@ -43,6 +41,17 @@ func TestActionableMessageErrorsAcrossAdapters(t *testing.T) {
 				}
 				if strings.Contains(info.Message, "private-value") {
 					t.Fatalf("value disclosed: %+v", info)
+				}
+			}
+			for _, tool := range []string{"replay_messages", "wait_messages"} {
+				args := map[string]any{"context_id": c.ID, "schema": "example.future.v1"}
+				if tool == "wait_messages" {
+					args["timeout_seconds"] = 0
+				}
+				raw, _ := json.Marshal(args)
+				messages, err := s.call(ctx, tool, raw)
+				if err != nil || len(messages.([]comitia.Message)) != 0 {
+					t.Fatalf("unregistered %s filter: %v %v", tool, messages, err)
 				}
 			}
 			for _, field := range []string{"reply_to", "task_id", "recipient_session_ids"} {

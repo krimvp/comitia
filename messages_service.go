@@ -49,6 +49,13 @@ func (s *Service) AppendMessage(ctx context.Context, raw, cid string, in Message
 	if err != nil {
 		return m, err
 	}
+	references := envelope
+	if envelope != nil {
+		// Errors name the caller's indexes; persistence and dedupe use canonical order.
+		copy := *envelope
+		copy.RecipientSessionIDs = append([]string(nil), in.Envelope.RecipientSessionIDs...)
+		references = &copy
+	}
 	e := s.store.Update(ctx, func(w WriteStore) error {
 		a, _, e := s.require(w, raw, cid, PermissionWrite)
 		if e != nil {
@@ -91,7 +98,7 @@ func (s *Service) AppendMessage(ctx context.Context, raw, cid string, in Message
 		if e := s.requireTaskStatusRead(w, raw, cid, envelope); e != nil {
 			return e
 		}
-		if e := s.validateEnvelopeReferences(w, cid, envelope); e != nil {
+		if e := s.validateEnvelopeReferences(w, cid, references); e != nil {
 			return e
 		}
 		if e := s.validateProtocolReferences(w, cid, a.session.ID, envelope); e != nil {

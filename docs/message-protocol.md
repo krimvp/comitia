@@ -810,12 +810,16 @@ See [the complete lease loop](task-validation.md#complete-lease-loop).
 
 Unknown JSON fields list accepted keys and suggest an unambiguous nearby name
 (`after_sequence` → `after`, `through` → `sequence`). Unregistered envelope schemas
-and replay/wait schema filters are rejected with registered IDs and pointers to
-`list_message_schemas` / `get_message_schema`.
+are rejected on send with registered IDs and pointers to `list_message_schemas` /
+`get_message_schema`. Replay/wait schema filters match stored envelopes without
+requiring a current append validator: consumers can start before schema registration,
+and historical extension messages remain readable after a validator is removed.
 
 Forbidden references name `task_id`, `reply_to`, or `recipient_session_ids[index]`
-and suggest a lookup tool. Missing and unreadable targets have identical wording;
-target IDs are omitted. References to messages, tasks, or reader sessions require effective context read
+and suggest a lookup tool. Recipient indexes refer to the original request order;
+stored recipients remain sorted for dedupe. Missing and unreadable targets have
+identical wording; target IDs are omitted. References to messages, tasks, or reader
+sessions require effective context read
 permission (including inherited read), before target lookup or dedupe recovery.
 This covers `reply_to` in all schemas. Write-only callers can still send messages
 without those references.
