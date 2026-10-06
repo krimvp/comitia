@@ -40,7 +40,8 @@ WORD_BASELINE = {
     'scripts/local/instructions.md': 160,
     'skills/comitia/SKILL.md': 260,
     'skills/comitia/references/setup.md': 640,
-    'skills/comitia/references/coordinate.md': 1000,
+    # Reviewed epic #106 budget: per-feature lines from #113-#123; #127 consolidates.
+    'skills/comitia/references/coordinate.md': 1100,
     'skills/comitia/references/orchestrate.md': 1350,
 }
 HISTORY = ('RUNBOOK.md', 'chatgpt-cloud.md', 'chatgpt-integration.md',
