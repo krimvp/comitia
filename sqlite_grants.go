@@ -81,7 +81,8 @@ func (x *sqlStore) RevokeGrantTree(root string, at time.Time) error {
 	}
 	n, _ := r.RowsAffected()
 	if n == 0 {
-		return ErrNotFound
+		var one int
+		return dbErr(x.q.QueryRow("SELECT 1 FROM grants WHERE id=?", root).Scan(&one))
 	}
 	return nil
 }

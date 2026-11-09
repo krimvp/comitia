@@ -36,6 +36,8 @@ type GrantReadStore interface {
 type GrantWriteStore interface {
 	PutGrant(Grant) error
 	// RevokeGrantTree durably revokes the grant and its descendants atomically.
+	// It returns ErrNotFound only for a missing root; an already revoked root
+	// succeeds, keeping existing revocation times.
 	RevokeGrantTree(string, time.Time) error
 }
 
@@ -45,19 +47,17 @@ func (s *Service) RevokeGrant(ctx context.Context, raw, grantID string) error {
 		if e != nil {
 			return e
 		}
-		if !a.principal.Admin {
-			g, e := w.Grant(grantID)
-			if errors.Is(e, ErrNotFound) {
-				return ErrForbidden
-			}
-			if e != nil {
-				return e
-			}
-			if g.IssuerSessionID != a.session.ID {
-				return ErrForbidden
-			}
+		g, e := w.Grant(grantID)
+		if !a.principal.Admin && errors.Is(e, ErrNotFound) {
+			return ErrForbidden
 		}
-		return w.RevokeGrantTree(grantID, s.now().UTC())
+		if e != nil {
+			return e
+		}
+		if !a.principal.Admin && g.IssuerSessionID != a.session.ID {
+			return ErrForbidden
+		}
+		return revokedAgain(w.RevokeGrantTree(grantID, s.now().UTC()), g.RevokedAt)
 	})
 }
 func (s *Service) GrantContext(ctx context.Context, raw string, in GrantInput) (Grant, error) {

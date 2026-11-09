@@ -11,7 +11,8 @@ import (
 )
 
 // Grants checks effective grants, creator-derived archival and transaction
-// visibility/rollback, including durable grant/session descendant revocation.
+// visibility/rollback, including durable grant/session descendant revocation
+// and idempotent repeated revocation (ErrNotFound only for a missing root).
 // open must return a fresh, empty Store for each subtest.
 // The suite closes each Store. It does not cover message/task/presence semantics.
 func Grants(t *testing.T, open func(*testing.T) comitia.Store) {
@@ -298,6 +299,52 @@ func Grants(t *testing.T, open func(*testing.T) comitia.Store) {
 				t.Fatal(err)
 			}
 			if err := st.View(context.Background(), func(r comitia.ReadStore) error { verify(r, true); return nil }); err != nil {
+				t.Fatal(err)
+			}
+		})
+	}
+
+	for _, kind := range []string{"grant", "session"} {
+		t.Run(kind+" repeated revocation", func(t *testing.T) {
+			st := open(t)
+			t.Cleanup(func() { st.Close() })
+			seed(t, st, initial())
+			revoke := func(w comitia.WriteStore, id string, at time.Time) error {
+				if kind == "grant" {
+					return w.RevokeGrantTree(id, at)
+				}
+				return w.RevokeSessionTree(id, at)
+			}
+			root := map[string]string{"grant": "root", "session": "issuer"}[kind]
+			for i, at := range []time.Time{now, now.Add(time.Minute)} {
+				if err := st.Update(context.Background(), func(w comitia.WriteStore) error { return revoke(w, root, at) }); err != nil {
+					t.Fatalf("revoke %d: %v", i, err)
+				}
+			}
+			if err := st.Update(context.Background(), func(w comitia.WriteStore) error { return revoke(w, "missing", now) }); !errors.Is(err, comitia.ErrNotFound) {
+				t.Fatalf("missing root: %v", err)
+			}
+			if err := st.View(context.Background(), func(r comitia.ReadStore) error {
+				var revokedAt *time.Time
+				if kind == "grant" {
+					g, err := r.Grant(root)
+					if err != nil {
+						return err
+					}
+					revokedAt = g.RevokedAt
+				} else {
+					s, err := r.Session(root)
+					if err != nil {
+						return err
+					}
+					revokedAt = s.RevokedAt
+				}
+				if revokedAt == nil || !revokedAt.Equal(now) {
+					t.Fatalf("revoked_at=%v; want first revocation %v", revokedAt, now)
+				}
+				check(t, r, now, false, &now)
+				return nil
+			}); err != nil {
 				t.Fatal(err)
 			}
 		})

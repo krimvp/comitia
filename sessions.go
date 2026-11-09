@@ -56,6 +56,8 @@ type SessionWriteStore interface {
 	PutPrincipal(Principal) error
 	PutSession(Session, string) error
 	// RevokeSessionTree durably revokes the session and all child sessions atomically.
+	// It returns ErrNotFound only for a missing root; an already revoked root
+	// succeeds, keeping existing revocation times.
 	RevokeSessionTree(string, time.Time) error
 }
 
@@ -195,9 +197,18 @@ func (s *Service) RevokeSession(ctx context.Context, raw, target string) error {
 		if e != nil {
 			return e
 		}
-		if !a.principal.Admin && t.ParentID != a.session.ID {
+		if !a.principal.Admin && t.ParentID != a.session.ID && t.ID != a.session.ID {
 			return ErrForbidden
 		}
-		return w.RevokeSessionTree(target, s.now().UTC())
+		return revokedAgain(w.RevokeSessionTree(target, s.now().UTC()), t.RevokedAt)
 	})
+}
+
+// Revocation is idempotent once authorized. Older stores report an already
+// revoked root as missing, so trust the record read in this transaction.
+func revokedAgain(err error, revokedAt *time.Time) error {
+	if revokedAt != nil && errors.Is(err, ErrNotFound) {
+		return nil
+	}
+	return err
 }

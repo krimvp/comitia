@@ -17,7 +17,7 @@ import (
 func sessionTools() []map[string]any {
 	return []map[string]any{
 		tool("delegate_session", "Create a helper session. Grants only shrink permissions and expiry from one issuer grant; contexts are the privacy boundary. Credentials go to private files on the MCP server, never to the model. Returns IDs, expiry and file path; does not launch a helper.", schema(map[string]any{"name": str("Helper principal name"), "ttl_seconds": integer("Positive session lifetime in seconds"), "grants": map[string]any{"type": "array", "minItems": 1, "items": schema(map[string]any{"context_id": str("Context ID"), "permissions": permissionSchema(), "ttl_seconds": integer("Positive grant lifetime, no longer than the session lifetime")}, "context_id", "permissions", "ttl_seconds")}}, "name", "grants", "ttl_seconds")),
-		tool("revoke_session", "Revoke a session and its descendants. Non-admin callers may revoke only sessions they directly delegated; admins may revoke any session. Grant authority disappears with its session ancestry.", schema(map[string]any{"session_id": str("Session ID")}, "session_id")),
+		tool("revoke_session", "Revoke a session and its descendants. Non-admin callers may revoke only their own session or sessions they directly delegated; admins may revoke any session. Repeating a revocation succeeds. Grant authority disappears with its session ancestry.", schema(map[string]any{"session_id": str("Session ID")}, "session_id")),
 	}
 }
 

@@ -39,7 +39,10 @@ empty `Title` and `Body`.
 The target multi-tenant model additionally requires explicit principal membership in a workspace before accessing that workspace's resources.
 
 Non-admin sessions may revoke only grants whose `IssuerSessionID` is their own
-session ID, and sessions whose `ParentID` is their own session ID. Holding a
+session ID, their own session (for example on shutdown or suspected leak), and
+sessions whose `ParentID` is their own session ID. Revocation is idempotent: an
+authorized caller revoking an already revoked grant or session succeeds and
+keeps the original revocation time. Holding a
 grant, owning an ancestor grant, or sharing a principal with the issuer does not
 authorize revocation. Administrative principals may revoke any grant or session.
 Revocation cascades through the existing grant/session trees. CLI, HTTP and MCP
@@ -59,7 +62,7 @@ Initial bootstrap is a one-time local or offline operation. Network adapters mus
 
 Successful authentication means only that the request presented valid proof for a configured credential. The initial credential mechanism uses static, opaque scoped tokens; it does not implement OIDC. Authentication does not establish real-world identity, intent, software integrity, or the accuracy of claims in messages and task results. Deployments needing stronger identity assurance must bind credentials to an external identity process and document that process separately.
 
-Secrets must not be stored in resource references, messages intended for broad replay, command arguments visible to other local users, or logs. Error responses should contain enough detail to diagnose a request without revealing credentials or cross-workspace resource existence. Task ID operations authenticate before lookup and return `ErrForbidden` for both missing tasks and tasks outside the required context authority, including for administrators without that authority. Non-admin grant/session revocation returns `ErrForbidden` for both missing IDs and IDs the caller cannot revoke. Grant creation verifies non-admin context grant authority before consulting context or target IDs and returns `ErrForbidden` for missing or ineligible targets. Administrative grant/session operations retain `ErrNotFound` diagnostics after authentication. Invalid or absent credentials return `ErrUnauthenticated` independently of those resource IDs.
+Secrets must not be stored in resource references, messages intended for broad replay, command arguments visible to other local users, or logs. Error responses should contain enough detail to diagnose a request without revealing credentials or cross-workspace resource existence. Task ID operations authenticate before lookup and return `ErrForbidden` for both missing tasks and tasks outside the required context authority, including for administrators without that authority. Non-admin grant/session revocation returns `ErrForbidden` for both missing IDs and IDs the caller cannot revoke, whether or not they are already revoked. Grant creation verifies non-admin context grant authority before consulting context or target IDs and returns `ErrForbidden` for missing or ineligible targets. Administrative grant/session operations retain `ErrNotFound` diagnostics after authentication. Invalid or absent credentials return `ErrUnauthenticated` independently of those resource IDs.
 
 MCP `delegate_session` never returns a token. The server process stores the CLI
 delegation document plus `server_url` in a new `<session_id>.json` file opened
