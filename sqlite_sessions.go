@@ -10,7 +10,12 @@ const sessionSchema = `
 CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS principals (id TEXT PRIMARY KEY, name TEXT NOT NULL, admin INTEGER NOT NULL, created_at TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS sessions (id TEXT PRIMARY KEY, principal_id TEXT NOT NULL REFERENCES principals(id), parent_id TEXT REFERENCES sessions(id), token_hash TEXT NOT NULL UNIQUE, expires_at TEXT NOT NULL, revoked_at TEXT, created_at TEXT NOT NULL);
+CREATE INDEX IF NOT EXISTS sessions_parent ON sessions(parent_id);
 `
+
+// Revocation cascades seek sessions_parent instead of building a transient
+// index over every session inside the writer transaction.
+const revokeSessionTreeSQL = `WITH RECURSIVE d(id) AS (SELECT id FROM sessions WHERE id=? UNION ALL SELECT s.id FROM sessions s JOIN d ON s.parent_id=d.id) UPDATE sessions SET revoked_at=? WHERE id IN (SELECT id FROM d) AND revoked_at IS NULL`
 
 func (x *sqlStore) BootstrapDone() (bool, error) {
 	var v string
@@ -61,7 +66,7 @@ func (x *sqlStore) SessionByTokenHash(h string) (Session, error) {
 }
 func (x *sqlStore) RevokeSessionTree(root string, at time.Time) error {
 	x.invalidateGrantPolicy()
-	r, e := x.q.Exec(`WITH RECURSIVE d(id) AS (SELECT id FROM sessions WHERE id=? UNION ALL SELECT s.id FROM sessions s JOIN d ON s.parent_id=d.id) UPDATE sessions SET revoked_at=? WHERE id IN (SELECT id FROM d) AND revoked_at IS NULL`, root, ts(at))
+	r, e := x.q.Exec(revokeSessionTreeSQL, root, ts(at))
 	if e != nil {
 		return e
 	}
