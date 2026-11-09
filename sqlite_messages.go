@@ -140,7 +140,7 @@ func messageQuery(cid, sid string, after int64, limit int, f MessageFilters) (st
 		index = "message_filters_task"
 	case f.FromInstance != "":
 		index = "message_filters_sender"
-	case f.Schema != "":
+	case f.Schema != "", len(f.Schemas) != 0:
 		index = "message_filters_schema"
 	}
 	if index != "" {
@@ -202,7 +202,8 @@ UNION ALL SELECT message_id,seq FROM (SELECT message_id,seq FROM message_recipie
 		args = append(args, sid, f.agentInstance())
 	}
 	if len(f.Schemas) != 0 {
-		where += " AND COALESCE(json_extract(e.envelope,'$.schema'),'') IN (" + strings.TrimSuffix(strings.Repeat("?,", len(f.Schemas)), ",") + ")"
+		// Any schema list selects the projection seek above.
+		where += " AND p.schema IN (" + strings.TrimSuffix(strings.Repeat("?,", len(f.Schemas)), ",") + ")"
 		for _, schema := range f.Schemas {
 			args = append(args, schema)
 		}

@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/url"
 	"path/filepath"
@@ -53,6 +54,8 @@ func TestFilteredMessagesSeekIndexes(t *testing.T) {
 		f           MessageFilters
 	}{
 		{"schema", "message_filters_schema", MessageFilters{Schema: "comitia.finding.v1"}},
+		{"schemas", "message_filters_schema", MessageFilters{Schemas: []string{"comitia.finding.v1", "comitia.approval.v1"}}},
+		{"schemas for instance", "message_filters_schema", MessageFilters{Schemas: []string{"comitia.finding.v1"}, ForInstance: "other"}},
 		{"task", "message_filters_task", MessageFilters{TaskID: "missing"}},
 		{"sender", "message_filters_sender", MessageFilters{FromInstance: "missing"}},
 		{"recipient", "message_recipients_lookup", MessageFilters{ForInstance: "missing"}},
@@ -80,6 +83,83 @@ func TestFilteredMessagesSeekIndexes(t *testing.T) {
 				t.Fatal(err)
 			}
 		})
+	}
+}
+
+func TestSchemaListFilterMatchesProjectionAndIsBounded(t *testing.T) {
+	f := setup(t, ":memory:")
+	defer f.store.Close()
+	ctx := context.Background()
+	var ids []string
+	for i, in := range []MessageInput{
+		{Body: "plain"},
+		{Body: "discussion", Envelope: &MessageEnvelope{Schema: "comitia.discussion.v1", Payload: json.RawMessage(`{}`)}},
+		{Body: "addressed", Envelope: &MessageEnvelope{Schema: "comitia.discussion.v1", RecipientInstances: []string{"other"}, Payload: json.RawMessage(`{}`)}},
+	} {
+		in.DedupeKey = fmt.Sprint(i)
+		m, err := f.svc.AppendMessage(ctx, f.admin.Token, f.context.ID, in)
+		if err != nil {
+			t.Fatal(err)
+		}
+		ids = append(ids, m.ID)
+	}
+	if _, err := f.svc.CreateTask(ctx, f.admin.Token, f.context.ID, TaskInput{Title: "event"}); err != nil {
+		t.Fatal(err)
+	}
+	all, err := f.svc.ReplayMessages(ctx, f.admin.Token, f.context.ID, 0, 100)
+	if err != nil || len(all) != 4 {
+		t.Fatalf("history: %v %v", all, err)
+	}
+	ids = append(ids, all[3].ID)
+	for _, tc := range []struct {
+		f    MessageFilters
+		want []string
+	}{
+		{MessageFilters{Schemas: []string{TaskEventSchema, "comitia.discussion.v1"}}, ids[1:]},
+		{MessageFilters{Schemas: []string{""}}, ids[:1]},
+		{MessageFilters{Schemas: []string{"comitia.discussion.v1", TaskEventSchema}, Schema: TaskEventSchema}, ids[3:]},
+		{MessageFilters{Schemas: []string{"comitia.discussion.v1"}, ForInstance: "reader"}, ids[1:2]},
+		{MessageFilters{Schemas: []string{"comitia.discussion.v1"}, ForInstance: "other"}, ids[1:3]},
+		{MessageFilters{Schemas: []string{"missing"}}, nil},
+	} {
+		for _, wait := range []bool{false, true} {
+			var messages []Message
+			if wait {
+				messages, err = f.svc.WaitMessages(ctx, f.admin.Token, f.context.ID, 0, 0, tc.f)
+			} else {
+				messages, err = f.svc.ReplayMessages(ctx, f.admin.Token, f.context.ID, 0, 100, tc.f)
+			}
+			var got []string
+			for _, m := range messages {
+				got = append(got, m.ID)
+			}
+			if err != nil || strings.Join(got, ",") != strings.Join(tc.want, ",") {
+				t.Fatalf("schemas %+v wait=%t: %v %v want %v", tc.f, wait, got, err, tc.want)
+			}
+		}
+	}
+	// Oversized lists are invalid input, not driver errors.
+	full := make([]string, 64)
+	for i := range full {
+		full[i] = strings.Repeat("s", 127) + fmt.Sprint(i%10)
+	}
+	if _, err := f.svc.ReplayMessages(ctx, f.admin.Token, f.context.ID, 0, 100, MessageFilters{Schemas: full}); err != nil {
+		t.Fatalf("bounded list: %v", err)
+	}
+	for _, schemas := range [][]string{make([]string, 65), make([]string, 40000), {strings.Repeat("s", 129)}} {
+		filter := MessageFilters{Schemas: schemas}
+		if _, err := f.svc.ReplayMessagesPage(ctx, f.admin.Token, f.context.ID, 0, 100, filter); !errors.Is(err, ErrInvalid) {
+			t.Fatalf("replay %d schemas: %v", len(schemas), err)
+		}
+		if _, err := f.svc.WaitMessagesPage(ctx, f.admin.Token, f.context.ID, 0, 0, filter); !errors.Is(err, ErrInvalid) {
+			t.Fatalf("wait %d schemas: %v", len(schemas), err)
+		}
+		if err := f.store.View(ctx, func(r ReadStore) error {
+			_, err := r.Messages(f.context.ID, f.admin.Session.ID, 0, 100, filter)
+			return err
+		}); !errors.Is(err, ErrInvalid) {
+			t.Fatalf("store %d schemas: %v", len(schemas), err)
+		}
 	}
 }
 

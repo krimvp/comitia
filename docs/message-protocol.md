@@ -206,7 +206,7 @@ Empty values disable a filter; all nonempty filters must match.
 | `from_instance` | The message's self-reported `agent_instance.id` equals this exact ID. Legacy senders without a claim do not match. |
 | `task_id` | Envelope `task_id` equals this exact ID. |
 | `schema` | Envelope `schema` equals this exact versioned name. |
-| `schemas` | Envelope `schema` matches any name in the list. CLI repeats `--schema` to build this list. If both `schema` and `schemas` are supplied, both selectors must match. |
+| `schemas` | Envelope `schema` matches any name in the list (at most 64 names of at most 128 bytes each). CLI repeats `--schema` to build this list. If both `schema` and `schemas` are supplied, both selectors must match. |
 
 Instance filters use the same 1–64 character ID syntax as sender claims.
 `agent_instance` (an ID string, defaulting to `COMITIA_AGENT_INSTANCE`) names the

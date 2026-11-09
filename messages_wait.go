@@ -9,6 +9,12 @@ import (
 
 const MaxMessageWait = 60 * time.Second
 
+// Bounds for the MessageFilters.Schemas list.
+const (
+	maxFilterSchemas     = 64
+	maxFilterSchemaBytes = 128
+)
+
 func messageFilters(filters []MessageFilters) (MessageFilters, error) {
 	if len(filters) > 1 {
 		return MessageFilters{}, Invalidf("at most one filter set allowed")
@@ -31,6 +37,15 @@ func messageFilters(filters []MessageFilters) (MessageFilters, error) {
 	}
 	if instance := f.agentInstance(); instance != "" && !validInstanceID(instance) {
 		return f, Invalidf("agent_instance must be 1-64 letters, digits, '.', '_' or '-'")
+	}
+	// Each name is a bound SQL variable; keep lists well inside driver limits.
+	if len(f.Schemas) > maxFilterSchemas {
+		return f, Invalidf("schemas allows at most %d entries", maxFilterSchemas)
+	}
+	for _, schema := range f.Schemas {
+		if len(schema) > maxFilterSchemaBytes {
+			return f, Invalidf("schemas entries must be at most %d bytes", maxFilterSchemaBytes)
+		}
 	}
 	return f, nil
 }
