@@ -36,6 +36,74 @@ type ParticipantPageStore interface {
 	ParticipantsAfter(string, time.Time, string, int) ([]Participant, error)
 }
 
+// ListPageBytes softly bounds the encoded items array of task and participant
+// pages: a page stops early with has_more, but always returns its first item
+// so readers can advance. MaxListBytes bounds legacy task arrays, which have
+// no continuation; a larger array of several tasks fails as invalid.
+const (
+	ListPageBytes = 1 << 20
+	MaxListBytes  = 8 << 20
+)
+
+// boundedCount returns how many leading items fit budget encoded bytes.
+func boundedCount[T any](items []T, budget int) (int, error) {
+	used := 2
+	for i, item := range items {
+		raw, err := json.Marshal(item)
+		if err != nil {
+			return 0, err
+		}
+		n := len(raw)
+		if i > 0 {
+			n++
+			if used+n > budget {
+				return i, nil
+			}
+		}
+		used += n
+	}
+	return len(items), nil
+}
+
+func boundTaskPage(page TaskPage, err error) (TaskPage, error) {
+	if err != nil {
+		return TaskPage{}, err
+	}
+	n, err := boundedCount(page.Tasks, ListPageBytes)
+	if err != nil || n == len(page.Tasks) {
+		return page, err
+	}
+	page.Tasks, page.HasMore = page.Tasks[:n], true
+	page.NextAfter = encodeTaskCursor(page.Tasks[n-1])
+	return page, nil
+}
+
+func boundParticipantPage(page ParticipantPage, err error) (ParticipantPage, error) {
+	if err != nil {
+		return ParticipantPage{}, err
+	}
+	n, err := boundedCount(page.Participants, ListPageBytes)
+	if err != nil || n == len(page.Participants) {
+		return page, err
+	}
+	page.Participants, page.HasMore = page.Participants[:n], true
+	page.NextAfter = page.Participants[n-1].SessionID
+	return page, nil
+}
+
+func checkTaskArray(tasks []Task, err error) ([]Task, error) {
+	if err != nil || len(tasks) < 2 {
+		return tasks, err
+	}
+	if n, err := boundedCount(tasks, MaxListBytes); err != nil || n < len(tasks) {
+		if err == nil {
+			err = Invalidf("task list exceeds %d bytes; lower limit or request a page (page/--page)", MaxListBytes)
+		}
+		return nil, err
+	}
+	return tasks, nil
+}
+
 type taskCursor struct {
 	CreatedAt string `json:"created_at"`
 	ID        string `json:"id"`
@@ -102,10 +170,7 @@ func (s *Service) ListTasksPage(ctx context.Context, token, cid string, status T
 		}
 		return s.taskPageLeaseView(r, &page)
 	})
-	if err != nil {
-		return TaskPage{}, err
-	}
-	return page, nil
+	return boundTaskPage(page, err)
 }
 func (s *Service) ListParticipantsPage(ctx context.Context, token, cid, after string, limit int) (ParticipantPage, error) {
 	page := ParticipantPage{Participants: []Participant{}, NextAfter: after}
@@ -139,10 +204,7 @@ func (s *Service) ListParticipantsPage(ctx context.Context, token, cid, after st
 		}
 		return nil
 	})
-	if err != nil {
-		return ParticipantPage{}, err
-	}
-	return page, nil
+	return boundParticipantPage(page, err)
 }
 
 func taskPageCursor(status TaskStatus, after string, limit int) (taskCursor, error) {
@@ -224,7 +286,7 @@ func ListTaskPage(ctx context.Context, api TaskAPI, token, cid string, status Ta
 	if err != nil {
 		return TaskPage{}, err
 	}
-	return legacyTaskPage(tasks, after, cursor, limit, "API")
+	return boundTaskPage(legacyTaskPage(tasks, after, cursor, limit, "API"))
 }
 func ListParticipantPage(ctx context.Context, api MessageAPI, token, cid, after string, limit int) (ParticipantPage, error) {
 	if pages, ok := api.(ParticipantPageAPI); ok {
@@ -237,5 +299,5 @@ func ListParticipantPage(ctx context.Context, api MessageAPI, token, cid, after 
 	if err != nil {
 		return ParticipantPage{}, err
 	}
-	return legacyParticipantPage(participants, after, limit, "API")
+	return boundParticipantPage(legacyParticipantPage(participants, after, limit, "API"))
 }

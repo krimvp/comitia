@@ -2,6 +2,7 @@ package httpapi
 
 import (
 	"context"
+	"errors"
 	"net/http/httptest"
 	"strings"
 	"testing"
@@ -74,5 +75,36 @@ func TestMaximalEscapedContentFitsRemoteResponse(t *testing.T) {
 	info, err := f.client.ServerInfo(ctx, f.token)
 	if err != nil || info.Limits == nil || info.Limits.TaskBodyBytes != comitia.MaxTaskBodyBytes {
 		t.Fatalf("remote server_info limits=%+v err=%v", info.Limits, err)
+	}
+}
+
+func TestRemoteTaskListingOfLargeTasks(t *testing.T) {
+	f := newRemoteFixture(t)
+	ctx := context.Background()
+	for i := 0; i < 20; i++ {
+		if _, err := f.svc.CreateTask(ctx, f.token, f.cid, comitia.TaskInput{Title: "large", Body: strings.Repeat("b", comitia.MaxTaskBodyBytes)}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	after, seen := "", 0
+	for {
+		page, err := f.client.ListTasksPage(ctx, f.token, f.cid, "", after, 1000)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(page.Tasks) != 1 {
+			t.Fatalf("page of %d maximal tasks", len(page.Tasks))
+		}
+		seen++
+		if !page.HasMore {
+			break
+		}
+		after = page.NextAfter
+	}
+	if seen != 20 {
+		t.Fatalf("paged %d tasks", seen)
+	}
+	if _, err := f.client.ListTasks(ctx, f.token, f.cid, "", 1000); !errors.Is(err, comitia.ErrInvalid) || !strings.Contains(err.Error(), "lower limit") {
+		t.Fatalf("oversized array: %v", err)
 	}
 }

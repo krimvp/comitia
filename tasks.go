@@ -229,7 +229,7 @@ func (s *Service) ListTasks(ctx context.Context, raw, cid string, status TaskSta
 		}
 		return e
 	})
-	return out, e
+	return checkTaskArray(out, e)
 }
 
 // The optional instance records which process of a shared session holds the

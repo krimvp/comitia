@@ -31,7 +31,10 @@ or `after_id` until `has_more` is false. The cursor is the last returned session
 ID and is exclusive; a nonempty cursor implies page output. Library callers
 use `ListParticipantPage(ctx,api,...)`, which detects optional
 `ParticipantPageAPI`; HTTP accepts `page` and `after_id` on the same route
-and returns `participant_page`. Legacy calls still return arrays. Each page
+and returns `participant_page`. Legacy calls still return arrays. Participant and
+task pages stop early with `has_more` once their encoded items reach 1 MiB
+(`comitia.ListPageBytes`), always returning one item; task arrays of several
+tasks over 8 MiB (`MaxListBytes`) fail as `invalid`, asking for a lower limit or a page. Each page
 rechecks current session and effective-grant eligibility, so expired or revoked
 candidates cannot truncate a page while later readable sessions remain.
 Custom stores may implement optional `ParticipantPageStore` with

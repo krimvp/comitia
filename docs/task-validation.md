@@ -19,7 +19,7 @@ Keep the context and status filter unchanged while paging. Library callers use
 `ListTaskPage(ctx,api,...)`, which detects the optional `TaskPageAPI`.
 HTTP `/v1/tasks/list` accepts `page` and `after_id` and returns
 the page under `task_page`. Legacy calls still return arrays. Pages reflect
-current state, rather than freezing a directory snapshot across requests.
+current state and stop near 1 MiB (always one task).
 Custom stores may implement optional `TaskPageStore` with
 `TasksAfter(contextID,status,createdAt,taskID,limit)`, an exclusive tuple bound
 and deterministic order. Existing API/store implementations still compile and

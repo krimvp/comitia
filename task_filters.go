@@ -78,13 +78,18 @@ func (s *Service) ListTasksFiltered(ctx context.Context, raw, cid string, status
 	if f.empty() {
 		return s.ListTasks(ctx, raw, cid, status, limit)
 	}
-	page, err := s.ListTasksPageFiltered(ctx, raw, cid, status, f, "", limit)
-	return page.Tasks, err
+	page, err := s.listTasksPageFiltered(ctx, raw, cid, status, f, "", limit)
+	return checkTaskArray(page.Tasks, err)
 }
 func (s *Service) ListTasksPageFiltered(ctx context.Context, raw, cid string, status TaskStatus, f TaskFilters, after string, limit int) (TaskPage, error) {
 	if f.empty() {
 		return s.ListTasksPage(ctx, raw, cid, status, after, limit)
 	}
+	return boundTaskPage(s.listTasksPageFiltered(ctx, raw, cid, status, f, after, limit))
+}
+
+// listTasksPageFiltered applies no byte budget; callers bound pages or arrays.
+func (s *Service) listTasksPageFiltered(ctx context.Context, raw, cid string, status TaskStatus, f TaskFilters, after string, limit int) (TaskPage, error) {
 	cursor, err := taskPageCursor(status, after, limit)
 	if err != nil {
 		return TaskPage{}, err
