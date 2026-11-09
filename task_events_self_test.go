@@ -68,8 +68,18 @@ func TestExcludeSelfSkipsOwnTaskEventsPerInstance(t *testing.T) {
 	if _, err := f.svc.CancelTask(ctx, f.admin.Token, d.ID, TaskOutcomeInput{LeaseVersion: cd.Task.LeaseVersion, Reason: "stop"}); err != nil {
 		t.Fatal(err)
 	}
+	// The worker also releases and cancels its own leases with their tokens.
+	g, h := mk("g"), mk("h")
+	cg := claim(worker.Token, g, AgentInstance{ID: inst})
+	if _, err := f.svc.ReleaseTask(ctx, worker.Token, g.ID, cg.Token, cg.Task.LeaseVersion); err != nil {
+		t.Fatal(err)
+	}
+	ch := claim(worker.Token, h, AgentInstance{ID: inst})
+	if _, err := f.svc.CancelTask(ctx, worker.Token, h.ID, TaskOutcomeInput{ClaimToken: ch.Token, LeaseVersion: ch.Task.LeaseVersion, Reason: "done"}); err != nil {
+		t.Fatal(err)
+	}
 	seen := page(worker.Token, &inst)
-	for _, own := range []string{a.ID + "/claimed", a.ID + "/renewed", a.ID + "/completed", b.ID + "/claimed", b.ID + "/failed", c.ID + "/claimed", d.ID + "/claimed"} {
+	for _, own := range []string{a.ID + "/claimed", a.ID + "/renewed", a.ID + "/completed", b.ID + "/claimed", b.ID + "/failed", c.ID + "/claimed", d.ID + "/claimed", g.ID + "/released", h.ID + "/cancelled"} {
 		if seen[own] {
 			t.Fatalf("own event %s not excluded: %v", own, seen)
 		}
@@ -80,7 +90,7 @@ func TestExcludeSelfSkipsOwnTaskEventsPerInstance(t *testing.T) {
 		}
 	}
 	other := "worker-2"
-	if seen := page(worker.Token, &other); !seen[a.ID+"/claimed"] || !seen[a.ID+"/completed"] || !seen[b.ID+"/failed"] {
+	if seen := page(worker.Token, &other); !seen[a.ID+"/claimed"] || !seen[a.ID+"/completed"] || !seen[b.ID+"/failed"] || !seen[g.ID+"/released"] || !seen[h.ID+"/cancelled"] {
 		t.Fatalf("another instance of the session lost events: %v", seen)
 	}
 	if seen := page(f.admin.Token, nil); seen[c.ID+"/released"] || seen[d.ID+"/cancelled"] || seen[a.ID+"/created"] || !seen[a.ID+"/claimed"] {

@@ -475,6 +475,7 @@ func (s *Service) ReleaseTask(ctx context.Context, raw, taskID, claimToken strin
 		if found.LeaseVersion != version {
 			return ErrStaleClaim
 		}
+		instance := holderInstance(found, a.session.ID)
 		found.Status = TaskPending
 		found.LeaseOwnerSessionID = ""
 		found.LeaseOwnerInstance = nil
@@ -486,7 +487,7 @@ func (s *Service) ReleaseTask(ctx context.Context, raw, taskID, claimToken strin
 		if e := w.PutTask(found); e != nil {
 			return e
 		}
-		if e := putTaskEvent(w, a.session.ID, found, "released", TaskLeased); e != nil {
+		if e := putTaskEventAs(w, a.session.ID, instance, found, "released", TaskLeased); e != nil {
 			return e
 		}
 		eventContext = found.ContextID
