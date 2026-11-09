@@ -39,7 +39,7 @@ empty `Title` and `Body`.
 The target multi-tenant model additionally requires explicit principal membership in a workspace before accessing that workspace's resources.
 
 Non-admin sessions may revoke only grants whose `IssuerSessionID` is their own
-session ID, their own session (for example on shutdown or suspected leak), and
+session ID, their own session, and
 sessions whose `ParentID` is their own session ID. Revocation is idempotent: an
 authorized caller revoking an already revoked grant or session succeeds and
 keeps the original revocation time. Holding a
@@ -104,14 +104,11 @@ contain credentials or private coordination content.
 `mcp-http` also accepts the credential as the final path segment,
 `POST /mcp/<credential>`, for clients such as ChatGPT connectors that cannot
 send an Authorization header. The adapter has no flag to disable it; refuse
-that path at the proxy if unwanted. It is the same bearer secret with the same
-revocation, but URLs leak through shell history, screenshots and proxy logs,
-so prefer the header. The nginx edge in `deploy/` keeps such URLs out of its
-logs: access logs omit the request line, path-credential locations send their
-error log to `/dev/null` (nginx error entries always include the request line,
-for example on 429 rate limiting or 502 upstream failure; those statuses stay
-visible in the access log), and plain HTTP refuses `/mcp` with 403 instead of
-redirecting. A credential sent over plain HTTP is already exposed: rotate it.
+that path at the proxy if unwanted. URLs leak through shell history, screenshots and proxy logs, so prefer the
+header. The nginx edge in `deploy/` keeps such URLs out of its logs: access
+logs omit the request line, path-credential locations discard their error log
+(nginx error entries always include the request line), and plain HTTP refuses
+`/mcp` with 403 instead of redirecting. A credential sent over plain HTTP is already exposed: rotate it.
 
 Grant expiries are computed on the MCP host clock, the session expiry on the
 daemon clock. With a remote daemon whose clock is behind the MCP host, a grant

@@ -30,12 +30,10 @@ An unchanged port is exempt only when the saved URL, unit and running process's
 executable and arguments match this installation and port. A saved or rewritten
 unit alone cannot bypass the check after an interrupted port change.
 `--no-start` writes the unit without starting it and still checks fresh/changed
-ports. Without `--no-start`, the installer first checks that the systemd user
-manager is reachable (`systemctl --user show-environment`) and, when it is not
-(containers, plain SSH without `XDG_RUNTIME_DIR`, WSL without systemd), exits
-before changing anything. On such hosts, install with `--no-start` and run the
-`Without systemd:` command from `INSTALLATION.txt` yourself (for example under
-`nohup` or your own supervisor); it does not survive logout or reboot. Generated command paths are escaped for systemd, including spaces and
+ports. Without `--no-start`, the installer exits before changing anything when no
+systemd user manager is reachable (containers, WSL without systemd). There,
+install with `--no-start` and run the `Without systemd:` command from
+`INSTALLATION.txt` yourself; it does not survive logout or reboot. Generated command paths are escaped for systemd, including spaces and
 percent specifiers; `/usr/bin/env` execs the installed binary so quotes and
 backslashes in its path are also supported. An interrupted first run resumes on the next run: the owner is
 bootstrapped into a staged database that moves into place only after
@@ -72,11 +70,9 @@ TOML removal recognizes quoted keys and verifies the entire parsed result before
 writing; an edit that changes unrelated configuration is refused. Changed units
 are stopped when they still launch this installation but retained for manual
 review; unrelated units are left alone. The command is repeatable and uses the
-same installation lock as repair and credential rotation. If `systemctl` fails
-(no user bus), uninstall still removes the harness integration, keeps the unit,
-names the failed command and exits non-zero: stop the service from a session with
-a user bus and rerun, or, for a `--no-start` installation, stop your `serve`
-process and delete the unit. Restart agent sessions after removal so existing MCP
+same installation lock as repair and credential rotation. If `systemctl` fails, uninstall still removes the harness integration, keeps
+the unit, names the failed command and exits non-zero; stop the service or
+your `serve` process, then rerun or delete the unit. Restart agent sessions after removal so existing MCP
 clients exit.
 
 Uninstall keeps the entire installation root, including the database, credentials,
@@ -420,8 +416,7 @@ are retained and reported for review. It also removes any harness integration
 recorded in this root using the same selective rules as Linux. Manually connected
 macOS harnesses are outside the installer registry: remove only their Comitia
 MCP registration and managed instruction block, keeping other configuration.
-If `launchctl` cannot stop a service, uninstall keeps its plist, still removes the
-harness integration, and exits non-zero naming the failed command.
+If `launchctl` fails, uninstall behaves the same way, keeping the plist.
 Restart agent sessions after removal. The command is repeatable and keeps
 `~/Library/Application Support/Comitia`, including data, credentials (including
 `viewer-launch-key`) and backups.
@@ -499,14 +494,12 @@ environment. Request logs contain only an allowlisted method, fixed route label
 server-generated request ID. They exclude request/response bodies, credentials,
 headers, query strings and arbitrary paths. Logging is off by default.
 
-The daemon closes connections that send headers slower than 10 seconds or a
-request slower than 30 seconds, caps headers at 16 KiB, and closes idle
-keep-alive connections after 2 minutes. Responses may take 2 minutes, above the
-60-second `messages/wait` cap.
+The daemon closes connections whose headers take over 10 seconds or whose
+request takes over 30, caps headers at 16 KiB, and closes idle connections
+after 2 minutes.
 
 SIGINT or SIGTERM stops `serve`, `mcp-http` and `mcp` cleanly: pending waits
-return their empty timeout result, other requests get a few seconds to finish,
-the database is closed and the process exits 0.
+return empty, the database is closed and the process exits 0.
 
 Internal write failures produce secret-safe daemon diagnostics with operation,
 error class, generated request ID, duration and build revision. Match the public
