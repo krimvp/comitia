@@ -113,13 +113,11 @@ func (t *httpTransport) post(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var req request
-	if err := json.Unmarshal(body, &req); err != nil {
-		writeRPCError(w, http.StatusBadRequest, -32700, "parse error")
-		return
-	}
-	if req.JSONRPC != "2.0" || req.Method == "" {
-		writeRPCError(w, http.StatusBadRequest, -32600, "invalid request")
+	req, reject := readRequest(body)
+	if reject != nil {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		_ = json.NewEncoder(w).Encode(reject)
 		return
 	}
 
@@ -162,8 +160,9 @@ func (t *httpTransport) post(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// A notification carries no id and is acknowledged without a response body.
-	if len(req.ID) == 0 {
+	// A notification carries no id, and a client response no method; both are
+	// acknowledged without a response body.
+	if len(req.ID) == 0 || req.Method == "" {
 		w.WriteHeader(http.StatusAccepted)
 		return
 	}

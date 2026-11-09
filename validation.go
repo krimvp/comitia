@@ -25,9 +25,66 @@ func InvalidJSON(err error, field string) error {
 	}
 	var mismatch *json.UnmarshalTypeError
 	if errors.As(err, &mismatch) && mismatch.Field != "" {
-		return Invalidf("%s must have type %s", mismatch.Field, mismatch.Type)
+		return Invalidf("%s must have type %s", mismatch.Field, jsonTypeName(mismatch.Type))
 	}
 	return Invalidf("%s must be valid JSON with the expected types", field)
+}
+
+// jsonTypeName names the JSON type a Go type decodes from, so errors speak
+// the wire contract rather than Go.
+func jsonTypeName(t reflect.Type) string {
+	for t != nil && t.Kind() == reflect.Pointer {
+		t = t.Elem()
+	}
+	if t == nil {
+		return "a different JSON type"
+	}
+	switch t.Kind() {
+	case reflect.Bool:
+		return "boolean"
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
+		reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+		return "integer"
+	case reflect.Float32, reflect.Float64:
+		return "number"
+	case reflect.String:
+		return "string"
+	case reflect.Slice:
+		if t.Elem().Kind() == reflect.Uint8 {
+			return "string"
+		}
+		return "array"
+	case reflect.Array:
+		return "array"
+	case reflect.Map, reflect.Struct:
+		return "object"
+	}
+	return "a different JSON type"
+}
+
+// jsonFieldPath drops the Go names of embedded structs that encoding/json
+// includes in UnmarshalTypeError.Field, leaving the request's own key path.
+func jsonFieldPath(typ reflect.Type, path string) string {
+	var out []string
+	for _, segment := range strings.Split(path, ".") {
+		for typ != nil && (typ.Kind() == reflect.Pointer || typ.Kind() == reflect.Slice || typ.Kind() == reflect.Array || typ.Kind() == reflect.Map) {
+			typ = typ.Elem()
+		}
+		var next reflect.Type
+		embedded := false
+		if typ != nil && typ.Kind() == reflect.Struct {
+			if f, ok := typ.FieldByName(segment); ok && f.Anonymous && strings.Split(f.Tag.Get("json"), ",")[0] == "" {
+				next, embedded = f.Type, true
+			} else {
+				next = jsonFieldTypes(typ)[segment]
+			}
+		}
+		if !embedded {
+			out = append(out, segment)
+		}
+		typ = next
+	}
+	return strings.Join(out, ".")
 }
 
 // UnknownField lists accepted keys and suggests a nearby spelling. Names come
@@ -101,6 +158,12 @@ func InvalidJSONFields(err error, field string, raw json.RawMessage, target any)
 				return UnknownField(name, fields)
 			}
 		}
+	}
+	var mismatch *json.UnmarshalTypeError
+	if errors.As(err, &mismatch) && mismatch.Field != "" {
+		named := *mismatch
+		named.Field = jsonFieldPath(reflect.TypeOf(target), mismatch.Field)
+		return InvalidJSON(&named, field)
 	}
 	return InvalidJSON(err, field)
 }

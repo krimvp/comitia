@@ -540,3 +540,90 @@ func TestStdioEOFCancellationReportsCount(t *testing.T) {
 		t.Fatalf("calls stopped: %v", stopped)
 	}
 }
+
+func TestStdioOversizedLineGetsErrorAndServingContinues(t *testing.T) {
+	p := newStdioProbe()
+	p.release["wait"] = make(chan struct{})
+	c := startStdio(t, &Server{API: p, Credential: "configured"})
+	c.initialize(t)
+	c.send(t, `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"wait_messages","arguments":{"context_id":"wait"}}}`)
+	probeEvent(t, p.started, "wait")
+	c.send(t, `{"jsonrpc":"2.0","id":2,"method":"ping","params":{"pad":"`+strings.Repeat("x", maxStdioLine)+`"}}`)
+	if res := c.read(t); string(res.ID) != "null" || res.Error == nil || res.Error.Code != -32600 {
+		t.Fatalf("oversized line: %+v", res)
+	}
+	c.send(t, `{"jsonrpc":"2.0","id":3,"method":"ping"}`)
+	if res := c.read(t); string(res.ID) != "3" || res.Error != nil {
+		t.Fatalf("ping after oversized line: %+v", res)
+	}
+	close(p.release["wait"])
+	if res := c.read(t); string(res.ID) != "1" || res.Error != nil {
+		t.Fatalf("in-flight call after oversized line: %+v", res)
+	}
+	c.finish(t)
+}
+
+func TestReadLineDiscardsOversizedLines(t *testing.T) {
+	const limit = 8
+	input := "12345678\r\n" + strings.Repeat("x", 100) + "\nnext\n" + strings.Repeat("y", 9) + "\r\n" + "tail"
+	rd := bufio.NewReaderSize(strings.NewReader(input), 16)
+	type got struct {
+		line     string
+		tooLarge bool
+		err      error
+	}
+	want := []got{{"12345678", false, nil}, {"", true, nil}, {"next", false, nil}, {"", true, nil}, {"tail", false, io.EOF}}
+	for i, w := range want {
+		line, tooLarge, err := readLine(rd, limit)
+		if g := (got{string(line), tooLarge, err}); g != w {
+			t.Fatalf("line %d = %+v, want %+v", i, g, w)
+		}
+	}
+}
+
+func TestStdioSkipsBlankLinesAndClientResponses(t *testing.T) {
+	c := startStdio(t, &Server{API: newStdioProbe(), Credential: "configured"})
+	c.initialize(t)
+	for _, line := range []string{"", "   ", "\t", "\r", `{"jsonrpc":"2.0","id":3,"result":{}}`, `{"jsonrpc":"2.0","id":4,"result":null}`, `{"jsonrpc":"2.0","id":5,"error":{"code":-32601,"message":"method not found"}}`} {
+		c.send(t, line)
+	}
+	c.send(t, `{"jsonrpc":"2.0","id":6,"method":"ping"}`)
+	if res := c.read(t); string(res.ID) != "6" || res.Error != nil {
+		t.Fatalf("first reply after blank lines and client responses: %+v", res)
+	}
+	c.finish(t)
+}
+
+func TestStdioRejectsInvalidMessages(t *testing.T) {
+	c := startStdio(t, &Server{API: newStdioProbe(), Credential: "configured"})
+	c.initialize(t)
+	for _, tc := range []struct {
+		line string
+		code int
+	}{
+		{`{"jsonrpc":"2.0","id":null,"method":"ping"}`, -32600},
+		{`{"jsonrpc":"2.0","id":{},"method":"ping"}`, -32600},
+		{`{"jsonrpc":"2.0","id":[1],"method":"ping"}`, -32600},
+		{`{"jsonrpc":"2.0","id":true,"method":"ping"}`, -32600},
+		{`[{"jsonrpc":"2.0","id":1,"method":"ping"}]`, -32600},
+		{`[]`, -32600},
+		{`"ping"`, -32600},
+		{`{"jsonrpc":"2.0","id":`, -32700},
+	} {
+		c.send(t, tc.line)
+		if res := c.read(t); string(res.ID) != "null" || res.Error == nil || res.Error.Code != tc.code {
+			t.Fatalf("%s: %+v", tc.line, res)
+		}
+	}
+	for _, line := range []string{`{"jsonrpc":"1.0","id":8,"method":"ping"}`, `{"jsonrpc":"2.0","id":8}`} {
+		c.send(t, line)
+		if res := c.read(t); string(res.ID) != "8" || res.Error == nil || res.Error.Code != -32600 {
+			t.Fatalf("%s keeps its valid id: %+v", line, res)
+		}
+	}
+	c.send(t, `{"jsonrpc":"2.0","id":9,"method":"tools/call","params":{"name":"no_such_tool","arguments":{}}}`)
+	if res := c.read(t); string(res.ID) != "9" || res.Error == nil || res.Error.Code != -32602 || len(res.Result) != 0 {
+		t.Fatalf("unknown tool: %+v", res)
+	}
+	c.finish(t)
+}
