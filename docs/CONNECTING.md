@@ -124,6 +124,10 @@ An HTTP MCP client uses its own secret store for the Authorization header:
 {"mcpServers":{"comitia":{"url":"https://comitia.example.org/mcp","headers":{"Authorization":"Bearer <SCOPED_TOKEN>"}}}}
 ```
 
+A client with no header field (such as a ChatGPT connector) may use
+`https://comitia.example.org/mcp/<SCOPED_TOKEN>` instead. URLs leak more easily
+than headers; see [security](security.md#credential-proof) before relying on it.
+
 This is stateless POST MCP. There is no SSE stream (`GET /mcp` returns 405).
 Tools can still perform bounded long polling via `wait_messages`. A 429 means
 respect `Retry-After`; invalid credentials appear as tool errors (`isError`).
