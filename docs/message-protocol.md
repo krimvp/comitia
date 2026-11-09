@@ -714,7 +714,8 @@ members are `kind` (`created`, `claimed`, `renewed`, `released`, `completed`,
 `failed`, `cancelled`), `status`, `lease_version`, and optional
 `previous_status`, `lease_owner_session_id`, `lease_owner_instance`, `reason`.
 The message's authenticated `SessionID` identifies the actor whose task
-mutation was authorized. These events are broadcast in the task's context and
+mutation was authorized; when that actor holds the lease under an instance, the
+message carries that `agent_instance`, so `exclude_self` skips it. These events are broadcast in the task's context and
 carry no claim tokens or hashes. Readers can replay/wait/filter them normally;
 `send`/`send_message`/`messages/append` cannot author them. Task-status and
 execution telemetry remain advisory. Schema discovery lists
