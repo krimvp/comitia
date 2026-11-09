@@ -41,6 +41,60 @@ type GrantWriteStore interface {
 	RevokeGrantTree(string, time.Time) error
 }
 
+// maxDelegationDepth bounds new grant and session chains, which every later
+// authorization walks. Deeper chains in existing databases still evaluate.
+const maxDelegationDepth = 16
+
+// delegationDepth counts parent links above id, stopping past the limit.
+func delegationDepth(id string, parent func(string) (string, error)) (int, error) {
+	n := 0
+	for ; n < maxDelegationDepth; n++ {
+		next, e := parent(id)
+		if e != nil || next == "" {
+			return n, e
+		}
+		id = next
+	}
+	return n, nil
+}
+
+// checkDelegationDepth refuses a new grant or session below parentID when its
+// chain would exceed maxDelegationDepth links.
+func checkDelegationDepth(kind, parentID string, parent func(string) (string, error)) error {
+	n, e := delegationDepth(parentID, parent)
+	if e != nil {
+		return e
+	}
+	if n+1 > maxDelegationDepth {
+		return Invalidf("%s delegation depth would exceed the maximum of %d", kind, maxDelegationDepth)
+	}
+	return nil
+}
+
+// delegationSource picks the first covering grant whose chain has room left.
+func delegationSource(r GrantReadStore, parents []Grant, perms Permission, expires time.Time) (*Grant, error) {
+	err := ErrForbidden
+	for i := range parents {
+		g := &parents[i]
+		if g.Permissions&(perms|PermissionGrant) != perms|PermissionGrant || expires.After(g.ExpiresAt) {
+			continue
+		}
+		if err = checkDelegationDepth("grant", g.ID, grantParent(r)); err == nil {
+			return g, nil
+		}
+		if !errors.Is(err, ErrInvalid) {
+			return nil, err
+		}
+	}
+	return nil, err
+}
+func grantParent(r GrantReadStore) func(string) (string, error) {
+	return func(id string) (string, error) { g, e := r.Grant(id); return g.ParentGrantID, e }
+}
+func sessionParent(r SessionReadStore) func(string) (string, error) {
+	return func(id string) (string, error) { s, e := r.Session(id); return s.ParentID, e }
+}
+
 func (s *Service) RevokeGrant(ctx context.Context, raw, grantID string) error {
 	return s.store.Update(ctx, func(w WriteStore) error {
 		a, e := s.auth(w, raw)
@@ -115,16 +169,9 @@ func (s *Service) GrantContext(ctx context.Context, raw string, in GrantInput) (
 			g = Grant{ID: id(), SessionID: in.SessionID, ContextID: in.ContextID, IssuerSessionID: a.session.ID, Permissions: in.Permissions, ExpiresAt: in.ExpiresAt, CreatedAt: s.now().UTC()}
 			return w.PutGrant(g)
 		}
-		var source *Grant
-		for i := range parents {
-			p := &parents[i]
-			if p.Permissions&(in.Permissions|PermissionGrant) == (in.Permissions|PermissionGrant) && !in.ExpiresAt.After(p.ExpiresAt) {
-				source = p
-				break
-			}
-		}
-		if source == nil {
-			return ErrForbidden
+		source, e := delegationSource(w, parents, in.Permissions, in.ExpiresAt)
+		if e != nil {
+			return e
 		}
 		if e = s.contextActive(w, in.ContextID); e != nil {
 			return e

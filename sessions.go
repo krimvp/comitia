@@ -142,6 +142,9 @@ func (s *Service) DelegateSession(ctx context.Context, raw string, in DelegateIn
 		if expiry.After(parent.session.ExpiresAt) {
 			return ErrForbidden
 		}
+		if e = checkDelegationDepth("session", parent.session.ID, sessionParent(w)); e != nil {
+			return e
+		}
 		p = Principal{ID: id(), Name: in.PrincipalName, CreatedAt: now}
 		tok := token()
 		c = Credential{Token: tok, Session: Session{ID: id(), PrincipalID: p.ID, ParentID: parent.session.ID, ExpiresAt: expiry, CreatedAt: now}}
@@ -156,16 +159,9 @@ func (s *Service) DelegateSession(ctx context.Context, raw string, in DelegateIn
 			if e = s.contextActive(w, req.ContextID); e != nil {
 				return e
 			}
-			var source *Grant
-			for i := range parents {
-				g := &parents[i]
-				if g.Permissions&(req.Permissions|PermissionGrant) == (req.Permissions|PermissionGrant) && !req.ExpiresAt.After(g.ExpiresAt) {
-					source = g
-					break
-				}
-			}
-			if source == nil {
-				return ErrForbidden
+			source, e := delegationSource(w, parents, req.Permissions, req.ExpiresAt)
+			if e != nil {
+				return e
 			}
 			out = append(out, Grant{ID: id(), SessionID: c.Session.ID, ContextID: req.ContextID, ParentGrantID: source.ID, IssuerSessionID: parent.session.ID, Permissions: req.Permissions, ExpiresAt: req.ExpiresAt, CreatedAt: now})
 		}
