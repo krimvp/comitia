@@ -76,9 +76,9 @@ def main():
         assert finish(winner)[0] == 0, "winning claim could not complete"
         rc, probe, err = call(a.binary, db, cred, "task-create", "--context-id", cid, "--title", "expiry-probe")
         assert rc == 0, "task-create probe: " + err
-        rc, stale, err = call(a.binary, db, cred, "task-claim", "--task-id", probe["ID"], "--lease", "10ms")
+        rc, stale, err = call(a.binary, db, cred, "task-claim", "--task-id", probe["ID"], "--lease", "1s")
         assert rc == 0, "task-claim probe: " + err
-        time.sleep(0.02)
+        time.sleep(1.05)  # leases last at least 1s
         rc, fresh, err = call(a.binary, db, cred, "task-claim", "--task-id", probe["ID"], "--lease", "60s")
         assert rc == 0 and fresh["Task"]["LeaseVersion"] > stale["Task"]["LeaseVersion"], "reclaim failed"
         rc, _, err = finish(stale)

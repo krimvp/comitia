@@ -4,6 +4,7 @@ import (
 	"errors"
 	"strconv"
 	"testing"
+	"time"
 
 	"github.com/krimvp/comitia"
 )
@@ -41,8 +42,15 @@ func TestCLITaskFilters(t *testing.T) {
 			}
 
 			expired := command(t, append(base, "task-create", "--context-id", cid, "--title", "expired")...)
-			command(t, append(base, "task-claim", "--task-id", expired["ID"].(string), "--lease", "1ns")...)
-			got := command(t, append(base, "task-get", "--task-id", expired["ID"].(string))...)
+			// The CLI runs on the wall clock and leases last at least 1s, so wait for expiry.
+			command(t, append(base, "task-claim", "--task-id", expired["ID"].(string), "--lease", "1s")...)
+			var got map[string]any
+			for deadline := time.Now().Add(10 * time.Second); ; time.Sleep(50 * time.Millisecond) {
+				got = command(t, append(base, "task-get", "--task-id", expired["ID"].(string))...)
+				if got["lease_expired"] == true || time.Now().After(deadline) {
+					break
+				}
+			}
 			if got["lease_expired"] != true || got["Status"] != "leased" {
 				t.Fatalf("expired get=%v", got)
 			}

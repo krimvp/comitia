@@ -857,8 +857,8 @@ instances, it is self-reported routing metadata: the lease belongs to
 for a lease that lasts until the task is completed or released. Every lease is
 capped at the holder session's expiry, so an open lease is still bounded. This is
 not reserved for orchestrators: any client with `claim` on the context can hold a
-lease up to its own session's expiry, bypassing the 86400-second
-`lease_seconds` limit of MCP. A context admin can release such a lease. A lease
+lease up to its own session's expiry, bypassing the 24-hour lease
+limit. A context admin can release such a lease. A lease
 whose holder session is revoked or expired, or whose holder no longer has
 `claim` on the context, counts as expired, so another session can claim the task
 at once.

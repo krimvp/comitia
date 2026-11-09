@@ -100,3 +100,47 @@ func TestValidationErrorsNameAcceptedValueAndField(t *testing.T) {
 		t.Fatalf("public responder message: %q", got)
 	}
 }
+
+// Every adapter reaches these bounds, so none can mint an already-expired
+// lease or session.
+func TestLeaseAndSessionTTLBounds(t *testing.T) {
+	f := setup(t, ":memory:")
+	defer f.store.Close()
+	ctx := context.Background()
+	task, err := f.svc.CreateTask(ctx, f.admin.Token, f.context.ID, TaskInput{Title: "t"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, d := range []time.Duration{time.Nanosecond, time.Second - 1, 24*time.Hour + 1, OpenLease - 1} {
+		if _, err := f.svc.ClaimTask(ctx, f.admin.Token, task.ID, d); !errors.Is(err, ErrInvalid) || !strings.Contains(err.Error(), "between 1s and 24h") {
+			t.Fatalf("claim %v: %v", d, err)
+		}
+	}
+	claim, err := f.svc.ClaimTask(ctx, f.admin.Token, task.ID, time.Second)
+	if err != nil || !claim.Task.LeaseExpiresAt.Equal(f.now.Add(time.Second)) {
+		t.Fatalf("minimum claim: %+v %v", claim.Task, err)
+	}
+	if _, err = f.svc.RenewClaim(ctx, f.admin.Token, task.ID, claim.Token, claim.Task.LeaseVersion, time.Millisecond); !errors.Is(err, ErrInvalid) {
+		t.Fatalf("renew below minimum: %v", err)
+	}
+	if claim, err = f.svc.RenewClaim(ctx, f.admin.Token, task.ID, claim.Token, claim.Task.LeaseVersion, 24*time.Hour); err != nil {
+		t.Fatalf("maximum renew: %v", err)
+	}
+	if _, err = f.svc.RenewClaim(ctx, f.admin.Token, task.ID, claim.Token, claim.Task.LeaseVersion, OpenLease); err != nil {
+		t.Fatalf("open renew: %v", err)
+	}
+	p, err := f.svc.CreatePrincipal(ctx, f.admin.Token, "p")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err = f.svc.MintSession(ctx, f.admin.Token, p.ID, time.Second-1); !errors.Is(err, ErrInvalid) || !strings.Contains(err.Error(), "at least 1s") {
+		t.Fatalf("mint: %v", err)
+	}
+	if _, err = f.svc.MintSession(ctx, f.admin.Token, p.ID, time.Second); err != nil {
+		t.Fatalf("minimum mint: %v", err)
+	}
+	grants := []DelegatedGrant{{ContextID: f.context.ID, Permissions: PermissionRead, ExpiresAt: f.now.Add(time.Nanosecond)}}
+	if _, _, _, err = f.svc.DelegateSession(ctx, f.admin.Token, DelegateInput{PrincipalName: "d", TTL: time.Nanosecond, Grants: grants}); !errors.Is(err, ErrInvalid) || !strings.Contains(err.Error(), "at least 1s") {
+		t.Fatalf("delegate: %v", err)
+	}
+}

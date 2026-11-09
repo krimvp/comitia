@@ -246,8 +246,11 @@ func (s *Service) ClaimTaskWithOperation(ctx context.Context, raw, taskID string
 	if e := validOperationID(operationID); e != nil {
 		return c, e
 	}
-	if !validTTL(lease) || len(instance) > 1 {
-		return c, Invalidf("lease must be positive and agent_instance accepts at most one instance")
+	if len(instance) > 1 {
+		return c, Invalidf("agent_instance accepts at most one instance")
+	}
+	if e := validLease(lease); e != nil {
+		return c, e
 	}
 	var owner *AgentInstance
 	if len(instance) == 1 {
@@ -339,8 +342,10 @@ func (s *Service) changeLease(ctx context.Context, raw, taskID, claimToken strin
 	if e := validOperationID(operationID); e != nil {
 		return c, e
 	}
-	if !complete && !validTTL(lease) {
-		return c, Invalidf("lease must be positive")
+	if !complete {
+		if e := validLease(lease); e != nil {
+			return c, e
+		}
 	}
 	e := s.store.Update(ctx, func(w WriteStore) error {
 		t, e := s.privateTask(w, raw, taskID)
