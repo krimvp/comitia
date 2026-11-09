@@ -474,7 +474,7 @@ availability. To check writer admission, run `comitia --server-url URL
 The command emits JSON and requires an administrator credential; unsupported
 servers report a clear error. You can also call `storage_status` through an
 administrator's MCP connection or authenticated `POST /v1/storage_status` with an
-empty JSON object. Its no-op write probe has a 250 ms context budget and returns
+empty JSON object. Its rolled-back write probe has a 250 ms context budget and returns
 `write_ready` plus process-local write failure counts and durations, including the
 last failed write's duration. The probe does not test free disk space and does
 not guarantee the next write will succeed; see the
