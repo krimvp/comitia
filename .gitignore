@@ -4,6 +4,11 @@
 *.test
 *.out
 
+# Interpreter and tool caches written by installers and tests
+__pycache__/
+*.pyc
+node_modules/
+
 # Local state and secrets
 *.db
 *.db-shm
