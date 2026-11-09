@@ -401,7 +401,8 @@ func TestEscapeWatchField(t *testing.T) {
 
 func TestWatchEscapesTerminalControls(t *testing.T) {
 	api, token, cid, _ := watchFixture(t)
-	body := "safe\r\x1b[2Kforged approval\x1b]52;c;Y2xpcGJvYXJk\a\ttab\u009b\xff\r\nsecond line"
+	// Invalid UTF-8 can only come from legacy rows; escapeWatchField covers it.
+	body := "safe\r\x1b[2Kforged approval\x1b]52;c;Y2xpcGJvYXJk\a\ttab\u009b\r\nsecond line"
 	if _, err := api.AppendMessage(context.Background(), token, cid, comitia.MessageInput{DedupeKey: "controls", Body: body}); err != nil {
 		t.Fatal(err)
 	}
@@ -411,7 +412,7 @@ func TestWatchEscapesTerminalControls(t *testing.T) {
 	if err := watchMessages(ctx, api, token, cid, "reader", time.Second, comitia.MessageFilters{}, false, cancelWatchWriter{&out, cancel}); err != nil {
 		t.Fatal(err)
 	}
-	want := "1\t-\t-\t" + `safe\r\x1b[2Kforged approval\x1b]52;c;Y2xpcGJvYXJk\a\ttab\u009b\xff` + "\n"
+	want := "1\t-\t-\t" + `safe\r\x1b[2Kforged approval\x1b]52;c;Y2xpcGJvYXJk\a\ttab\u009b` + "\n"
 	if out.String() != want {
 		t.Fatalf("output %q, want %q", out.String(), want)
 	}

@@ -489,6 +489,12 @@ func nullableProperty(property map[string]any) map[string]any {
 	return out
 }
 func str(desc string) map[string]any { return map[string]any{"type": "string", "description": desc} }
+
+// limited advertises a byte limit; maxLength counts characters, so it is the
+// same number as a looser bound and the description states the byte rule.
+func limited(desc string, bytes int) map[string]any {
+	return map[string]any{"type": "string", "maxLength": bytes, "description": fmt.Sprintf("%s (at most %d bytes of UTF-8)", desc, bytes)}
+}
 func integer(desc string) map[string]any {
 	return map[string]any{"type": "integer", "description": desc}
 }

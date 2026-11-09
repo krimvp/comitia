@@ -149,6 +149,12 @@ func (s *Service) CreateTask(ctx context.Context, raw, cid string, in TaskInput)
 	if in.Title == "" {
 		return t, Invalidf("title required")
 	}
+	if e := validText("title", in.Title, MaxTaskTitleBytes); e != nil {
+		return t, e
+	}
+	if e := validText("body", in.Body, MaxTaskBodyBytes); e != nil {
+		return t, e
+	}
 	e := s.store.Update(ctx, func(w WriteStore) error {
 		a, _, e := s.require(w, raw, cid, PermissionWrite)
 		if e != nil {

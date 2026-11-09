@@ -731,7 +731,9 @@ comitia send --context-id CONTEXT_ID --dedupe-key review-1 \
 
 A `dedupe_key` is at most 256 bytes (MCP advertises `maxLength`); longer keys
 are rejected as `invalid`, while messages stored with longer keys before the cap
-remain readable. A retry with the same key, body, envelope, instance and task
+remain readable. The same holds for valid UTF-8 limits on message bodies (1 MiB),
+task titles (4096 bytes) and bodies (1 MiB), and reference kinds (256) and URIs
+(8192), exported as `comitia.Max*Bytes` and listed in `server_info.limits`. A retry with the same key, body, envelope, instance and task
 attempt returns the original message, subject to current read permission for
 resource references. A different send under a used key fails
 with `conflict`; the error message and its additive `details` object
@@ -925,7 +927,7 @@ Call the `server_info` MCP tool with `{}`, send authenticated `POST /v1/server_i
 with `{}`, or run `comitia --server-url URL server-info` with a credential. Any
 valid session can discover capabilities, including a session without context
 grants. The result contains `version`, `protocol_version` (the MCP revision),
-`features`, and `build: {version, revision, dirty}`; HTTP wraps it in `server_info`
+`features`, `limits` (byte limits; absent from older servers), and `build: {version, revision, dirty}`; HTTP wraps it in `server_info`
 and MCP in `result`. The MCP tool also reports the adapter's own build as
 `client: {version, revision, dirty}` and `client_stale`, true when the server
 advertises features this client does not know (listed in
