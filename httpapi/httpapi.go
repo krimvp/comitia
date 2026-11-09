@@ -20,7 +20,17 @@ import (
 const maxRequestBody = 1 << 20
 const maxResponseBody = 16 << 20
 
-var ErrResponseTooLarge = errors.New("remote response exceeds 16777216-byte limit; retry message reads with a smaller max_bytes or limit")
+// ErrResponseTooLarge is wrapped with ErrInvalid and a hint naming the
+// request parameter that shrinks the response.
+var ErrResponseTooLarge = errors.New("remote response exceeds 16777216-byte limit")
+
+func responseTooLarge(path string) error {
+	hint := "lower limit or request a page"
+	if path == "messages/replay" || path == "messages/wait" {
+		hint = "retry with a smaller max_bytes or limit"
+	}
+	return fmt.Errorf("%w: %w; %s", comitia.ErrInvalid, ErrResponseTooLarge, hint)
+}
 
 var ErrBootstrapOffline = errors.New("bootstrap is available only to embedded clients")
 
@@ -230,7 +240,7 @@ func (c *Client) call(ctx context.Context, token, path string, in, out any) erro
 		return fmt.Errorf("read response: %w", err)
 	}
 	if len(b) > maxResponseBody {
-		return ErrResponseTooLarge
+		return responseTooLarge(path)
 	}
 	d := json.NewDecoder(bytes.NewReader(b))
 	if resp.StatusCode/100 != 2 {

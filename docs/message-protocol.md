@@ -318,7 +318,7 @@ Check the loaded tool schema before using `compact` with an older adapter:
 older tools may reject it as an unsupported argument. This presentation option
 is local to MCP and does not change REST requests or responses.
 REST requests remain capped at 1 MiB; the Go remote client independently caps
-responses at 16 MiB and reports an explicit oversize error rather than a
+responses at 16 MiB and reports an explicit `invalid` oversize error rather than a
 truncated-JSON decode failure. Smaller byte/count limits recover aggregate
 pages; a single embedded message exceeding the response cap requires an
 embedded reader. The client also rejects trailing response data.
