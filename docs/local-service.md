@@ -493,6 +493,10 @@ request slower than 30 seconds, caps headers at 16 KiB, and closes idle
 keep-alive connections after 2 minutes. Responses may take 2 minutes, above the
 60-second `messages/wait` cap.
 
+SIGINT or SIGTERM stops `serve`, `mcp-http` and `mcp` cleanly: pending waits
+return their empty timeout result, other requests get a few seconds to finish,
+the database is closed and the process exits 0.
+
 Internal write failures produce secret-safe daemon diagnostics with operation,
 error class, generated request ID, duration and build revision. Match the public
 error's `request_id` (also `X-Request-ID` over HTTP) to the service log. Do not
