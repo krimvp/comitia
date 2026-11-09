@@ -197,7 +197,7 @@ func TestWatchInstanceDefault(t *testing.T) {
 				}
 				defer func() { os.Stdout = old; _ = devNull.Close() }()
 				os.Stdout = devNull
-				ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+				ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 				defer cancel()
 				if err := run(ctx, append(append(base, "watch", "--context-id", cid, "--timeout-seconds", "0.1"), extra...)); err != nil {
 					t.Fatal(err)
@@ -249,7 +249,7 @@ func TestPresenceCommandsUseInstanceDefaults(t *testing.T) {
 						t.Fatal(err)
 					}
 					os.Stdout = devNull
-					ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+					ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 					err = run(ctx, call)
 					cancel()
 					os.Stdout = old

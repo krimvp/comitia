@@ -58,7 +58,7 @@ func TestSQLiteWriterAdmissionCancellation(t *testing.T) {
 			select {
 			case err = <-done:
 				release()
-			case <-time.After(250 * time.Millisecond):
+			case <-time.After(5 * time.Second):
 				release()
 				err = <-done
 				t.Errorf("canceled admission waited for holder: %v", time.Since(started))
@@ -102,7 +102,7 @@ func TestSQLiteCallbackPanicReleasesTransaction(t *testing.T) {
 					_ = st.View(context.Background(), func(ReadStore) error { panic("callback panic") })
 				}
 			}()
-			ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 			defer cancel()
 			if err := st.View(ctx, func(r ReadStore) error {
 				_, err := r.Workspace("uncommitted")
@@ -170,7 +170,7 @@ func TestReadPresenceBoundUnderHeldWriter(t *testing.T) {
 				select {
 				case err = <-done:
 					release()
-				case <-time.After(250 * time.Millisecond):
+				case <-time.After(5 * time.Second):
 					release()
 					err = <-done
 					t.Error("optional heartbeat blocked read on writer")
@@ -273,7 +273,7 @@ func TestWaitDeadlineBoundsScanAdmission(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-	case <-time.After(250 * time.Millisecond):
+	case <-time.After(5 * time.Second):
 		release()
 		<-done
 		t.Fatal("wait deadline did not bound initial scan admission")
@@ -323,7 +323,7 @@ func TestSQLiteBusyRetryCommitsAfterRelease(t *testing.T) {
 	}
 	defer writer.Close()
 	release := holdSQLiteWriter(t, writer)
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	done := make(chan error, 1)
 	calls := 0

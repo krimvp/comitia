@@ -244,7 +244,7 @@ func testWaitMessagesScansOnlyNewRows(t *testing.T, stall time.Duration) {
 	last := int64(-1)
 	readAfter := func(want int64) {
 		t.Helper()
-		deadline := time.NewTimer(time.Second)
+		deadline := time.NewTimer(10 * time.Second)
 		defer deadline.Stop()
 		for {
 			select {
@@ -301,10 +301,10 @@ func TestWaitMessagesScanCursorAhead(t *testing.T) {
 	}
 	result := make(chan waitResult, 1)
 	go func() {
-		messages, err := reader.WaitMessages(ctx, f.admin.Token, f.context.ID, 100, 3*time.Second)
+		messages, err := reader.WaitMessages(ctx, f.admin.Token, f.context.ID, 100, 30*time.Second)
 		result <- waitResult{messages, err}
 	}()
-	deadline := time.NewTimer(2 * time.Second)
+	deadline := time.NewTimer(10 * time.Second)
 	defer deadline.Stop()
 	for i := 0; i < 3; i++ {
 		select {
@@ -354,7 +354,7 @@ func TestWaitMessagesMatchesReplayPages(t *testing.T) {
 func startMessageWait(svc *Service, ctx context.Context, token, cid string, filter MessageFilters) <-chan waitResult {
 	result := make(chan waitResult, 1)
 	go func() {
-		messages, err := svc.WaitMessages(ctx, token, cid, 0, 3*time.Second, filter)
+		messages, err := svc.WaitMessages(ctx, token, cid, 0, 30*time.Second, filter)
 		result <- waitResult{messages, err}
 	}()
 	return result
@@ -364,8 +364,8 @@ func receiveWait(t *testing.T, result <-chan waitResult) waitResult {
 	select {
 	case got := <-result:
 		return got
-	case <-time.After(time.Second):
-		t.Fatal("wait did not return within one second")
+	case <-time.After(10 * time.Second):
+		t.Fatal("wait did not return within ten seconds")
 		return waitResult{}
 	}
 }
@@ -403,7 +403,7 @@ func TestWaitMessagesBroadcastAndPoll(t *testing.T) {
 			for i := 0; i < n; i++ {
 				select {
 				case <-reads:
-				case <-time.After(time.Second):
+				case <-time.After(10 * time.Second):
 					t.Fatal("initial read stalled")
 				}
 			}

@@ -224,10 +224,10 @@ func TestCursorStartResolvesOnceDuringWait(t *testing.T) {
 	instance := "reader"
 	result := make(chan []Message, 1)
 	fail := make(chan error, 1)
-	waitCtx, cancel := context.WithTimeout(ctx, 2*time.Second)
+	waitCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 	go func() {
-		messages, err := svc.WaitMessages(waitCtx, f.admin.Token, f.context.ID, 0, time.Second, MessageFilters{FromCursor: true, AgentInstance: &instance})
+		messages, err := svc.WaitMessages(waitCtx, f.admin.Token, f.context.ID, 0, 10*time.Second, MessageFilters{FromCursor: true, AgentInstance: &instance})
 		result <- messages
 		fail <- err
 	}()

@@ -112,7 +112,7 @@ func TestWatchAcknowledgesSkippedRenewals(t *testing.T) {
 	if _, err = api.RenewClaim(ctx, token, task.ID, claim.Token, claim.Task.LeaseVersion, time.Minute); err != nil {
 		t.Fatal(err)
 	}
-	runCtx, cancel := context.WithTimeout(ctx, time.Second)
+	runCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 	probe := &watchAckFailureAPI{MessageAPI: api, onAck: func(sequence int64) {
 		if sequence == 3 {

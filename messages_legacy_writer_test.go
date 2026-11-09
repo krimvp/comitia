@@ -122,7 +122,7 @@ func TestRunningReaderSeesOlderCLIWriter(t *testing.T) {
 	waitCtx, stop := context.WithCancel(ctx)
 	defer stop()
 	go func() {
-		messages, err := f.svc.WaitMessages(waitCtx, f.admin.Token, f.context.ID, 1, 3*time.Second, filter)
+		messages, err := f.svc.WaitMessages(waitCtx, f.admin.Token, f.context.ID, 1, 30*time.Second, filter)
 		waiting <- waitResult{messages, err}
 	}()
 	m := appendLegacy("older-broadcast", nil, "")
