@@ -4,14 +4,18 @@ import argparse, json, os, secrets, subprocess, tempfile, time
 from threading import Barrier
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
-def call(binary, db, credential, command, *args, timeout=15):
+# Above the CLI's 15 s SQLite write-lock wait, so a slow lock reports the CLI error.
+TIMEOUT = 30
+
+def call(binary, db, credential, command, *args, timeout=TIMEOUT):
     env = dict(os.environ); env["COMITIA_CREDENTIAL"] = credential
     env.pop("COMITIA_SERVER_URL", None)
     try:
         p = subprocess.run([binary, "--db", db, command, *args], text=True,
                            capture_output=True, env=env, timeout=timeout)
     except subprocess.TimeoutExpired:
-        raise RuntimeError(command + " timed out") from None
+        key = args[args.index("--dedupe-key") + 1] if "--dedupe-key" in args else ""
+        raise RuntimeError(" ".join(filter(None, (command, key))) + " timed out") from None
     try: value = json.loads(p.stdout) if p.stdout.strip() else None
     except Exception: value = None
     return p.returncode, value, p.stderr.strip()
@@ -31,7 +35,7 @@ def main():
         db = os.path.join(td, "stress.db")
         env = dict(os.environ, COMITIA_BOOTSTRAP_CREDENTIAL=secrets.token_urlsafe(32))
         env.pop("COMITIA_SERVER_URL", None)
-        boot = subprocess.run([a.binary, "--db", db, "bootstrap", "--name", "stress"], text=True, capture_output=True, timeout=15, env=env)
+        boot = subprocess.run([a.binary, "--db", db, "bootstrap", "--name", "stress"], text=True, capture_output=True, timeout=TIMEOUT, env=env)
         if boot.returncode != 0: raise RuntimeError("bootstrap: " + boot.stderr)
         b = json.loads(boot.stdout); cred = b["credential"]["Token"]
         rc, ws, err = call(a.binary, db, cred, "workspace-create", "--name", "stress-ws"); assert rc == 0, "workspace-create: " + err

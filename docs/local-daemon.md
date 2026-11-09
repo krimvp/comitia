@@ -2,8 +2,9 @@
 
 This guide owns daemon transports and the REST wire contract. For installed
 services use [local service](local-service.md); for harness registration use
-[Connecting](CONNECTING.md). Examples below assume a built `./bin/comitia`, a
-private configured database and a scoped credential.
+[Connecting](CONNECTING.md). Examples below assume a private configured
+database, a scoped credential and `./bin/comitia` built with
+`go build -o bin/comitia ./cmd/comitia`.
 
 Start the HTTP adapter against the same database in one terminal:
 
