@@ -76,6 +76,119 @@ func (l *keyLimiter) allow(key string) bool {
 	return true
 }
 
+// unverifiedGate bounds requests whose credential has not been shown valid.
+// Per-credential buckets cannot: a caller that changes the string on every
+// request gets a fresh bucket each time, and behind the loopback proxy every
+// caller shares one remote address. Credentials that recently produced an
+// authenticated result skip the gate and keep separate buckets, so arbitrary
+// strings can neither evict their buckets nor lock them out. Every other tool
+// call takes a token from one global budget before it reaches the daemon and
+// gets it back only if the daemon authenticates the credential, so concurrent
+// floods are bounded too; while the budget is empty such calls are refused.
+type unverifiedGate struct {
+	mu       sync.Mutex
+	verified map[string]time.Time
+	budget   bucket
+	rate     float64
+	burst    float64
+	now      func() time.Time
+}
+
+// verifiedTTL is how long one authenticated result exempts a credential.
+const verifiedTTL = 10 * time.Minute
+
+func newUnverifiedGate(ratePerSecond float64, burst int) *unverifiedGate {
+	g := &unverifiedGate{verified: make(map[string]time.Time), rate: ratePerSecond, burst: float64(burst), now: time.Now}
+	g.budget = bucket{tokens: g.burst, last: g.now()}
+	return g
+}
+
+func (g *unverifiedGate) refillLocked(now time.Time) {
+	g.budget.tokens += now.Sub(g.budget.last).Seconds() * g.rate
+	if g.budget.tokens > g.burst {
+		g.budget.tokens = g.burst
+	}
+	g.budget.last = now
+}
+
+func (g *unverifiedGate) isVerified(key string) bool {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	seen, ok := g.verified[key]
+	return ok && g.now().Sub(seen) < verifiedTTL
+}
+
+// take reserves a token for an unverified tool call; settle returns it.
+func (g *unverifiedGate) take() bool {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	g.refillLocked(g.now())
+	if g.budget.tokens < 1 {
+		return false
+	}
+	g.budget.tokens--
+	return true
+}
+
+// settle records a call's outcome. An authenticated credential becomes
+// verified and, if reserved, its token is refunded; a rejected one loses any
+// verification. Calls whose outcome proves nothing keep their token spent.
+func (g *unverifiedGate) settle(key string, reserved, checked, authenticated bool) {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	if !checked {
+		return
+	}
+	if !authenticated {
+		delete(g.verified, key)
+		return
+	}
+	now := g.now()
+	if reserved {
+		g.refillLocked(now)
+		if g.budget.tokens++; g.budget.tokens > g.burst {
+			g.budget.tokens = g.burst
+		}
+	}
+	if _, ok := g.verified[key]; !ok && len(g.verified) >= maxLimiterKeys {
+		for k, seen := range g.verified {
+			if now.Sub(seen) >= verifiedTTL {
+				delete(g.verified, k)
+			}
+		}
+		if len(g.verified) >= maxLimiterKeys {
+			return
+		}
+	}
+	g.verified[key] = now
+}
+
+// waitLimiter caps concurrent long polls per credential, as stdio caps a
+// connection's in-flight calls. Entries exist only while calls are in flight.
+type waitLimiter struct {
+	mu       sync.Mutex
+	inFlight map[string]int
+	max      int
+}
+
+func (l *waitLimiter) acquire(key string) bool {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	if l.inFlight[key] >= l.max {
+		return false
+	}
+	l.inFlight[key]++
+	return true
+}
+
+func (l *waitLimiter) release(key string) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	if l.inFlight[key]--; l.inFlight[key] <= 0 {
+		delete(l.inFlight, key)
+	}
+}
+
 // evictOldestLocked removes the least recently seen bucket. Callers must hold
 // l.mu and ensure the map is non-empty.
 func (l *keyLimiter) evictOldestLocked() {

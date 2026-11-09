@@ -72,7 +72,7 @@ func runServe(ctx context.Context, cfg config, api comitia.API, out *json.Encode
 		listen := fs.String("listen", env("COMITIA_MCP_HTTP_LISTEN", "127.0.0.1:8391"), "listen address")
 		origins := fs.String("allowed-origins", env("COMITIA_MCP_HTTP_ALLOWED_ORIGINS", ""), "comma-separated Origin allowlist (empty rejects any request carrying an Origin)")
 		maxBody := fs.Int64("max-body-bytes", 1<<20, "maximum request body size")
-		rate := fs.Float64("rate-per-second", 20, "per-credential request rate (0 disables)")
+		rate := fs.Float64("rate-per-second", 20, "per-credential request rate, also shared by unverified credentials (0 disables)")
 		burst := fs.Int("rate-burst", 60, "per-credential burst size (0 disables)")
 		logRequests := fs.Bool("log-requests", false, "log allowlisted HTTP method, constant route, status and duration")
 		if err := parseFlags(fs, args); err != nil {
