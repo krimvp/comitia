@@ -12,7 +12,7 @@ func runContexts(ctx context.Context, cfg config, api comitia.API, out *json.Enc
 	case "context-get":
 		fs := newFlags(cmd)
 		cid := fs.String("context-id", "", "context ID (needs read permission)")
-		if err := fs.Parse(args); err != nil {
+		if err := parseFlags(fs, args); err != nil {
 			return err
 		}
 		if cfg.parseOnly {
@@ -29,7 +29,7 @@ func runContexts(ctx context.Context, cfg config, api comitia.API, out *json.Enc
 	case "context-archive":
 		fs := newFlags(cmd)
 		cid := fs.String("context-id", "", "context ID to archive (needs grant or administrator status)")
-		if err := fs.Parse(args); err != nil {
+		if err := parseFlags(fs, args); err != nil {
 			return err
 		}
 		if cfg.parseOnly {
@@ -45,7 +45,7 @@ func runContexts(ctx context.Context, cfg config, api comitia.API, out *json.Enc
 	case "workspace-create":
 		fs := newFlags(cmd)
 		name := fs.String("name", "", "workspace name")
-		if err := fs.Parse(args); err != nil {
+		if err := parseFlags(fs, args); err != nil {
 			return err
 		}
 		if cfg.parseOnly {
@@ -60,7 +60,7 @@ func runContexts(ctx context.Context, cfg config, api comitia.API, out *json.Enc
 		fs := newFlags(cmd)
 		after := fs.String("after-id", "", "exclusive context ID cursor")
 		limit := fs.Int("limit", 100, "maximum contexts (1-1000)")
-		if err := fs.Parse(args); err != nil {
+		if err := parseFlags(fs, args); err != nil {
 			return err
 		}
 		if cfg.parseOnly {
@@ -81,7 +81,7 @@ func runContexts(ctx context.Context, cfg config, api comitia.API, out *json.Enc
 		parent := fs.String("parent-id", "", "parent context ID; creates a child context (needs create on the parent)")
 		task := fs.String("task-id", "", "task in the parent context that the child serves")
 		readable := fs.Bool("parent-readable", false, "let sessions with read on the parent read the child")
-		if err := fs.Parse(args); err != nil {
+		if err := parseFlags(fs, args); err != nil {
 			return err
 		}
 		if cfg.parseOnly {
@@ -109,7 +109,7 @@ func runContexts(ctx context.Context, cfg config, api comitia.API, out *json.Enc
 		parent := fs.String("parent-id", "", "parent context ID")
 		after := fs.String("after-id", "", "exclusive context ID cursor")
 		limit := fs.Int("limit", 100, "maximum contexts (1-1000)")
-		if err := fs.Parse(args); err != nil {
+		if err := parseFlags(fs, args); err != nil {
 			return err
 		}
 		if cfg.parseOnly {
@@ -128,7 +128,7 @@ func runContexts(ctx context.Context, cfg config, api comitia.API, out *json.Enc
 		cid := fs.String("context-id", "", "context ID")
 		kind := fs.String("kind", "", "reference kind")
 		uri := fs.String("uri", "", "reference URI")
-		if err := fs.Parse(args); err != nil {
+		if err := parseFlags(fs, args); err != nil {
 			return err
 		}
 		if cfg.parseOnly {

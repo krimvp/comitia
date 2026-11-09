@@ -14,7 +14,7 @@ func runGrants(ctx context.Context, cfg config, api comitia.API, out *json.Encod
 		fs := newFlags(cmd)
 		cid := fs.String("context-id", "", "context whose permissions to check")
 		perms := fs.String("permissions", "read", "required comma-separated permissions")
-		if err := fs.Parse(args); err != nil {
+		if err := parseFlags(fs, args); err != nil {
 			return err
 		}
 		if cfg.parseOnly {
@@ -38,7 +38,7 @@ func runGrants(ctx context.Context, cfg config, api comitia.API, out *json.Encod
 	if cmd == "grant-revoke" {
 		fs := newFlags(cmd)
 		id := fs.String("grant-id", "", "grant ID issued by this session (or any grant for admins)")
-		if err := fs.Parse(args); err != nil {
+		if err := parseFlags(fs, args); err != nil {
 			return err
 		}
 		if cfg.parseOnly {
@@ -60,7 +60,7 @@ func runGrants(ctx context.Context, cfg config, api comitia.API, out *json.Encod
 	cid := fs.String("context-id", "", "context ID")
 	perms := fs.String("permissions", "read", "comma-separated permissions")
 	ttl := fs.Duration("ttl", time.Hour, "grant lifetime")
-	if e := fs.Parse(args); e != nil {
+	if e := parseFlags(fs, args); e != nil {
 		return e
 	}
 	if cfg.parseOnly {

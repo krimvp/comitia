@@ -41,7 +41,7 @@ func runServe(ctx context.Context, cfg config, api comitia.API, out *json.Encode
 		fs := newFlags(cmd)
 		dir := fs.String("sessions-dir", env("COMITIA_SESSIONS_DIR", ""), "private delegated credential directory (default ~/.local/share/comitia/sessions)")
 		credentialURL := fs.String("credential-server-url", cfg.serverURL, "daemon URL stored in delegated credentials (required for embedded delegation)")
-		if err := fs.Parse(args); err != nil {
+		if err := parseFlags(fs, args); err != nil {
 			return err
 		}
 		if cfg.parseOnly {
@@ -62,7 +62,7 @@ func runServe(ctx context.Context, cfg config, api comitia.API, out *json.Encode
 		rate := fs.Float64("rate-per-second", 20, "per-credential request rate (0 disables)")
 		burst := fs.Int("rate-burst", 60, "per-credential burst size (0 disables)")
 		logRequests := fs.Bool("log-requests", false, "log allowlisted HTTP method, constant route, status and duration")
-		if err := fs.Parse(args); err != nil {
+		if err := parseFlags(fs, args); err != nil {
 			return err
 		}
 		if cfg.parseOnly {
@@ -121,7 +121,7 @@ func serveFlags(args []string) (string, int, int, bool, error) {
 	logRequests := fs.Bool("log-requests", false, "log allowlisted method, route, status, duration and request_id (or COMITIA_HTTP_LOG)")
 	depth := fs.Int("max-context-depth", 3, "maximum child nesting depth (top-level is 0)")
 	count := fs.Int("max-child-contexts-per-grant", 20, "maximum children created by each grant (including archived children)")
-	if err := fs.Parse(args); err != nil {
+	if err := parseFlags(fs, args); err != nil {
 		return "", 0, 0, false, err
 	}
 	if *depth < 1 || *count < 1 {

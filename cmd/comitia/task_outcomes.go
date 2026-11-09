@@ -14,7 +14,7 @@ func runTaskOutcome(ctx context.Context, cfg config, api comitia.API, out *json.
 	version := fs.Int64("lease-version", -1, "current version, including 0 for pending tasks")
 	reason := fs.String("reason", "", "terminal reason; do not include secrets")
 	operationID := fs.String("operation-id", "", "stable session-scoped mutation ID for lost-response recovery")
-	if err := fs.Parse(args); err != nil {
+	if err := parseFlags(fs, args); err != nil {
 		return err
 	}
 	if cfg.parseOnly {

@@ -149,6 +149,18 @@ func newFlags(name string) *flag.FlagSet {
 	return f
 }
 
+// parseFlags rejects leftovers: flag parsing stops at the first positional
+// token, so an unquoted value would otherwise be truncated silently.
+func parseFlags(fs *flag.FlagSet, args []string) error {
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+	if fs.NArg() > 0 {
+		return comitia.Invalidf("unexpected argument %q; quote values that contain spaces", fs.Arg(0))
+	}
+	return nil
+}
+
 const commandUsage = `Usage: comitia [global flags] <command> [flags]
 Use comitia <command> --help for command flags.
 
