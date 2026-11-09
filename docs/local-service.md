@@ -488,6 +488,11 @@ environment. Request logs contain only an allowlisted method, fixed route label
 server-generated request ID. They exclude request/response bodies, credentials,
 headers, query strings and arbitrary paths. Logging is off by default.
 
+The daemon closes connections that send headers slower than 10 seconds or a
+request slower than 30 seconds, caps headers at 16 KiB, and closes idle
+keep-alive connections after 2 minutes. Responses may take 2 minutes, above the
+60-second `messages/wait` cap.
+
 Internal write failures produce secret-safe daemon diagnostics with operation,
 error class, generated request ID, duration and build revision. Match the public
 error's `request_id` (also `X-Request-ID` over HTTP) to the service log. Do not

@@ -159,10 +159,25 @@ func serveHTTP(ctx context.Context, address, db string, handler http.Handler) er
 	defer listener.Close()
 	build := comitia.BuildIdentity()
 	log.Printf("comitia serve listen=%q version=%q revision=%q db=%q", listener.Addr().String(), build.Version, build.Revision, db)
-	server := &http.Server{Handler: handler}
+	return serveListener(ctx, listener, handler)
+}
+
+// serveTimeouts bound unauthenticated slow clients. Writes may outlast the
+// longest messages/wait long poll; reads end once the body is consumed.
+var serveTimeouts = struct{ header, read, write, idle time.Duration }{10 * time.Second, 30 * time.Second, comitia.MaxMessageWait + time.Minute, 120 * time.Second}
+
+func serveListener(ctx context.Context, listener net.Listener, handler http.Handler) error {
+	server := &http.Server{
+		Handler:           handler,
+		ReadHeaderTimeout: serveTimeouts.header,
+		ReadTimeout:       serveTimeouts.read,
+		WriteTimeout:      serveTimeouts.write,
+		IdleTimeout:       serveTimeouts.idle,
+		MaxHeaderBytes:    16 << 10,
+	}
 	stop := context.AfterFunc(ctx, func() { _ = server.Close() })
 	defer stop()
-	err = server.Serve(listener)
+	err := server.Serve(listener)
 	if err == http.ErrServerClosed && ctx.Err() != nil {
 		return nil
 	}
