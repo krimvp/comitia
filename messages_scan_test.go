@@ -83,6 +83,95 @@ func TestFilteredMessagesSeekIndexes(t *testing.T) {
 	}
 }
 
+// Each recursion step must seek the frontier's replies; scanning every reply
+// in the context per step makes thread reads quadratic in thread size.
+func assertThreadPlan(t *testing.T, plans []string) {
+	t.Helper()
+	plan := strings.Join(plans, "\n")
+	step := strings.Index(plan, "RECURSIVE STEP")
+	if step < 0 || !strings.Contains(plan[step:], "SEARCH r USING INDEX message_replies_lookup (context_id=? AND reply_to=?)") || strings.Contains(plan, "SCAN r") {
+		t.Fatalf("thread recursion does not seek replies by parent:\n%s", plan)
+	}
+}
+func TestThreadFilterSeeksRepliesByParent(t *testing.T) {
+	f := setup(t, ":memory:")
+	defer f.store.Close()
+	ctx := context.Background()
+	reply := func(key, to string) Message {
+		t.Helper()
+		m, err := f.svc.AppendMessage(ctx, f.admin.Token, f.context.ID, MessageInput{DedupeKey: key, Body: key, Envelope: &MessageEnvelope{Schema: "comitia.discussion.v1", ReplyTo: to, Payload: json.RawMessage(`{}`)}})
+		if err != nil {
+			t.Fatal(err)
+		}
+		return m
+	}
+	root := reply("root", "")
+	reply("child", reply("parent", root.ID).ID)
+	for _, filter := range []MessageFilters{{ThreadID: root.ID}, {ThreadID: root.ID, Schema: "comitia.discussion.v1"}, {ThreadID: root.ID, ForInstance: "reader"}} {
+		err := f.store.View(ctx, func(r ReadStore) error {
+			q := &filterPlanQuery{querier: r.(*sqlStore).q}
+			messages, err := (&sqlStore{q: q}).Messages(f.context.ID, f.admin.Session.ID, 0, 100, filter)
+			if err != nil {
+				return err
+			}
+			if len(messages) != 3 {
+				t.Fatalf("thread %+v: %v", filter, messages)
+			}
+			assertThreadPlan(t, q.plans)
+			return nil
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+}
+
+// Large star and chain threads keep the seeking plan and return only the
+// tail; the plan, not wall-clock time, is the scaling contract.
+func TestThreadFilterScalesWithThreadShape(t *testing.T) {
+	f := setup(t, ":memory:")
+	defer f.store.Close()
+	ctx := context.Background()
+	const replies = 1000
+	for _, shape := range []string{"star", "chain"} {
+		t.Run(shape, func(t *testing.T) {
+			root, err := f.svc.AppendMessage(ctx, f.admin.Token, f.context.ID, MessageInput{DedupeKey: shape, Body: shape})
+			if err != nil {
+				t.Fatal(err)
+			}
+			// Bulk-load replies; the insert triggers maintain message_replies.
+			series := "WITH RECURSIVE n(i) AS (SELECT 1 UNION ALL SELECT i+1 FROM n WHERE i<?) "
+			if _, err = f.store.db.Exec(series+"INSERT INTO messages SELECT ?||i,?,?,?+i,?||i,'reply',? FROM n", replies, shape, f.context.ID, f.admin.Session.ID, root.Sequence, shape, ts(*f.now)); err != nil {
+				t.Fatal(err)
+			}
+			parent := "?2" // Star: every reply answers the root.
+			if shape == "chain" {
+				parent = "CASE i WHEN 1 THEN ?2 ELSE ?3||(i-1) END"
+			}
+			if _, err = f.store.db.Exec(series+"INSERT INTO message_envelopes SELECT ?3||i,json_object('schema','comitia.discussion.v1','reply_to',"+parent+",'payload',json_object()) FROM n", replies, root.ID, shape); err != nil {
+				t.Fatal(err)
+			}
+			tail := root.Sequence + replies
+			page, err := f.svc.ReplayMessagesPage(ctx, f.admin.Token, f.context.ID, tail-1, 10, MessageFilters{ThreadID: root.ID})
+			if err != nil || len(page.Messages) != 1 || page.Messages[0].Sequence != tail || page.HasMore {
+				t.Fatalf("tail page: %+v %v", page, err)
+			}
+			err = f.store.View(ctx, func(r ReadStore) error {
+				q := &filterPlanQuery{querier: r.(*sqlStore).q}
+				messages, err := (&sqlStore{q: q}).Messages(f.context.ID, f.admin.Session.ID, tail-1, 10, MessageFilters{ThreadID: root.ID})
+				if err != nil || len(messages) != 1 {
+					t.Fatalf("tail scan: %v %v", messages, err)
+				}
+				assertThreadPlan(t, q.plans)
+				return nil
+			})
+			if err != nil {
+				t.Fatal(err)
+			}
+		})
+	}
+}
+
 func scanThrough(t *testing.T, page MessagePage) int64 {
 	t.Helper()
 	raw, err := json.Marshal(page)
