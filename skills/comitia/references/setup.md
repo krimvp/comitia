@@ -16,7 +16,11 @@
    Linux defaults to port 8390; macOS to 8080 (viewer 4174). Reruns retain saved
    ports and data. Use `--port PORT` (and macOS `--viewer-port PORT`) if occupied.
    Linux detects existing harness config directories; `--harness codex --harness
-   claude` selects explicitly. macOS also detects harness config directories. Unsupported OS/service manager:
+   claude` selects explicitly. macOS also detects harness config directories.
+   Linux checks the systemd user bus first and changes nothing if it is
+   unreachable (containers, plain SSH, WSL without systemd). Then rerun with
+   `--no-start` and keep the `serve` command from `INSTALLATION.txt` running
+   yourself; tell the user it stops with your session. Other unsupported OS/service managers:
    follow [manual connection](https://github.com/krimvp/comitia/blob/main/docs/CONNECTING.md)
    instead of pretending a persistent service was installed.
 3. Read the installer's report and its nonsecret `local-context.json`. Linux's

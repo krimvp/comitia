@@ -121,7 +121,8 @@ class LinuxRepairTest(helpers.Base):
                     new_port = helpers.free_port()
                 self.install(port=old_port)
                 def failed_reload(*command):
-                    raise subprocess.CalledProcessError(1, ['systemctl', *command])
+                    if command != ('show-environment',):
+                        raise subprocess.CalledProcessError(1, ['systemctl', *command])
                 with self.running_manager(old_port):
                     if interrupted:
                         with self.assertRaises(subprocess.CalledProcessError):
@@ -167,6 +168,44 @@ class LinuxRepairTest(helpers.Base):
         self.assertEqual(remaining, {'other': {'command': 'keep'}, 'comitia': {'user_setting': 'keep'}})
         self.assertEqual(json.loads((self.home/'.claude/settings.json').read_text())['permissions']['allow'], ['Bash(ls)'])
         self.assertEqual({p: p.read_bytes() for p in saved}, saved)
+
+    def no_user_bus(self, command, **kwargs):
+        if command[0] == 'systemctl':
+            raise subprocess.CalledProcessError(1, command)
+        return self.real_run(command, **kwargs)
+
+    def test_missing_user_bus_is_refused_before_any_change(self):
+        (self.home/'.claude/CLAUDE.md').write_text('# My rules\n')
+        before = {p: p.read_bytes() for p in self.home.rglob('*') if p.is_file()}
+        self.real_run = subprocess.run
+        with mock.patch('subprocess.run', side_effect=self.no_user_bus), contextlib.redirect_stdout(io.StringIO()), \
+             self.assertRaisesRegex(RuntimeError, r'No systemd user session.*--no-start.*bin/comitia --db .* serve'):
+            linux.main(['--binary', str(self.fake), '--port', str(helpers.free_port())])
+        self.assertEqual({p: p.read_bytes() for p in self.home.rglob('*') if p.is_file() and p.name != '.install.lock'}, before)
+        self.assertEqual(self.calls(), [])
+        with mock.patch('subprocess.run', side_effect=self.no_user_bus), contextlib.redirect_stdout(io.StringIO()):
+            linux.main(['--binary', str(self.fake), '--port', str(helpers.free_port()), '--no-start'])
+        self.assertIn('Without systemd: ', (self.root/'INSTALLATION.txt').read_text())
+
+    def test_uninstall_without_user_bus_still_removes_harness_integration(self):
+        self.install()
+        unit = self.home/'.config/systemd/user/comitia.service'
+        self.real_run = subprocess.run
+        output = io.StringIO()
+        with mock.patch('subprocess.run', side_effect=self.no_user_bus), contextlib.redirect_stdout(output), \
+             self.assertRaisesRegex(SystemExit, r'Could not run: systemctl --user disable --now comitia.service'):
+            linux.main(['uninstall'])
+        self.assertNotIn('comitia', json.loads((self.home/'.claude.json').read_text()).get('mcpServers', {}))
+        self.assertNotIn('comitia-client', (self.home/'.codex/config.toml').read_text())
+        self.assertNotIn('comitia-local:start', (self.home/'.claude/CLAUDE.md').read_text())
+        self.assertIn(f'manual review: {unit}', output.getvalue())
+        self.assertTrue(unit.exists(), 'a service that could not be stopped keeps its unit')
+        commands = []
+        with mock.patch.object(linux, 'systemctl', side_effect=lambda *c: commands.append(c)), \
+             contextlib.redirect_stdout(io.StringIO()):
+            linux.main(['uninstall'])
+        self.assertEqual(commands, [('disable', '--now', 'comitia.service'), ('daemon-reload',)])
+        self.assertFalse(unit.exists())
 
     def test_uninstall_preserves_replaced_entries_and_preexisting_approvals(self):
         settings = self.home/'.claude/settings.json'
@@ -251,6 +290,7 @@ class MacFixture(helpers.Base):
         self.fail_lint = None
         self.running = True
         self.manager_calls = []
+        self.fail_launchctl = False
         self.server_port, self.viewer_port = helpers.free_port(), helpers.free_port()
         while self.viewer_port == self.server_port:
             self.viewer_port = helpers.free_port()
@@ -263,6 +303,8 @@ class MacFixture(helpers.Base):
         def manager(command, **kwargs):
             if command[0] in ('launchctl', 'plutil'):
                 self.manager_calls.append(command)
+                if self.fail_launchctl and command[:2] in (['launchctl', 'disable'], ['launchctl', 'bootout']):
+                    raise subprocess.CalledProcessError(1, command)
                 status, output = 0, ''
                 if command[:2] == ['launchctl', 'print']:
                     label = command[-1].split('/')[-1]
@@ -368,6 +410,18 @@ class MacRepairTest(MacFixture):
         self.assertEqual({p: p.read_bytes() for p in saved}, saved)
         for label in ('com.comitia.server', 'com.comitia.viewer'):
             self.assertTrue(any(c[1:3] == ['disable', f'gui/{os.getuid()}/{label}'] for c in self.manager_calls))
+
+    def test_uninstall_with_failing_launchctl_still_removes_harness_integration(self):
+        self.install_mac()
+        self.fail_launchctl = True
+        with self.assertRaisesRegex(SystemExit, r'Could not run: launchctl disable gui/'):
+            self.mac('--uninstall')
+        self.assertNotIn('comitia', json.loads((self.home/'.claude.json').read_text()).get('mcpServers', {}))
+        self.assertNotIn('comitia-local:start', (self.home/'.claude/CLAUDE.md').read_text())
+        self.assertTrue((self.home/'Library/LaunchAgents/com.comitia.server.plist').exists())
+        self.fail_launchctl = False
+        self.mac('--uninstall')
+        self.assertFalse((self.home/'Library/LaunchAgents/com.comitia.server.plist').exists())
 
     def test_uninstall_removes_viewer_plist_from_before_the_scoped_launcher(self):
         self.install_mac()

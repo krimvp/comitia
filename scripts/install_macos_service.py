@@ -59,9 +59,18 @@ def running_service(root, label, port):
     return bool(pid and arguments and owns_arguments(
         [line.strip() for line in arguments[1].splitlines()], root, label, port))
 
+def launchctl(failed, *command):
+    try:
+        subprocess.run(['launchctl', *command], check=True)
+        return True
+    except (OSError, subprocess.CalledProcessError):
+        failed.append(' '.join(['launchctl', *command]))
+        return False
+
 @local.locked_installation(0)
 def uninstall(root, home):
-    retained = []
+    """Returns (retained paths, failed launchctl commands); harnesses are removed either way."""
+    retained, failed = [], []
     domain = f'gui/{os.getuid()}'
     port, viewer_port = local.saved_port(root), local.saved_port(root, 'viewer_url')
     for config, service_port in zip(service_configs(root, port, viewer_port), (port, viewer_port)):
@@ -70,10 +79,14 @@ def uninstall(root, home):
         if not path.exists():
             continue
         if owns_service(path, root, label, service_port):
-            subprocess.run(['launchctl', 'disable', f'{domain}/{label}'], check=True)
+            # Keep the plist of a job that could not be stopped.
+            if not launchctl(failed, 'disable', f'{domain}/{label}'):
+                retained.append(str(path))
+                continue
             loaded = subprocess.run(['launchctl', 'print', f'{domain}/{label}'], capture_output=True).returncode == 0
-            if loaded:
-                subprocess.run(['launchctl', 'bootout', f'{domain}/{label}'], check=True)
+            if loaded and not launchctl(failed, 'bootout', f'{domain}/{label}'):
+                retained.append(str(path))
+                continue
             current = plistlib.loads(path.read_bytes())
             forms = [config, {k: v for k, v in config.items() if k != 'EnvironmentVariables'}]
             if label == LABELS[1]:
@@ -93,7 +106,7 @@ def uninstall(root, home):
         elif link.exists() or link.is_symlink():
             retained.append(str(link))
     retained.extend(local.remove_harnesses(root, home))
-    return retained
+    return retained, failed
 
 def main(argv):
     if argv and argv[0] == 'add-harness':
@@ -119,10 +132,13 @@ def main(argv):
     repo = Path(__file__).resolve().parent.parent
     root = Path.home() / 'Library/Application Support/Comitia'
     if args.uninstall:
-        retained = uninstall(root, Path.home())
+        retained, failed = uninstall(root, Path.home())
         print(f'Removed managed integration. Data, credentials and backups remain in {root}. Restart agent sessions.')
         if retained:
             print('Retained changed/unrelated entries for manual review: '+', '.join(retained))
+        if failed:
+            raise SystemExit('Could not run: '+'; '.join(failed)+'. The services may still be running: '
+                             'stop them from a logged-in GUI session, then rerun --uninstall.')
         return
     if args.rotate_credentials:
         archive = local.rotate_credentials(root, local.runner(root/'bin/comitia', root/'data/comitia.db'),

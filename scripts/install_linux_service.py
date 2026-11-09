@@ -9,6 +9,7 @@ import getpass
 import json
 import os
 from pathlib import Path
+import shlex
 import shutil
 import subprocess
 import sys
@@ -101,6 +102,7 @@ Status: systemctl --user status {UNIT_NAME}
 Restart: systemctl --user restart {UNIT_NAME}
 Logs: journalctl --user -u {UNIT_NAME}
 Disable: systemctl --user disable --now {UNIT_NAME}
+Without systemd: {manual_start(root, local.saved_port(root))}
 Uninstall managed integration: scripts/install_linux_service.py uninstall (keeps data/credentials)
 
 {startup}
@@ -109,7 +111,28 @@ Existing configuration backups are stored in {root/'backups'}/.
 """
 
 def systemctl(*command):
-    subprocess.run(['systemctl', '--user', *command], check=True)
+    # stdout carries only show-environment's variables; errors stay on stderr.
+    subprocess.run(['systemctl', '--user', *command], check=True, stdout=subprocess.DEVNULL)
+
+def manual_start(root, port):
+    return shlex.join([str(root/'bin/comitia'), '--db', str(root/'data/comitia.db'), 'serve', '--listen', f'127.0.0.1:{port}'])
+
+def preflight_service(service, root, port):
+    """Fail before any change when the systemd user manager is unreachable."""
+    try:
+        service('show-environment')
+    except (OSError, subprocess.CalledProcessError) as error:
+        raise RuntimeError('No systemd user session is reachable (`systemctl --user` failed); nothing was changed. '
+                           'Log in to a session with a user bus, or rerun with --no-start and run the server '
+                           f'yourself: {manual_start(root, port)}') from error
+
+def attempt(service, failed, *command):
+    try:
+        service(*command)
+        return True
+    except (OSError, subprocess.CalledProcessError):
+        failed.append('systemctl --user '+' '.join(command))
+        return False
 
 def linger_enabled():
     result = subprocess.run(['loginctl', 'show-user', getpass.getuser(), '--property=Linger', '--value'],
@@ -131,6 +154,8 @@ def install(root, home, port=None, names=None, binary=None, service=systemctl, l
     unit = home/'.config/systemd/user'/UNIT_NAME
     port = local.installation_port(root, port, 8390)
     unit_text = service_unit(root, port)
+    if service:
+        preflight_service(service, root, port)
     if check_port:
         owned = False
         if port == local.saved_port(root) and owns_unit(unit, root, port):
@@ -195,23 +220,24 @@ def harness_spec(args, known):
 
 @local.locked_installation(0)
 def uninstall(root, home, service=systemctl):
+    """Returns (retained paths, failed service commands); harnesses are removed either way."""
     unit = home/'.config/systemd/user'/UNIT_NAME
-    retained = []
+    retained, failed = [], []
     port = local.saved_port(root)
     if owns_unit(unit, root, port):
-        if service:
-            service('disable', '--now', UNIT_NAME)
-        # Keep a customized unit for manual review, even after stopping it.
-        if unit.read_text() in (service_unit(root, port), legacy_unit(root, port)):
+        # Keep the unit of a service that could not be stopped, and a customized unit for manual review.
+        if service and not attempt(service, failed, 'disable', '--now', UNIT_NAME):
+            retained.append(str(unit))
+        elif unit.read_text() in (service_unit(root, port), legacy_unit(root, port)):
             unit.unlink()
             if service:
-                service('daemon-reload')
+                attempt(service, failed, 'daemon-reload')
         else:
             retained.append(str(unit))
     elif unit.exists():
         retained.append(str(unit))
     retained.extend(local.remove_harnesses(root, home))
-    return retained
+    return retained, failed
 
 def parser():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -248,10 +274,15 @@ def main(argv):
     home = Path.home()
     root = home/'.local/share/comitia'
     if args.command == 'uninstall':
-        retained = uninstall(root, home, systemctl)
+        retained, failed = uninstall(root, home, systemctl)
         print(f'Removed managed integration. Data, credentials and backups remain in {root}. Restart agent sessions.')
         if retained:
             print('Retained changed/unrelated entries for manual review: '+', '.join(retained))
+        if failed:
+            raise SystemExit('Could not run: '+'; '.join(failed)+'. The service may still be running: run '
+                             f'`systemctl --user disable --now {UNIT_NAME}` from a session with a systemd user bus, '
+                             'then rerun uninstall. Without systemd (--no-start), stop the `comitia serve` you started '
+                             'and delete the retained unit.')
         return
     if args.command == 'install':
         if not sys.platform.startswith('linux'):

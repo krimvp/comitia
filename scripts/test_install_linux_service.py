@@ -132,7 +132,8 @@ class InstallTest(Base):
         unit = (self.home/'.config/systemd/user/comitia.service').read_text()
         self.assertIn(f'ExecStart=/usr/bin/env -- "{self.root}/bin/comitia" --db "{self.root}/data/comitia.db" serve --listen 127.0.0.1:8390', unit)
         self.assertIn('UnsetEnvironment=COMITIA_SERVER_URL COMITIA_CREDENTIAL COMITIA_BOOTSTRAP_CREDENTIAL', unit)
-        self.assertEqual(self.services, [('daemon-reload',), ('enable', 'comitia.service'), ('restart', 'comitia.service')])
+        self.assertEqual(self.services, [('show-environment',), ('daemon-reload',), ('enable', 'comitia.service'),
+                                         ('restart', 'comitia.service')])
         self.assertIn('Shared context: c1', (self.root/'INSTALLATION.txt').read_text())
 
         codex = (self.home/'.codex/config.toml').read_text()
