@@ -105,8 +105,8 @@ func (s *Service) GrantContext(ctx context.Context, raw string, in GrantInput) (
 				return ErrForbidden
 			}
 		}
-		if in.Permissions == 0 || !in.ExpiresAt.After(s.now().UTC()) || in.ExpiresAt.After(target.ExpiresAt) || in.ExpiresAt.After(a.session.ExpiresAt) {
-			return Invalidf("permissions must be nonzero and expires_at must be within issuer and target session expiry")
+		if in.Permissions == 0 || in.Permissions&^PermissionAll != 0 || !in.ExpiresAt.After(s.now().UTC()) || in.ExpiresAt.After(target.ExpiresAt) || in.ExpiresAt.After(a.session.ExpiresAt) {
+			return Invalidf("permissions must be nonzero known bits and expires_at must be within issuer and target session expiry")
 		}
 		if a.principal.Admin {
 			if e = s.contextActive(w, in.ContextID); e != nil {

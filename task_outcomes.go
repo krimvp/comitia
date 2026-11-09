@@ -76,8 +76,8 @@ func (s *Service) finishTaskOutcome(ctx context.Context, raw, tid string, in Tas
 			return e
 		}
 		if found {
-			result = receipt
-			return nil
+			result, e = s.holderTaskView(w, a, receipt)
+			return e
 		}
 		if terminalTaskStatus(t.Status) {
 			return ErrConflict
@@ -102,8 +102,9 @@ func (s *Service) finishTaskOutcome(ctx context.Context, raw, tid string, in Tas
 		if e := putTaskReceipt(w, a.session.ID, in.OperationID, fingerprint, t); e != nil {
 			return e
 		}
-		result, eventContext = t, t.ContextID
-		return nil
+		eventContext = t.ContextID
+		result, e = s.holderTaskView(w, a, t)
+		return e
 	})
 	if err != nil {
 		return Task{}, err

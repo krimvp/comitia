@@ -268,6 +268,7 @@ func (s *Service) ClaimTaskWithOperation(ctx context.Context, raw, taskID string
 			c, e = s.recoverTaskClaim(w, t, receipt, a.session.ID)
 			if e == nil {
 				s.touchInstanceIn(w, a.session.ID, t.ContextID, t.LeaseOwnerInstance)
+				c.Task, e = s.holderTaskView(w, a, c.Task)
 			}
 			return e
 		}
@@ -304,7 +305,11 @@ func (s *Service) ClaimTaskWithOperation(ctx context.Context, raw, taskID string
 		}
 		s.touchInstanceIn(w, a.session.ID, t.ContextID, t.LeaseOwnerInstance)
 		eventContext = t.ContextID
-		return putTaskReceipt(w, a.session.ID, operationID, fingerprint, c.Task)
+		if e := putTaskReceipt(w, a.session.ID, operationID, fingerprint, c.Task); e != nil {
+			return e
+		}
+		c.Task, e = s.holderTaskView(w, a, c.Task)
+		return e
 	})
 	if e != nil {
 		return TaskClaim{}, e
@@ -353,6 +358,7 @@ func (s *Service) changeLease(ctx context.Context, raw, taskID, claimToken strin
 			c, e = s.recoverTaskClaim(w, t, receipt, a.session.ID)
 			if e == nil {
 				s.touchInstanceIn(w, a.session.ID, t.ContextID, instance)
+				c.Task, e = s.holderTaskView(w, a, c.Task)
 			}
 			return e
 		}
@@ -386,7 +392,11 @@ func (s *Service) changeLease(ctx context.Context, raw, taskID, claimToken strin
 		}
 		s.touchInstanceIn(w, a.session.ID, t.ContextID, instance)
 		eventContext = t.ContextID
-		return putTaskReceipt(w, a.session.ID, operationID, fingerprint, c.Task)
+		if e := putTaskReceipt(w, a.session.ID, operationID, fingerprint, c.Task); e != nil {
+			return e
+		}
+		c.Task, e = s.holderTaskView(w, a, c.Task)
+		return e
 	})
 	if e != nil {
 		return TaskClaim{}, e
@@ -469,13 +479,26 @@ func (s *Service) ReleaseTask(ctx context.Context, raw, taskID, claimToken strin
 			return e
 		}
 		eventContext = found.ContextID
-		return nil
+		t, e = s.holderTaskView(w, a, t)
+		return e
 	})
 	if e != nil {
 		return Task{}, e
 	}
 	s.notifyTaskEvent(eventContext)
 	return t, nil
+}
+
+// holderTaskView returns a mutation result. Claim alone lets a session work a
+// task it was given by ID, not read it: callers without read on the context get
+// empty Title and Body, matching GetTask's refusal.
+func (s *Service) holderTaskView(r ReadStore, a authInfo, t Task) (Task, error) {
+	_, _, e := s.requireAuthenticated(r, a, t.ContextID, PermissionRead)
+	if errors.Is(e, ErrForbidden) {
+		t.Title, t.Body = "", ""
+		return t, nil
+	}
+	return t, e
 }
 
 // Authenticate before consulting private IDs. Missing and unreadable tasks have
