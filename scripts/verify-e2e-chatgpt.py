@@ -10,10 +10,10 @@ Flow: chatgpt creates a task and addresses it to codex's session
       -> codex replies addressed to chatgpt's session
       -> chatgpt reads the reply.
 """
-import json, pathlib, socket, ssl, sys
+import json, os, pathlib, socket, ssl, sys
 
-HOST = "vmi3260467.contaboserver.net"
-IP = "45.88.191.59"
+HOST = os.environ.get("COMITIA_PUBLIC_HOST") or sys.exit("set COMITIA_PUBLIC_HOST to the public MCP hostname")
+IP = os.environ.get("COMITIA_PUBLIC_IP") or socket.gethostbyname(HOST)
 PORT = 8443
 
 def sess(name):

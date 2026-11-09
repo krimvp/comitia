@@ -2,37 +2,38 @@
 # Onboard a new harness into Comitia: mint a scoped identity, then print
 # everything that harness needs to connect.
 #
-#   comitia-add-harness.sh <name> [permissions] [hours]
+#   COMITIA_PUBLIC_HOST=comitia.example.com comitia-add-harness.sh <name> [permissions] [hours]
 #
 #   comitia-add-harness.sh cursor-cli
 #   comitia-add-harness.sh reviewer read,write
 #
-# Writes /root/.comitia/sessions/<name>.json (mode 0600) and prints a
-# connection block for public HTTPS, for the loopback/SSH path, and for the
-# Responses API / Agents SDK.
+# Writes $COMITIA_HOME/sessions/<name>.json (mode 0600; COMITIA_HOME defaults
+# to /root/.comitia) and prints a connection block for public HTTPS, for the
+# loopback/SSH path, and for the Responses API / Agents SDK.
+# Env: COMITIA_PUBLIC_HOST (required), COMITIA_PUBLIC_PORT (default 8443), plus
+# the COMITIA_BIN/COMITIA_HOME/COMITIA_DB overrides of deploy-delegate.sh.
 set -euo pipefail
 
 NAME="${1:?usage: comitia-add-harness.sh <name> [permissions] [hours]}"
 PERMS="${2:-read,write,claim,grant}"
 HOURS="${3:-2160}"
 
-PUBLIC_HOST="vmi3260467.contaboserver.net"
-PUBLIC_PORT="8443"
+PUBLIC_HOST="${COMITIA_PUBLIC_HOST:?set COMITIA_PUBLIC_HOST to the public MCP hostname}"
+PUBLIC_PORT="${COMITIA_PUBLIC_PORT:-8443}"
+HOME_DIR="${COMITIA_HOME:-/root/.comitia}"
 
 [ "$NAME" = "owner" ] && { echo "refusing to overwrite the owner identity" >&2; exit 1; }
 
-bash /root/workspace/comitia/scripts/deploy-delegate.sh "$NAME" "$PERMS" "$HOURS"
+bash "$(dirname "${BASH_SOURCE[0]}")/deploy-delegate.sh" "$NAME" "$PERMS" "$HOURS"
 
-python3 - "$NAME" "$PUBLIC_HOST" "$PUBLIC_PORT" <<'PY'
+python3 - "$NAME" "$PUBLIC_HOST" "$PUBLIC_PORT" "$HOME_DIR" <<'PY'
 import json, pathlib, sys
 
-name, host, port = sys.argv[1], sys.argv[2], sys.argv[3]
-d = json.loads(pathlib.Path(f"/root/.comitia/sessions/{name}.json").read_text())
+name, host, port, home = sys.argv[1], sys.argv[2], sys.argv[3], pathlib.Path(sys.argv[4])
+d = json.loads((home / "sessions" / f"{name}.json").read_text())
 tok = d["credential"]["Token"]
 sid = d["credential"]["Session"]["ID"]
-ctx = [l.split("=", 1)[1].strip()
-       for l in pathlib.Path("/root/.comitia/ids.env").read_text().splitlines()
-       if l.startswith("COMITIA_CONTEXT_ID=")][0]
+ids = dict(l.split("=", 1) for l in (home / "ids.env").read_text().splitlines() if "=" in l)
 
 print(f"""
 ================ {name} ================
@@ -40,8 +41,8 @@ identity        : {name}
 session id      : {sid}
 expires         : {d['credential']['Session']['ExpiresAt']}
 credential      : {tok}
-context id      : {ctx}
-workspace id    : {[l.split('=',1)[1].strip() for l in pathlib.Path('/root/.comitia/ids.env').read_text().splitlines() if l.startswith('COMITIA_WORKSPACE_ID=')][0]}
+context id      : {ids['COMITIA_CONTEXT_ID'].strip()}
+workspace id    : {ids['COMITIA_WORKSPACE_ID'].strip()}
 
 -- Public HTTPS (use from anywhere, incl. OpenAI-hosted clients) --
   URL    https://{host}:{port}/mcp

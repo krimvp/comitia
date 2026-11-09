@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 """Final security posture: nothing about Comitia is publicly reachable."""
-import socket, subprocess, json, pathlib, sys, urllib.request
+import os, socket, subprocess, json, pathlib, sys, urllib.request
 
-PUB = "45.88.191.59"
-V6 = "2a02:c207:2326:467::1"
+PUB = os.environ.get("COMITIA_PUBLIC_IP") or sys.exit("set COMITIA_PUBLIC_IP to the host's public address")
+V6 = os.environ.get("COMITIA_PUBLIC_IP6", "")  # optional IPv6 address
 results = []
 
 # Comitia ports must be unreachable from outside.
-for host, label in ((PUB, "v4"), (V6, "v6")):
+for host, label in ((PUB, "v4"), (V6, "v6")) if V6 else ((PUB, "v4"),):
     for port in (8390, 18390):
         try:
             fam = socket.AF_INET6 if ":" in host else socket.AF_INET
@@ -18,9 +18,9 @@ for host, label in ((PUB, "v4"), (V6, "v6")):
         except Exception as e:
             results.append((f"port {port} check ({label})", True, f"unreachable ({type(e).__name__})"))
 
-# Public HTTPS surface should be memoramum only.
+# Public HTTPS on the bare IP belongs to the neighbouring site, never Comitia.
 try:
-    r = urllib.request.urlopen("https://45.88.191.59/v1/contexts/list", timeout=10,
+    r = urllib.request.urlopen(f"https://{PUB}/v1/contexts/list", timeout=10,
                                context=__import__("ssl")._create_unverified_context())
     body = r.read(200).decode("utf-8", "replace")
     results.append(("public 443 does not serve Comitia", "comitia" not in body.lower(), body[:80]))

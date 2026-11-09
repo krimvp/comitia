@@ -6,7 +6,7 @@ handshake, lists tools, and calls a read-only tool plus a write/replay cycle.
 """
 import json, os, pathlib, subprocess, sys
 
-BIN = "/opt/comitia/bin/comitia"
+BIN = os.environ.get("COMITIA_BIN", "/opt/comitia/bin/comitia")
 SESS = pathlib.Path("/root/.comitia/sessions/claude.json")
 d = json.loads(SESS.read_text())
 TOKEN = d["credential"]["Token"]

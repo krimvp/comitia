@@ -5,8 +5,8 @@
 > not current product guarantees. Start with [Connecting](../CONNECTING.md)
 > and [local service operations](../local-service.md) for current guidance.
 
-Deployed 2026-09-19 on the Contabo VPS (45.88.191.59 /
-vmi3260467.contaboserver.net). Comitia coordinates harnesses that run
+Deployed 2026-09-19 on a rented VPS (shown as 203.0.113.10 /
+comitia.example.com; placeholders replace the real address). Comitia coordinates harnesses that run
 elsewhere; it does not execute them.
 
 This is a historical deployment snapshot, not a generic installation recipe.
@@ -160,7 +160,7 @@ it byte-for-byte; run it deliberately.
 
 ## HTTPS edge details
 
-- Public route: `POST https://vmi3260467.contaboserver.net:8443/mcp` **only**.
+- Public route: `POST https://comitia.example.com:8443/mcp` **only**.
 - Everything else returns 404 — `/ui/`, `/v1/*`, `/admin`, `/debug`, `/metrics`.
   `GET /mcp` is refused (this adapter is stateless; it has no SSE stream).
 - Certificate: Let's Encrypt, auto-renewing, with a deploy hook that reloads nginx.

@@ -29,7 +29,7 @@ class OnboardingContracts(unittest.TestCase):
         guide = read('docs/CONNECTING.md')
         for name in ('comitia-client', 'comitia-local', 'demo-mcp', 'COMITIA_MCP_URL'):
             self.assertIn(name, guide)
-        self.assertNotRegex(guide, r'vmi3260467|45\.88\.191\.59|/opt/comitia|already configured')
+        self.assertNotRegex(guide, r'/opt/comitia|already configured')
         self.assertIn('agent_json', read('docs/USING-COMITIA.md'))
         self.assertIn('credential-file', guide)
         forwarding = block(guide, 'forward **both** ports')

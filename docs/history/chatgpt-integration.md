@@ -117,8 +117,8 @@ sessions. Substantially more work, and the token lifetime vs. Comitia's
 
 1. **Auth mode:** accept bearer-only (option B, covers API clients), or invest in
    full OAuth 2.1 (option C, required for ChatGPT web)?
-2. **Hostname:** there is no `comitia.example.com`. The machine's public DNS name
-   is `vmi3260467.contaboserver.net` (an A record to 45.88.191.59, verified via
+2. **Hostname:** there is no project domain. The machine's provider-assigned public
+   DNS name (shown as `comitia.example.com`, an A record to 203.0.113.10, verified via
    public DoH), so a Let's Encrypt cert is obtainable without owning a domain —
    but an OpenAI app review allowlists a specific redirect URI, so this needs a
    deliberate choice.

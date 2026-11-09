@@ -3,7 +3,7 @@
 # using the existing Comitia client (no new API surface).
 set -uo pipefail
 
-BIN=/opt/comitia/bin/comitia
+BIN="${COMITIA_BIN:-/opt/comitia/bin/comitia}"
 export COMITIA_SERVER_URL=http://127.0.0.1:8390
 CTX_ID="$(grep '^COMITIA_CONTEXT_ID=' /root/.comitia/ids.env | cut -d= -f2)"
 SESS=/root/.comitia/sessions/chatgpt.json
