@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"os"
+	"path/filepath"
 	"sort"
 	"strings"
 	"testing"
@@ -19,10 +20,12 @@ import (
 func TestAdvertisedSchemasAcceptedArguments(t *testing.T) {
 	responses := serve(t, &fakeAPI{}, `{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18"}}`+"\n"+`{"jsonrpc":"2.0","id":2,"method":"tools/list"}`+"\n")
 	listed := responses[1]["result"].(map[string]any)["tools"].([]any)
+	fixture := schemaConformanceTemplate(t)
 	for _, entry := range listed {
 		definition := entry.(map[string]any)
 		name := definition["name"].(string)
 		t.Run(name, func(t *testing.T) {
+			t.Parallel()
 			var schemas []*jsonschema.Schema
 			for _, draft := range []*jsonschema.Draft{jsonschema.Draft7, jsonschema.Draft2020} {
 				compiler := jsonschema.NewCompiler()
@@ -39,7 +42,8 @@ func TestAdvertisedSchemasAcceptedArguments(t *testing.T) {
 			}
 			check := func(t *testing.T, path []string, mode string) {
 				t.Helper()
-				s, args := schemaConformanceFixture(t, name)
+				s, args := fixture(t, name)
+				s.API = immediateWaitAPI{s.API.(*comitia.Service)}
 				var raw []byte
 				if len(path) == 0 && mode != "baseline" {
 					args = nil
@@ -147,6 +151,18 @@ func schemaPropertyPaths(schema map[string]any, prefix []string) [][]string {
 	return paths
 }
 
+// immediateWaitAPI reads once instead of blocking: a wait whose arguments omit
+// timeout_seconds defaults to 30s, and no fixture message matches every filter.
+type immediateWaitAPI struct{ *comitia.Service }
+
+func (a immediateWaitAPI) WaitMessages(ctx context.Context, token, cid string, after int64, _ time.Duration, filters ...comitia.MessageFilters) ([]comitia.Message, error) {
+	return a.Service.WaitMessages(ctx, token, cid, after, 0, filters...)
+}
+
+func (a immediateWaitAPI) WaitMessagesPage(ctx context.Context, token, cid string, after int64, _ time.Duration, filters ...comitia.MessageFilters) (comitia.MessagePage, error) {
+	return a.Service.WaitMessagesPage(ctx, token, cid, after, 0, filters...)
+}
+
 func schemaConformanceFixture(t *testing.T, name string) (*Server, map[string]any) {
 	t.Helper()
 	store, err := sqlite.OpenSQLite(":memory:")
@@ -154,6 +170,44 @@ func schemaConformanceFixture(t *testing.T, name string) (*Server, map[string]an
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { store.Close() })
+	token, inputs := seedSchemaConformance(t, store)
+	return schemaConformanceServer(t, store, token, inputs, name)
+}
+
+// schemaConformanceTemplate seeds and migrates one database file; each
+// fixture it returns serves a private copy with the same IDs and credential.
+func schemaConformanceTemplate(t *testing.T) func(*testing.T, string) (*Server, map[string]any) {
+	t.Helper()
+	path := filepath.Join(t.TempDir(), "template.db")
+	store, err := sqlite.OpenSQLite(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	token, inputs := seedSchemaConformance(t, store)
+	if err := store.Close(); err != nil {
+		t.Fatal(err)
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return func(t *testing.T, name string) (*Server, map[string]any) {
+		t.Helper()
+		path := filepath.Join(t.TempDir(), "state.db")
+		if err := os.WriteFile(path, data, 0600); err != nil {
+			t.Fatal(err)
+		}
+		store, err := sqlite.OpenSQLite(path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		t.Cleanup(func() { store.Close() })
+		return schemaConformanceServer(t, store, token, inputs, name)
+	}
+}
+
+func seedSchemaConformance(t *testing.T, store comitia.Store) (string, map[string]map[string]any) {
+	t.Helper()
 	svc, err := comitia.New(comitia.Config{Store: store, BootstrapCredential: "schema-test"})
 	if err != nil {
 		t.Fatal(err)
@@ -187,19 +241,10 @@ func schemaConformanceFixture(t *testing.T, name string) (*Server, map[string]an
 	if err != nil {
 		t.Fatal(err)
 	}
-	defaults, err := comitia.NewInstanceDefaults(&comitia.AgentInstance{ID: "schema-worker"})
-	if err != nil {
-		t.Fatal(err)
-	}
-	sessions := t.TempDir()
-	if err := os.Chmod(sessions, 0700); err != nil {
-		t.Fatal(err)
-	}
 	root, err := svc.AppendMessage(ctx, owner.Token, parent.ID, comitia.MessageInput{DedupeKey: "schema-root", Body: "root"})
 	if err != nil {
 		t.Fatal(err)
 	}
-	s := &Server{API: svc, Credential: owner.Token, ServerURL: "http://127.0.0.1:1", SessionsDir: sessions, InstanceDefaults: defaults}
 	instance := map[string]any{"id": "schema-worker", "label": "worker"}
 	envelope := map[string]any{"schema": "comitia.discussion.v1", "payload": map[string]any{}, "task_id": task.ID, "reply_to": "", "recipient_session_ids": []any{helper.Session.ID}, "recipient_instances": []any{"schema-worker"}}
 	inputs := map[string]map[string]any{
@@ -228,17 +273,36 @@ func schemaConformanceFixture(t *testing.T, name string) (*Server, map[string]an
 		"delegate_session": {"name": "delegate", "ttl_seconds": 60, "grants": []any{map[string]any{"context_id": parent.ID, "permissions": []any{"read"}, "ttl_seconds": 30}}},
 		"list_instances":   {"context_id": parent.ID}, "set_instance_resume": {"context_id": parent.ID, "agent_instance": instance, "resume": map[string]any{}},
 	}
-	args, ok := inputs[name]
-	if !ok {
-		t.Fatalf("no conformance fixture for tool %s", name)
-	}
-	args["compact"] = false
-	raw, err := json.Marshal(args)
+	return owner.Token, inputs
+}
+
+func schemaConformanceServer(t *testing.T, store comitia.Store, token string, inputs map[string]map[string]any, name string) (*Server, map[string]any) {
+	t.Helper()
+	svc, err := comitia.New(comitia.Config{Store: store})
 	if err != nil {
 		t.Fatal(err)
 	}
+	defaults, err := comitia.NewInstanceDefaults(&comitia.AgentInstance{ID: "schema-worker"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	sessions := t.TempDir()
+	if err := os.Chmod(sessions, 0700); err != nil {
+		t.Fatal(err)
+	}
+	s := &Server{API: svc, Credential: token, ServerURL: "http://127.0.0.1:1", SessionsDir: sessions, InstanceDefaults: defaults}
+	if _, ok := inputs[name]; !ok {
+		t.Fatalf("no conformance fixture for tool %s", name)
+	}
+	// Each fixture gets its own deep copy of the shared arguments.
+	raw, err := json.Marshal(inputs[name])
+	if err != nil {
+		t.Fatal(err)
+	}
+	var args map[string]any
 	if err := json.Unmarshal(raw, &args); err != nil {
 		t.Fatal(err)
 	}
+	args["compact"] = false
 	return s, args
 }
