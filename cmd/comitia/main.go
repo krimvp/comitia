@@ -7,8 +7,10 @@ import (
 	"flag"
 	"fmt"
 	"net/http"
+	"net/url"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/krimvp/comitia"
 	"github.com/krimvp/comitia/httpapi"
@@ -108,6 +110,13 @@ func run(ctx context.Context, args []string) error {
 		}
 		cfg.maxContextDepth, cfg.maxChildContextsPerGrant = depth, count
 	}
+	// Only bootstrap and serve may create a database; elsewhere a missing file
+	// usually means the remote server URL was forgotten.
+	if cfg.serverURL == "" && cmd != "bootstrap" && cmd != "serve" && cfg.db != ":memory:" {
+		if _, err := os.Stat(cfg.db); os.IsNotExist(err) {
+			return comitia.Invalidf("no database at %s; set --server-url (or COMITIA_SERVER_URL) for a remote server, or --db (or COMITIA_DB) for an existing database", cfg.db)
+		}
+	}
 	api, closeFn, err := open(cfg)
 	if err != nil {
 		return err
@@ -126,9 +135,15 @@ func dispatch(ctx context.Context, cfg config, api comitia.API, out *json.Encode
 	return fmt.Errorf("unknown command %q", cmd)
 }
 
+// remoteTimeout bounds each remote call; it stays above the longest server-side wait.
+var remoteTimeout = comitia.MaxMessageWait + 10*time.Second
+
 func open(cfg config) (comitia.API, func(), error) {
 	if cfg.serverURL != "" {
-		c, e := httpapi.NewClientWithInstanceDefaults(cfg.serverURL, http.DefaultClient, cfg.instances)
+		if u, e := url.Parse(cfg.serverURL); e == nil && strings.HasSuffix(strings.TrimRight(u.Path, "/"), "/v1") {
+			return nil, func() {}, comitia.Invalidf("server URL must be the base URL without /v1 (for example http://127.0.0.1:8080)")
+		}
+		c, e := httpapi.NewClientWithInstanceDefaults(cfg.serverURL, &http.Client{Timeout: remoteTimeout}, cfg.instances)
 		return c, func() {}, e
 	}
 	store, e := sqlite.OpenSQLite(cfg.db)
