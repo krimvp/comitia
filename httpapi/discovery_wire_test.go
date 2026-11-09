@@ -84,7 +84,7 @@ func TestDiscoveryPagesInBothRepresentations(t *testing.T) {
 		}
 	}
 	// Paging members belong only to the discovery list endpoints.
-	for _, path := range []string{"contexts/children", "instances/list"} {
+	for _, path := range []string{"contexts/children"} {
 		r := httptest.NewRequest("POST", "/v1/"+path, strings.NewReader(fmt.Sprintf(`{"context_id":%q,"page":true}`, c.ID)))
 		r.Header.Set("Content-Type", "application/json")
 		r.Header.Set("Authorization", "Bearer "+owner.Token)
@@ -113,6 +113,8 @@ func prePagingHandler(next http.Handler) http.Handler {
 				ContextID string `json:"context_id"`
 				Limit     *int   `json:"limit,omitempty"`
 			}))
+		case "/v1/instances/list":
+			err = decodeRequest(bytes.NewReader(body), new(contextRequest))
 		}
 		if err != nil {
 			writeError(w, err, 0)
@@ -184,5 +186,62 @@ func TestDiscoveryClientAcrossUpgradeOrders(t *testing.T) {
 				t.Fatalf("invalid cursor: %v", err)
 			}
 		})
+	}
+}
+
+func TestInstancePagesAcrossUpgradeOrders(t *testing.T) {
+	svc, owner, c := discoveryFixture(t)
+	ctx := context.Background()
+	for _, id := range []string{"a", "b", "c"} {
+		if err := svc.SetInstanceResume(ctx, owner.Token, c.ID, &comitia.AgentInstance{ID: id}, json.RawMessage(`{}`)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for _, prePaging := range []bool{false, true} {
+		t.Run(map[bool]string{false: "paging-handler", true: "pre-paging-handler"}[prePaging], func(t *testing.T) {
+			var h http.Handler = NewHandler(svc)
+			if prePaging {
+				h = prePagingHandler(h)
+			}
+			server := httptest.NewServer(h)
+			defer server.Close()
+			client, err := NewClientWithInstanceDefaults(server.URL, server.Client(), comitia.InstanceDefaults{})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if rows, err := client.ListInstances(ctx, owner.Token, c.ID); err != nil || len(rows) != 3 {
+				t.Fatalf("plain list: %v %v", rows, err)
+			}
+			var ids []string
+			for after, pages := "", 0; ; pages++ {
+				page, err := comitia.ListInstancePage(ctx, client, owner.Token, c.ID, after, 2)
+				if err != nil || pages > 2 || page.HasMore && page.NextAfter == after {
+					t.Fatalf("instance page: %+v %v", page, err)
+				}
+				for _, row := range page.Instances {
+					ids = append(ids, row.ID)
+				}
+				if after = page.NextAfter; !page.HasMore {
+					break
+				}
+			}
+			if strings.Join(ids, ",") != "a,b,c" {
+				t.Fatalf("instance pages: %v", ids)
+			}
+			if _, err := client.ListInstancesPage(ctx, owner.Token, c.ID, "no-separator", 2); !errors.Is(err, comitia.ErrInvalid) || !strings.Contains(err.Error(), "cursor") {
+				t.Fatalf("invalid cursor: %v", err)
+			}
+		})
+	}
+	h := NewHandler(svc)
+	for body, want := range map[string]string{`{"context_id":%q,"limit":2}`: `"instances":[`, `{"context_id":%q,"limit":2,"page":true}`: `"instance_page":{"has_more":true`} {
+		r := httptest.NewRequest("POST", "/v1/instances/list", strings.NewReader(fmt.Sprintf(body, c.ID)))
+		r.Header.Set("Content-Type", "application/json")
+		r.Header.Set("Authorization", "Bearer "+owner.Token)
+		w := httptest.NewRecorder()
+		h.ServeHTTP(w, r)
+		if w.Code != 200 || !strings.Contains(w.Body.String(), want) || strings.Count(w.Body.String(), `"id"`) != 2 {
+			t.Fatalf("%s: %d %s", body, w.Code, w.Body.String())
+		}
 	}
 }

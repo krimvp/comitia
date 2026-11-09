@@ -29,6 +29,21 @@ func (x *sqlStore) PutInstancePresence(p InstancePresence) error {
  label=CASE WHEN excluded.label='' THEN instance_presence.label ELSE excluded.label END,
  last_seen=excluded.last_seen, resume=COALESCE(excluded.resume,instance_presence.resume)`,
 		p.SessionID, p.ContextID, p.ID, p.Label, ts(p.LastSeen), resume)
+	if err != nil {
+		return err
+	}
+	// Evict only the writer's own least recently seen rows beyond the cap.
+	if _, err = x.q.Exec(`DELETE FROM instance_presence WHERE session_id=? AND context_id=? AND instance_id IN (
+ SELECT instance_id FROM instance_presence WHERE session_id=? AND context_id=? AND instance_id<>?
+ ORDER BY julianday(last_seen) DESC, instance_id DESC LIMIT -1 OFFSET ?)`,
+		p.SessionID, p.ContextID, p.SessionID, p.ContextID, p.ID, MaxInstancesPerSession-1); err != nil {
+		return err
+	}
+	// Prune this context's rows of sessions that ended before the retention window.
+	cutoff := ts(p.LastSeen.Add(-InstanceRetention))
+	_, err = x.q.Exec(`DELETE FROM instance_presence WHERE context_id=? AND session_id IN (
+ SELECT s.id FROM sessions s WHERE s.id IN (SELECT session_id FROM instance_presence WHERE context_id=?)
+ AND (julianday(s.expires_at)<=julianday(?) OR julianday(s.revoked_at)<=julianday(?)))`, p.ContextID, p.ContextID, cutoff, cutoff)
 	return err
 }
 
@@ -60,7 +75,17 @@ func (x *sqlStore) TouchInstancePresence(p InstancePresence) error {
 }
 
 func (x *sqlStore) Instances(cid string, now time.Time) ([]InstancePresence, error) {
-	rows, err := x.q.Query("SELECT p.session_id,p.context_id,p.instance_id,p.label,p.last_seen,COALESCE(p.resume,''),s.expires_at,s.revoked_at FROM instance_presence p JOIN sessions s ON s.id=p.session_id WHERE p.context_id=? ORDER BY p.session_id,p.instance_id", cid)
+	return x.InstancesAfter(cid, now, "", "", DefaultInstanceListLimit)
+}
+
+// Rows of sessions that ended before the retention window are hidden.
+func (x *sqlStore) InstancesAfter(cid string, now time.Time, afterSession, afterInstance string, limit int) ([]InstancePresence, error) {
+	cutoff := ts(now.Add(-InstanceRetention))
+	rows, err := x.q.Query(`SELECT p.session_id,p.context_id,p.instance_id,p.label,p.last_seen,COALESCE(p.resume,''),s.expires_at,s.revoked_at
+ FROM instance_presence p JOIN sessions s ON s.id=p.session_id
+ WHERE p.context_id=? AND (p.session_id,p.instance_id)>(?,?)
+ AND julianday(s.expires_at)>julianday(?) AND (s.revoked_at IS NULL OR julianday(s.revoked_at)>julianday(?))
+ ORDER BY p.session_id,p.instance_id LIMIT ?`, cid, afterSession, afterInstance, cutoff, cutoff, limit)
 	if err != nil {
 		return nil, err
 	}

@@ -100,6 +100,20 @@ func TestMCPInstancePresence(t *testing.T) {
 			t.Fatalf("invalid resume accepted: %v", err)
 		}
 	}
+	call("set_instance_resume", map[string]any{"agent_instance": map[string]any{"id": "second"}, "resume": map[string]any{}})
+	page := call("list_instances", map[string]any{"limit": 1, "page": true}).(comitia.InstancePage)
+	if len(page.Instances) != 1 || page.Instances[0].ID != "second" || !page.HasMore {
+		t.Fatalf("page: %+v", page)
+	}
+	if page = call("list_instances", map[string]any{"after_id": page.NextAfter}).(comitia.InstancePage); len(page.Instances) != 1 || page.Instances[0].ID != "worker" || page.HasMore {
+		t.Fatalf("next page: %+v", page)
+	}
+	if rows := call("list_instances", map[string]any{"limit": 1}).([]comitia.InstancePresence); len(rows) != 1 {
+		t.Fatalf("limited list: %v", rows)
+	}
+	if _, err := s.call(ctx, "list_instances", json.RawMessage(`{"context_id":"`+c.ID+`","limit":0}`)); !errors.Is(err, comitia.ErrInvalid) {
+		t.Fatalf("limit: %v", err)
+	}
 	s.Credential = "invalid"
 	if _, err := s.call(ctx, "list_instances", json.RawMessage(`{"context_id":"`+c.ID+`"}`)); !errors.Is(err, comitia.ErrUnauthenticated) {
 		t.Fatalf("auth: %v", err)

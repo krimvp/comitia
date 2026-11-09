@@ -13,7 +13,7 @@ func agentInstanceSchema() map[string]any {
 
 func presenceTools() []map[string]any {
 	return []map[string]any{
-		tool("list_instances", "List self-reported instance presence and resume metadata in a readable context; seen_seconds_ago uses the server clock, recent means seen within 90 seconds, active means the session is valid. Activity does not prove liveness.", schema(map[string]any{"context_id": str("Context ID")}, "context_id")),
+		tool("list_instances", "List self-reported instance presence and resume metadata in a readable context; seen_seconds_ago uses the server clock, recent means seen within 90 seconds, active means the session is valid. Activity does not prove liveness.", schema(map[string]any{"context_id": str("Context ID"), "limit": integer("Maximum instances (default 100)"), "page": map[string]any{"type": "boolean", "description": "Return instances, next_after and has_more"}, "after_id": str("Exclusive cursor from next_after; implies page")}, "context_id")),
 		tool("set_instance_resume", "Set self-reported resume metadata for this session's instance. Never used for authorization. Omitted agent_instance defaults to COMITIA_AGENT_INSTANCE / COMITIA_AGENT_INSTANCE_LABEL.", schema(map[string]any{"context_id": str("Context ID"), "agent_instance": agentInstanceSchema(), "resume": map[string]any{"type": "object", "description": "Self-reported resume metadata, at most 4096 JSON bytes (e.g. harness, session_id, cwd, pid)", "additionalProperties": true}}, "context_id", "resume")),
 	}
 }
@@ -22,7 +22,10 @@ func (s *Server) callPresence(ctx context.Context, name string, raw json.RawMess
 	switch name {
 	case "list_instances":
 		var a struct {
+			Page      bool   `json:"page"`
+			AfterID   string `json:"after_id"`
 			ContextID string `json:"context_id"`
+			Limit     *int   `json:"limit"`
 		}
 		if err := decode(raw, &a); err != nil {
 			return nil, err
@@ -30,7 +33,18 @@ func (s *Server) callPresence(ctx context.Context, name string, raw json.RawMess
 		if err := required("context_id", a.ContextID); err != nil {
 			return nil, err
 		}
-		return s.API.ListInstances(ctx, s.Credential, a.ContextID)
+		if !a.Page && a.AfterID == "" && a.Limit == nil {
+			return s.API.ListInstances(ctx, s.Credential, a.ContextID)
+		}
+		limit := comitia.DefaultInstanceListLimit
+		if a.Limit != nil {
+			limit = *a.Limit
+		}
+		page, err := comitia.ListInstancePage(ctx, s.API, s.Credential, a.ContextID, a.AfterID, limit)
+		if err != nil || a.Page || a.AfterID != "" {
+			return page, err
+		}
+		return page.Instances, nil
 	case "set_instance_resume":
 		var a struct {
 			ContextID     string                 `json:"context_id"`

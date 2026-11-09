@@ -58,6 +58,18 @@ func TestInstancePresenceCommands(t *testing.T) {
 			if p["id"] != "worker" || p["label"] != "CLI worker" || p["last_seen"] == nil || p["active"] != true || p["seen_seconds_ago"] == nil || p["recent"] != true || p["resume"].(map[string]any)["pid"] != float64(123) {
 				t.Fatalf("presence: %v", p)
 			}
+			command(t, append(base, "instance-resume", "--context-id", cid, "--agent-instance", "second", "--resume-file", file)...)
+			page := command(t, append(base, "instances", "--context-id", cid, "--page", "--limit", "1")...)
+			if len(page["instances"].([]any)) != 1 || page["has_more"] != true || page["next_after"] == "" {
+				t.Fatalf("page: %v", page)
+			}
+			page = command(t, append(base, "instances", "--context-id", cid, "--after-id", page["next_after"].(string))...)
+			if len(page["instances"].([]any)) != 1 || page["has_more"] != false {
+				t.Fatalf("next page: %v", page)
+			}
+			if rows := commandAny(t, append(base, "instances", "--context-id", cid, "--limit", "1")...).([]any); len(rows) != 1 {
+				t.Fatalf("limited list: %v", rows)
+			}
 			if err := os.WriteFile(file, []byte(`[]`), 0600); err != nil {
 				t.Fatal(err)
 			}
