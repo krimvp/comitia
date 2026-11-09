@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"mime"
 	"net/http"
 	"net/url"
 	"reflect"
@@ -95,7 +96,7 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		writeError(w, comitia.ErrUnauthenticated, 0)
 		return
 	}
-	if ct := r.Header.Get("Content-Type"); ct != "application/json" {
+	if !jsonMediaType(r.Header.Get("Content-Type")) {
 		writeError(w, fmt.Errorf("%w: Content-Type must be application/json", comitia.ErrInvalid), 0)
 		return
 	}
@@ -110,7 +111,12 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	r.Body = http.MaxBytesReader(w, r.Body, maxRequestBody)
-	out, err := call(r.Context(), token, r.Body)
+	canonical := r.Header.Get(wireHeader) == canonicalWire
+	ctx := r.Context()
+	if canonical {
+		ctx = context.WithValue(ctx, canonicalKey{}, true)
+	}
+	out, err := call(ctx, token, r.Body)
 	if err != nil {
 		operation := comitia.SafeOperation(route)
 		info := comitia.SafeError(operation, err, requestID)
@@ -119,13 +125,22 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		writeOperationError(w, err, 0, operation, requestID)
 		return
 	}
-	if r.Header.Get(wireHeader) == canonicalWire {
+	if canonical {
 		w.Header().Set(wireHeader, canonicalWire)
 	} else {
 		out = legacyValue(reflect.ValueOf(out))
 	}
 	w.WriteHeader(http.StatusOK)
 	_ = json.NewEncoder(w).Encode(out)
+}
+
+// canonicalKey marks a request that negotiated the canonical wire, whose
+// stricter request rules legacy clients predate.
+type canonicalKey struct{}
+
+func canonicalRequest(ctx context.Context) bool {
+	v, _ := ctx.Value(canonicalKey{}).(bool)
+	return v
 }
 
 func ensureEOF(d *json.Decoder) error {
@@ -139,10 +154,20 @@ func ensureEOF(d *json.Decoder) error {
 	}
 	return err
 }
+
+// jsonMediaType accepts application/json in any case, with parameters, as
+// long as any charset is UTF-8.
+func jsonMediaType(v string) bool {
+	t, params, err := mime.ParseMediaType(v)
+	charset, has := params["charset"]
+	return err == nil && t == "application/json" && (!has || strings.EqualFold(charset, "utf-8"))
+}
+
+// bearer reads an Authorization header; the scheme is case-insensitive.
 func bearer(v string) (string, bool) {
 	p := strings.Split(v, " ")
 	returnValue := ""
-	if len(p) == 2 && p[0] == "Bearer" && p[1] != "" {
+	if len(p) == 2 && strings.EqualFold(p[0], "Bearer") && p[1] != "" {
 		returnValue = p[1]
 	}
 	return returnValue, returnValue != ""

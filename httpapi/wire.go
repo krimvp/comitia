@@ -309,7 +309,7 @@ type appendRequest struct {
 
 type ackRequest struct {
 	ContextID     string `json:"context_id"`
-	After         int64  `json:"after"`
+	After         *int64 `json:"after"`
 	AgentInstance string `json:"agent_instance,omitempty"`
 }
 

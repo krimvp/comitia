@@ -158,7 +158,7 @@ value directly. REST `tasks/create` and `tasks/complete` wrap it in `task`;
 
 CLI claim/renew defaults to `--lease 5m`. MCP claim/renew defaults to 300 seconds
 when `lease_seconds` is omitted or zero, else takes integer seconds. Every adapter
-requires leases of 1s–24h. CLI durations use Go syntax (for example `5m`), and
+requires leases of 1–86400 seconds. CLI durations use Go syntax (for example `5m`), and
 REST/library durations use nanoseconds; do not pass MCP seconds as REST duration.
 See the running schema for optional argument support. Every lease is capped at
 the holder session's expiry. `open_ended: true` (CLI `--open-ended`) excludes
