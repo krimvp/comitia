@@ -20,16 +20,28 @@ CREATE INDEX IF NOT EXISTS instance_presence_context ON instance_presence(contex
 `
 
 func (x *sqlStore) PutInstancePresence(p InstancePresence) error {
+	return x.putInstancePresence(p, false)
+}
+
+// A heartbeat that only refreshes an existing row skips eviction and pruning:
+// it cannot exceed the cap, and read heartbeats run under a small time budget.
+func (x *sqlStore) putInstancePresence(p InstancePresence, heartbeat bool) error {
 	var resume any
 	if p.Resume != nil {
 		resume = string(p.Resume)
+	}
+	var existing int
+	if heartbeat {
+		if err := x.q.QueryRow("SELECT COUNT(*) FROM instance_presence WHERE session_id=? AND context_id=? AND instance_id=?", p.SessionID, p.ContextID, p.ID).Scan(&existing); err != nil {
+			return err
+		}
 	}
 	_, err := x.q.Exec(`INSERT INTO instance_presence(session_id,context_id,instance_id,label,last_seen,resume) VALUES(?,?,?,?,?,?)
  ON CONFLICT(session_id,context_id,instance_id) DO UPDATE SET
  label=CASE WHEN excluded.label='' THEN instance_presence.label ELSE excluded.label END,
  last_seen=excluded.last_seen, resume=COALESCE(excluded.resume,instance_presence.resume)`,
 		p.SessionID, p.ContextID, p.ID, p.Label, ts(p.LastSeen), resume)
-	if err != nil {
+	if err != nil || existing != 0 {
 		return err
 	}
 	// Evict only the writer's own least recently seen rows beyond the cap.
@@ -63,7 +75,7 @@ func (x *sqlStore) TouchInstancePresence(p InstancePresence) error {
 	if _, err := x.q.Exec("SAVEPOINT presence_heartbeat"); err != nil {
 		return err
 	}
-	err := x.PutInstancePresence(p)
+	err := x.putInstancePresence(p, true)
 	if err != nil {
 		_, _ = x.q.Exec("ROLLBACK TO presence_heartbeat")
 	}

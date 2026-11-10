@@ -71,10 +71,15 @@ func TestInstancePresenceEvictsOwnLeastRecentlySeen(t *testing.T) {
 	// A read heartbeat for a new instance succeeds and evicts the next oldest.
 	*now = now.Add(time.Minute)
 	heartbeat := "reader-heartbeat"
-	if _, err := svc.ReplayMessages(ctx, reader.Token, cid, 0, 10, MessageFilters{AgentInstance: &heartbeat}); err != nil {
-		t.Fatal(err)
+	var rows map[string]bool
+	// A read heartbeat is best effort and is skipped when its small time
+	// budget runs out under load, so read again until it is recorded.
+	for tries := 0; tries < 20 && !rows[heartbeat]; tries++ {
+		if _, err := svc.ReplayMessages(ctx, reader.Token, cid, 0, 10, MessageFilters{AgentInstance: &heartbeat}); err != nil {
+			t.Fatal(err)
+		}
+		rows = sessionInstances(t, svc, admin.Token, cid, reader.Session.ID)
 	}
-	rows := sessionInstances(t, svc, admin.Token, cid, reader.Session.ID)
 	if len(rows) != MaxInstancesPerSession || rows["w000"] || rows["w001"] || rows["w002"] || !rows["w003"] || !rows[heartbeat] {
 		t.Fatalf("reader rows (%d): %v", len(rows), rows)
 	}
