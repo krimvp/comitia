@@ -3,6 +3,8 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"fmt"
 
 	"github.com/krimvp/comitia"
 )
@@ -17,11 +19,18 @@ func runTaskOutcome(ctx context.Context, cfg config, api comitia.API, out *json.
 	if err := parseFlags(fs, args); err != nil {
 		return err
 	}
+	required := []string{"task-id", "lease-version", "reason"}
+	if cmd == "task-fail" {
+		required = append(required, "claim-token")
+	}
+	if err := requireFlags(fs, required...); err != nil {
+		return err
+	}
+	if *version < 0 {
+		return comitia.Invalidf("%s requires a nonnegative --lease-version", cmd)
+	}
 	if cfg.parseOnly {
 		return nil
-	}
-	if *tid == "" || *version < 0 {
-		return comitia.Invalidf("task-id and nonnegative lease-version required")
 	}
 	in := comitia.TaskOutcomeInput{ClaimToken: *token, LeaseVersion: *version, Reason: *reason, OperationID: *operationID}
 	call := comitia.FailTask
@@ -29,6 +38,10 @@ func runTaskOutcome(ctx context.Context, cfg config, api comitia.API, out *json.
 		call = comitia.CancelTask
 	}
 	v, err := call(ctx, api, needCredential(cfg), *tid, in)
+	if errors.Is(err, comitia.ErrStaleClaim) && *token == "" {
+		// Only the server knows whether the caller is a context admin.
+		return fmt.Errorf("%w; without context-admin authority %s requires --claim-token", err, cmd)
+	}
 	if err != nil {
 		return err
 	}

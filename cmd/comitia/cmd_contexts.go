@@ -15,11 +15,11 @@ func runContexts(ctx context.Context, cfg config, api comitia.API, out *json.Enc
 		if err := parseFlags(fs, args); err != nil {
 			return err
 		}
+		if err := requireFlags(fs, "context-id"); err != nil {
+			return err
+		}
 		if cfg.parseOnly {
 			return nil
-		}
-		if *cid == "" {
-			return comitia.Invalidf("context-get requires --context-id")
 		}
 		v, err := api.GetContext(ctx, needCredential(cfg), *cid)
 		if err != nil {
@@ -32,11 +32,11 @@ func runContexts(ctx context.Context, cfg config, api comitia.API, out *json.Enc
 		if err := parseFlags(fs, args); err != nil {
 			return err
 		}
+		if err := requireFlags(fs, "context-id"); err != nil {
+			return err
+		}
 		if cfg.parseOnly {
 			return nil
-		}
-		if *cid == "" {
-			return comitia.Invalidf("context-archive requires --context-id")
 		}
 		if err := api.ArchiveContext(ctx, needCredential(cfg), *cid); err != nil {
 			return err
@@ -46,6 +46,9 @@ func runContexts(ctx context.Context, cfg config, api comitia.API, out *json.Enc
 		fs := newFlags(cmd)
 		name := fs.String("name", "", "workspace name")
 		if err := parseFlags(fs, args); err != nil {
+			return err
+		}
+		if err := requireFlags(fs, "name"); err != nil {
 			return err
 		}
 		if cfg.parseOnly {
@@ -84,6 +87,12 @@ func runContexts(ctx context.Context, cfg config, api comitia.API, out *json.Enc
 		if err := parseFlags(fs, args); err != nil {
 			return err
 		}
+		if err := requireFlags(fs, "name"); err != nil {
+			return err
+		}
+		if err := requireAny(fs, "workspace-id", "parent-id"); err != nil {
+			return err
+		}
 		if cfg.parseOnly {
 			return nil
 		}
@@ -112,6 +121,9 @@ func runContexts(ctx context.Context, cfg config, api comitia.API, out *json.Enc
 		if err := parseFlags(fs, args); err != nil {
 			return err
 		}
+		if err := requireFlags(fs, "parent-id"); err != nil {
+			return err
+		}
 		if cfg.parseOnly {
 			return nil
 		}
@@ -129,6 +141,9 @@ func runContexts(ctx context.Context, cfg config, api comitia.API, out *json.Enc
 		kind := fs.String("kind", "", "reference kind: letters, digits and ._+-/")
 		uri := fs.String("uri", "", "absolute reference URI with a scheme")
 		if err := parseFlags(fs, args); err != nil {
+			return err
+		}
+		if err := requireFlags(fs, "context-id", "kind", "uri"); err != nil {
 			return err
 		}
 		if cfg.parseOnly {

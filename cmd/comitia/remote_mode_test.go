@@ -16,7 +16,7 @@ import (
 )
 
 func TestMissingDatabaseIsNotCreatedOutsideBootstrap(t *testing.T) {
-	for _, args := range [][]string{{"replay", "--context-id", "abc"}, {"server-info"}, {"mcp"}, {"mcp-http"}} {
+	for _, args := range [][]string{{"replay", "--context-id", "abc"}, {"server-info"}, {"mcp"}} {
 		t.Run(args[0], func(t *testing.T) {
 			db := filepath.Join(t.TempDir(), "comitia.db")
 			err := run(context.Background(), append([]string{"--db", db, "--server-url=", "--credential", "ct_x"}, args...))

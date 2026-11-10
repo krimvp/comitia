@@ -35,6 +35,12 @@ func runMessages(ctx context.Context, cfg config, api comitia.API, out *json.Enc
 		if err := parseFlags(fs, args); err != nil {
 			return err
 		}
+		if err := requireFlags(fs, "context-id", "dedupe-key"); err != nil {
+			return err
+		}
+		if err := requireAny(fs, "body", "envelope-file"); err != nil {
+			return err
+		}
 		if cfg.parseOnly {
 			return nil
 		}
@@ -62,6 +68,9 @@ func runMessages(ctx context.Context, cfg config, api comitia.API, out *json.Enc
 		if err := parseFlags(fs, args); err != nil {
 			return err
 		}
+		if err := requireFlags(fs, "context-id", "message-id"); err != nil {
+			return err
+		}
 		if cfg.parseOnly {
 			return nil
 		}
@@ -77,6 +86,9 @@ func runMessages(ctx context.Context, cfg config, api comitia.API, out *json.Enc
 		cid := fs.String("context-id", "", "work context ID")
 		limit := fs.Int("limit", 100, "maximum participants (1-1000)")
 		if err := parseFlags(fs, args); err != nil {
+			return err
+		}
+		if err := requireFlags(fs, "context-id"); err != nil {
 			return err
 		}
 		if cfg.parseOnly {
@@ -109,6 +121,9 @@ func runMessages(ctx context.Context, cfg config, api comitia.API, out *json.Enc
 		filters := messageFilterFlags(fs)
 		fs.IntVar(&filters.MaxBytes, "max-bytes", 0, "encoded messages-array byte budget (default 1048576, max 4194304; first message intact)")
 		if err := parseFlags(fs, args); err != nil {
+			return err
+		}
+		if err := requireFlags(fs, "context-id"); err != nil {
 			return err
 		}
 		if cfg.parseOnly {
@@ -182,8 +197,8 @@ func runMessages(ctx context.Context, cfg config, api comitia.API, out *json.Enc
 		if err := parseFlags(fs, args); err != nil {
 			return err
 		}
-		if !flagProvided(fs, "sequence") {
-			return comitia.Invalidf("--sequence required")
+		if err := requireFlags(fs, "context-id", "sequence"); err != nil {
+			return err
 		}
 		if cfg.parseOnly {
 			return nil
@@ -198,6 +213,9 @@ func runMessages(ctx context.Context, cfg config, api comitia.API, out *json.Enc
 		defaultID, _ := cfg.instances.ID()
 		instance := fs.String("agent-instance", defaultID, "self-reported instance ID for this cursor (defaults to COMITIA_AGENT_INSTANCE)")
 		if err := parseFlags(fs, args); err != nil {
+			return err
+		}
+		if err := requireFlags(fs, "context-id"); err != nil {
 			return err
 		}
 		if cfg.parseOnly {

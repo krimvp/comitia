@@ -41,7 +41,7 @@ func TestTaskOutcomeCommands(t *testing.T) {
 		})
 	}
 	for _, cmd := range []string{"task-fail", "task-cancel"} {
-		if err := runTasks(context.Background(), config{parseOnly: true}, nil, nil, cmd, nil); err != nil {
+		if err := runTasks(context.Background(), config{parseOnly: true}, nil, nil, cmd, []string{"--task-id", "t", "--lease-version", "0", "--reason", "r", "--claim-token", "x"}); err != nil {
 			t.Fatalf("parseOnly %s: %v", cmd, err)
 		}
 		if err := runTasks(context.Background(), config{}, nil, nil, cmd, []string{"--task-id", "t", "--reason", "r"}); !errors.Is(err, comitia.ErrInvalid) {

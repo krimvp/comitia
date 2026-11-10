@@ -59,7 +59,7 @@ func TestCLIMessageLookupAndScopedQueries(t *testing.T) {
 			}
 		}
 	}
-	if err := runMessages(ctx, config{parseOnly: true}, nil, nil, "message-get", []string{"--message-id", "x"}); err != nil {
+	if err := runMessages(ctx, config{parseOnly: true}, nil, nil, "message-get", []string{"--context-id", "c", "--message-id", "x"}); err != nil {
 		t.Fatalf("parseOnly guard: %v", err)
 	}
 	if err := runMessages(ctx, config{credential: token}, oldCLIQueryAPI{api}, json.NewEncoder(io.Discard), "replay", []string{"--context-id", cid, "--reply-to", root.ID}); !errors.Is(err, comitia.ErrInvalid) {

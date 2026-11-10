@@ -495,7 +495,7 @@ func TestWatchJSONLinesRequiresManualAck(t *testing.T) {
 	}
 	for _, args := range [][]string{{"--json-lines", "--manual-ack"}, {"--json-lines", "--no-ack"}} {
 		cfg.parseOnly = true
-		if err := runMessages(context.Background(), cfg, nil, nil, "watch", args); err != nil {
+		if err := runMessages(context.Background(), cfg, nil, nil, "watch", append(args, "--context-id", cid)); err != nil {
 			t.Fatal(err)
 		}
 	}

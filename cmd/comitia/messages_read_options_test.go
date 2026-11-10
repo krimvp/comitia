@@ -56,7 +56,7 @@ func TestReadCommandCursorSelfAndSchemaList(t *testing.T) {
 		}
 	}
 	cfg.parseOnly = true
-	if err = runMessages(ctx, cfg, nil, nil, "watch", []string{"--from-cursor", "--exclude-self", "--schema", "a", "--schema", "b"}); err != nil {
+	if err = runMessages(ctx, cfg, nil, nil, "wait", []string{"--context-id", "c", "--from-cursor", "--exclude-self", "--schema", "a", "--schema", "b"}); err != nil {
 		t.Fatalf("parseOnly guard: %v", err)
 	}
 }

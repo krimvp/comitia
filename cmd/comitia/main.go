@@ -176,6 +176,29 @@ func parseFlags(fs *flag.FlagSet, args []string) error {
 	return nil
 }
 
+// requireFlags names the first missing required flag. Commands call it before
+// their parse-only return, so the error precedes storage and network access.
+func requireFlags(fs *flag.FlagSet, names ...string) error {
+	for _, name := range names {
+		if err := requireAny(fs, name); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// requireAny accepts a nonempty value for one of names; unset numeric flags
+// count as missing even though their zero default prints as a value.
+func requireAny(fs *flag.FlagSet, names ...string) error {
+	for _, name := range names {
+		f := fs.Lookup(name)
+		if v := f.Value.String(); v != "" && (v != f.DefValue || flagProvided(fs, name)) {
+			return nil
+		}
+	}
+	return comitia.Invalidf("%s requires --%s", fs.Name(), strings.Join(names, " or --"))
+}
+
 const commandUsage = `Usage: comitia [global flags] <command> [flags]
 Use comitia <command> --help for command flags.
 
