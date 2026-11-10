@@ -15,6 +15,7 @@ type SQLiteStore struct {
 	db      *sql.DB
 	readers *sql.DB
 	writers chan struct{}
+	changes sqliteChanges
 }
 
 const sqliteReaderLimit = 4
@@ -68,12 +69,19 @@ func OpenSQLite(path string) (*SQLiteStore, error) {
 		}
 		s.readers.SetMaxOpenConns(sqliteReaderLimit)
 		s.readers.SetMaxIdleConns(sqliteReaderLimit)
+		// sql.Open connects lazily, so stores that never wait pay nothing.
+		if s.changes.db, e = sql.Open("sqlite", readDSN); e != nil {
+			s.readers.Close()
+			db.Close()
+			return nil, e
+		}
+		s.changes.db.SetMaxOpenConns(1)
 	}
 	return s, nil
 }
 func (s *SQLiteStore) Close() error {
 	if s.readers != s.db {
-		return errors.Join(s.readers.Close(), s.db.Close())
+		return errors.Join(s.changes.close(), s.readers.Close(), s.db.Close())
 	}
 	return s.db.Close()
 }
@@ -105,7 +113,10 @@ func (s *SQLiteStore) Update(ctx context.Context, fn func(WriteStore) error) err
 	if e = fn(v); e != nil {
 		return e
 	}
-	return tx.Commit()
+	if e = tx.Commit(); e == nil {
+		s.changes.commits.Add(1)
+	}
+	return e
 }
 
 func (s *SQLiteStore) begin(ctx context.Context, opts *sql.TxOptions) (*sql.Tx, error) {

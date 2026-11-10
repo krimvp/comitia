@@ -332,7 +332,8 @@ tolerant of older servers that omitted empty collections.
 Append broadcasts an in-process notification **after commit** to every waiter
 in that context. Wait subscribes before reading to prevent a lost wakeup. A
 200 ms fallback poll detects commits by other services/processes using the same
-SQLite database and rechecks session/read-grant validity. No database transaction
+SQLite database; an unchanged `PRAGMA data_version` skips the scan, and
+session/read-grant validity is rechecked after any commit and at least every 5 s. No database transaction
 or connection is held while waiting. Context cancellation interrupts the wait;
 service/HTTP errors preserve the existing authentication, authorization and
 invalid-input sentinels. Deduplicated retries do not notify because they append
