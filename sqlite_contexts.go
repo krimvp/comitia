@@ -1,10 +1,10 @@
 package comitia
 
-const contextSchema = `
+var contextSchema = `
 CREATE TABLE IF NOT EXISTS workspaces (id TEXT PRIMARY KEY, name TEXT NOT NULL, created_at TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS contexts (id TEXT PRIMARY KEY, workspace_id TEXT NOT NULL REFERENCES workspaces(id), name TEXT NOT NULL, created_at TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS refs (id TEXT PRIMARY KEY, context_id TEXT NOT NULL REFERENCES contexts(id), kind TEXT NOT NULL, uri TEXT NOT NULL, created_at TEXT NOT NULL);
-CREATE INDEX IF NOT EXISTS refs_page ON refs(context_id,created_at,id);
+CREATE INDEX IF NOT EXISTS refs_created_page ON refs(context_id,` + sortableCreated + `,id);
 `
 
 // contextTreeSchema keeps child-context metadata in a side table, so existing contexts simply have no row (no parent).
@@ -65,13 +65,20 @@ func (x *sqlStore) PutReference(r Reference) error {
 	return e
 }
 
-func (x *sqlStore) ReferencesAfter(cid, created, afterID string, limit int) ([]Reference, error) {
+// referencePageQuery seeks refs_created_page.
+func referencePageQuery(cid, created, afterID string, limit int) (string, []any) {
 	q, args := "SELECT id,context_id,kind,uri,created_at FROM refs WHERE context_id=?", []any{cid}
 	if afterID != "" {
-		q += " AND (created_at,id)>(?,?)"
-		args = append(args, created, afterID)
+		q += " AND " + sortableCreated + ">=? AND (" + sortableCreated + ">? OR id>?)"
+		at := sortableTS(parse(created))
+		args = append(args, at, at, afterID)
 	}
-	rows, err := x.q.Query(q+" ORDER BY created_at,id LIMIT ?", append(args, limit)...)
+	return q + " ORDER BY " + sortableCreated + ",id LIMIT ?", append(args, limit)
+}
+
+func (x *sqlStore) ReferencesAfter(cid, created, afterID string, limit int) ([]Reference, error) {
+	q, args := referencePageQuery(cid, created, afterID, limit)
+	rows, err := x.q.Query(q, args...)
 	if err != nil {
 		return nil, err
 	}

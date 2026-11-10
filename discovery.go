@@ -238,13 +238,14 @@ func legacyTaskPage(tasks []Task, after string, cursor taskCursor, limit int, so
 	}
 	tasks = append([]Task{}, tasks...)
 	sort.Slice(tasks, func(i, j int) bool {
-		a, b := ts(tasks[i].CreatedAt), ts(tasks[j].CreatedAt)
+		a, b := sortableTS(tasks[i].CreatedAt), sortableTS(tasks[j].CreatedAt)
 		return a < b || a == b && tasks[i].ID < tasks[j].ID
 	})
 	page := TaskPage{Tasks: []Task{}, NextAfter: after}
+	at := sortableTS(parse(cursor.CreatedAt))
 	for _, task := range tasks {
-		created := ts(task.CreatedAt)
-		if after != "" && (created < cursor.CreatedAt || created == cursor.CreatedAt && task.ID <= cursor.ID) {
+		created := sortableTS(task.CreatedAt)
+		if after != "" && (created < at || created == at && task.ID <= cursor.ID) {
 			continue
 		}
 		if len(page.Tasks) == limit {

@@ -132,13 +132,13 @@ FROM comitia_message_repairs r CROSS JOIN messages m ON m.id=r.message_id
 LEFT JOIN message_instances i ON i.message_id=m.id
 WHERE NOT EXISTS (SELECT 1 FROM message_dedupe_scopes d WHERE d.message_id=m.id)`
 
-const creatorRepair = `INSERT OR IGNORE INTO context_creators
+var creatorRepair = `INSERT OR IGNORE INTO context_creators
 SELECT p.context_id,g.id,g.parent_grant_id
 FROM comitia_creator_repairs r CROSS JOIN context_parents p ON p.context_id=r.context_id
 JOIN grants g ON g.id=(
  SELECT g2.id FROM grants g2 JOIN grants source ON source.id=g2.parent_grant_id
  WHERE g2.context_id=p.context_id AND g2.session_id=p.creator_session_id AND g2.issuer_session_id=p.creator_session_id
- AND source.context_id=p.parent_context_id ORDER BY g2.created_at,g2.id LIMIT 1
+ AND source.context_id=p.parent_context_id ORDER BY ` + sortableTime("g2.created_at") + `,g2.id LIMIT 1
 )`
 
 func schemaGeneration(schema string) string { return fmt.Sprintf("%x", sha256.Sum256([]byte(schema))) }

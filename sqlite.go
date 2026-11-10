@@ -186,7 +186,18 @@ type sqlStore struct {
 	grantEvaluator *GrantEvaluator
 }
 
-func ts(t time.Time) string    { return t.UTC().Format(time.RFC3339Nano) }
+func ts(t time.Time) string { return t.UTC().Format(time.RFC3339Nano) }
+
+// ts trims trailing fractional zeros, so its strings do not sort by time:
+// "05Z" follows "05.25Z". sortableTS is the fixed-width form; sortableTime
+// renders SQL mapping a stored ts() column, including rows written by older
+// binaries, to it. Indexes must repeat the expression exactly.
+const sortableLayout = "2006-01-02T15:04:05.000000000Z"
+
+func sortableTS(t time.Time) string { return t.UTC().Format(sortableLayout) }
+func sortableTime(column string) string {
+	return "(CASE WHEN length(" + column + ")=20 THEN substr(" + column + ",1,19)||'.000000000Z' ELSE substr(" + column + ",1,length(" + column + ")-1)||substr('000000000Z',length(" + column + ")-20) END)"
+}
 func parse(s string) time.Time { t, _ := time.Parse(time.RFC3339Nano, s); return t }
 func nullTime(n sql.NullString) *time.Time {
 	if !n.Valid {
