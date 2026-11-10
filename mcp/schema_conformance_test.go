@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"os"
-	"path/filepath"
 	"sort"
 	"strings"
 	"testing"
@@ -20,7 +19,7 @@ import (
 func TestAdvertisedSchemasAcceptedArguments(t *testing.T) {
 	responses := serve(t, &fakeAPI{}, `{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18"}}`+"\n"+`{"jsonrpc":"2.0","id":2,"method":"tools/list"}`+"\n")
 	listed := responses[1]["result"].(map[string]any)["tools"].([]any)
-	fixture := schemaConformanceTemplate(t)
+	fixture := schemaConformanceFixture
 	for _, entry := range listed {
 		definition := entry.(map[string]any)
 		name := definition["name"].(string)
@@ -172,38 +171,6 @@ func schemaConformanceFixture(t *testing.T, name string) (*Server, map[string]an
 	t.Cleanup(func() { store.Close() })
 	token, inputs := seedSchemaConformance(t, store)
 	return schemaConformanceServer(t, store, token, inputs, name)
-}
-
-// schemaConformanceTemplate seeds and migrates one database file; each
-// fixture it returns serves a private copy with the same IDs and credential.
-func schemaConformanceTemplate(t *testing.T) func(*testing.T, string) (*Server, map[string]any) {
-	t.Helper()
-	path := filepath.Join(t.TempDir(), "template.db")
-	store, err := sqlite.OpenSQLite(path)
-	if err != nil {
-		t.Fatal(err)
-	}
-	token, inputs := seedSchemaConformance(t, store)
-	if err := store.Close(); err != nil {
-		t.Fatal(err)
-	}
-	data, err := os.ReadFile(path)
-	if err != nil {
-		t.Fatal(err)
-	}
-	return func(t *testing.T, name string) (*Server, map[string]any) {
-		t.Helper()
-		path := filepath.Join(t.TempDir(), "state.db")
-		if err := os.WriteFile(path, data, 0600); err != nil {
-			t.Fatal(err)
-		}
-		store, err := sqlite.OpenSQLite(path)
-		if err != nil {
-			t.Fatal(err)
-		}
-		t.Cleanup(func() { store.Close() })
-		return schemaConformanceServer(t, store, token, inputs, name)
-	}
 }
 
 func seedSchemaConformance(t *testing.T, store comitia.Store) (string, map[string]map[string]any) {
