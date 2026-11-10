@@ -109,28 +109,32 @@ type taskCursor struct {
 	ID        string `json:"id"`
 }
 
-func encodeTaskCursor(t Task) string {
-	raw, _ := json.Marshal(taskCursor{ts(t.CreatedAt), t.ID})
+func encodeTaskCursor(t Task) string { return encodeCreatedCursor(t.CreatedAt, t.ID) }
+func encodeCreatedCursor(at time.Time, id string) string {
+	raw, _ := json.Marshal(taskCursor{ts(at), id})
 	return base64.RawURLEncoding.EncodeToString(raw)
 }
-func decodeTaskCursor(after string) (taskCursor, error) {
+func decodeTaskCursor(after string) (taskCursor, error) { return decodeCreatedCursor(after, "task") }
+
+// decodeCreatedCursor reads an exclusive (created_at, id) cursor; name labels errors.
+func decodeCreatedCursor(after, name string) (taskCursor, error) {
 	var c taskCursor
 	if after == "" {
 		return c, nil
 	}
 	if len(after) > 684 {
-		return c, Invalidf("invalid task cursor")
+		return c, Invalidf("invalid %s cursor", name)
 	}
 	raw, err := base64.RawURLEncoding.DecodeString(after)
 	if err != nil || len(raw) > 512 {
-		return c, Invalidf("invalid task cursor")
+		return c, Invalidf("invalid %s cursor", name)
 	}
 	if err = json.Unmarshal(raw, &c); err != nil || c.ID == "" || len(c.ID) > 128 {
-		return c, Invalidf("invalid task cursor")
+		return c, Invalidf("invalid %s cursor", name)
 	}
 	at, err := time.Parse(time.RFC3339Nano, c.CreatedAt)
 	if err != nil || ts(at) != c.CreatedAt {
-		return c, Invalidf("invalid task cursor creation time")
+		return c, Invalidf("invalid %s cursor creation time", name)
 	}
 	return c, nil
 }

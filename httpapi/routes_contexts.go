@@ -2,6 +2,9 @@ package httpapi
 
 import (
 	"context"
+	"errors"
+	"fmt"
+
 	"github.com/krimvp/comitia"
 )
 
@@ -37,6 +40,17 @@ func (h *handler) contextRoutes() map[string]endpoint {
 			}
 			v, err := h.api.AddReference(ctx, token, comitia.AddReferenceInput(*q.Reference))
 			return referenceResult{ptr(referenceDTO(v))}, err
+		}),
+		"references/list": typedEndpoint(func(ctx context.Context, token string, q referencesRequest) (referencePageResult, error) {
+			limit, err := listLimit(q.Limit)
+			if err != nil {
+				return referencePageResult{}, err
+			}
+			v, err := comitia.ListReferences(ctx, h.api, token, q.ContextID, q.AfterID, limit)
+			if err != nil {
+				return referencePageResult{}, err
+			}
+			return referencePageResult{ptr(wireReferencePage(v))}, nil
 		}),
 		"contexts/list": typedEndpoint(func(ctx context.Context, token string, q contextsRequest) (contextsResult, error) {
 			limit, err := listLimit(q.Limit)
@@ -99,6 +113,30 @@ func (c *Client) AddReference(ctx context.Context, token string, input comitia.A
 	}
 	return comitia.Reference(*out.Reference), nil
 }
+
+// ErrReferenceListUnsupported reports a server that predates references/list.
+var ErrReferenceListUnsupported = fmt.Errorf("%w: server does not support listing references; upgrade the server before retrying", comitia.ErrInvalid)
+
+// ListReferences pages a context's references; see comitia.ReferenceListAPI.
+// Only an unknown route answers not_found here: missing contexts are forbidden.
+func (c *Client) ListReferences(ctx context.Context, token, id, after string, limit int) (comitia.ReferencePage, error) {
+	var out referencePageResult
+	err := c.call(ctx, token, "references/list", referencesRequest{ContextID: id, AfterID: after, Limit: &limit}, &out)
+	if errors.Is(err, comitia.ErrNotFound) {
+		return comitia.ReferencePage{}, ErrReferenceListUnsupported
+	}
+	if err = requiredResult(err, out.ReferencePage); err != nil {
+		return comitia.ReferencePage{}, err
+	}
+	page := out.ReferencePage.core()
+	if page.References == nil {
+		page.References = []comitia.Reference{}
+	}
+	return page, nil
+}
+
+var _ comitia.ReferenceListAPI = (*Client)(nil)
+
 func (c *Client) ListContexts(ctx context.Context, token string, after string, limit int) ([]comitia.WorkContext, error) {
 	var out contextsResult
 	err := c.call(ctx, token, "contexts/list", contextsRequest{AfterID: after, Limit: ptr(limit)}, &out)

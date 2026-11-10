@@ -194,6 +194,7 @@ Contexts:
   context-children  list immediate child contexts
   context-archive   archive a context
   reference-add     attach a reference to a context
+  reference-list    list a context's references
 Messages and presence:
   send              append a deduplicated message
   replay            read messages after a sequence

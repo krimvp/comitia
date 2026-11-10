@@ -158,7 +158,7 @@ var operationNames = map[string]string{
 	"messages/append": "send_message", "messages/replay": "replay_messages", "messages/wait": "wait_messages", "messages/ack": "ack_messages", "messages/cursor": "message_cursor", "participants/list": "list_participants",
 	"tasks/create": "create_task", "tasks/get": "get_task", "tasks/list": "list_tasks", "tasks/claim": "claim_task", "tasks/renew": "renew_task", "tasks/complete": "complete_task", "tasks/release": "release_task",
 	"instances/list": "list_instances", "instances/resume": "set_instance_resume",
-	"contexts/list": "list_contexts", "workspaces/create": "create_workspace", "contexts/create": "create_context", "contexts/create-child": "create_context", "contexts/children": "list_child_contexts", "contexts/get": "get_context", "references/add": "add_reference", "contexts/archive": "archive_context",
+	"contexts/list": "list_contexts", "workspaces/create": "create_workspace", "contexts/create": "create_context", "contexts/create-child": "create_context", "contexts/children": "list_child_contexts", "contexts/get": "get_context", "references/add": "add_reference", "references/list": "list_references", "contexts/archive": "archive_context",
 	"principals/create": "create_principal", "sessions/mint": "mint_session", "sessions/delegate": "delegate_session", "sessions/revoke": "revoke_session", "grants/create": "grant_context", "grants/revoke": "revoke_grant",
 }
 

@@ -9,8 +9,9 @@ import (
 
 func contextTools() []map[string]any {
 	return []map[string]any{
-		tool("get_context", "Get readable context metadata, including archive status. References have no readback API.", schema(map[string]any{"context_id": str("Context ID")}, "context_id")),
-		tool("add_reference", "Add a resource reference to an active context with write permission. Stores kind and URI; does not fetch the resource. References have no readback API.", schema(map[string]any{"context_id": str("Context ID"), "kind": limited("Reference kind", comitia.MaxReferenceKindBytes), "uri": limited("Resource URI", comitia.MaxReferenceURIBytes)}, "context_id", "kind", "uri")),
+		tool("get_context", "Get readable context metadata, including archive status. Use list_references for its references.", schema(map[string]any{"context_id": str("Context ID")}, "context_id")),
+		tool("add_reference", "Add a resource reference to an active context with write permission. Stores kind (letters, digits, ._+-/) and an absolute URI with a scheme; does not fetch the resource.", schema(map[string]any{"context_id": str("Context ID"), "kind": limited("Reference kind", comitia.MaxReferenceKindBytes), "uri": limited("Resource URI", comitia.MaxReferenceURIBytes)}, "context_id", "kind", "uri")),
+		tool("list_references", "List a readable context's references (archived contexts included) oldest first. URIs are unverified and may use any scheme. Pass next_after as after_id while has_more.", schema(map[string]any{"context_id": str("Context ID"), "after_id": str("Exclusive cursor from next_after"), "limit": integer("Maximum references, 1-1000 (default 100)")}, "context_id")),
 		tool("archive_context", "Archive a context with grant permission or administrator status. Archived contents remain readable; writes are rejected.", schema(map[string]any{"context_id": str("Context ID")}, "context_id")),
 		tool("create_context", "Create a child context with create permission on its parent. Contexts are the privacy boundary; children are private unless parent_readable grants inherited read. Top-level creation is admin/CLI only.", schema(map[string]any{"parent_context_id": str("Parent context ID"), "name": str("Child context name"), "task_id": str("Optional task in the parent"), "parent_readable": map[string]any{"type": "boolean", "description": "Allow parent readers to read the child (default false)"}}, "parent_context_id", "name")),
 		tool("list_contexts", "List readable contexts with parent/task metadata, ordered by ID. Contexts are the privacy boundary; use the last returned ID as after_id, and an empty page marks the end.", schema(map[string]any{"after_id": str("Exclusive context ID cursor"), "limit": integer("Maximum contexts, 1-1000 (default 100)")})),
@@ -50,6 +51,23 @@ func (s *Server) callContexts(ctx context.Context, name string, raw json.RawMess
 			return nil, err
 		}
 		return s.API.AddReference(ctx, s.Credential, comitia.AddReferenceInput{ContextID: a.ContextID, Kind: a.Kind, URI: a.URI})
+	case "list_references":
+		var a struct {
+			ContextID string `json:"context_id"`
+			AfterID   string `json:"after_id"`
+			Limit     *int   `json:"limit"`
+		}
+		if err := decode(raw, &a); err != nil {
+			return nil, err
+		}
+		if err := required("context_id", a.ContextID); err != nil {
+			return nil, err
+		}
+		limit := 100
+		if a.Limit != nil {
+			limit = *a.Limit
+		}
+		return comitia.ListReferences(ctx, s.API, s.Credential, a.ContextID, a.AfterID, limit)
 	case "create_context":
 		var a struct {
 			ParentContextID string `json:"parent_context_id"`

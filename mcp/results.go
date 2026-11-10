@@ -51,6 +51,8 @@ func resultSummary(name string, value any, arguments json.RawMessage, size int) 
 		return fmt.Sprintf("%d tasks; next_after=%s; has_more=%t%s", len(v.Tasks), v.NextAfter, v.HasMore, suffix)
 	case comitia.ParticipantPage:
 		return fmt.Sprintf("%d participants; next_after=%s; has_more=%t%s", len(v.Participants), v.NextAfter, v.HasMore, suffix)
+	case comitia.ReferencePage:
+		return fmt.Sprintf("%d references; next_after=%s; has_more=%t%s", len(v.References), v.NextAfter, v.HasMore, suffix)
 	case comitia.InstancePage:
 		return fmt.Sprintf("%d instances; next_after=%s; has_more=%t%s", len(v.Instances), v.NextAfter, v.HasMore, suffix)
 	case comitia.Task:

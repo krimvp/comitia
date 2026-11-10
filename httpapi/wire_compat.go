@@ -50,6 +50,8 @@ func legacyValue(value reflect.Value) any {
 		return v.core()
 	case participantPageDTO:
 		return v.core()
+	case referencePageDTO:
+		return v.core()
 	case createContextInput:
 		return comitia.CreateContextInput(v)
 	case childContextInput:

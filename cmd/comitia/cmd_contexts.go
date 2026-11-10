@@ -126,8 +126,8 @@ func runContexts(ctx context.Context, cfg config, api comitia.API, out *json.Enc
 	case "reference-add":
 		fs := newFlags(cmd)
 		cid := fs.String("context-id", "", "context ID")
-		kind := fs.String("kind", "", "reference kind")
-		uri := fs.String("uri", "", "reference URI")
+		kind := fs.String("kind", "", "reference kind: letters, digits and ._+-/")
+		uri := fs.String("uri", "", "absolute reference URI with a scheme")
 		if err := parseFlags(fs, args); err != nil {
 			return err
 		}
@@ -135,6 +135,25 @@ func runContexts(ctx context.Context, cfg config, api comitia.API, out *json.Enc
 			return nil
 		}
 		v, e := api.AddReference(ctx, needCredential(cfg), comitia.AddReferenceInput{ContextID: *cid, Kind: *kind, URI: *uri})
+		if e != nil {
+			return e
+		}
+		return out.Encode(v)
+	case "reference-list":
+		fs := newFlags(cmd)
+		cid := fs.String("context-id", "", "context ID (needs read permission)")
+		after := fs.String("after-id", "", "exclusive cursor from next_after")
+		limit := fs.Int("limit", 100, "maximum references (1-1000)")
+		if err := parseFlags(fs, args); err != nil {
+			return err
+		}
+		if cfg.parseOnly {
+			return nil
+		}
+		if *cid == "" {
+			return comitia.Invalidf("reference-list requires --context-id")
+		}
+		v, e := comitia.ListReferences(ctx, api, needCredential(cfg), *cid, *after, *limit)
 		if e != nil {
 			return e
 		}

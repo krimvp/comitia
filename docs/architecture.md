@@ -72,7 +72,7 @@ After expiry, another worker may recover the task. Late completion from the old 
 The application layer exposes use cases rather than transport-shaped handlers through the `github.com/krimvp/comitia` package. Its `API` interface currently groups:
 
 - workspace and membership management;
-- context creation and resource references;
+- context creation and resource references (optional `ReferenceListAPI` lists them);
 - session and delegated grant lifecycle;
 - durable message append, replay, acknowledgement, and deduplication;
 - task creation, lease acquisition, renewal, completion, release, and recovery.
