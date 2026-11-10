@@ -149,6 +149,12 @@ func (s *Service) CreateTask(ctx context.Context, raw, cid string, in TaskInput)
 	if in.Title == "" {
 		return t, Invalidf("title required")
 	}
+	if e := validText("title", in.Title, MaxTaskTitleBytes); e != nil {
+		return t, e
+	}
+	if e := validText("body", in.Body, MaxTaskBodyBytes); e != nil {
+		return t, e
+	}
 	e := s.store.Update(ctx, func(w WriteStore) error {
 		a, _, e := s.require(w, raw, cid, PermissionWrite)
 		if e != nil {
@@ -223,7 +229,7 @@ func (s *Service) ListTasks(ctx context.Context, raw, cid string, status TaskSta
 		}
 		return e
 	})
-	return out, e
+	return checkTaskArray(out, e)
 }
 
 // The optional instance records which process of a shared session holds the
@@ -240,8 +246,11 @@ func (s *Service) ClaimTaskWithOperation(ctx context.Context, raw, taskID string
 	if e := validOperationID(operationID); e != nil {
 		return c, e
 	}
-	if !validTTL(lease) || len(instance) > 1 {
-		return c, Invalidf("lease must be positive and agent_instance accepts at most one instance")
+	if len(instance) > 1 {
+		return c, Invalidf("agent_instance accepts at most one instance")
+	}
+	if e := validLease(lease); e != nil {
+		return c, e
 	}
 	var owner *AgentInstance
 	if len(instance) == 1 {
@@ -333,8 +342,10 @@ func (s *Service) changeLease(ctx context.Context, raw, taskID, claimToken strin
 	if e := validOperationID(operationID); e != nil {
 		return c, e
 	}
-	if !complete && !validTTL(lease) {
-		return c, Invalidf("lease must be positive")
+	if !complete {
+		if e := validLease(lease); e != nil {
+			return c, e
+		}
 	}
 	e := s.store.Update(ctx, func(w WriteStore) error {
 		t, e := s.privateTask(w, raw, taskID)
@@ -464,6 +475,7 @@ func (s *Service) ReleaseTask(ctx context.Context, raw, taskID, claimToken strin
 		if found.LeaseVersion != version {
 			return ErrStaleClaim
 		}
+		instance := holderInstance(found, a.session.ID)
 		found.Status = TaskPending
 		found.LeaseOwnerSessionID = ""
 		found.LeaseOwnerInstance = nil
@@ -475,7 +487,7 @@ func (s *Service) ReleaseTask(ctx context.Context, raw, taskID, claimToken strin
 		if e := w.PutTask(found); e != nil {
 			return e
 		}
-		if e := putTaskEvent(w, a.session.ID, found, "released", TaskLeased); e != nil {
+		if e := putTaskEventAs(w, a.session.ID, instance, found, "released", TaskLeased); e != nil {
 			return e
 		}
 		eventContext = found.ContextID

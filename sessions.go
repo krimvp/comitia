@@ -67,8 +67,8 @@ func (s *Service) Bootstrap(ctx context.Context, in BootstrapInput) (Principal, 
 	if s.bootstrapCredential == "" || subtle.ConstantTimeCompare([]byte(in.Credential), []byte(s.bootstrapCredential)) != 1 {
 		return p, c, ErrUnauthenticated
 	}
-	if strings.TrimSpace(in.AdminName) == "" || !validTTL(in.SessionTTL) {
-		return p, c, Invalidf("admin_name required and session_ttl must be positive")
+	if strings.TrimSpace(in.AdminName) == "" || in.SessionTTL < minSessionTTL {
+		return p, c, Invalidf("admin_name required and session_ttl must be at least 1s")
 	}
 	err := s.store.Update(ctx, func(w WriteStore) error {
 		used, e := w.BootstrapDone()
@@ -108,8 +108,8 @@ func (s *Service) CreatePrincipal(ctx context.Context, raw, name string) (Princi
 }
 func (s *Service) MintSession(ctx context.Context, raw, principalID string, ttl time.Duration) (Credential, error) {
 	var c Credential
-	if !validTTL(ttl) {
-		return c, Invalidf("ttl must be positive")
+	if e := validSessionTTL(ttl); e != nil {
+		return c, e
 	}
 	e := s.store.Update(ctx, func(w WriteStore) error {
 		if _, e := s.admin(w, raw); e != nil {
@@ -129,8 +129,8 @@ func (s *Service) DelegateSession(ctx context.Context, raw string, in DelegateIn
 	var p Principal
 	var c Credential
 	var out []Grant
-	if strings.TrimSpace(in.PrincipalName) == "" || !validTTL(in.TTL) || len(in.Grants) == 0 {
-		return p, c, nil, Invalidf("principal_name required, ttl must be positive and grants must not be empty")
+	if strings.TrimSpace(in.PrincipalName) == "" || in.TTL < minSessionTTL || len(in.Grants) == 0 {
+		return p, c, nil, Invalidf("principal_name required, ttl must be at least 1s and grants must not be empty")
 	}
 	e := s.store.Update(ctx, func(w WriteStore) error {
 		parent, e := s.auth(w, raw)
@@ -141,6 +141,9 @@ func (s *Service) DelegateSession(ctx context.Context, raw string, in DelegateIn
 		expiry := now.Add(in.TTL)
 		if expiry.After(parent.session.ExpiresAt) {
 			return ErrForbidden
+		}
+		if e = checkDelegationDepth("session", parent.session.ID, sessionParent(w)); e != nil {
+			return e
 		}
 		p = Principal{ID: id(), Name: in.PrincipalName, CreatedAt: now}
 		tok := token()
@@ -156,16 +159,9 @@ func (s *Service) DelegateSession(ctx context.Context, raw string, in DelegateIn
 			if e = s.contextActive(w, req.ContextID); e != nil {
 				return e
 			}
-			var source *Grant
-			for i := range parents {
-				g := &parents[i]
-				if g.Permissions&(req.Permissions|PermissionGrant) == (req.Permissions|PermissionGrant) && !req.ExpiresAt.After(g.ExpiresAt) {
-					source = g
-					break
-				}
-			}
-			if source == nil {
-				return ErrForbidden
+			source, e := delegationSource(w, parents, req.Permissions, req.ExpiresAt)
+			if e != nil {
+				return e
 			}
 			out = append(out, Grant{ID: id(), SessionID: c.Session.ID, ContextID: req.ContextID, ParentGrantID: source.ID, IssuerSessionID: parent.session.ID, Permissions: req.Permissions, ExpiresAt: req.ExpiresAt, CreatedAt: now})
 		}

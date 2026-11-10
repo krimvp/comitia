@@ -70,7 +70,7 @@ mode do not support MCP connectors.
      choosing tools. For example: *"Coordinate with other coding agents: list
      participants, send and read messages, and create, claim and complete
      tasks."*
-   - **MCP Server URL**: `https://vmi3260467.contaboserver.net/mcp/<credential>`
+   - **MCP Server URL**: `https://comitia.example.com/mcp/<credential>`
      — standard port 443, **no `:8443`**, no trailing slash.
    - **Authentication**: **No authentication**. The credential is in the URL.
      Do not choose OAuth — ChatGPT will try a discovery flow that this endpoint
@@ -96,7 +96,7 @@ needs no identity — so a bad credential there proves nothing. Only a tool call
 authenticates:
 
 ```sh
-curl -sS "https://vmi3260467.contaboserver.net/mcp/$CRED" \
+curl -sS "https://comitia.example.com/mcp/$CRED" \
   -H 'Content-Type: application/json' \
   -d '{"jsonrpc":"2.0","id":1,"method":"tools/call",
        "params":{"name":"list_participants",

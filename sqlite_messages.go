@@ -320,57 +320,75 @@ func (x *sqlStore) Participants(cid string, now time.Time, limit int) ([]Partici
 	return x.ParticipantsAfter(cid, now, "", limit)
 }
 func (x *sqlStore) ParticipantsAfter(cid string, now time.Time, afterID string, limit int) ([]Participant, error) {
-	rows, err := x.q.Query("SELECT DISTINCT session_id FROM grants WHERE context_id=? AND session_id>? ORDER BY session_id", cid, afterID)
+	// Effective access is decided per session, so holders are read in
+	// limit-sized chunks until the page is full instead of all at once.
+	chunk := limit
+	if chunk <= 0 {
+		chunk = -1
+	}
+	out := []Participant{}
+	for {
+		ids, err := x.participantCandidates(cid, afterID, chunk)
+		if err != nil {
+			return nil, err
+		}
+		if len(ids) == 0 {
+			return out, nil
+		}
+		afterID = ids[len(ids)-1]
+		for _, sid := range ids {
+			p, ok, err := x.participant(cid, sid, now)
+			if err != nil {
+				return nil, err
+			}
+			if !ok {
+				continue
+			}
+			out = append(out, p)
+			if len(out) == limit {
+				return out, nil
+			}
+		}
+		if chunk < 0 || len(ids) < chunk {
+			return out, nil
+		}
+	}
+}
+func (x *sqlStore) participantCandidates(cid, afterID string, limit int) ([]string, error) {
+	rows, err := x.q.Query("SELECT DISTINCT session_id FROM grants WHERE context_id=? AND session_id>? ORDER BY session_id LIMIT ?", cid, afterID, limit)
 	if err != nil {
 		return nil, err
 	}
+	defer rows.Close()
 	var ids []string
 	for rows.Next() {
 		var sid string
 		if err = rows.Scan(&sid); err != nil {
-			rows.Close()
 			return nil, err
 		}
 		ids = append(ids, sid)
 	}
-	err = rows.Err()
-	rows.Close()
+	return ids, rows.Err()
+}
+func (x *sqlStore) participant(cid, sid string, now time.Time) (Participant, bool, error) {
+	session, err := x.Session(sid)
+	if err != nil || session.RevokedAt != nil || !session.ExpiresAt.After(now) {
+		return Participant{}, false, err
+	}
+	grants, err := x.Grants(sid, cid, now)
 	if err != nil {
-		return nil, err
+		return Participant{}, false, err
 	}
-	out := []Participant{}
-	for _, sid := range ids {
-		session, err := x.Session(sid)
-		if err != nil {
-			return nil, err
-		}
-		if session.RevokedAt != nil || !session.ExpiresAt.After(now) {
-			continue
-		}
-		grants, err := x.Grants(sid, cid, now)
-		if err != nil {
-			return nil, err
-		}
-		readable := false
-		for _, g := range grants {
-			if g.Permissions&PermissionRead != 0 {
-				readable = true
-				break
+	for _, g := range grants {
+		if g.Permissions&PermissionRead != 0 {
+			principal, err := x.Principal(session.PrincipalID)
+			if err != nil {
+				return Participant{}, false, err
 			}
-		}
-		if !readable {
-			continue
-		}
-		principal, err := x.Principal(session.PrincipalID)
-		if err != nil {
-			return nil, err
-		}
-		out = append(out, Participant{SessionID: sid, PrincipalID: principal.ID, Name: principal.Name, ExpiresAt: session.ExpiresAt})
-		if len(out) == limit {
-			break
+			return Participant{SessionID: sid, PrincipalID: principal.ID, Name: principal.Name, ExpiresAt: session.ExpiresAt}, true, nil
 		}
 	}
-	return out, nil
+	return Participant{}, false, nil
 }
 
 // Recipient seeks must apply these selectors before their per-class limit.

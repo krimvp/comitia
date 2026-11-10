@@ -3,6 +3,7 @@ package comitia
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -106,21 +107,24 @@ func TestDeepGrantFanInEvaluatesEachRecordOnce(t *testing.T) {
 	f := setup(t, ":memory:")
 	defer f.store.Close()
 	ctx := context.Background()
-	cred := f.admin
-	grant := DelegatedGrant{ContextID: f.context.ID, Permissions: PermissionRead | PermissionGrant, ExpiresAt: f.now.Add(time.Hour)}
-	for i := 0; i < 40; i++ {
-		_, child, _, err := f.svc.DelegateSession(ctx, cred.Token, DelegateInput{PrincipalName: "delegate", TTL: 2 * time.Hour, Grants: []DelegatedGrant{grant}})
-		if err != nil {
-			t.Fatal(err)
+	// Deeper than new delegations may go: written as an older binary could have.
+	cred := legacyChain(t, f, 40, true)
+	leaf := Credential{Session: Session{ID: id(), PrincipalID: cred.Session.PrincipalID, ParentID: cred.Session.ID, ExpiresAt: f.now.Add(time.Hour), CreatedAt: *f.now}}
+	if err := f.store.Update(ctx, func(w WriteStore) error {
+		parents, err := w.Grants(cred.Session.ID, f.context.ID, *f.now)
+		if err != nil || len(parents) != 1 {
+			return fmt.Errorf("chain grant: %d %v", len(parents), err)
 		}
-		cred = child
-	}
-	grants := make([]DelegatedGrant, 40)
-	for i := range grants {
-		grants[i] = grant
-	}
-	_, leaf, _, err := f.svc.DelegateSession(ctx, cred.Token, DelegateInput{PrincipalName: "leaf", TTL: 2 * time.Hour, Grants: grants})
-	if err != nil {
+		if err = w.PutSession(leaf.Session, tokenHash(token())); err != nil {
+			return err
+		}
+		for i := 0; i < 40; i++ {
+			if err = w.PutGrant(Grant{ID: id(), SessionID: leaf.Session.ID, ContextID: f.context.ID, ParentGrantID: parents[0].ID, IssuerSessionID: cred.Session.ID, Permissions: PermissionRead, ExpiresAt: f.now.Add(time.Hour), CreatedAt: *f.now}); err != nil {
+				return err
+			}
+		}
+		return nil
+	}); err != nil {
 		t.Fatal(err)
 	}
 	counts := new(grantQueryCounts)

@@ -65,8 +65,29 @@ func token() string {
 	}
 	return "ct_" + hex.EncodeToString(b[:])
 }
-func tokenHash(t string) string     { h := sha256.Sum256([]byte(t)); return hex.EncodeToString(h[:]) }
-func validTTL(d time.Duration) bool { return d > 0 }
+func tokenHash(t string) string { h := sha256.Sum256([]byte(t)); return hex.EncodeToString(h[:]) }
+
+// Lease and session TTL bounds, enforced here so every adapter shares them.
+const (
+	minLease      = time.Second
+	maxLease      = 24 * time.Hour
+	minSessionTTL = time.Second
+)
+
+// validLease admits OpenLease or a lease between minLease and maxLease.
+func validLease(d time.Duration) error {
+	if d != OpenLease && (d < minLease || d > maxLease) {
+		return Invalidf("lease must be between 1s and 24h, or open-ended")
+	}
+	return nil
+}
+
+func validSessionTTL(d time.Duration) error {
+	if d < minSessionTTL {
+		return Invalidf("ttl must be at least 1s")
+	}
+	return nil
+}
 
 type authInfo struct {
 	session   Session

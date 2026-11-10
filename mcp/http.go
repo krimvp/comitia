@@ -38,8 +38,10 @@ type HTTPConfig struct {
 	MaxBody int64
 
 	// RatePerSecond and RateBurst bound the steady-state and peak request rate
-	// per credential. Zero disables limiting. This is a local backstop against
-	// accidental agent loops; edge rate limiting remains the primary control.
+	// per credential, and the same budget bounds rejected credentials across
+	// all callers (see unverifiedGate). Zero disables limiting. This is a local
+	// backstop against accidental agent loops and credential floods; edge rate
+	// limiting remains the primary control.
 	RatePerSecond float64
 	RateBurst     int
 }
@@ -59,17 +61,27 @@ func NewHTTPHandler(api comitia.API, cfg HTTPConfig) http.Handler {
 	if cfg.MaxBody <= 0 {
 		cfg.MaxBody = 1 << 20 // 1 MiB, matching the REST adapter's cap
 	}
-	t := &httpTransport{api: api, cfg: cfg}
+	t := &httpTransport{api: api, cfg: cfg, waits: &waitLimiter{inFlight: make(map[string]int), max: maxHTTPWaitsPerCredential}}
 	if cfg.RatePerSecond > 0 && cfg.RateBurst > 0 {
 		t.limiter = newKeyLimiter(cfg.RatePerSecond, cfg.RateBurst)
+		t.unverified = newKeyLimiter(cfg.RatePerSecond, cfg.RateBurst)
+		t.gate = newUnverifiedGate(cfg.RatePerSecond, cfg.RateBurst)
 	}
 	return t
 }
 
+// maxHTTPWaitsPerCredential matches the stdio in-flight call cap.
+const maxHTTPWaitsPerCredential = maxStdioCalls
+
 type httpTransport struct {
 	api     comitia.API
 	cfg     HTTPConfig
-	limiter *keyLimiter
+	limiter *keyLimiter // credentials with a recent authenticated result
+	// unverified holds every other credential string, so arbitrary strings
+	// cannot evict the buckets of credentials known to be valid.
+	unverified *keyLimiter
+	gate       *unverifiedGate
+	waits      *waitLimiter
 }
 
 func (t *httpTransport) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -113,13 +125,11 @@ func (t *httpTransport) post(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var req request
-	if err := json.Unmarshal(body, &req); err != nil {
-		writeRPCError(w, http.StatusBadRequest, -32700, "parse error")
-		return
-	}
-	if req.JSONRPC != "2.0" || req.Method == "" {
-		writeRPCError(w, http.StatusBadRequest, -32600, "invalid request")
+	req, reject := readRequest(body)
+	if reject != nil {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		_ = json.NewEncoder(w).Encode(reject)
 		return
 	}
 
@@ -156,14 +166,22 @@ func (t *httpTransport) post(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if t.limiter != nil && !t.limiter.allow(cred) {
-		w.Header().Set("Retry-After", "1")
-		writeRPCError(w, http.StatusTooManyRequests, -32000, "rate limit exceeded")
-		return
+	verified := t.gate != nil && t.gate.isVerified(cred)
+	if t.limiter != nil {
+		limiter := t.unverified
+		if verified {
+			limiter = t.limiter
+		}
+		if !limiter.allow(cred) {
+			w.Header().Set("Retry-After", "1")
+			writeRPCError(w, http.StatusTooManyRequests, -32000, "rate limit exceeded")
+			return
+		}
 	}
 
-	// A notification carries no id and is acknowledged without a response body.
-	if len(req.ID) == 0 {
+	// A notification carries no id, and a client response no method; both are
+	// acknowledged without a response body.
+	if len(req.ID) == 0 || req.Method == "" {
 		w.WriteHeader(http.StatusAccepted)
 		return
 	}
@@ -172,15 +190,69 @@ func (t *httpTransport) post(w http.ResponseWriter, r *http.Request) {
 	// connection is stateful. Over HTTP each request is independent, so the
 	// per-connection gate does not apply; the credential is the real
 	// authorization boundary and is checked on every call.
+	tool := toolCallName(req)
+	if tool == "wait_messages" {
+		if !t.waits.acquire(cred) {
+			w.Header().Set("Retry-After", "1")
+			writeRPCError(w, http.StatusTooManyRequests, -32000, "too many wait_messages calls in flight for this credential; retry after one returns")
+			return
+		}
+		defer t.waits.release(cred)
+	}
+	reserved := tool != "" && t.gate != nil && !verified
+	if reserved && !t.gate.take() {
+		w.Header().Set("Retry-After", "1")
+		writeRPCError(w, http.StatusTooManyRequests, -32000, "too many calls with unverified credentials; retry later")
+		return
+	}
 	res, refused := t.withoutDelegation(req)
 	if !refused {
 		srv := &Server{DiagnosticHook: t.cfg.DiagnosticHook, API: t.api, Credential: cred, SessionsDir: t.cfg.SessionsDir, ServerURL: t.cfg.ServerURL, InstanceDefaults: t.cfg.InstanceDefaults}
 		res = srv.handle(r.Context(), req)
+		if tool != "" && t.gate != nil {
+			checked, authenticated := authOutcome(res)
+			t.gate.settle(cred, reserved, checked, authenticated)
+		}
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	_ = json.NewEncoder(w).Encode(res)
+}
+
+func toolCallName(req request) string {
+	var p struct {
+		Name string `json:"name"`
+	}
+	if req.Method != "tools/call" || json.Unmarshal(req.Params, &p) != nil {
+		return ""
+	}
+	return p.Name
+}
+
+// authOutcome reports whether a tool result shows the daemon's verdict on the
+// credential: success and post-authentication refusals prove it valid, while
+// errors raised before authentication (such as invalid arguments) prove nothing.
+func authOutcome(res response) (checked, authenticated bool) {
+	result, ok := res.Result.(map[string]any)
+	if res.Error != nil || !ok {
+		return false, false
+	}
+	if result["isError"] != true {
+		return true, true
+	}
+	content, _ := result["structuredContent"].(map[string]any)
+	info, ok := content["error"].(comitia.ErrorInfo)
+	if !ok {
+		return false, false
+	}
+	switch info.Code {
+	case "unauthenticated":
+		return true, false
+	case "forbidden", "not_found", "conflict", "stale_claim":
+		return true, true
+	}
+	return false, false
 }
 
 const delegationDisabled = "delegate_session is disabled on this server; start mcp-http with --allow-delegation"

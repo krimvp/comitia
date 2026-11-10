@@ -203,6 +203,16 @@ func TestV1UpgradeOrderCompatibility(t *testing.T) {
 						}
 					}
 				}
+				// Old Clients omit an ack of 0; every pairing still acknowledges it.
+				if err := client.AckMessages(ctx, owner.Token, parent.ID, 0); err != nil {
+					t.Fatalf("ack zero: %v", err)
+				}
+				if err := client.AckMessages(ctx, owner.Token, parent.ID, message.Sequence); err != nil {
+					t.Fatalf("ack: %v", err)
+				}
+				if cursor, err := client.MessageCursor(ctx, owner.Token, parent.ID); err != nil || cursor != message.Sequence {
+					t.Fatalf("ack cursor: %d %v", cursor, err)
+				}
 				_, helper, grants, err := client.DelegateSession(ctx, owner.Token, comitia.DelegateInput{PrincipalName: "helper", TTL: 2 * time.Hour, Grants: []comitia.DelegatedGrant{{ContextID: parent.ID, Permissions: comitia.PermissionRead, ExpiresAt: now.Add(time.Hour)}, {ContextID: child.ID, Permissions: comitia.PermissionRead, ExpiresAt: now.Add(30 * time.Minute)}}})
 				if err != nil || len(grants) != 2 || helper.Token == "" || helper.Session.ParentID != owner.Session.ID || !helper.Session.ExpiresAt.Equal(now.Add(2*time.Hour)) {
 					t.Fatalf("delegate metadata lost: %+v %v", helper.Session, err)

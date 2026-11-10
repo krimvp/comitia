@@ -6,15 +6,15 @@ everything else - most importantly the inspector and the REST API - is not.
 """
 import http.client, json, os, pathlib, socket, ssl, sys
 
-HOST = "vmi3260467.contaboserver.net"
-IP = "45.88.191.59"
+HOST = os.environ.get("COMITIA_PUBLIC_HOST") or sys.exit("set COMITIA_PUBLIC_HOST to the public MCP hostname")
+IP = os.environ.get("COMITIA_PUBLIC_IP") or socket.gethostbyname(HOST)
 
 # Prefer the real public DNS name so this genuinely tests going out to the
 # internet; fall back to the IP when the host resolves only locally.
 def public_ok():
     try:
         addrs = {a[4][0] for a in socket.getaddrinfo(HOST, PORT, proto=socket.IPPROTO_TCP)}
-        return any(a.startswith("45.88.191.59") for a in addrs)
+        return IP in addrs
     except Exception:
         return False
 

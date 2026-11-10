@@ -12,6 +12,7 @@ import (
 	"log"
 	"reflect"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/krimvp/comitia"
@@ -58,6 +59,9 @@ type request struct {
 	ID      json.RawMessage `json:"id,omitempty"`
 	Method  string          `json:"method"`
 	Params  json.RawMessage `json:"params,omitempty"`
+	// Result and Error mark a JSON-RPC response sent by the client.
+	Result json.RawMessage `json:"result,omitempty"`
+	Error  json.RawMessage `json:"error,omitempty"`
 }
 type response struct {
 	JSONRPC string          `json:"jsonrpc"`
@@ -71,6 +75,7 @@ type rpcError struct {
 }
 
 const maxStdioCalls = 8
+const maxStdioLine = 4 * 1024 * 1024
 const stdioShutdownTimeout = time.Second
 
 // Serve reads and writes newline-delimited JSON-RPC messages as required by the
@@ -82,24 +87,33 @@ func (s *Server) Serve(ctx context.Context, in io.Reader, out io.Writer) error {
 	runCtx, stop := context.WithCancel(ctx)
 	defer stop()
 	type input struct {
-		line []byte
-		err  error
+		line     []byte
+		tooLarge bool
+		err      error
 	}
 	scanLines := make(chan input)
 	lines := scanLines
 	go func() {
-		scan := bufio.NewScanner(in)
-		scan.Buffer(make([]byte, 64*1024), 4*1024*1024)
-		for scan.Scan() {
-			select {
-			case scanLines <- input{line: bytes.Clone(scan.Bytes())}:
-			case <-runCtx.Done():
+		rd := bufio.NewReaderSize(in, 64*1024)
+		for {
+			line, tooLarge, err := readLine(rd, maxStdioLine)
+			if tooLarge || len(bytes.TrimSpace(line)) > 0 {
+				select {
+				case scanLines <- input{line: line, tooLarge: tooLarge}:
+				case <-runCtx.Done():
+					return
+				}
+			}
+			if err != nil {
+				if err == io.EOF {
+					err = nil
+				}
+				select {
+				case scanLines <- input{err: err}:
+				case <-runCtx.Done():
+				}
 				return
 			}
-		}
-		select {
-		case scanLines <- input{err: scan.Err()}:
-		case <-runCtx.Done():
 		}
 	}()
 	defer func() {
@@ -187,6 +201,13 @@ func (s *Server) Serve(ctx context.Context, in io.Reader, out io.Writer) error {
 				}
 			}
 		case next := <-lines:
+			if next.tooLarge {
+				// The id is unknowable, so the error goes to id null.
+				if err := enc.Encode(response{JSONRPC: "2.0", Error: &rpcError{-32600, "request too large"}}); err != nil {
+					return err
+				}
+				continue
+			}
 			if next.line == nil {
 				lines = nil
 				serveErr = next.err
@@ -196,18 +217,15 @@ func (s *Server) Serve(ctx context.Context, in io.Reader, out io.Writer) error {
 				startShutdown()
 				continue
 			}
-			var req request
-			if err := json.Unmarshal(next.line, &req); err != nil {
-				if err := enc.Encode(response{JSONRPC: "2.0", Error: &rpcError{-32700, "parse error"}}); err != nil {
+			req, reject := readRequest(next.line)
+			if reject != nil {
+				if err := enc.Encode(reject); err != nil {
 					return err
 				}
 				continue
 			}
-			if req.JSONRPC != "2.0" || req.Method == "" {
-				if err := enc.Encode(response{JSONRPC: "2.0", ID: req.ID, Error: &rpcError{-32600, "invalid request"}}); err != nil {
-					return err
-				}
-				continue
+			if req.Method == "" {
+				continue // a client response; nothing was asked of this server
 			}
 			if len(req.ID) == 0 {
 				if req.Method == "notifications/cancelled" {
@@ -264,6 +282,67 @@ func (s *Server) Serve(ctx context.Context, in io.Reader, out io.Writer) error {
 			}
 		}
 	}
+}
+
+// readLine returns the next line without its terminator. A line longer than
+// limit is discarded through its newline, never buffered, and reported as
+// tooLarge so one oversized message cannot end the connection.
+func readLine(rd *bufio.Reader, limit int) (line []byte, tooLarge bool, err error) {
+	for {
+		chunk, e := rd.ReadSlice('\n')
+		if !tooLarge {
+			line = append(line, chunk...)
+			if tooLarge = len(line) > limit+2; tooLarge {
+				line = nil
+			}
+		}
+		if e != bufio.ErrBufferFull {
+			err = e
+			break
+		}
+	}
+	if err != nil && err != io.EOF {
+		return nil, false, err
+	}
+	line = bytes.TrimSuffix(bytes.TrimSuffix(line, []byte("\n")), []byte("\r"))
+	if len(line) > limit {
+		return nil, true, err
+	}
+	return line, tooLarge, err
+}
+
+// readRequest decodes one JSON-RPC message for either transport. A non-nil
+// reject is the reply. With neither a reject nor a method, the message is a
+// response from the client and needs no answer.
+func readRequest(b []byte) (request, *response) {
+	var req request
+	reject := func(id json.RawMessage, code int, message string) (request, *response) {
+		if stdioRequestKey(id) == "" {
+			id = nil // null, structured or fractional ids are never echoed
+		}
+		return req, &response{JSONRPC: "2.0", ID: id, Error: &rpcError{code, message}}
+	}
+	if err := json.Unmarshal(b, &req); err != nil {
+		if !json.Valid(b) {
+			return reject(nil, -32700, "parse error")
+		}
+		if trimmed := bytes.TrimSpace(b); trimmed[0] == '[' {
+			// MCP 2025-06-18 removed JSON-RPC batching.
+			return reject(nil, -32600, "batch requests are not supported")
+		}
+		return reject(nil, -32600, "invalid request")
+	}
+	if req.Method == "" && (req.Result != nil || req.Error != nil) {
+		return req, nil
+	}
+	if req.JSONRPC != "2.0" || req.Method == "" {
+		return reject(req.ID, -32600, "invalid request")
+	}
+	// MCP ids are strings or integers; null is not a request id.
+	if len(req.ID) > 0 && stdioRequestKey(req.ID) == "" {
+		return reject(nil, -32600, "invalid request: id must be a string or integer")
+	}
+	return req, nil
 }
 
 func stdioRequestKey(id json.RawMessage) string {
@@ -327,6 +406,11 @@ func (s *Server) handle(ctx context.Context, req request) response {
 		}
 		if json.Unmarshal(req.Params, &p) != nil || p.Name == "" {
 			r.Error = &rpcError{-32602, "invalid params"}
+			return r
+		}
+		if !toolNames()[p.Name] {
+			// MCP reports an unknown tool as a protocol error, not a tool result.
+			r.Error = &rpcError{-32602, "unknown tool"}
 			return r
 		}
 		started := time.Now()
@@ -405,6 +489,12 @@ func nullableProperty(property map[string]any) map[string]any {
 	return out
 }
 func str(desc string) map[string]any { return map[string]any{"type": "string", "description": desc} }
+
+// limited advertises a byte limit; maxLength counts characters, so it is the
+// same number as a looser bound and the description states the byte rule.
+func limited(desc string, bytes int) map[string]any {
+	return map[string]any{"type": "string", "maxLength": bytes, "description": fmt.Sprintf("%s (at most %d bytes of UTF-8)", desc, bytes)}
+}
 func integer(desc string) map[string]any {
 	return map[string]any{"type": "integer", "description": desc}
 }
@@ -425,6 +515,15 @@ var toolGroups = []struct {
 	{sessionTools, (*Server).callSessions},
 	{presenceTools, (*Server).callPresence},
 }
+
+// toolNames is the set of every tool name tools/list can advertise.
+var toolNames = sync.OnceValue(func() map[string]bool {
+	names := make(map[string]bool)
+	for _, t := range tools() {
+		names[t["name"].(string)] = true
+	}
+	return names
+})
 
 func tools() []map[string]any {
 	var out []map[string]any

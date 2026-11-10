@@ -370,6 +370,58 @@ func TestHTTPBodyLimit(t *testing.T) {
 	}
 }
 
+func TestHTTPRejectsInvalidMessages(t *testing.T) {
+	h := NewHTTPHandler(&stubAPI{}, HTTPConfig{})
+	auth := map[string]string{"Authorization": "Bearer good"}
+	for _, tc := range []struct {
+		body string
+		code int
+	}{
+		{`{"jsonrpc":"2.0","id":null,"method":"ping"}`, -32600},
+		{`{"jsonrpc":"2.0","id":{"a":1},"method":"ping"}`, -32600},
+		{`{"jsonrpc":"2.0","id":[1],"method":"ping"}`, -32600},
+		{`[{"jsonrpc":"2.0","id":1,"method":"ping"}]`, -32600},
+		{`{"jsonrpc":"2.0","id":`, -32700},
+	} {
+		rec := post(t, h, tc.body, auth)
+		var res stdioResponse
+		if err := json.Unmarshal(rec.Body.Bytes(), &res); err != nil || rec.Code != http.StatusBadRequest || string(res.ID) != "null" || res.Error == nil || res.Error.Code != tc.code {
+			t.Fatalf("%s: status %d body %s", tc.body, rec.Code, rec.Body.String())
+		}
+	}
+}
+
+func TestHTTPClientResponseAccepted(t *testing.T) {
+	h := NewHTTPHandler(&stubAPI{}, HTTPConfig{})
+	rec := post(t, h, `{"jsonrpc":"2.0","id":3,"result":{}}`, map[string]string{"Authorization": "Bearer good"})
+	if rec.Code != http.StatusAccepted || rec.Body.Len() != 0 {
+		t.Fatalf("client response: status %d body %q", rec.Code, rec.Body.String())
+	}
+}
+
+func TestHTTPUnknownToolIsInvalidParams(t *testing.T) {
+	h := NewHTTPHandler(&stubAPI{}, HTTPConfig{})
+	rec := post(t, h, call("no_such_tool"), map[string]string{"Authorization": "Bearer good"})
+	var res stdioResponse
+	if err := json.Unmarshal(rec.Body.Bytes(), &res); err != nil || string(res.ID) != "1" || res.Error == nil || res.Error.Code != -32602 || len(res.Result) != 0 {
+		t.Fatalf("unknown tool: status %d body %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestHTTPDecodeErrorsNameFieldsAndJSONTypes(t *testing.T) {
+	h := NewHTTPHandler(&stubAPI{}, HTTPConfig{})
+	for args, want := range map[string]string{
+		`{"context_id":"ctx1","strict_recipients":"yes"}`: "strict_recipients must have type boolean",
+		`{"context_id":"ctx1","limit":"10"}`:              "limit must have type integer",
+		`{"context_id":"ctx1","schemas":"a"}`:             "schemas must have type array",
+	} {
+		rec := post(t, h, `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"replay_messages","arguments":`+args+`}}`, map[string]string{"Authorization": "Bearer good"})
+		if body := rec.Body.String(); !strings.Contains(body, want) || strings.Contains(body, "MessageFilters") || strings.Contains(body, "bool ") || strings.Contains(body, "int ") {
+			t.Fatalf("%s: want %q, got %s", args, want, body)
+		}
+	}
+}
+
 func TestHTTPGetNotAllowed(t *testing.T) {
 	h := NewHTTPHandler(&stubAPI{}, HTTPConfig{})
 	req := httptest.NewRequest(http.MethodGet, "/mcp", nil)

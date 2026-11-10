@@ -111,7 +111,14 @@ func (h *handler) messageRoutes() map[string]endpoint {
 			return wireReadResult(v, q.MaxBytes)
 		}),
 		"messages/ack": typedEndpoint(func(ctx context.Context, token string, q ackRequest) (emptyResult, error) {
-			return emptyResult{}, h.api.AckMessages(ctx, token, q.ContextID, q.After, q.AgentInstance)
+			var after int64
+			if q.After != nil {
+				after = *q.After
+			} else if canonicalRequest(ctx) {
+				// Legacy clients omit an ack of 0; negotiated callers must name it.
+				return emptyResult{}, comitia.Invalidf("after required")
+			}
+			return emptyResult{}, h.api.AckMessages(ctx, token, q.ContextID, after, q.AgentInstance)
 		}),
 		"messages/cursor": typedEndpoint(func(ctx context.Context, token string, q cursorRequest) (cursorResult, error) {
 			v, err := h.api.MessageCursor(ctx, token, q.ContextID, q.AgentInstance)
@@ -395,7 +402,7 @@ func (c *Client) AckMessages(ctx context.Context, token, id string, sequence int
 	if err != nil {
 		return err
 	}
-	return c.call(ctx, token, "messages/ack", ackRequest{id, sequence, instance}, &emptyResult{})
+	return c.call(ctx, token, "messages/ack", ackRequest{id, &sequence, instance}, &emptyResult{})
 }
 func (c *Client) MessageCursor(ctx context.Context, token, id string, instances ...string) (int64, error) {
 	instance, err := c.InstanceDefaults.ID(instances...)

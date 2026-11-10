@@ -309,13 +309,20 @@ type appendRequest struct {
 
 type ackRequest struct {
 	ContextID     string `json:"context_id"`
-	After         int64  `json:"after"`
+	After         *int64 `json:"after"`
 	AgentInstance string `json:"agent_instance,omitempty"`
 }
 
 type cursorRequest struct {
 	ContextID     string `json:"context_id"`
 	AgentInstance string `json:"agent_instance,omitempty"`
+}
+
+type instancesRequest struct {
+	ContextID string `json:"context_id"`
+	Page      bool   `json:"page,omitempty"`
+	AfterID   string `json:"after_id,omitempty"`
+	Limit     *int   `json:"limit,omitempty"`
 }
 
 type resumeRequest struct {
@@ -424,6 +431,10 @@ type tasksResult struct {
 }
 type instancesResult struct {
 	Instances []comitia.InstancePresence `json:"instances"`
+}
+type listInstancesResult struct {
+	Instances    *[]comitia.InstancePresence `json:"instances,omitempty"`
+	InstancePage *comitia.InstancePage       `json:"instance_page,omitempty"`
 }
 type delegateResult struct {
 	Principal  *principalDTO  `json:"principal"`

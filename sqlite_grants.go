@@ -9,7 +9,11 @@ const grantSchema = `
 CREATE TABLE IF NOT EXISTS grants (id TEXT PRIMARY KEY, session_id TEXT NOT NULL REFERENCES sessions(id), context_id TEXT NOT NULL REFERENCES contexts(id), parent_grant_id TEXT REFERENCES grants(id), issuer_session_id TEXT NOT NULL REFERENCES sessions(id), permissions INTEGER NOT NULL, expires_at TEXT NOT NULL, revoked_at TEXT, created_at TEXT NOT NULL);
 CREATE INDEX IF NOT EXISTS grants_lookup ON grants(session_id,context_id);
 CREATE INDEX IF NOT EXISTS grants_context_sessions ON grants(context_id,session_id);
+CREATE INDEX IF NOT EXISTS grants_parent ON grants(parent_grant_id);
 `
+
+// Revocation cascades seek grants_parent; see revokeSessionTreeSQL.
+const revokeGrantTreeSQL = `WITH RECURSIVE d(id) AS (SELECT id FROM grants WHERE id=? UNION ALL SELECT g.id FROM grants g JOIN d ON g.parent_grant_id=d.id) UPDATE grants SET revoked_at=? WHERE id IN (SELECT id FROM d) AND revoked_at IS NULL`
 
 func (x *sqlStore) PutGrant(g Grant) error {
 	x.invalidateGrantPolicy()
@@ -75,7 +79,7 @@ func (x *sqlStore) effectiveGrants(candidates []Grant, now time.Time) ([]Grant, 
 
 func (x *sqlStore) RevokeGrantTree(root string, at time.Time) error {
 	x.invalidateGrantPolicy()
-	r, e := x.q.Exec(`WITH RECURSIVE d(id) AS (SELECT id FROM grants WHERE id=? UNION ALL SELECT g.id FROM grants g JOIN d ON g.parent_grant_id=d.id) UPDATE grants SET revoked_at=? WHERE id IN (SELECT id FROM d) AND revoked_at IS NULL`, root, ts(at))
+	r, e := x.q.Exec(revokeGrantTreeSQL, root, ts(at))
 	if e != nil {
 		return e
 	}

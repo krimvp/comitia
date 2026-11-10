@@ -39,6 +39,9 @@ reducing them does not remove existing contexts or prevent reading deeper trees.
 Creation uses the longest-lived live `create` grant with remaining quota. A holder
 of `grant,create` can delegate `create`, giving each new grant its own budget;
 the count bounds sprawl per grant, rather than per coordinator or delegation tree.
+Delegation chains are capped: a new delegated session or grant may have at most
+**16** session or grant ancestors (`ErrInvalid` otherwise); deeper chains already
+in a database keep working.
 
 A holder of `grant` on a context, or an administrator, can archive it:
 

@@ -20,7 +20,8 @@ import ssl
 import sys
 import urllib.request
 
-HOST = os.environ.get("COMITIA_HOST", "vmi3260467.contaboserver.net")
+HOST = (os.environ.get("COMITIA_PUBLIC_HOST") or os.environ.get("COMITIA_HOST")
+        or sys.exit("set COMITIA_PUBLIC_HOST to the public MCP hostname"))
 CRED = os.environ.get("COMITIA_CREDENTIAL", "")
 CTX = os.environ.get("COMITIA_CONTEXT_ID", "")
 if not CRED or not CTX:

@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"flag"
 	"io"
 	"os"
 
@@ -14,11 +15,26 @@ func runPresence(ctx context.Context, cfg config, api comitia.API, out *json.Enc
 	case "instances":
 		fs := newFlags(cmd)
 		cid := fs.String("context-id", "", "context ID")
+		page := fs.Bool("page", false, "return items, next_after and has_more")
+		after := fs.String("after-id", "", "exclusive cursor from next_after (implies --page)")
+		limit := fs.Int("limit", comitia.DefaultInstanceListLimit, "maximum instances (1-1000)")
 		if err := parseFlags(fs, args); err != nil {
 			return err
 		}
 		if cfg.parseOnly {
 			return nil
+		}
+		limited := false
+		fs.Visit(func(f *flag.Flag) { limited = limited || f.Name == "limit" })
+		if *page || *after != "" || limited {
+			v, err := comitia.ListInstancePage(ctx, api, needCredential(cfg), *cid, *after, *limit)
+			if err != nil {
+				return err
+			}
+			if *page || *after != "" {
+				return out.Encode(v)
+			}
+			return out.Encode(v.Instances)
 		}
 		v, err := api.ListInstances(ctx, needCredential(cfg), *cid)
 		if err != nil {

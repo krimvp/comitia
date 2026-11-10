@@ -2,7 +2,7 @@
 # Verify credential isolation: revoking one identity must not affect the others.
 set -uo pipefail
 
-BIN=/opt/comitia/bin/comitia
+BIN="${COMITIA_BIN:-/opt/comitia/bin/comitia}"
 export COMITIA_SERVER_URL=http://127.0.0.1:8390
 CTX_ID="$(grep '^COMITIA_CONTEXT_ID=' /root/.comitia/ids.env | cut -d= -f2)"
 OWNER=$(python3 -c "import json;print(json.load(open('/root/.comitia/owner.json'))['credential']['Token'])")

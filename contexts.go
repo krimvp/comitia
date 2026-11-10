@@ -273,6 +273,12 @@ func (s *Service) AddReference(ctx context.Context, raw string, in AddReferenceI
 	if in.Kind == "" || in.URI == "" {
 		return x, Invalidf("kind and uri required")
 	}
+	if e := validText("kind", in.Kind, MaxReferenceKindBytes); e != nil {
+		return x, e
+	}
+	if e := validText("uri", in.URI, MaxReferenceURIBytes); e != nil {
+		return x, e
+	}
 	e := s.store.Update(ctx, func(w WriteStore) error {
 		if _, _, e := s.require(w, raw, in.ContextID, PermissionWrite); e != nil {
 			return e

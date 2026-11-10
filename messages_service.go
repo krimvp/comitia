@@ -37,6 +37,9 @@ func (s *Service) AppendMessage(ctx context.Context, raw, cid string, in Message
 	if in.Envelope == nil && in.Body == "" {
 		return m, Invalidf("body or envelope required")
 	}
+	if e := validText("body", in.Body, MaxMessageBodyBytes); e != nil {
+		return m, e
+	}
 	instance, err := normalizeAgentInstance(in.AgentInstance)
 	if err != nil {
 		return m, err

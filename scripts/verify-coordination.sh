@@ -3,7 +3,7 @@
 # as each harness's own scoped credential. Proves the documented workflow.
 set -euo pipefail
 
-BIN=/opt/comitia/bin/comitia
+BIN="${COMITIA_BIN:-/opt/comitia/bin/comitia}"
 export COMITIA_SERVER_URL=http://127.0.0.1:8390
 CTX_ID="$(grep '^COMITIA_CONTEXT_ID=' /root/.comitia/ids.env | cut -d= -f2)"
 

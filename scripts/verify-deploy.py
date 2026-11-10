@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Post-deploy checks: inspector UI, public exposure, restart resilience."""
-import http.client, json, pathlib, socket, subprocess, time, sys
+import http.client, json, os, pathlib, socket, subprocess, time, sys
 
-PUBLIC_IP = "45.88.191.59"
+PUBLIC_IP = os.environ.get("COMITIA_PUBLIC_IP") or sys.exit("set COMITIA_PUBLIC_IP to the host's public address")
 results = []
 
 # 1. Inspector UI is served.

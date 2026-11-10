@@ -6,12 +6,12 @@
 #   comitia-tunnel -- codex        # hold tunnel, run codex in this shell
 #
 # Override with env vars:
-#   COMITIA_SSH_HOST   (default root@45.88.191.59)
+#   COMITIA_SSH_HOST   (required, e.g. root@203.0.113.10)
 #   COMITIA_LOCAL_PORT (default 8390)
 #   COMITIA_REMOTE_PORT(default 8390)
 set -euo pipefail
 
-SSH_HOST="${COMITIA_SSH_HOST:-root@45.88.191.59}"
+SSH_HOST="${COMITIA_SSH_HOST:?set COMITIA_SSH_HOST, e.g. root@203.0.113.10}"
 LOCAL_PORT="${COMITIA_LOCAL_PORT:-8390}"
 REMOTE_PORT="${COMITIA_REMOTE_PORT:-8390}"
 

@@ -61,6 +61,8 @@ type ServerInfo struct {
 	Features        []string `json:"features"`
 
 	Build BuildInfo `json:"build"`
+	// Limits lists content write limits; older servers omit it.
+	Limits *ContentLimits `json:"limits,omitempty"`
 
 	// Client fields are set only by adapters that report their own build, such
 	// as the MCP server_info tool; see WithClient.
@@ -140,6 +142,7 @@ var serverFeatures = []string{
 	"storage_status",
 	"operational_errors",
 	"build_provenance",
+	"content_limits",
 }
 
 func (s *Service) ServerInfo(ctx context.Context, raw string) (ServerInfo, error) {
@@ -150,5 +153,5 @@ func (s *Service) ServerInfo(ctx context.Context, raw string) (ServerInfo, error
 	if err != nil {
 		return ServerInfo{}, err
 	}
-	return ServerInfo{Build: BuildIdentity(), Version: BuildVersion(), ProtocolVersion: ProtocolVersion, Features: Features()}, nil
+	return ServerInfo{Build: BuildIdentity(), Version: BuildVersion(), ProtocolVersion: ProtocolVersion, Features: Features(), Limits: contentLimits()}, nil
 }

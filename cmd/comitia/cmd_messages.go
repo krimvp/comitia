@@ -176,11 +176,14 @@ func runMessages(ctx context.Context, cfg config, api comitia.API, out *json.Enc
 	case "ack":
 		fs := newFlags(cmd)
 		cid := fs.String("context-id", "", "context ID")
-		seq := fs.Int64("sequence", 0, "inclusive sequence")
+		seq := fs.Int64("sequence", 0, "inclusive sequence (required)")
 		defaultID, _ := cfg.instances.ID()
 		instance := fs.String("agent-instance", defaultID, "self-reported instance ID for this cursor (defaults to COMITIA_AGENT_INSTANCE)")
 		if err := parseFlags(fs, args); err != nil {
 			return err
+		}
+		if !flagProvided(fs, "sequence") {
+			return comitia.Invalidf("--sequence required")
 		}
 		if cfg.parseOnly {
 			return nil

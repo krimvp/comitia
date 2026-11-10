@@ -31,7 +31,10 @@ or `after_id` until `has_more` is false. The cursor is the last returned session
 ID and is exclusive; a nonempty cursor implies page output. Library callers
 use `ListParticipantPage(ctx,api,...)`, which detects optional
 `ParticipantPageAPI`; HTTP accepts `page` and `after_id` on the same route
-and returns `participant_page`. Legacy calls still return arrays. Each page
+and returns `participant_page`. Legacy calls still return arrays. Participant and
+task pages stop early with `has_more` once their encoded items reach 1 MiB
+(`comitia.ListPageBytes`), always returning one item; task arrays of several
+tasks over 8 MiB (`MaxListBytes`) fail as `invalid`, asking for a lower limit or a page. Each page
 rechecks current session and effective-grant eligibility, so expired or revoked
 candidates cannot truncate a page while later readable sessions remain.
 Custom stores may implement optional `ParticipantPageStore` with
@@ -315,7 +318,7 @@ Check the loaded tool schema before using `compact` with an older adapter:
 older tools may reject it as an unsupported argument. This presentation option
 is local to MCP and does not change REST requests or responses.
 REST requests remain capped at 1 MiB; the Go remote client independently caps
-responses at 16 MiB and reports an explicit oversize error rather than a
+responses at 16 MiB and reports an explicit `invalid` oversize error rather than a
 truncated-JSON decode failure. Smaller byte/count limits recover aggregate
 pages; a single embedded message exceeding the response cap requires an
 embedded reader. The client also rejects trailing response data.
@@ -711,7 +714,8 @@ members are `kind` (`created`, `claimed`, `renewed`, `released`, `completed`,
 `failed`, `cancelled`), `status`, `lease_version`, and optional
 `previous_status`, `lease_owner_session_id`, `lease_owner_instance`, `reason`.
 The message's authenticated `SessionID` identifies the actor whose task
-mutation was authorized. These events are broadcast in the task's context and
+mutation was authorized; when that actor holds the lease under an instance, the
+message carries that `agent_instance`, so `exclude_self` skips it. These events are broadcast in the task's context and
 carry no claim tokens or hashes. Readers can replay/wait/filter them normally;
 `send`/`send_message`/`messages/append` cannot author them. Task-status and
 execution telemetry remain advisory. Schema discovery lists
@@ -731,7 +735,9 @@ comitia send --context-id CONTEXT_ID --dedupe-key review-1 \
 
 A `dedupe_key` is at most 256 bytes (MCP advertises `maxLength`); longer keys
 are rejected as `invalid`, while messages stored with longer keys before the cap
-remain readable. A retry with the same key, body, envelope, instance and task
+remain readable. The same holds for valid UTF-8 limits on message bodies (1 MiB),
+task titles (4096 bytes) and bodies (1 MiB), and reference kinds (256) and URIs
+(8192), exported as `comitia.Max*Bytes` and listed in `server_info.limits`. A retry with the same key, body, envelope, instance and task
 attempt returns the original message, subject to current read permission for
 resource references. A different send under a used key fails
 with `conflict`; the error message and its additive `details` object
@@ -852,8 +858,8 @@ instances, it is self-reported routing metadata: the lease belongs to
 for a lease that lasts until the task is completed or released. Every lease is
 capped at the holder session's expiry, so an open lease is still bounded. This is
 not reserved for orchestrators: any client with `claim` on the context can hold a
-lease up to its own session's expiry, bypassing the 86400-second
-`lease_seconds` limit of MCP. A context admin can release such a lease. A lease
+lease up to its own session's expiry, bypassing the 24-hour lease
+limit. A context admin can release such a lease. A lease
 whose holder session is revoked or expired, or whose holder no longer has
 `claim` on the context, counts as expired, so another session can claim the task
 at once.
@@ -925,7 +931,7 @@ Call the `server_info` MCP tool with `{}`, send authenticated `POST /v1/server_i
 with `{}`, or run `comitia --server-url URL server-info` with a credential. Any
 valid session can discover capabilities, including a session without context
 grants. The result contains `version`, `protocol_version` (the MCP revision),
-`features`, and `build: {version, revision, dirty}`; HTTP wraps it in `server_info`
+`features`, `limits` (byte limits; absent from older servers), and `build: {version, revision, dirty}`; HTTP wraps it in `server_info`
 and MCP in `result`. The MCP tool also reports the adapter's own build as
 `client: {version, revision, dirty}` and `client_stale`, true when the server
 advertises features this client does not know (listed in

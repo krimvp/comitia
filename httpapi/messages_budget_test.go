@@ -131,6 +131,27 @@ func TestHTTPClientResponseBoundaries(t *testing.T) {
 	}
 }
 
+func TestOversizedRemoteResponseAdvisesSmallerRequest(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		io.WriteString(w, `{"tasks":[`+strings.Repeat(" ", maxResponseBody)+`]}`)
+	}))
+	defer ts.Close()
+	client, err := NewClientWithInstanceDefaults(ts.URL, ts.Client(), comitia.InstanceDefaults{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx := context.Background()
+	_, err = client.ListTasks(ctx, "token", "ctx", "", 1000)
+	info := comitia.SafeError("list_tasks", err, "")
+	if !errors.Is(err, ErrResponseTooLarge) || info.Code != "invalid" || !strings.Contains(info.Message, "lower limit") || strings.Contains(info.Message, "max_bytes") || info.Hint != "" {
+		t.Fatalf("task list: err=%v info=%+v", err, info)
+	}
+	_, err = client.ReplayMessagesPage(ctx, "token", "ctx", 0, 100, comitia.MessageFilters{})
+	if !errors.Is(err, ErrResponseTooLarge) || comitia.ErrorClass(err) != "invalid" || !strings.Contains(err.Error(), "smaller max_bytes") {
+		t.Fatalf("message replay: %v", err)
+	}
+}
+
 func TestHTTPClientRequestBudget(t *testing.T) {
 	calls := 0
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { calls++; json.NewEncoder(w).Encode(emptyResult{}) }))

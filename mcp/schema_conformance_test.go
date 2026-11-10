@@ -238,7 +238,7 @@ func seedSchemaConformance(t *testing.T, store comitia.Store) (string, map[strin
 		"grant_context": {"session_id": helper.Session.ID, "context_id": parent.ID, "permissions": []any{"read"}, "ttl_seconds": 60},
 		"revoke_grant":  {"grant_id": grants[0].ID}, "revoke_session": {"session_id": helper.Session.ID},
 		"delegate_session": {"name": "delegate", "ttl_seconds": 60, "grants": []any{map[string]any{"context_id": parent.ID, "permissions": []any{"read"}, "ttl_seconds": 30}}},
-		"list_instances":   {"context_id": parent.ID}, "set_instance_resume": {"context_id": parent.ID, "agent_instance": instance, "resume": map[string]any{}},
+		"list_instances":   {"context_id": parent.ID, "limit": 10, "page": false, "after_id": ""}, "set_instance_resume": {"context_id": parent.ID, "agent_instance": instance, "resume": map[string]any{}},
 	}
 	return owner.Token, inputs
 }

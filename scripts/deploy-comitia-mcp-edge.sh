@@ -1,23 +1,35 @@
 #!/usr/bin/env bash
 # Install the Comitia MCP public HTTPS edge.
 #
-#   deploy-comitia-mcp-edge.sh
+#   COMITIA_PUBLIC_HOST=comitia.example.com deploy-comitia-mcp-edge.sh
+#
+# The deploy/*.nginx.conf files name the placeholder host comitia.example.com;
+# it is replaced with COMITIA_PUBLIC_HOST as they are installed. COMITIA_SRC
+# (default: the checkout holding this script) locates deploy/ and scripts/.
 #
 # Order matters: the ACME-only port-80 block must load before the TLS block,
 # because the TLS block references a certificate that does not exist until
 # certbot has run. Idempotent. Requires root.
 set -euo pipefail
 
-DOMAIN="vmi3260467.contaboserver.net"
-SRC_DIR=/root/workspace/comitia/deploy
+DOMAIN="${COMITIA_PUBLIC_HOST:?set COMITIA_PUBLIC_HOST to the edge hostname}"
+[[ "$DOMAIN" =~ ^[A-Za-z0-9][A-Za-z0-9.-]*$ ]] || { echo "invalid hostname '$DOMAIN'" >&2; exit 2; }
+SRC="${COMITIA_SRC:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
+SRC_DIR="$SRC/deploy"
 ACME_SITE=/etc/nginx/sites-available/comitia-mcp-acme
 TLS_SITE=/etc/nginx/sites-available/comitia-mcp
 
 [ "$(id -u)" -eq 0 ] || { echo "must run as root" >&2; exit 1; }
 
+# install_site <source> <target>: copy with the placeholder host replaced.
+install_site() {
+  sed "s/comitia\.example\.com/$DOMAIN/g" "$1" > "$2"
+  chmod 0644 "$2"
+}
+
 echo "== 1. install the ACME challenge block (and remove any TLS block) =="
 rm -f /etc/nginx/sites-enabled/comitia-mcp
-install -m 0644 "$SRC_DIR/comitia-mcp-acme.nginx.conf" "$ACME_SITE"
+install_site "$SRC_DIR/comitia-mcp-acme.nginx.conf" "$ACME_SITE"
 ln -sfn "$ACME_SITE" /etc/nginx/sites-enabled/comitia-mcp-acme
 mkdir -p /var/www/html
 nginx -t 2>&1 | sed 's/^/   /'
@@ -36,7 +48,7 @@ fi
   echo "   ERROR: no certificate issued; leaving the TLS block disabled" >&2; exit 1; }
 
 echo "== 3. install the TLS block and drop the standalone ACME block =="
-install -m 0644 "$SRC_DIR/comitia-mcp.nginx.conf" "$TLS_SITE"
+install_site "$SRC_DIR/comitia-mcp.nginx.conf" "$TLS_SITE"
 ln -sfn "$TLS_SITE" /etc/nginx/sites-enabled/comitia-mcp
 # The TLS block carries its own ACME location, so the phase-1 block is retired.
 rm -f /etc/nginx/sites-enabled/comitia-mcp-acme
@@ -64,4 +76,4 @@ fi
 
 echo
 echo "done. Verify with:"
-echo "  python3 /root/workspace/comitia/scripts/verify-public-mcp.py"
+echo "  COMITIA_PUBLIC_HOST=$DOMAIN python3 $SRC/scripts/verify-public-mcp.py"

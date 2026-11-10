@@ -19,7 +19,7 @@ Keep the context and status filter unchanged while paging. Library callers use
 `ListTaskPage(ctx,api,...)`, which detects the optional `TaskPageAPI`.
 HTTP `/v1/tasks/list` accepts `page` and `after_id` and returns
 the page under `task_page`. Legacy calls still return arrays. Pages reflect
-current state, rather than freezing a directory snapshot across requests.
+current state and stop near 1 MiB (always one task).
 Custom stores may implement optional `TaskPageStore` with
 `TasksAfter(contextID,status,createdAt,taskID,limit)`, an exclusive tuple bound
 and deterministic order. Existing API/store implementations still compile and
@@ -157,8 +157,8 @@ value directly. REST `tasks/create` and `tasks/complete` wrap it in `task`;
 `tasks/claim`, `tasks/recover` and `tasks/renew` wrap the claim in `claim`.
 
 CLI claim/renew defaults to `--lease 5m`. MCP claim/renew defaults to 300 seconds
-when `lease_seconds` is omitted or zero; a nonzero duration must be an integer from
-1 through 86400 seconds. CLI durations use Go syntax (for example `5m`), and
+when `lease_seconds` is omitted or zero, else takes integer seconds. Every adapter
+requires leases of 1–86400 seconds. CLI durations use Go syntax (for example `5m`), and
 REST/library durations use nanoseconds; do not pass MCP seconds as REST duration.
 See the running schema for optional argument support. Every lease is capped at
 the holder session's expiry. `open_ended: true` (CLI `--open-ended`) excludes
