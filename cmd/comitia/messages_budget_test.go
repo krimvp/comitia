@@ -54,7 +54,7 @@ func TestRemoteCLIReplayAndWaitPages(t *testing.T) {
 	for _, cmd := range []string{"replay", "wait"} {
 		t.Run(cmd, func(t *testing.T) {
 			var out bytes.Buffer
-			args := []string{"--context-id", wc.ID, "--max-bytes", "4194304", "--timeout-seconds", "0"}
+			args := append([]string{"--context-id", wc.ID, "--max-bytes", "4194304"}, zeroWait(cmd)...)
 			if err := runMessages(ctx, cfg, client, json.NewEncoder(&out), cmd, args); err != nil {
 				t.Fatal(err)
 			}
@@ -65,7 +65,7 @@ func TestRemoteCLIReplayAndWaitPages(t *testing.T) {
 			after := int64(0)
 			for _, want := range []int{2, 1, 0} {
 				out.Reset()
-				args = []string{"--context-id", wc.ID, "--page", "--after", fmt.Sprint(after), "--timeout-seconds", "0"}
+				args = append([]string{"--context-id", wc.ID, "--page", "--after", fmt.Sprint(after)}, zeroWait(cmd)...)
 				if err := runMessages(ctx, cfg, client, json.NewEncoder(&out), cmd, args); err != nil {
 					t.Fatal(err)
 				}

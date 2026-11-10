@@ -6,6 +6,8 @@ import (
 	"flag"
 	"os"
 	"os/signal"
+	"slices"
+	"strings"
 	"syscall"
 
 	"github.com/krimvp/comitia"
@@ -81,7 +83,7 @@ func runMessages(ctx context.Context, cfg config, api comitia.API, out *json.Enc
 		return out.Encode(v)
 	case "participants":
 		fs := newFlags(cmd)
-		page := fs.Bool("page", false, "return items, next_after and has_more")
+		page := fs.Bool("page", false, "return participants, next_after and has_more")
 		after := fs.String("after-id", "", "exclusive cursor from next_after (implies --page)")
 		cid := fs.String("context-id", "", "work context ID")
 		limit := fs.Int("limit", 100, "maximum participants (1-1000)")
@@ -126,32 +128,24 @@ func runMessages(ctx context.Context, cfg config, api comitia.API, out *json.Enc
 		if err := requireFlags(fs, "context-id"); err != nil {
 			return err
 		}
-		if cfg.parseOnly {
-			return nil
-		}
-		filters.AgentInstance = instance
-		if filters.FromCursor && flagProvided(fs, "after") {
-			return comitia.Invalidf("--from-cursor cannot be combined with --after")
-		}
-		if cmd == "watch" {
-			if filters.FromCursor || flagProvided(fs, "after") {
-				return comitia.Invalidf("watch always starts from its instance cursor")
-			}
-			if !flagProvided(fs, "for-instance") {
-				filters.ForInstance = *instance
-			}
-		}
-		if err := comitia.CheckMessageQueryAPI(api, *filters); err != nil {
+		if err := messageReadFlagsApply(fs, cmd); err != nil {
 			return err
 		}
-		if (*jsonLines || *manualAck) && cmd != "watch" {
-			return comitia.Invalidf("--json-lines and --manual-ack require watch")
+		if filters.FromCursor && flagProvided(fs, "after") {
+			return comitia.Invalidf("--from-cursor cannot be combined with --after")
 		}
 		if *jsonLines && !*manualAck && !*noAck {
 			return comitia.Invalidf("--json-lines requires --manual-ack or --no-ack")
 		}
-		if cmd == "watch" && *page {
-			return comitia.Invalidf("--page is supported by replay and wait")
+		if cfg.parseOnly {
+			return nil
+		}
+		filters.AgentInstance = instance
+		if cmd == "watch" && !flagProvided(fs, "for-instance") {
+			filters.ForInstance = *instance
+		}
+		if err := comitia.CheckMessageQueryAPI(api, *filters); err != nil {
+			return err
 		}
 		if cmd == "replay" {
 			if *page {
@@ -229,6 +223,24 @@ func runMessages(ctx context.Context, cfg config, api comitia.API, out *json.Enc
 	default:
 		return errUnknownCommand
 	}
+}
+
+// messageReadOnly lists the replay, wait and watch flags that only some of
+// them use; the shared flag set would otherwise accept them without effect.
+var messageReadOnly = map[string][]string{
+	"limit": {"replay"}, "timeout-seconds": {"wait", "watch"},
+	"after": {"replay", "wait"}, "from-cursor": {"replay", "wait"}, "page": {"replay", "wait"},
+	"json-lines": {"watch"}, "manual-ack": {"watch"}, "no-ack": {"watch"},
+}
+
+func messageReadFlagsApply(fs *flag.FlagSet, cmd string) error {
+	var err error
+	fs.Visit(func(f *flag.Flag) {
+		if only, ok := messageReadOnly[f.Name]; ok && err == nil && !slices.Contains(only, cmd) {
+			err = comitia.Invalidf("--%s applies only to %s", f.Name, strings.Join(only, " and "))
+		}
+	})
+	return err
 }
 
 func flagProvided(fs *flag.FlagSet, name string) bool {

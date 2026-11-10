@@ -320,7 +320,7 @@ func TestReplayAndWaitCommandFilters(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, cmd := range []string{"replay", "wait"} {
-		args := []string{"--db", path, "--credential", token, cmd, "--context-id", cid, "--for-instance", "reader", "--from-instance", "writer", "--task-id", task.ID, "--schema", "comitia.discussion.v1", "--timeout-seconds", "0"}
+		args := append([]string{"--db", path, "--credential", token, cmd, "--context-id", cid, "--for-instance", "reader", "--from-instance", "writer", "--task-id", task.ID, "--schema", "comitia.discussion.v1"}, zeroWait(cmd)...)
 		got := commandAny(t, args...).([]any)
 		if len(got) != 1 || got[0].(map[string]any)["ID"] != m.ID {
 			t.Fatalf("%s: %v", cmd, got)

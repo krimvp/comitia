@@ -369,7 +369,7 @@ those calls have no responses. Server context cancellation interrupts calls
 immediately, with up to one second to stop. MCP's
 default wait remains 30 seconds, consistent with HTTP/CLI. Both replay and wait
 reject fields belonging only to the other tool (`timeout_seconds` on replay and
-`limit` on wait).
+`limit` on wait); CLI `replay`, `wait` and `watch` likewise reject flags they ignore.
 
 ### Watching from the CLI
 

@@ -31,19 +31,19 @@ func TestReadCommandCursorSelfAndSchemaList(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, cmd := range []string{"replay", "wait"} {
-		args := []string{"--db", path, "--credential", token, cmd, "--context-id", cid, "--agent-instance", "reader", "--from-cursor", "--exclude-self", "--page", "--timeout-seconds", "0"}
+		args := append([]string{"--db", path, "--credential", token, cmd, "--context-id", cid, "--agent-instance", "reader", "--from-cursor", "--exclude-self", "--page"}, zeroWait(cmd)...)
 		page := commandAny(t, args...).(map[string]any)
 		messages := page["messages"].([]any)
 		if len(messages) != 1 || messages[0].(map[string]any)["ID"] != peer.ID || page["next_after"] != float64(peer.Sequence) {
 			t.Fatalf("%s cursor self: %v", cmd, page)
 		}
-		args = []string{"--db", path, "--credential", token, cmd, "--context-id", cid, "--schema", "comitia.discussion.v1", "--schema", comitia.TaskEventSchema, "--task-id", task.ID, "--timeout-seconds", "0"}
+		args = append([]string{"--db", path, "--credential", token, cmd, "--context-id", cid, "--schema", "comitia.discussion.v1", "--schema", comitia.TaskEventSchema, "--task-id", task.ID}, zeroWait(cmd)...)
 		// Task filter keeps the created event; schemas are an OR selector.
 		events := commandAny(t, args...).([]any)
 		if len(events) != 1 {
 			t.Fatalf("%s repeated schema: %v", cmd, events)
 		}
-		args = []string{"--db", path, "--credential", token, cmd, "--context-id", cid, "--schema", "comitia.discussion.v1", "--schema", comitia.TaskEventSchema, "--timeout-seconds", "0"}
+		args = append([]string{"--db", path, "--credential", token, cmd, "--context-id", cid, "--schema", "comitia.discussion.v1", "--schema", comitia.TaskEventSchema}, zeroWait(cmd)...)
 		events = commandAny(t, args...).([]any)
 		if len(events) != 2 {
 			t.Fatalf("%s schema union: %v", cmd, events)
@@ -133,4 +133,12 @@ func TestWatchAcknowledgesSkippedRenewals(t *testing.T) {
 type watchPagesWithAck struct {
 	*watchAckFailureAPI
 	comitia.MessagePageAPI
+}
+
+// zeroWait returns an immediate timeout for wait; replay rejects the flag.
+func zeroWait(cmd string) []string {
+	if cmd == "wait" {
+		return []string{"--timeout-seconds", "0"}
+	}
+	return nil
 }

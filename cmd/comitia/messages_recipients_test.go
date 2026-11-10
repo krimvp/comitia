@@ -53,7 +53,7 @@ func TestRemoteCLIStrictRecipients(t *testing.T) {
 	}
 	for _, cmd := range []string{"replay", "wait"} {
 		var out bytes.Buffer
-		args := []string{"--context-id", wc.ID, "--for-instance", "shared", "--strict-recipients", "--timeout-seconds", "0"}
+		args := append([]string{"--context-id", wc.ID, "--for-instance", "shared", "--strict-recipients"}, zeroWait(cmd)...)
 		if err := runMessages(ctx, config{credential: owner.Token}, client, json.NewEncoder(&out), cmd, args); err != nil {
 			t.Fatal(err)
 		}
