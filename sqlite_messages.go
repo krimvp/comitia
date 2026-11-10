@@ -209,8 +209,7 @@ UNION ALL SELECT message_id,seq FROM (SELECT message_id,seq FROM message_recipie
 		}
 	}
 	if !f.includesRenewals() {
-		where += " AND NOT (COALESCE(json_extract(e.envelope,'$.schema'),'')=? AND COALESCE(json_extract(e.envelope,'$.payload.kind'),'')='renewed')"
-		args = append(args, TaskEventSchema)
+		where += " AND NOT EXISTS (SELECT 1 FROM message_hidden h WHERE h.message_id=m.id)"
 	}
 	if f.FromSession != "" {
 		where += " AND m.session_id=?"
@@ -406,8 +405,7 @@ func messageReadPredicate(sid string, f MessageFilters, mid string) (string, []a
 		}
 	}
 	if !f.includesRenewals() {
-		predicates = append(predicates, "NOT EXISTS (SELECT 1 FROM message_envelopes e WHERE e.message_id="+mid+" AND json_extract(e.envelope,'$.schema')=? AND json_extract(e.envelope,'$.payload.kind')='renewed')")
-		args = append(args, TaskEventSchema)
+		predicates = append(predicates, "NOT EXISTS (SELECT 1 FROM message_hidden h WHERE h.message_id="+mid+")")
 	}
 	return strings.Join(predicates, " AND "), args
 }

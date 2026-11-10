@@ -10,7 +10,7 @@ import (
 )
 
 var (
-	schemas    = []string{sessionSchema, contextSchema, grantSchema, messageSchema, taskSchema, presenceSchema, contextTreeSchema, contextLifecycleSchema, compatibilitySchema}
+	schemas    = []string{sessionSchema, contextSchema, grantSchema, messageSchema, messageHiddenSchema, taskSchema, presenceSchema, contextTreeSchema, contextLifecycleSchema, compatibilitySchema}
 	createStmt = regexp.MustCompile(`(?im)^CREATE\s+(?:UNIQUE\s+)?(TABLE|INDEX|TRIGGER|VIEW)\s+IF\s+NOT\s+EXISTS\s+(\w+)`)
 )
 
@@ -37,6 +37,18 @@ CREATE TRIGGER IF NOT EXISTS comitia_creator_repair_complete AFTER INSERT ON con
 END;
 INSERT OR IGNORE INTO comitia_message_repairs SELECT m.id FROM messages m WHERE NOT EXISTS (SELECT 1 FROM message_dedupe_scopes d WHERE d.message_id=m.id);
 INSERT OR IGNORE INTO comitia_creator_repairs SELECT p.context_id FROM context_parents p WHERE NOT EXISTS (SELECT 1 FROM context_creators c WHERE c.context_id=p.context_id);
+`
+
+// Default reads skip hidden messages (renewed task events) by probing this
+// projection instead of decoding envelopes. It has its own generation so the
+// one-time backfill, which decodes only task-event envelopes, never reruns with
+// messageSchema edits. The trigger also covers rows written by older binaries.
+const messageHiddenSchema = `
+CREATE TABLE IF NOT EXISTS message_hidden (message_id TEXT PRIMARY KEY REFERENCES messages(id)) WITHOUT ROWID;
+CREATE TRIGGER IF NOT EXISTS comitia_message_hidden_insert AFTER INSERT ON message_envelopes WHEN json_extract(NEW.envelope,'$.schema')='` + TaskEventSchema + `' AND json_extract(NEW.envelope,'$.payload.kind')='renewed' BEGIN
+ INSERT OR IGNORE INTO message_hidden VALUES(NEW.message_id);
+END;
+INSERT OR IGNORE INTO message_hidden SELECT e.message_id FROM message_filters p CROSS JOIN message_envelopes e ON e.message_id=p.message_id WHERE p.schema='` + TaskEventSchema + `' AND json_extract(e.envelope,'$.payload.kind')='renewed';
 `
 
 const messageRepair = `INSERT INTO message_dedupe_scopes
