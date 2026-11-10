@@ -109,6 +109,10 @@ func (s *SQLiteStore) Update(ctx context.Context, fn func(WriteStore) error) err
 		return e
 	}
 	defer tx.Rollback()
+	// A newer binary may have upgraded the file since this process opened it.
+	if _, e = checkSchemaVersion(ctx, tx); e != nil {
+		return e
+	}
 	v := &sqlStore{q: transactionQuery{tx, ctx}}
 	if e = fn(v); e != nil {
 		return e

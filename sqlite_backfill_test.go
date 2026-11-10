@@ -3,7 +3,9 @@ package comitia
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -87,7 +89,7 @@ func TestSQLiteUpgradeFromCombinedGenerationsKeepsProjections(t *testing.T) {
 			path := filepath.Join(t.TempDir(), "state.db")
 			f := setup(t, path)
 			populateProjections(t, f)
-			if _, err := f.store.db.Exec("DELETE FROM comitia_generations"); err != nil {
+			if _, err := f.store.db.Exec("DELETE FROM comitia_generations; PRAGMA user_version=0"); err != nil {
 				t.Fatal(err)
 			}
 			for _, generation := range generations {
@@ -104,6 +106,38 @@ func TestSQLiteUpgradeFromCombinedGenerationsKeepsProjections(t *testing.T) {
 			}
 			defer st.Close()
 			assertProjectionsKept(t, st)
+			var version int
+			if err := st.db.QueryRow("PRAGMA user_version").Scan(&version); err != nil || version != sqliteSchemaVersion {
+				t.Fatalf("schema version %d: %v", version, err)
+			}
 		})
+	}
+}
+
+func TestSQLiteRefusesNewerSchemaVersion(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "state.db")
+	st, err := OpenSQLite(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer st.Close()
+	var version int
+	if err := st.db.QueryRow("PRAGMA user_version").Scan(&version); err != nil || version != sqliteSchemaVersion {
+		t.Fatalf("new database version %d: %v", version, err)
+	}
+	newer := sqliteSchemaVersion + 1
+	if _, err := st.db.Exec(fmt.Sprintf("PRAGMA user_version=%d", newer)); err != nil {
+		t.Fatal(err)
+	}
+	want := fmt.Sprintf("schema version %d is newer than this binary supports (version %d)", newer, sqliteSchemaVersion)
+	// A process that opened the file before the upgrade stops writing too.
+	if err := st.Update(context.Background(), func(WriteStore) error { return nil }); err == nil || !strings.Contains(err.Error(), want) {
+		t.Fatalf("open store wrote to newer database: %v", err)
+	}
+	if other, err := OpenSQLite(path); err == nil || !strings.Contains(err.Error(), want) {
+		if other != nil {
+			other.Close()
+		}
+		t.Fatalf("opened newer database: %v", err)
 	}
 }

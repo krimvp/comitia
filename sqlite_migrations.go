@@ -47,6 +47,11 @@ CREATE TRIGGER IF NOT EXISTS comitia_message_hidden_insert AFTER INSERT ON messa
 END;
 `
 
+// sqliteSchemaVersion is stamped in PRAGMA user_version. Bump it with any
+// change older binaries must not write through; they refuse newer databases.
+// Binaries before version 1 have no check and leave the version at 0.
+const sqliteSchemaVersion = 1
+
 // Backfills derive projections from history. Schemas hold only idempotent DDL,
 // so DDL edits never rescan history. A backfill runs once per its own
 // generation, and again whenever an object it fills or whose trigger keeps it
@@ -109,6 +114,18 @@ func backfillPending(ctx context.Context, q queryRower, b backfill) bool {
 	return false
 }
 
+// checkSchemaVersion fences binaries out of databases from newer releases.
+func checkSchemaVersion(ctx context.Context, q queryRower) (int, error) {
+	var version int
+	if err := q.QueryRowContext(ctx, "PRAGMA user_version").Scan(&version); err != nil {
+		return 0, err
+	}
+	if version > sqliteSchemaVersion {
+		return version, fmt.Errorf("SQLite database schema version %d is newer than this binary supports (version %d); upgrade comitia", version, sqliteSchemaVersion)
+	}
+	return version, nil
+}
+
 const messageRepair = `INSERT INTO message_dedupe_scopes
 SELECT m.context_id,m.session_id,COALESCE(i.instance_id,''),m.dedupe_key,m.id
 FROM comitia_message_repairs r CROSS JOIN messages m ON m.id=r.message_id
@@ -156,6 +173,9 @@ func (s *SQLiteStore) migrationPending(ctx context.Context) bool {
 			return true
 		}
 	}
+	if version, err := checkSchemaVersion(ctx, s.db); err != nil || version < sqliteSchemaVersion {
+		return true
+	}
 	var pending bool
 	err := s.db.QueryRowContext(ctx, "SELECT EXISTS(SELECT 1 FROM comitia_message_repairs) OR EXISTS(SELECT 1 FROM comitia_creator_repairs)").Scan(&pending)
 	return err != nil || pending
@@ -164,6 +184,11 @@ func (s *SQLiteStore) migrationPending(ctx context.Context) bool {
 func (s *SQLiteStore) migrate(ctx context.Context) error {
 	// Every CLI call opens the store. Unchanged generations and empty indexed
 	// repair queues are probed without a write lock or a historical data scan.
+	// Only a definite newer version fails here; probe errors such as a busy
+	// fresh file fall through to the locked path, which retries.
+	if version, err := checkSchemaVersion(ctx, s.db); version > sqliteSchemaVersion {
+		return err
+	}
 	if !s.migrationPending(ctx) {
 		return nil
 	}
@@ -182,6 +207,10 @@ func (s *SQLiteStore) migrate(ctx context.Context) error {
 		return err
 	}
 	// Recheck under the writer lock: another process may have migrated first.
+	version, err := checkSchemaVersion(ctx, tx)
+	if err != nil {
+		return err
+	}
 	// Decide before DDL recreates missing objects that the backfill must fill.
 	needed := make([]bool, len(backfills))
 	for i, b := range backfills {
@@ -209,6 +238,11 @@ func (s *SQLiteStore) migrate(ctx context.Context) error {
 			if _, err = tx.ExecContext(ctx, "INSERT OR IGNORE INTO comitia_generations VALUES(?)", generation); err != nil {
 				return err
 			}
+		}
+	}
+	if version < sqliteSchemaVersion {
+		if _, err = tx.ExecContext(ctx, fmt.Sprintf("PRAGMA user_version=%d", sqliteSchemaVersion)); err != nil {
+			return err
 		}
 	}
 	for _, repair := range []string{messageRepair, creatorRepair, "DELETE FROM comitia_message_repairs", "DELETE FROM comitia_creator_repairs"} {
