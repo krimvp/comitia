@@ -20,6 +20,7 @@ func runMessages(ctx context.Context, cfg config, api comitia.API, out *json.Enc
 		cid := fs.String("context-id", "", "context ID")
 		key := fs.String("dedupe-key", "", "stable deduplication key")
 		body := fs.String("body", "", "message body")
+		bodyFile := fs.String("body-file", "", "message body file, verbatim; - reads stdin")
 		var recipientSessions, recipientInstances []string
 		fs.Func("recipient-session-id", "recipient session ID; repeat for several recipients", func(value string) error {
 			recipientSessions = append(recipientSessions, value)
@@ -33,18 +34,31 @@ func runMessages(ctx context.Context, cfg config, api comitia.API, out *json.Enc
 		instanceLabel := fs.String("agent-instance-label", "", "optional self-reported instance label (defaults to COMITIA_AGENT_INSTANCE_LABEL)")
 		claimToken := fs.String("claim-token", "", "current task lease token for a fenced result")
 		leaseVersion := fs.Int64("lease-version", 0, "current task lease version for a fenced result")
-		envelopeFile := fs.String("envelope-file", "", "validated message envelope JSON file")
+		envelopeFile := fs.String("envelope-file", "", "validated message envelope JSON file; - reads stdin")
 		if err := parseFlags(fs, args); err != nil {
 			return err
 		}
 		if err := requireFlags(fs, "context-id", "dedupe-key"); err != nil {
 			return err
 		}
-		if err := requireAny(fs, "body", "envelope-file"); err != nil {
+		if err := requireAny(fs, "body", "body-file", "envelope-file"); err != nil {
 			return err
+		}
+		if flagProvided(fs, "body") && flagProvided(fs, "body-file") {
+			return comitia.Invalidf("--body and --body-file are mutually exclusive")
+		}
+		if *bodyFile == "-" && *envelopeFile == "-" {
+			return comitia.Invalidf("only one of --body-file and --envelope-file can read stdin")
 		}
 		if cfg.parseOnly {
 			return nil
+		}
+		if *bodyFile != "" {
+			b, e := readBody(*bodyFile)
+			if e != nil {
+				return e
+			}
+			*body = b
 		}
 		envelope, e := readEnvelope(*envelopeFile)
 		if e != nil {

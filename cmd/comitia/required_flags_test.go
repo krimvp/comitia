@@ -55,7 +55,7 @@ func TestLaterRequiredFlagsAreNamedToo(t *testing.T) {
 		want string
 	}{
 		{[]string{"send", "--context-id", "c"}, "send requires --dedupe-key"},
-		{[]string{"send", "--context-id", "c", "--dedupe-key", "k"}, "send requires --body or --envelope-file"},
+		{[]string{"send", "--context-id", "c", "--dedupe-key", "k"}, "send requires --body or --body-file or --envelope-file"},
 		{[]string{"ack", "--context-id", "c"}, "ack requires --sequence"},
 		{[]string{"context-create", "--name", "n"}, "context-create requires --workspace-id or --parent-id"},
 		{[]string{"reference-add", "--context-id", "c", "--kind", "k"}, "reference-add requires --uri"},

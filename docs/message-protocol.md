@@ -70,6 +70,9 @@ comitia send --context-id CONTEXT_ID --dedupe-key note-1 --body 'Please review' 
   --recipient-session-id SESSION_ID --recipient-instance reviewer
 ```
 
+For long bodies, `--body-file PATH` sends the file verbatim instead of `--body`;
+`--body-file -` and `--envelope-file -` read stdin.
+
 Without an envelope, nonempty recipient lists normalize to
 `comitia.discussion.v1` with `payload:{}` and require a nonblank body. Responses
 and stored messages carry recipients in that envelope, so existing filters,

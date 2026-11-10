@@ -12,12 +12,7 @@ func readEnvelope(path string) (*comitia.MessageEnvelope, error) {
 	if path == "" {
 		return nil, nil
 	}
-	f, err := os.Open(path)
-	if err != nil {
-		return nil, err
-	}
-	defer f.Close()
-	raw, err := io.ReadAll(io.LimitReader(f, 65537))
+	raw, err := readInput(path, 65537)
 	if err != nil {
 		return nil, err
 	}
@@ -37,4 +32,29 @@ func readEnvelope(path string) (*comitia.MessageEnvelope, error) {
 		return nil, comitia.Invalidf("envelope must contain one JSON value")
 	}
 	return env, nil
+}
+
+// readInput reads at most limit bytes from a file, or from stdin for "-".
+func readInput(path string, limit int64) ([]byte, error) {
+	if path == "-" {
+		return io.ReadAll(io.LimitReader(os.Stdin, limit))
+	}
+	f, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+	return io.ReadAll(io.LimitReader(f, limit))
+}
+
+// readBody returns the --body-file contents verbatim, bounded like a message body.
+func readBody(path string) (string, error) {
+	raw, err := readInput(path, comitia.MaxMessageBodyBytes+1)
+	if err != nil {
+		return "", err
+	}
+	if len(raw) > comitia.MaxMessageBodyBytes {
+		return "", comitia.Invalidf("body must be at most %d bytes", comitia.MaxMessageBodyBytes)
+	}
+	return string(raw), nil
 }
