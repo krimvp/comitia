@@ -89,7 +89,8 @@ all three filters; otherwise scoped reads return an explicit unsupported error.
 No existing exported interface gains methods. `LookupMessage` handles optional
 API capability detection.
 
-New HTTP clients probe `/v1/messages/query-support` before scoped reads or lookup.
+New HTTP clients probe `/v1/messages/query-support` before scoped reads or lookup,
+once per client after a success.
 Old servers return a clear “unsupported by this server” error; clients never
 retry without filters. This protects against both strict endpoint DTO servers
 and older servers that ignore unknown union fields. Unset new fields are omitted,

@@ -491,11 +491,19 @@ func wirePageResult(page comitia.MessagePage, budget int) (readMessagesResult, e
 	return readMessagesResult{Page: &value}, nil
 }
 
+// messageQuerySupport caches only success: errors, including an older server,
+// are probed again on the next scoped read.
 func (c *Client) messageQuerySupport(ctx context.Context, token string) error {
+	if c.querySupported.Load() {
+		return nil
+	}
 	var out emptyResult
 	err := c.call(ctx, token, "messages/query-support", emptyRequest{}, &out)
 	if errors.Is(err, comitia.ErrNotFound) {
 		return fmt.Errorf("%w: scoped message queries unsupported by this server", comitia.ErrInvalid)
+	}
+	if err == nil {
+		c.querySupported.Store(true)
 	}
 	return err
 }
