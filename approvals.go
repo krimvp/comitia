@@ -45,10 +45,10 @@ func validApproval(raw json.RawMessage) error {
 		}
 	case ApprovalChangesRequested:
 		if *p.BlockingCount == 0 {
-			return Invalidf("blocking_count must be positive for changes_requested verdict")
+			return Invalidf("blocking_count must be positive for changes-requested verdict")
 		}
 	default:
-		return Invalidf("verdict must be approved or changes_requested")
+		return Invalidf("verdict must be approved or changes-requested")
 	}
 	return nil
 }

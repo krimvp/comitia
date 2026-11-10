@@ -30,10 +30,19 @@ and blocks content writes even for administrators. It preserves authorized reads
 and reader bookkeeping, and does not cascade explicit archive state to children.
 An independent grant can retain read access after a creator grant ends.
 
+Permissions are independent bits; only defined bits may be granted, so a grant
+never silently gains a permission added later. `claim` without `read` lets a
+session work a task whose ID it was given, not read it: `get_task` is
+forbidden and claim, renew, complete, fail, cancel and release results carry
+empty `Title` and `Body`.
+
 The target multi-tenant model additionally requires explicit principal membership in a workspace before accessing that workspace's resources.
 
 Non-admin sessions may revoke only grants whose `IssuerSessionID` is their own
-session ID, and sessions whose `ParentID` is their own session ID. Holding a
+session ID, their own session (for example on shutdown or suspected leak), and
+sessions whose `ParentID` is their own session ID. Revocation is idempotent: an
+authorized caller revoking an already revoked grant or session succeeds and
+keeps the original revocation time. Holding a
 grant, owning an ancestor grant, or sharing a principal with the issuer does not
 authorize revocation. Administrative principals may revoke any grant or session.
 Revocation cascades through the existing grant/session trees. CLI, HTTP and MCP
@@ -43,7 +52,7 @@ all call these service methods; MCP does not add administrative authority.
 
 A non-admin session holding `grant` can invite an unrelated session to a context in the same workspace. Sessions and principals have no explicit workspace membership field: the target qualifies only when it holds its own currently valid grant on any context in that workspace. Grants held by ancestor sessions do not establish membership, since an admin or coordinator may hold authority in workspaces its children do not belong to. Expired or revoked grants, including invalid grant ancestry or issuers, do not qualify. Another session belonging to the same principal does not establish membership. A session may qualify for multiple workspaces; holding authority only in another workspace does not qualify. Direct-child grants and administrative grants retain their existing rules, including the ability to establish initial access.
 
-Each invitation must be covered by one live issuer grant containing `grant` and every requested permission. Permissions from multiple grants are not combined. Expiry cannot exceed that issuer grant, the issuing session, or the target session. The invitation records `IssuerSessionID` and uses the issuer grant as `ParentGrantID`, so revoking that grant cascades to invitees and their delegated grants. Invitations add access immediately without target acceptance; workspace eligibility does not itself grant access to the destination context. Ineligible workspace targets and insufficient issuer authority return `ErrForbidden`; zero permissions or invalid/session-unbounded expiry return `ErrInvalid`.
+Each invitation must be covered by one live issuer grant containing `grant` and every requested permission. Permissions from multiple grants are not combined. Expiry cannot exceed that issuer grant, the issuing session, or the target session. The invitation records `IssuerSessionID` and uses the issuer grant as `ParentGrantID`, so revoking that grant cascades to invitees and their delegated grants. Invitations add access immediately without target acceptance; workspace eligibility does not itself grant access to the destination context. Ineligible workspace targets and insufficient issuer authority return `ErrForbidden`; zero or undefined permission bits or invalid/session-unbounded expiry return `ErrInvalid`.
 
 Use `comitia grant --session-id SESSION --context-id CONTEXT --permissions read --ttl 30m` with an authenticated credential. Embedded and remote CLI modes use the same `GrantContext` API; remote mode calls `grants/create`. The CLI returns the created grant, including its issuer and parent grant IDs.
 
@@ -53,7 +62,7 @@ Initial bootstrap is a one-time local or offline operation. Network adapters mus
 
 Successful authentication means only that the request presented valid proof for a configured credential. The initial credential mechanism uses static, opaque scoped tokens; it does not implement OIDC. Authentication does not establish real-world identity, intent, software integrity, or the accuracy of claims in messages and task results. Deployments needing stronger identity assurance must bind credentials to an external identity process and document that process separately.
 
-Secrets must not be stored in resource references, messages intended for broad replay, command arguments visible to other local users, or logs. Error responses should contain enough detail to diagnose a request without revealing credentials or cross-workspace resource existence. Task ID operations authenticate before lookup and return `ErrForbidden` for both missing tasks and tasks outside the required context authority, including for administrators without that authority. Non-admin grant/session revocation returns `ErrForbidden` for both missing IDs and IDs the caller cannot revoke. Grant creation verifies non-admin context grant authority before consulting context or target IDs and returns `ErrForbidden` for missing or ineligible targets. Administrative grant/session operations retain `ErrNotFound` diagnostics after authentication. Invalid or absent credentials return `ErrUnauthenticated` independently of those resource IDs.
+Secrets must not be stored in resource references, messages intended for broad replay, command arguments visible to other local users, or logs. Error responses should contain enough detail to diagnose a request without revealing credentials or cross-workspace resource existence. Task ID operations authenticate before lookup and return `ErrForbidden` for both missing tasks and tasks outside the required context authority, including for administrators without that authority. Non-admin grant/session revocation returns `ErrForbidden` for both missing IDs and IDs the caller cannot revoke, whether or not they are already revoked. Grant creation verifies non-admin context grant authority before consulting context or target IDs and returns `ErrForbidden` for missing or ineligible targets. Administrative grant/session operations retain `ErrNotFound` diagnostics after authentication. Invalid or absent credentials return `ErrUnauthenticated` independently of those resource IDs.
 
 MCP `delegate_session` never returns a token. The server process stores the CLI
 delegation document plus `server_url` in a new `<session_id>.json` file opened

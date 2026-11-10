@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/krimvp/comitia"
@@ -288,7 +289,12 @@ func (c *Client) WaitMessages(ctx context.Context, token, id string, after int64
 		}
 	}
 	var out readMessagesResult
-	err = strictRecipientsUnsupported(q, c.call(ctx, token, "messages/wait", q.wait(timeout.Seconds()), &out))
+	waitCtx, cancel := c.waits.context(ctx)
+	defer cancel()
+	err = strictRecipientsUnsupported(q, c.call(waitCtx, token, "messages/wait", q.wait(timeout.Seconds()), &out))
+	if errors.Is(err, context.Canceled) && c.waits.stopped(ctx) {
+		return []comitia.Message{}, nil
+	}
 	if err = requiredResult(err, out.Messages); err != nil {
 		return nil, err
 	}
@@ -330,11 +336,59 @@ func (c *Client) WaitMessagesPage(ctx context.Context, token, id string, after i
 		}
 	}
 	var out readMessagesResult
-	err = strictRecipientsUnsupported(q, c.call(ctx, token, "messages/wait", q.wait(timeout.Seconds()), &out))
+	waitCtx, cancel := c.waits.context(ctx)
+	defer cancel()
+	err = strictRecipientsUnsupported(q, c.call(waitCtx, token, "messages/wait", q.wait(timeout.Seconds()), &out))
+	if errors.Is(err, context.Canceled) && !q.FromCursor && c.waits.stopped(ctx) {
+		return comitia.MessagePage{Messages: []comitia.Message{}, NextAfter: after, ScannedThrough: after}, nil
+	}
 	if err = requiredResult(err, out.Page); err != nil {
 		return comitia.MessagePage{}, err
 	}
 	return out.Page.core(), nil
+}
+
+// EndWaits makes current and later message waits return their timeout result,
+// so a stopping adapter can drain long polls promptly. A cursor-relative page
+// wait has no known position and returns its cancellation error instead.
+func (c *Client) EndWaits() {
+	if c.waits != nil {
+		c.waits.once.Do(func() { close(c.waits.ended) })
+	}
+}
+
+type waitDrain struct {
+	once  sync.Once
+	ended chan struct{}
+}
+
+// context ends a wait when EndWaits is called.
+func (d *waitDrain) context(ctx context.Context) (context.Context, context.CancelFunc) {
+	if d == nil {
+		return ctx, func() {}
+	}
+	waitCtx, cancel := context.WithCancel(ctx)
+	go func() {
+		select {
+		case <-d.ended:
+			cancel()
+		case <-waitCtx.Done():
+		}
+	}()
+	return waitCtx, cancel
+}
+
+// stopped reports whether EndWaits, rather than the caller, ended a wait.
+func (d *waitDrain) stopped(ctx context.Context) bool {
+	if d == nil || ctx.Err() != nil {
+		return false
+	}
+	select {
+	case <-d.ended:
+		return true
+	default:
+		return false
+	}
 }
 func (c *Client) AckMessages(ctx context.Context, token, id string, sequence int64, instances ...string) error {
 	instance, err := c.InstanceDefaults.ID(instances...)

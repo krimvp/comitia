@@ -2,7 +2,10 @@ package comitia
 
 import (
 	"context"
+	"database/sql"
 	"errors"
+	"net/url"
+	"path/filepath"
 	"sync"
 	"testing"
 	"time"
@@ -64,8 +67,61 @@ func TestStorageProbeBoundAndAuthorization(t *testing.T) {
 	}
 	blocked.block = false
 	next, err := svc.StorageStatus(ctx, f.admin.Token)
-	if err != nil || !next.WriteReady || next.WriteFailures != 1 || next.WriteAttempts != 2 || next.LastWriteErrorClass != "" {
+	if err != nil || !next.WriteReady || next.WriteFailures != 1 || next.WriteAttempts != 2 || next.LastWriteErrorClass != "deadline_exceeded" {
 		t.Fatalf("recovery=%+v err=%v", next, err)
+	}
+	if _, err := svc.CreatePrincipal(ctx, f.admin.Token, "writer"); err != nil {
+		t.Fatal(err)
+	}
+	if next, err = svc.StorageStatus(ctx, f.admin.Token); err != nil || !next.WriteReady || next.LastWriteErrorClass != "" {
+		t.Fatalf("after real write=%+v err=%v", next, err)
+	}
+}
+
+func TestStorageProbeDetectsReadOnlyDatabase(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "k.db")
+	f := setup(t, path)
+	f.store.Close()
+	// mode=ro rejects writes with SQLITE_READONLY regardless of file
+	// permissions (tests may run as root), while an empty BEGIN
+	// IMMEDIATE/COMMIT still succeeds, as on an immutable file.
+	db, err := sql.Open("sqlite", (&url.URL{Scheme: "file", Path: path}).String()+"?mode=ro&_pragma=busy_timeout(10)&_txlock=immediate")
+	if err != nil {
+		t.Fatal(err)
+	}
+	db.SetMaxOpenConns(1)
+	ro := &SQLiteStore{db: db, readers: db, writers: make(chan struct{}, 1)}
+	defer ro.Close()
+	svc, err := New(Config{Store: ro, Clock: f.svc.now})
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx := context.Background()
+	if _, err := svc.CreatePrincipal(ctx, f.admin.Token, "writer"); FailureClass(err) != "storage_read_only" {
+		t.Fatalf("write err=%v class=%s", err, FailureClass(err))
+	}
+	status, err := svc.StorageStatus(ctx, f.admin.Token)
+	if err != nil || status.WriteReady || status.LastWriteErrorClass != "storage_read_only" || status.WriteFailures != 2 {
+		t.Fatalf("status=%+v err=%v", status, err)
+	}
+}
+
+func TestStorageProbeLeavesNoRows(t *testing.T) {
+	f := setup(t, ":memory:")
+	defer f.store.Close()
+	ctx := context.Background()
+	count := func() (n int) {
+		if err := f.store.db.QueryRow("SELECT count(*) FROM principals").Scan(&n); err != nil {
+			t.Fatal(err)
+		}
+		return n
+	}
+	before := count()
+	if status, err := f.svc.StorageStatus(ctx, f.admin.Token); err != nil || !status.WriteReady {
+		t.Fatalf("status=%+v err=%v", status, err)
+	}
+	if after := count(); after != before {
+		t.Fatalf("probe left rows: %d -> %d", before, after)
 	}
 }
 

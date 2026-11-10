@@ -56,6 +56,8 @@ type SessionWriteStore interface {
 	PutPrincipal(Principal) error
 	PutSession(Session, string) error
 	// RevokeSessionTree durably revokes the session and all child sessions atomically.
+	// It returns ErrNotFound only for a missing root; an already revoked root
+	// succeeds, keeping existing revocation times.
 	RevokeSessionTree(string, time.Time) error
 }
 
@@ -144,8 +146,8 @@ func (s *Service) DelegateSession(ctx context.Context, raw string, in DelegateIn
 		tok := token()
 		c = Credential{Token: tok, Session: Session{ID: id(), PrincipalID: p.ID, ParentID: parent.session.ID, ExpiresAt: expiry, CreatedAt: now}}
 		for _, req := range in.Grants {
-			if req.Permissions == 0 || req.ExpiresAt.After(expiry) || !req.ExpiresAt.After(now) {
-				return Invalidf("grants permissions must be nonzero and expires_at must be within session expiry")
+			if req.Permissions == 0 || req.Permissions&^PermissionAll != 0 || req.ExpiresAt.After(expiry) || !req.ExpiresAt.After(now) {
+				return Invalidf("grants permissions must be nonzero known bits and expires_at must be within session expiry")
 			}
 			_, parents, e := s.require(w, raw, req.ContextID, PermissionGrant)
 			if e != nil {
@@ -195,9 +197,18 @@ func (s *Service) RevokeSession(ctx context.Context, raw, target string) error {
 		if e != nil {
 			return e
 		}
-		if !a.principal.Admin && t.ParentID != a.session.ID {
+		if !a.principal.Admin && t.ParentID != a.session.ID && t.ID != a.session.ID {
 			return ErrForbidden
 		}
-		return w.RevokeSessionTree(target, s.now().UTC())
+		return revokedAgain(w.RevokeSessionTree(target, s.now().UTC()), t.RevokedAt)
 	})
+}
+
+// Revocation is idempotent once authorized. Older stores report an already
+// revoked root as missing, so trust the record read in this transaction.
+func revokedAgain(err error, revokedAt *time.Time) error {
+	if revokedAt != nil && errors.Is(err, ErrNotFound) {
+		return nil
+	}
+	return err
 }

@@ -82,7 +82,7 @@ func TestSessionRevocationOwnership(t *testing.T) {
 	for _, tc := range []struct {
 		caller Credential
 		target string
-	}{{issuer, issuer.Session.ID}, {other, child.Session.ID}, {issuer, grandchild.Session.ID}} {
+	}{{other, child.Session.ID}, {issuer, grandchild.Session.ID}} {
 		if err := f.svc.RevokeSession(ctx, tc.caller.Token, tc.target); !errors.Is(err, ErrForbidden) {
 			t.Fatalf("ownership: %v", err)
 		}
@@ -95,5 +95,60 @@ func TestSessionRevocationOwnership(t *testing.T) {
 	}
 	if _, err := f.svc.GetContext(ctx, issuer.Token, f.context.ID); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestRevocationIsIdempotentWithoutExistenceOracle(t *testing.T) {
+	f := setup(t, ":memory:")
+	defer f.store.Close()
+	ctx := context.Background()
+	_, issuer, source, err := f.svc.DelegateSession(ctx, f.admin.Token, DelegateInput{PrincipalName: "issuer", TTL: 8 * time.Hour, Grants: []DelegatedGrant{{ContextID: f.context.ID, Permissions: PermissionRead | PermissionGrant, ExpiresAt: f.now.Add(7 * time.Hour)}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, child, childGrants, err := f.svc.DelegateSession(ctx, issuer.Token, DelegateInput{PrincipalName: "child", TTL: 6 * time.Hour, Grants: []DelegatedGrant{{ContextID: f.context.ID, Permissions: PermissionRead, ExpiresAt: f.now.Add(5 * time.Hour)}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	other := inviteSession(t, f, "other", 8*time.Hour)
+	for i := 0; i < 2; i++ {
+		if err := f.svc.RevokeGrant(ctx, issuer.Token, childGrants[0].ID); err != nil {
+			t.Fatalf("issuer grant revoke %d: %v", i, err)
+		}
+		if err := f.svc.RevokeGrant(ctx, f.admin.Token, childGrants[0].ID); err != nil {
+			t.Fatalf("admin grant revoke %d: %v", i, err)
+		}
+		if err := f.svc.RevokeSession(ctx, issuer.Token, child.Session.ID); err != nil {
+			t.Fatalf("parent session revoke %d: %v", i, err)
+		}
+		if err := f.svc.RevokeSession(ctx, f.admin.Token, child.Session.ID); err != nil {
+			t.Fatalf("admin session revoke %d: %v", i, err)
+		}
+	}
+	// Unauthorized callers see revoked and missing targets alike.
+	for _, target := range []string{childGrants[0].ID, "missing"} {
+		if err := f.svc.RevokeGrant(ctx, other.Token, target); !errors.Is(err, ErrForbidden) {
+			t.Fatalf("unrelated grant revoke %s: %v", target, err)
+		}
+	}
+	for _, target := range []string{child.Session.ID, "missing"} {
+		if err := f.svc.RevokeSession(ctx, other.Token, target); !errors.Is(err, ErrForbidden) {
+			t.Fatalf("unrelated session revoke %s: %v", target, err)
+		}
+	}
+	if err := f.svc.RevokeGrant(ctx, f.admin.Token, "missing"); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("admin missing grant: %v", err)
+	}
+	if err := f.svc.RevokeSession(ctx, f.admin.Token, "missing"); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("admin missing session: %v", err)
+	}
+	if err := f.svc.RevokeSession(ctx, issuer.Token, issuer.Session.ID); err != nil {
+		t.Fatalf("self revoke: %v", err)
+	}
+	if _, err := f.svc.GetContext(ctx, issuer.Token, f.context.ID); !errors.Is(err, ErrUnauthenticated) {
+		t.Fatalf("self-revoked session still works: %v", err)
+	}
+	if err := f.svc.RevokeGrant(ctx, f.admin.Token, source[0].ID); err != nil {
+		t.Fatalf("grant of revoked issuer: %v", err)
 	}
 }

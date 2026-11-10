@@ -175,6 +175,7 @@ type Client struct {
 	base             *url.URL
 	http             *http.Client
 	InstanceDefaults comitia.InstanceDefaults
+	waits            *waitDrain
 }
 
 // NewClient validates and captures COMITIA_AGENT_INSTANCE / LABEL defaults.
@@ -200,7 +201,7 @@ func NewClientWithInstanceDefaults(baseURL string, hc *http.Client, defaults com
 		hc = &clone
 	}
 	hc.CheckRedirect = func(_ *http.Request, _ []*http.Request) error { return http.ErrUseLastResponse }
-	return &Client{base: u, http: hc, InstanceDefaults: defaults}, nil
+	return &Client{base: u, http: hc, InstanceDefaults: defaults, waits: &waitDrain{ended: make(chan struct{})}}, nil
 }
 func (c *Client) call(ctx context.Context, token, path string, in, out any) error {
 	b, err := json.Marshal(legacyValue(reflect.ValueOf(in)))

@@ -169,7 +169,7 @@ func (s *Service) validateProtocolReferences(r ReadStore, cid, sid string, env *
 		if !deadline.After(s.now()) {
 			return Invalidf("request deadline must be in the future")
 		}
-		return s.validateEnvelopeReferences(r, cid, &MessageEnvelope{RecipientSessionIDs: p.ExpectedResponders})
+		return s.validateReaders(r, cid, "expected_responders", p.ExpectedResponders)
 	case ReceiptSchema, MergeCertificateSchema, MergeReceiptSchema:
 		if env.ReplyTo == "" {
 			return Invalidf("reply_to required for receipt or certificate")

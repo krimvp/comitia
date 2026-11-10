@@ -9,6 +9,12 @@ import (
 
 const MaxMessageWait = 60 * time.Second
 
+// Bounds for the MessageFilters.Schemas list.
+const (
+	maxFilterSchemas     = 64
+	maxFilterSchemaBytes = 128
+)
+
 func messageFilters(filters []MessageFilters) (MessageFilters, error) {
 	if len(filters) > 1 {
 		return MessageFilters{}, Invalidf("at most one filter set allowed")
@@ -31,6 +37,15 @@ func messageFilters(filters []MessageFilters) (MessageFilters, error) {
 	}
 	if instance := f.agentInstance(); instance != "" && !validInstanceID(instance) {
 		return f, Invalidf("agent_instance must be 1-64 letters, digits, '.', '_' or '-'")
+	}
+	// Each name is a bound SQL variable; keep lists well inside driver limits.
+	if len(f.Schemas) > maxFilterSchemas {
+		return f, Invalidf("schemas allows at most %d entries", maxFilterSchemas)
+	}
+	for _, schema := range f.Schemas {
+		if len(schema) > maxFilterSchemaBytes {
+			return f, Invalidf("schemas entries must be at most %d bytes", maxFilterSchemaBytes)
+		}
 	}
 	return f, nil
 }
@@ -60,6 +75,37 @@ type messageNotification struct {
 type messageNotifications struct {
 	mu       sync.Mutex
 	contexts map[string]*messageNotification
+	ended    chan struct{}
+}
+
+// EndWaits makes current and later message waits return their timeout result
+// after one more read, so a stopping server can drain long polls promptly.
+func (s *Service) EndWaits() {
+	n := &s.messageNotifications
+	n.mu.Lock()
+	defer n.mu.Unlock()
+	if ended := n.endedLocked(); !isClosed(ended) {
+		close(ended)
+	}
+}
+func (n *messageNotifications) endedChannel() <-chan struct{} {
+	n.mu.Lock()
+	defer n.mu.Unlock()
+	return n.endedLocked()
+}
+func (n *messageNotifications) endedLocked() chan struct{} {
+	if n.ended == nil {
+		n.ended = make(chan struct{})
+	}
+	return n.ended
+}
+func isClosed(c <-chan struct{}) bool {
+	select {
+	case <-c:
+		return true
+	default:
+		return false
+	}
 }
 
 func (n *messageNotifications) subscribe(cid string) (*messageNotification, func()) {
@@ -217,6 +263,7 @@ func (s *Service) waitMessagesScanned(ctx context.Context, raw, cid string, afte
 	filters = []MessageFilters{f}
 	v, unsubscribe := s.messageNotifications.subscribe(cid)
 	defer unsubscribe()
+	ended := s.messageNotifications.endedChannel()
 	timer := time.NewTimer(timeout)
 	defer timer.Stop()
 	poll := time.NewTicker(200 * time.Millisecond)
@@ -250,6 +297,8 @@ func (s *Service) waitMessagesScanned(ctx context.Context, raw, cid string, afte
 			if err := ctx.Err(); err != nil {
 				return nil, after, err
 			}
+			return []Message{}, after, nil
+		case <-ended:
 			return []Message{}, after, nil
 		case <-changed:
 		case <-poll.C:

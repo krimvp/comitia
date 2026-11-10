@@ -206,7 +206,7 @@ Empty values disable a filter; all nonempty filters must match.
 | `from_instance` | The message's self-reported `agent_instance.id` equals this exact ID. Legacy senders without a claim do not match. |
 | `task_id` | Envelope `task_id` equals this exact ID. |
 | `schema` | Envelope `schema` equals this exact versioned name. |
-| `schemas` | Envelope `schema` matches any name in the list. CLI repeats `--schema` to build this list. If both `schema` and `schemas` are supplied, both selectors must match. |
+| `schemas` | Envelope `schema` matches any name in the list (at most 64 names of at most 128 bytes each). CLI repeats `--schema` to build this list. If both `schema` and `schemas` are supplied, both selectors must match. |
 
 Instance filters use the same 1–64 character ID syntax as sender claims.
 `agent_instance` (an ID string, defaulting to `COMITIA_AGENT_INSTANCE`) names the
@@ -1010,14 +1010,15 @@ a `DiagnosticHook` instead of the default log.
 Capability discovery and the inspector loading successfully do not establish
 write availability. An administrator can call the `storage_status` MCP tool with
 `{}`, send `POST /v1/storage_status` with `{}`, or use `StorageStatusAPI` in Go.
-The probe shares a 250 ms context budget across authentication and a no-op write
-transaction, verifying writer admission/commit. Custom stores must honor context
-cancellation. The result includes `write_ready`, `probe_duration_ms`,
+The probe shares a 250 ms context budget across authentication and a write
+transaction that inserts a principal row and rolls it back, verifying writer
+admission and that pages can be written. Custom stores must honor context
+cancellation and roll back an `Update` whose callback returns an error. The result includes `write_ready`, `probe_duration_ms`,
 `write_attempts`, `write_failures`, `last_write_duration_ms`,
 `last_write_failure_duration_ms`, `max_write_duration_ms` and optional
 `last_write_error_class`. These process-local counters reset on restart and include
 probe transactions; domain rejections such as conflict do not count as storage
-failures. A subsequent successful update clears the last error class but retains
-the failure count/duration. The probe cannot guarantee free disk space or the
+failures. A subsequent successful non-probe update clears the last error class
+but retains the failure count/duration. The probe cannot guarantee free disk space or the
 success of a future write. It returns status 200 with `write_ready: false` on
 operational write failure; it performs no write probe for unauthorized callers.

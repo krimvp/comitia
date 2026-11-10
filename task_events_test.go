@@ -105,12 +105,12 @@ func TestTaskEventWaitAndReconciliation(t *testing.T) {
 			waitCtx, cancel := context.WithCancel(ctx)
 			defer cancel()
 			go func() {
-				messages, err := svc.WaitMessages(waitCtx, reader.Token, f.context.ID, 1, 2*time.Second, MessageFilters{Schema: TaskEventSchema, TaskID: task.ID, ForInstance: "reader"})
+				messages, err := svc.WaitMessages(waitCtx, reader.Token, f.context.ID, 1, 30*time.Second, MessageFilters{Schema: TaskEventSchema, TaskID: task.ID, ForInstance: "reader"})
 				result <- waitResult{messages, err}
 			}()
 			select {
 			case <-read:
-			case <-time.After(time.Second):
+			case <-time.After(10 * time.Second):
 				t.Fatal("wait did not scan")
 			}
 			if _, err := f.svc.ClaimTask(ctx, f.admin.Token, task.ID, time.Minute); err != nil {

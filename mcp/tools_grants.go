@@ -44,7 +44,7 @@ func parseToolPermissions(field string, names []string) (comitia.Permission, err
 func grantTools() []map[string]any {
 	return []map[string]any{
 		tool("grant_context", "Grant context access to a direct child or invite a session already in the workspace. Contexts are the privacy boundary; non-admin grants only shrink permissions and expiry from one issuer grant containing grant.", schema(map[string]any{"session_id": str("Target session ID"), "context_id": str("Context ID"), "permissions": permissionSchema(), "ttl_seconds": integer("Positive grant lifetime in seconds")}, "session_id", "context_id", "permissions", "ttl_seconds")),
-		tool("revoke_grant", "Revoke a grant and its descendants. Non-admin callers may revoke only grants issued by their own session; admins may revoke any grant. Delegated grants only shrink and revocation cascades.", schema(map[string]any{"grant_id": str("Grant ID")}, "grant_id")),
+		tool("revoke_grant", "Revoke a grant and its descendants. Non-admin callers may revoke only grants issued by their own session; admins may revoke any grant. Repeating a revocation succeeds. Delegated grants only shrink and revocation cascades.", schema(map[string]any{"grant_id": str("Grant ID")}, "grant_id")),
 	}
 }
 

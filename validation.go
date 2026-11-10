@@ -227,7 +227,7 @@ func safeReferenceMessage(err error) string {
 	}
 	fields := []string{"task_id", "reply_to", "thread_id"}
 	for i := 0; i < 64; i++ {
-		fields = append(fields, fmt.Sprintf("recipient_session_ids[%d]", i))
+		fields = append(fields, fmt.Sprintf("recipient_session_ids[%d]", i), fmt.Sprintf("expected_responders[%d]", i))
 	}
 	for _, field := range fields {
 		message := (referenceError{field}).Error()

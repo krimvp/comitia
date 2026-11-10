@@ -215,19 +215,20 @@ Release with the current token/version; admins may omit the token, not version.
 
 ## Validation
 
-Run the reproducible process-level stress harness after building:
+Build, then run the process-level stress harness:
 
 ```sh
+go build -o bin/comitia ./cmd/comitia
 python3 scripts/stress_agents.py --binary "$PWD/bin/comitia" --workers 12 --messages 100
 ```
 
 `--messages` is the number of logical writes **per worker**. The harness uses a
 temporary database, checks retry identity, paginated replay, exclusive claims,
 expired-lease recovery and stale-completion rejection, and emits a JSON summary.
-A failure names the CLI command (and dedupe key) that failed; CI runs it three
+A failure names the failing CLI command (and dedupe key); CI runs it three
 times. Concurrent CLI processes wait up to 15 s for the SQLite write lock, and
 opening an up-to-date database does not take the write lock.
-These workers are subprocess clients, not language-model agents.
+Workers are subprocesses, not language-model agents.
 See the [six-agent engineering trial](history/release-readiness-20260909.md) for
 the separate real-agent collaboration results and their limitations.
 

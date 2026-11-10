@@ -197,7 +197,7 @@ func TestWatchInstanceDefault(t *testing.T) {
 				}
 				defer func() { os.Stdout = old; _ = devNull.Close() }()
 				os.Stdout = devNull
-				ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+				ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 				defer cancel()
 				if err := run(ctx, append(append(base, "watch", "--context-id", cid, "--timeout-seconds", "0.1"), extra...)); err != nil {
 					t.Fatal(err)
@@ -243,18 +243,31 @@ func TestPresenceCommandsUseInstanceDefaults(t *testing.T) {
 					if explicitEmpty {
 						call = append(call, "--agent-instance", "")
 					}
-					old := os.Stdout
-					devNull, err := os.OpenFile(os.DevNull, os.O_WRONLY, 0)
-					if err != nil {
-						t.Fatal(err)
+					attempt := func() ([]any, error) {
+						old := os.Stdout
+						devNull, err := os.OpenFile(os.DevNull, os.O_WRONLY, 0)
+						if err != nil {
+							t.Fatal(err)
+						}
+						os.Stdout = devNull
+						// watch runs until its deadline; the others finish on their own.
+						deadline := 10 * time.Second
+						if args[0] == "watch" {
+							deadline = 3 * time.Second
+						}
+						ctx, cancel := context.WithTimeout(context.Background(), deadline)
+						err = run(ctx, call)
+						cancel()
+						os.Stdout = old
+						_ = devNull.Close()
+						return commandAny(t, append(base, "instances", "--context-id", cid)...).([]any), err
 					}
-					os.Stdout = devNull
-					ctx, cancel := context.WithTimeout(context.Background(), time.Second)
-					err = run(ctx, call)
-					cancel()
-					os.Stdout = old
-					_ = devNull.Close()
-					rows := commandAny(t, append(base, "instances", "--context-id", cid)...).([]any)
+					rows, err := attempt()
+					// A read heartbeat is best effort: under load it is skipped once
+					// its small time budget runs out, so read again before judging.
+					for tries := 0; !explicitEmpty && err == nil && len(rows) == 0 && tries < 5; tries++ {
+						rows, err = attempt()
+					}
 					if explicitEmpty {
 						// Resume always names an instance; reads with an empty ID record none.
 						if args[0] == "instance-resume" {

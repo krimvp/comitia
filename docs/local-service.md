@@ -474,7 +474,7 @@ availability. To check writer admission, run `comitia --server-url URL
 The command emits JSON and requires an administrator credential; unsupported
 servers report a clear error. You can also call `storage_status` through an
 administrator's MCP connection or authenticated `POST /v1/storage_status` with an
-empty JSON object. Its no-op write probe has a 250 ms context budget and returns
+empty JSON object. Its rolled-back write probe has a 250 ms context budget and returns
 `write_ready` plus process-local write failure counts and durations, including the
 last failed write's duration. The probe does not test free disk space and does
 not guarantee the next write will succeed; see the
@@ -487,6 +487,15 @@ environment. Request logs contain only an allowlisted method, fixed route label
 (`/v1/<operation>`, `/ui/` or `unknown`), status, duration in milliseconds and
 server-generated request ID. They exclude request/response bodies, credentials,
 headers, query strings and arbitrary paths. Logging is off by default.
+
+The daemon closes connections that send headers slower than 10 seconds or a
+request slower than 30 seconds, caps headers at 16 KiB, and closes idle
+keep-alive connections after 2 minutes. Responses may take 2 minutes, above the
+60-second `messages/wait` cap.
+
+SIGINT or SIGTERM stops `serve`, `mcp-http` and `mcp` cleanly: pending waits
+return their empty timeout result, other requests get a few seconds to finish,
+the database is closed and the process exits 0.
 
 Internal write failures produce secret-safe daemon diagnostics with operation,
 error class, generated request ID, duration and build revision. Match the public

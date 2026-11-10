@@ -18,7 +18,7 @@ func runTasks(ctx context.Context, cfg config, api comitia.API, out *json.Encode
 		cid := fs.String("context-id", "", "context ID")
 		title := fs.String("title", "", "task title")
 		body := fs.String("body", "", "task body")
-		if err := fs.Parse(args); err != nil {
+		if err := parseFlags(fs, args); err != nil {
 			return err
 		}
 		if cfg.parseOnly {
@@ -32,7 +32,7 @@ func runTasks(ctx context.Context, cfg config, api comitia.API, out *json.Encode
 	case "task-get":
 		fs := newFlags(cmd)
 		tid := fs.String("task-id", "", "task ID")
-		if err := fs.Parse(args); err != nil {
+		if err := parseFlags(fs, args); err != nil {
 			return err
 		}
 		if cfg.parseOnly {
@@ -57,7 +57,7 @@ func runTasks(ctx context.Context, cfg config, api comitia.API, out *json.Encode
 		cid := fs.String("context-id", "", "context ID")
 		status := fs.String("status", "", "task status (pending, leased, completed, failed, cancelled)")
 		limit := fs.Int("limit", 100, "maximum tasks (1-1000)")
-		if err := fs.Parse(args); err != nil {
+		if err := parseFlags(fs, args); err != nil {
 			return err
 		}
 		if cfg.parseOnly {
@@ -97,7 +97,7 @@ func runTasks(ctx context.Context, cfg config, api comitia.API, out *json.Encode
 		openEnded := fs.Bool("open-ended", false, "hold the lease until completed or released (capped at session expiry)")
 		instanceID := fs.String("agent-instance", "", "self-reported instance ID holding the claim (defaults to COMITIA_AGENT_INSTANCE)")
 		instanceLabel := fs.String("agent-instance-label", "", "optional self-reported instance label (defaults to COMITIA_AGENT_INSTANCE_LABEL)")
-		if err := fs.Parse(args); err != nil {
+		if err := parseFlags(fs, args); err != nil {
 			return err
 		}
 		if cfg.parseOnly {
@@ -126,7 +126,7 @@ func runTasks(ctx context.Context, cfg config, api comitia.API, out *json.Encode
 		tid := fs.String("task-id", "", "task ID")
 		ver := fs.Int64("lease-version", 0, "current positive lease version from task-get")
 		instanceID := fs.String("agent-instance", "", "matching holder instance ID (defaults to COMITIA_AGENT_INSTANCE)")
-		if err := fs.Parse(args); err != nil {
+		if err := parseFlags(fs, args); err != nil {
 			return err
 		}
 		if cfg.parseOnly {
@@ -153,7 +153,7 @@ func runTasks(ctx context.Context, cfg config, api comitia.API, out *json.Encode
 		ver := fs.Int64("lease-version", 0, "lease version")
 		lease := fs.Duration("lease", 5*time.Minute, "lease duration")
 		openEnded := fs.Bool("open-ended", false, "hold the lease until completed or released (capped at session expiry)")
-		if err := fs.Parse(args); err != nil {
+		if err := parseFlags(fs, args); err != nil {
 			return err
 		}
 		if cfg.parseOnly {
@@ -169,7 +169,7 @@ func runTasks(ctx context.Context, cfg config, api comitia.API, out *json.Encode
 		tid := fs.String("task-id", "", "task ID")
 		token := fs.String("claim-token", "", "claim token")
 		ver := fs.Int64("lease-version", 0, "lease version")
-		if err := fs.Parse(args); err != nil {
+		if err := parseFlags(fs, args); err != nil {
 			return err
 		}
 		if cfg.parseOnly {
@@ -185,7 +185,7 @@ func runTasks(ctx context.Context, cfg config, api comitia.API, out *json.Encode
 		tid := fs.String("task-id", "", "task ID")
 		token := fs.String("claim-token", "", "claim token (optional for a context admin)")
 		ver := fs.Int64("lease-version", 0, "lease version")
-		if err := fs.Parse(args); err != nil {
+		if err := parseFlags(fs, args); err != nil {
 			return err
 		}
 		if cfg.parseOnly {

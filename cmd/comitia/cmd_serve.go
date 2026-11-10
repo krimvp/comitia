@@ -4,14 +4,18 @@ import (
 	"context"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
+	"io"
 	"log"
 	"net"
 	"net/http"
 	"os"
+	"os/signal"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/krimvp/comitia"
@@ -36,18 +40,27 @@ func runServe(ctx context.Context, cfg config, api comitia.API, out *json.Encode
 		if logRequests {
 			handler = serveLoggingHandler(handler)
 		}
-		return serveHTTP(ctx, listen, cfg.db, handler)
+		ctx, stop := serveSignals(ctx, cmd)
+		defer stop()
+		return serveHTTP(ctx, listen, cfg.db, handler, endWaits(api))
 	case "mcp":
 		fs := newFlags(cmd)
 		dir := fs.String("sessions-dir", env("COMITIA_SESSIONS_DIR", ""), "private delegated credential directory (default ~/.local/share/comitia/sessions)")
 		credentialURL := fs.String("credential-server-url", cfg.serverURL, "daemon URL stored in delegated credentials (required for embedded delegation)")
-		if err := fs.Parse(args); err != nil {
+		if err := parseFlags(fs, args); err != nil {
 			return err
 		}
 		if cfg.parseOnly {
 			return nil
 		}
-		return (&mcp.Server{API: api, Credential: needCredential(cfg), SessionsDir: *dir, ServerURL: *credentialURL, InstanceDefaults: cfg.instances}).Serve(ctx, os.Stdin, os.Stdout)
+		// A signal ends input instead of cancelling, so in-flight calls (with
+		// long polls drained) still answer before the adapter exits.
+		signalled, stop := serveSignals(ctx, cmd)
+		defer stop()
+		in, input := io.Pipe()
+		go func() { _, err := io.Copy(input, os.Stdin); _ = input.CloseWithError(err) }()
+		defer context.AfterFunc(signalled, func() { endWaits(api)(); _ = input.Close() })()
+		return (&mcp.Server{API: api, Credential: needCredential(cfg), SessionsDir: *dir, ServerURL: *credentialURL, InstanceDefaults: cfg.instances}).Serve(ctx, in, os.Stdout)
 	case "mcp-http":
 		// Streamable HTTP transport for remote MCP clients. Unlike serve, this
 		// adapter must run against a remote Comitia daemon: it authenticates each
@@ -62,7 +75,7 @@ func runServe(ctx context.Context, cfg config, api comitia.API, out *json.Encode
 		rate := fs.Float64("rate-per-second", 20, "per-credential request rate (0 disables)")
 		burst := fs.Int("rate-burst", 60, "per-credential burst size (0 disables)")
 		logRequests := fs.Bool("log-requests", false, "log allowlisted HTTP method, constant route, status and duration")
-		if err := fs.Parse(args); err != nil {
+		if err := parseFlags(fs, args); err != nil {
 			return err
 		}
 		if cfg.parseOnly {
@@ -109,7 +122,13 @@ func runServe(ctx context.Context, cfg config, api comitia.API, out *json.Encode
 			IdleTimeout:       120 * time.Second,
 			MaxHeaderBytes:    16 << 10,
 		}
-		return mcp.ServeHTTP(ctx, srv)
+		srv.RegisterOnShutdown(endWaits(api))
+		ctx, stop := serveSignals(ctx, cmd)
+		defer stop()
+		if err := mcp.ServeHTTP(ctx, srv); !errors.Is(err, context.Canceled) || ctx.Err() == nil {
+			return err
+		}
+		return nil
 	default:
 		return errUnknownCommand
 	}
@@ -121,7 +140,7 @@ func serveFlags(args []string) (string, int, int, bool, error) {
 	logRequests := fs.Bool("log-requests", false, "log allowlisted method, route, status, duration and request_id (or COMITIA_HTTP_LOG)")
 	depth := fs.Int("max-context-depth", 3, "maximum child nesting depth (top-level is 0)")
 	count := fs.Int("max-child-contexts-per-grant", 20, "maximum children created by each grant (including archived children)")
-	if err := fs.Parse(args); err != nil {
+	if err := parseFlags(fs, args); err != nil {
 		return "", 0, 0, false, err
 	}
 	if *depth < 1 || *count < 1 {
@@ -151,7 +170,7 @@ func booleanEnv(fs *flag.FlagSet, name, key string, value *bool) error {
 	return nil
 }
 
-func serveHTTP(ctx context.Context, address, db string, handler http.Handler) error {
+func serveHTTP(ctx context.Context, address, db string, handler http.Handler, onShutdown ...func()) error {
 	listener, err := net.Listen("tcp", address)
 	if err != nil {
 		return err
@@ -159,14 +178,69 @@ func serveHTTP(ctx context.Context, address, db string, handler http.Handler) er
 	defer listener.Close()
 	build := comitia.BuildIdentity()
 	log.Printf("comitia serve listen=%q version=%q revision=%q db=%q", listener.Addr().String(), build.Version, build.Revision, db)
-	server := &http.Server{Handler: handler}
-	stop := context.AfterFunc(ctx, func() { _ = server.Close() })
-	defer stop()
-	err = server.Serve(listener)
-	if err == http.ErrServerClosed && ctx.Err() != nil {
-		return nil
+	return serveListener(ctx, listener, handler, onShutdown...)
+}
+
+// serveTimeouts bound unauthenticated slow clients. Writes may outlast the
+// longest messages/wait long poll; reads end once the body is consumed.
+var serveTimeouts = struct{ header, read, write, idle time.Duration }{10 * time.Second, 30 * time.Second, comitia.MaxMessageWait + time.Minute, 120 * time.Second}
+
+// serveShutdownTimeout bounds how long in-flight requests may finish after
+// cancellation; long polls are drained by onShutdown rather than waited out.
+const serveShutdownTimeout = 10 * time.Second
+
+func serveListener(ctx context.Context, listener net.Listener, handler http.Handler, onShutdown ...func()) error {
+	server := &http.Server{
+		Handler:           handler,
+		ReadHeaderTimeout: serveTimeouts.header,
+		ReadTimeout:       serveTimeouts.read,
+		WriteTimeout:      serveTimeouts.write,
+		IdleTimeout:       serveTimeouts.idle,
+		MaxHeaderBytes:    16 << 10,
 	}
-	return err
+	for _, f := range onShutdown {
+		server.RegisterOnShutdown(f)
+	}
+	served := make(chan error, 1)
+	go func() { served <- server.Serve(listener) }()
+	select {
+	case err := <-served:
+		return err
+	case <-ctx.Done():
+	}
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), serveShutdownTimeout)
+	defer cancel()
+	if err := server.Shutdown(shutdownCtx); err != nil {
+		log.Printf("comitia serve shutdown: %v", err)
+	}
+	_ = server.Close()
+	<-served
+	return nil
+}
+
+// serveSignals cancels on SIGINT or SIGTERM so a service drains long polls,
+// shuts down and closes storage before exiting successfully.
+func serveSignals(ctx context.Context, cmd string) (context.Context, context.CancelFunc) {
+	ctx, cancel := context.WithCancel(ctx)
+	signals := make(chan os.Signal, 1)
+	signal.Notify(signals, os.Interrupt, syscall.SIGTERM)
+	go func() {
+		select {
+		case s := <-signals:
+			log.Printf("comitia %s stopping signal=%s", cmd, s)
+			cancel()
+		case <-ctx.Done():
+		}
+	}()
+	return ctx, func() { signal.Stop(signals); cancel() }
+}
+
+// endWaits returns the API's long-poll drain, or a no-op.
+func endWaits(api comitia.API) func() {
+	if d, ok := api.(interface{ EndWaits() }); ok {
+		return d.EndWaits
+	}
+	return func() {}
 }
 
 func serveLoggingHandler(next http.Handler) http.Handler {

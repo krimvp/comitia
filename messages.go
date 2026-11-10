@@ -485,9 +485,15 @@ func (s *Service) validateEnvelopeReferences(r ReadStore, cid string, env *Messa
 	if err := validateTaskStatusReferences(r, cid, env); err != nil {
 		return err
 	}
+	return s.validateReaders(r, cid, "recipient_session_ids", env.RecipientSessionIDs)
+}
+
+// validateReaders checks that every listed session can read the context,
+// naming the offending field[i] in the error.
+func (s *Service) validateReaders(r ReadStore, cid, field string, sids []string) error {
 	now := s.now().UTC()
-	for i, sid := range env.RecipientSessionIDs {
-		failure := referenceError{fmt.Sprintf("recipient_session_ids[%d]", i)}
+	for i, sid := range sids {
+		failure := referenceError{fmt.Sprintf("%s[%d]", field, i)}
 		session, err := r.Session(sid)
 		if err != nil || session.RevokedAt != nil || !session.ExpiresAt.After(now) {
 			return failure

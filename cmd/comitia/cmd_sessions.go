@@ -15,7 +15,7 @@ func runSessions(ctx context.Context, cfg config, api comitia.API, out *json.Enc
 		fs := newFlags(cmd)
 		name := fs.String("name", "owner", "admin principal name")
 		ttl := fs.Duration("ttl", 24*time.Hour, "session lifetime")
-		if err := fs.Parse(args); err != nil {
+		if err := parseFlags(fs, args); err != nil {
 			return err
 		}
 		if cfg.parseOnly {
@@ -38,7 +38,7 @@ func runSessions(ctx context.Context, cfg config, api comitia.API, out *json.Enc
 		grantTTL := fs.Duration("grant-ttl", time.Hour, "grant lifetime")
 		var grantSpecs repeatedGrants
 		fs.Var(&grantSpecs, "grant", "repeat CONTEXT_ID:PERMISSIONS:TTL for atomic multi-context delegation; excludes --context-id/--permissions/--grant-ttl")
-		if err := fs.Parse(args); err != nil {
+		if err := parseFlags(fs, args); err != nil {
 			return err
 		}
 		if cfg.parseOnly {
@@ -80,7 +80,7 @@ func runSessions(ctx context.Context, cfg config, api comitia.API, out *json.Enc
 	case "revoke":
 		fs := newFlags(cmd)
 		sid := fs.String("session-id", "", "session ID")
-		if err := fs.Parse(args); err != nil {
+		if err := parseFlags(fs, args); err != nil {
 			return err
 		}
 		if cfg.parseOnly {

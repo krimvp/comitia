@@ -12,7 +12,7 @@ func runServerInfo(ctx context.Context, cfg config, api comitia.API, out *json.E
 	if cmd != "server-info" && cmd != "storage-status" {
 		return errUnknownCommand
 	}
-	if err := newFlags(cmd).Parse(args); err != nil {
+	if err := parseFlags(newFlags(cmd), args); err != nil {
 		return err
 	}
 	if cfg.parseOnly {

@@ -4,6 +4,7 @@ A session holding the `create` permission on a context can open a private child
 context for its own sub-team, for example one task of a larger epic:
 
 ```sh
+go build -o bin/comitia ./cmd/comitia
 ./bin/comitia context-create --parent-id "$epic_id" --task-id "$task_id" --name task-15
 ./bin/comitia context-children --parent-id "$epic_id"
 ```

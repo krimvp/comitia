@@ -140,7 +140,7 @@ func messageQuery(cid, sid string, after int64, limit int, f MessageFilters) (st
 		index = "message_filters_task"
 	case f.FromInstance != "":
 		index = "message_filters_sender"
-	case f.Schema != "":
+	case f.Schema != "", len(f.Schemas) != 0:
 		index = "message_filters_schema"
 	}
 	if index != "" {
@@ -202,7 +202,8 @@ UNION ALL SELECT message_id,seq FROM (SELECT message_id,seq FROM message_recipie
 		args = append(args, sid, f.agentInstance())
 	}
 	if len(f.Schemas) != 0 {
-		where += " AND COALESCE(json_extract(e.envelope,'$.schema'),'') IN (" + strings.TrimSuffix(strings.Repeat("?,", len(f.Schemas)), ",") + ")"
+		// Any schema list selects the projection seek above.
+		where += " AND p.schema IN (" + strings.TrimSuffix(strings.Repeat("?,", len(f.Schemas)), ",") + ")"
 		for _, schema := range f.Schemas {
 			args = append(args, schema)
 		}
@@ -220,7 +221,9 @@ UNION ALL SELECT message_id,seq FROM (SELECT message_id,seq FROM message_recipie
 		args = append(args, cid, f.ReplyTo)
 	}
 	if f.ThreadID != "" {
-		query = "WITH RECURSIVE thread(id) AS (SELECT id FROM messages WHERE context_id=? AND id=? UNION ALL SELECT r.message_id FROM message_replies r JOIN thread t ON r.reply_to=t.id WHERE r.context_id=?) " + query
+		// Drive each recursion step from the frontier so it seeks replies by
+		// (context_id,reply_to) instead of rescanning the whole context.
+		query = "WITH RECURSIVE thread(id) AS (SELECT id FROM messages WHERE context_id=? AND id=? UNION ALL SELECT r.message_id FROM thread t CROSS JOIN message_replies r ON r.reply_to=t.id WHERE r.context_id=?) " + query
 		args = append([]any{cid, f.ThreadID, cid}, args...)
 		where += " AND m.id IN (SELECT id FROM thread)"
 	}

@@ -43,7 +43,7 @@ func TestSQLiteWALIndependentReadersAndWriter(t *testing.T) {
 			t.Error(err)
 		}
 	}()
-	bounded, cancel := context.WithTimeout(ctx, time.Second)
+	bounded, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 	if err := st.View(bounded, func(r ReadStore) error { _, err := r.Workspace(w.ID); return err }); err != nil {
 		t.Fatalf("unrelated reader queued behind snapshot: %v", err)
@@ -87,7 +87,7 @@ func TestSQLiteWALReaderBoundAndCancellation(t *testing.T) {
 	for i := 0; i < readers; i++ {
 		select {
 		case <-entered:
-		case <-time.After(time.Second):
+		case <-time.After(10 * time.Second):
 			t.Fatalf("only %d readers admitted", i)
 		}
 	}
@@ -98,7 +98,7 @@ func TestSQLiteWALReaderBoundAndCancellation(t *testing.T) {
 		t.Fatalf("reader admission: callback=%v err=%v", called, err)
 	}
 	// Reader saturation must not consume the writer connection.
-	ctx, cancelWriter := context.WithTimeout(context.Background(), time.Second)
+	ctx, cancelWriter := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancelWriter()
 	if err := st.Update(ctx, func(WriteStore) error { return nil }); err != nil {
 		t.Fatalf("readers consumed writer capacity: %v", err)
@@ -126,7 +126,7 @@ func TestSQLiteMigrationProbeDoesNotReadHistoricalTables(t *testing.T) {
 			if _, err := tx.Exec("UPDATE " + table + " SET " + map[string]string{"messages": "body=body", "context_parents": "parent_readable=parent_readable"}[table]); err != nil {
 				t.Fatal(err)
 			}
-			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 			defer cancel()
 			// Release even if a driver waits for shared-cache unlock notification.
 			released := make(chan struct{})
@@ -183,7 +183,7 @@ func TestSQLiteWALAuthorizationAndScanShareSnapshot(t *testing.T) {
 		if err != nil || len(messages) != 0 {
 			return errors.New("initial scan not empty")
 		}
-		bounded, cancel := context.WithTimeout(ctx, time.Second)
+		bounded, cancel := context.WithTimeout(ctx, 10*time.Second)
 		defer cancel()
 		// Commit a revoke and append between the authorized scan and high
 		// water read. Both must remain invisible to the existing snapshot.

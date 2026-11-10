@@ -3,9 +3,11 @@ import datetime
 import contextlib
 import io
 import json
+import os
 from pathlib import Path
 import sqlite3
 import runpy
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -382,6 +384,26 @@ class BuildProvenanceTest(unittest.TestCase):
                 local.install_binary(root)
             self.assertIn('-ldflags', commands[0])
             self.assertIn('github.com/krimvp/comitia.Revision=unknown', commands[0][commands[0].index('-ldflags')+1])
+
+    def test_clean_checkout_stays_clean_after_import(self):
+        repo = Path(__file__).resolve().parent.parent
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root/'scripts').mkdir()
+            shutil.copy2(repo/'.gitignore', root/'.gitignore')
+            shutil.copy2(repo/'scripts/comitia_install.py', root/'scripts/comitia_install.py')
+            env = {k: v for k, v in os.environ.items() if not k.startswith('GIT_') and k != 'PYTHONDONTWRITEBYTECODE'}
+            env.update(GIT_CONFIG_NOSYSTEM='1', GIT_CONFIG_GLOBAL=os.devnull)
+            git = ['git', '-c', 'user.name=test', '-c', 'user.email=test@example.invalid', '-c', 'commit.gpgsign=false']
+            for args in (['init', '-q'], ['add', '-A'], ['commit', '-qm', 'clean']):
+                subprocess.run(git+args, cwd=root, env=env, check=True)
+            (root/'node_modules/pkg').mkdir(parents=True)
+            (root/'node_modules/pkg/index.js').write_text('')
+            (root/'tool.pyc').write_bytes(b'')
+            flags = subprocess.run([sys.executable, '-c', 'import comitia_install; print(comitia_install.build_flags())'],
+                                   cwd=root/'scripts', env=env, check=True, capture_output=True, text=True).stdout
+            self.assertTrue((root/'scripts/__pycache__').is_dir())
+            self.assertIn('github.com/krimvp/comitia.Dirty=false', flags)
 
 
 if __name__ == '__main__':

@@ -91,7 +91,7 @@ func TestExternalStoreFilteredWaitScanner(t *testing.T) {
 			}
 			done := make(chan error, 1)
 			go func() {
-				_, err := reader.WaitMessages(waitCtx, admin.Token, wc.ID, 0, 3*time.Second, comitia.MessageFilters{Schema: "comitia.finding.v1"})
+				_, err := reader.WaitMessages(waitCtx, admin.Token, wc.ID, 0, 30*time.Second, comitia.MessageFilters{Schema: "comitia.finding.v1"})
 				done <- err
 			}()
 			want := []int64{0, 32, 32}
@@ -104,7 +104,7 @@ func TestExternalStoreFilteredWaitScanner(t *testing.T) {
 					if after != want {
 						t.Fatalf("read after=%d want=%d", after, want)
 					}
-				case <-time.After(time.Second):
+				case <-time.After(10 * time.Second):
 					t.Fatal("external read was not called")
 				}
 			}

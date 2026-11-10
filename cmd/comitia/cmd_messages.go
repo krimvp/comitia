@@ -32,7 +32,7 @@ func runMessages(ctx context.Context, cfg config, api comitia.API, out *json.Enc
 		claimToken := fs.String("claim-token", "", "current task lease token for a fenced result")
 		leaseVersion := fs.Int64("lease-version", 0, "current task lease version for a fenced result")
 		envelopeFile := fs.String("envelope-file", "", "validated message envelope JSON file")
-		if err := fs.Parse(args); err != nil {
+		if err := parseFlags(fs, args); err != nil {
 			return err
 		}
 		if cfg.parseOnly {
@@ -59,7 +59,7 @@ func runMessages(ctx context.Context, cfg config, api comitia.API, out *json.Enc
 		fs := newFlags(cmd)
 		cid := fs.String("context-id", "", "readable context ID")
 		mid := fs.String("message-id", "", "message ID in this context")
-		if err := fs.Parse(args); err != nil {
+		if err := parseFlags(fs, args); err != nil {
 			return err
 		}
 		if cfg.parseOnly {
@@ -76,7 +76,7 @@ func runMessages(ctx context.Context, cfg config, api comitia.API, out *json.Enc
 		after := fs.String("after-id", "", "exclusive cursor from next_after (implies --page)")
 		cid := fs.String("context-id", "", "work context ID")
 		limit := fs.Int("limit", 100, "maximum participants (1-1000)")
-		if err := fs.Parse(args); err != nil {
+		if err := parseFlags(fs, args); err != nil {
 			return err
 		}
 		if cfg.parseOnly {
@@ -108,7 +108,7 @@ func runMessages(ctx context.Context, cfg config, api comitia.API, out *json.Enc
 		page := fs.Bool("page", false, "return messages, next_after and has_more")
 		filters := messageFilterFlags(fs)
 		fs.IntVar(&filters.MaxBytes, "max-bytes", 0, "encoded messages-array byte budget (default 1048576, max 4194304; first message intact)")
-		if err := fs.Parse(args); err != nil {
+		if err := parseFlags(fs, args); err != nil {
 			return err
 		}
 		if cfg.parseOnly {
@@ -179,7 +179,7 @@ func runMessages(ctx context.Context, cfg config, api comitia.API, out *json.Enc
 		seq := fs.Int64("sequence", 0, "inclusive sequence")
 		defaultID, _ := cfg.instances.ID()
 		instance := fs.String("agent-instance", defaultID, "self-reported instance ID for this cursor (defaults to COMITIA_AGENT_INSTANCE)")
-		if err := fs.Parse(args); err != nil {
+		if err := parseFlags(fs, args); err != nil {
 			return err
 		}
 		if cfg.parseOnly {
@@ -194,7 +194,7 @@ func runMessages(ctx context.Context, cfg config, api comitia.API, out *json.Enc
 		cid := fs.String("context-id", "", "context ID")
 		defaultID, _ := cfg.instances.ID()
 		instance := fs.String("agent-instance", defaultID, "self-reported instance ID for this cursor (defaults to COMITIA_AGENT_INSTANCE)")
-		if err := fs.Parse(args); err != nil {
+		if err := parseFlags(fs, args); err != nil {
 			return err
 		}
 		if cfg.parseOnly {

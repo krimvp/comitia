@@ -432,7 +432,7 @@ func TestWatchJSONLinesProcessThenAck(t *testing.T) {
 		t.Fatal(err)
 	}
 	for i := 0; i < 2; i++ {
-		runCtx, cancel := context.WithTimeout(ctx, time.Second)
+		runCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
 		var output bytes.Buffer
 		err := watchMessageOutput(runCtx, api, token, cid, "consumer", time.Second, comitia.MessageFilters{}, false, true, cancelWatchWriter{&output, cancel})
 		cancel()

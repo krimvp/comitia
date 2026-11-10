@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/url"
 	"path/filepath"
@@ -53,6 +54,8 @@ func TestFilteredMessagesSeekIndexes(t *testing.T) {
 		f           MessageFilters
 	}{
 		{"schema", "message_filters_schema", MessageFilters{Schema: "comitia.finding.v1"}},
+		{"schemas", "message_filters_schema", MessageFilters{Schemas: []string{"comitia.finding.v1", "comitia.approval.v1"}}},
+		{"schemas for instance", "message_filters_schema", MessageFilters{Schemas: []string{"comitia.finding.v1"}, ForInstance: "other"}},
 		{"task", "message_filters_task", MessageFilters{TaskID: "missing"}},
 		{"sender", "message_filters_sender", MessageFilters{FromInstance: "missing"}},
 		{"recipient", "message_recipients_lookup", MessageFilters{ForInstance: "missing"}},
@@ -74,6 +77,172 @@ func TestFilteredMessagesSeekIndexes(t *testing.T) {
 				if strings.Contains(plan, "SCAN m") || strings.Contains(plan, "json_each") {
 					t.Fatalf("history/JSON scan:\n%s", plan)
 				}
+				return nil
+			})
+			if err != nil {
+				t.Fatal(err)
+			}
+		})
+	}
+}
+
+func TestSchemaListFilterMatchesProjectionAndIsBounded(t *testing.T) {
+	f := setup(t, ":memory:")
+	defer f.store.Close()
+	ctx := context.Background()
+	var ids []string
+	for i, in := range []MessageInput{
+		{Body: "plain"},
+		{Body: "discussion", Envelope: &MessageEnvelope{Schema: "comitia.discussion.v1", Payload: json.RawMessage(`{}`)}},
+		{Body: "addressed", Envelope: &MessageEnvelope{Schema: "comitia.discussion.v1", RecipientInstances: []string{"other"}, Payload: json.RawMessage(`{}`)}},
+	} {
+		in.DedupeKey = fmt.Sprint(i)
+		m, err := f.svc.AppendMessage(ctx, f.admin.Token, f.context.ID, in)
+		if err != nil {
+			t.Fatal(err)
+		}
+		ids = append(ids, m.ID)
+	}
+	if _, err := f.svc.CreateTask(ctx, f.admin.Token, f.context.ID, TaskInput{Title: "event"}); err != nil {
+		t.Fatal(err)
+	}
+	all, err := f.svc.ReplayMessages(ctx, f.admin.Token, f.context.ID, 0, 100)
+	if err != nil || len(all) != 4 {
+		t.Fatalf("history: %v %v", all, err)
+	}
+	ids = append(ids, all[3].ID)
+	for _, tc := range []struct {
+		f    MessageFilters
+		want []string
+	}{
+		{MessageFilters{Schemas: []string{TaskEventSchema, "comitia.discussion.v1"}}, ids[1:]},
+		{MessageFilters{Schemas: []string{""}}, ids[:1]},
+		{MessageFilters{Schemas: []string{"comitia.discussion.v1", TaskEventSchema}, Schema: TaskEventSchema}, ids[3:]},
+		{MessageFilters{Schemas: []string{"comitia.discussion.v1"}, ForInstance: "reader"}, ids[1:2]},
+		{MessageFilters{Schemas: []string{"comitia.discussion.v1"}, ForInstance: "other"}, ids[1:3]},
+		{MessageFilters{Schemas: []string{"missing"}}, nil},
+	} {
+		for _, wait := range []bool{false, true} {
+			var messages []Message
+			if wait {
+				messages, err = f.svc.WaitMessages(ctx, f.admin.Token, f.context.ID, 0, 0, tc.f)
+			} else {
+				messages, err = f.svc.ReplayMessages(ctx, f.admin.Token, f.context.ID, 0, 100, tc.f)
+			}
+			var got []string
+			for _, m := range messages {
+				got = append(got, m.ID)
+			}
+			if err != nil || strings.Join(got, ",") != strings.Join(tc.want, ",") {
+				t.Fatalf("schemas %+v wait=%t: %v %v want %v", tc.f, wait, got, err, tc.want)
+			}
+		}
+	}
+	// Oversized lists are invalid input, not driver errors.
+	full := make([]string, 64)
+	for i := range full {
+		full[i] = strings.Repeat("s", 127) + fmt.Sprint(i%10)
+	}
+	if _, err := f.svc.ReplayMessages(ctx, f.admin.Token, f.context.ID, 0, 100, MessageFilters{Schemas: full}); err != nil {
+		t.Fatalf("bounded list: %v", err)
+	}
+	for _, schemas := range [][]string{make([]string, 65), make([]string, 40000), {strings.Repeat("s", 129)}} {
+		filter := MessageFilters{Schemas: schemas}
+		if _, err := f.svc.ReplayMessagesPage(ctx, f.admin.Token, f.context.ID, 0, 100, filter); !errors.Is(err, ErrInvalid) {
+			t.Fatalf("replay %d schemas: %v", len(schemas), err)
+		}
+		if _, err := f.svc.WaitMessagesPage(ctx, f.admin.Token, f.context.ID, 0, 0, filter); !errors.Is(err, ErrInvalid) {
+			t.Fatalf("wait %d schemas: %v", len(schemas), err)
+		}
+		if err := f.store.View(ctx, func(r ReadStore) error {
+			_, err := r.Messages(f.context.ID, f.admin.Session.ID, 0, 100, filter)
+			return err
+		}); !errors.Is(err, ErrInvalid) {
+			t.Fatalf("store %d schemas: %v", len(schemas), err)
+		}
+	}
+}
+
+// Each recursion step must seek the frontier's replies; scanning every reply
+// in the context per step makes thread reads quadratic in thread size.
+func assertThreadPlan(t *testing.T, plans []string) {
+	t.Helper()
+	plan := strings.Join(plans, "\n")
+	step := strings.Index(plan, "RECURSIVE STEP")
+	if step < 0 || !strings.Contains(plan[step:], "SEARCH r USING INDEX message_replies_lookup (context_id=? AND reply_to=?)") || strings.Contains(plan, "SCAN r") {
+		t.Fatalf("thread recursion does not seek replies by parent:\n%s", plan)
+	}
+}
+func TestThreadFilterSeeksRepliesByParent(t *testing.T) {
+	f := setup(t, ":memory:")
+	defer f.store.Close()
+	ctx := context.Background()
+	reply := func(key, to string) Message {
+		t.Helper()
+		m, err := f.svc.AppendMessage(ctx, f.admin.Token, f.context.ID, MessageInput{DedupeKey: key, Body: key, Envelope: &MessageEnvelope{Schema: "comitia.discussion.v1", ReplyTo: to, Payload: json.RawMessage(`{}`)}})
+		if err != nil {
+			t.Fatal(err)
+		}
+		return m
+	}
+	root := reply("root", "")
+	reply("child", reply("parent", root.ID).ID)
+	for _, filter := range []MessageFilters{{ThreadID: root.ID}, {ThreadID: root.ID, Schema: "comitia.discussion.v1"}, {ThreadID: root.ID, ForInstance: "reader"}} {
+		err := f.store.View(ctx, func(r ReadStore) error {
+			q := &filterPlanQuery{querier: r.(*sqlStore).q}
+			messages, err := (&sqlStore{q: q}).Messages(f.context.ID, f.admin.Session.ID, 0, 100, filter)
+			if err != nil {
+				return err
+			}
+			if len(messages) != 3 {
+				t.Fatalf("thread %+v: %v", filter, messages)
+			}
+			assertThreadPlan(t, q.plans)
+			return nil
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+}
+
+// Large star and chain threads keep the seeking plan and return only the
+// tail; the plan, not wall-clock time, is the scaling contract.
+func TestThreadFilterScalesWithThreadShape(t *testing.T) {
+	f := setup(t, ":memory:")
+	defer f.store.Close()
+	ctx := context.Background()
+	const replies = 1000
+	for _, shape := range []string{"star", "chain"} {
+		t.Run(shape, func(t *testing.T) {
+			root, err := f.svc.AppendMessage(ctx, f.admin.Token, f.context.ID, MessageInput{DedupeKey: shape, Body: shape})
+			if err != nil {
+				t.Fatal(err)
+			}
+			// Bulk-load replies; the insert triggers maintain message_replies.
+			series := "WITH RECURSIVE n(i) AS (SELECT 1 UNION ALL SELECT i+1 FROM n WHERE i<?) "
+			if _, err = f.store.db.Exec(series+"INSERT INTO messages SELECT ?||i,?,?,?+i,?||i,'reply',? FROM n", replies, shape, f.context.ID, f.admin.Session.ID, root.Sequence, shape, ts(*f.now)); err != nil {
+				t.Fatal(err)
+			}
+			parent := "?2" // Star: every reply answers the root.
+			if shape == "chain" {
+				parent = "CASE i WHEN 1 THEN ?2 ELSE ?3||(i-1) END"
+			}
+			if _, err = f.store.db.Exec(series+"INSERT INTO message_envelopes SELECT ?3||i,json_object('schema','comitia.discussion.v1','reply_to',"+parent+",'payload',json_object()) FROM n", replies, root.ID, shape); err != nil {
+				t.Fatal(err)
+			}
+			tail := root.Sequence + replies
+			page, err := f.svc.ReplayMessagesPage(ctx, f.admin.Token, f.context.ID, tail-1, 10, MessageFilters{ThreadID: root.ID})
+			if err != nil || len(page.Messages) != 1 || page.Messages[0].Sequence != tail || page.HasMore {
+				t.Fatalf("tail page: %+v %v", page, err)
+			}
+			err = f.store.View(ctx, func(r ReadStore) error {
+				q := &filterPlanQuery{querier: r.(*sqlStore).q}
+				messages, err := (&sqlStore{q: q}).Messages(f.context.ID, f.admin.Session.ID, tail-1, 10, MessageFilters{ThreadID: root.ID})
+				if err != nil || len(messages) != 1 {
+					t.Fatalf("tail scan: %v %v", messages, err)
+				}
+				assertThreadPlan(t, q.plans)
 				return nil
 			})
 			if err != nil {

@@ -14,7 +14,7 @@ func runPresence(ctx context.Context, cfg config, api comitia.API, out *json.Enc
 	case "instances":
 		fs := newFlags(cmd)
 		cid := fs.String("context-id", "", "context ID")
-		if err := fs.Parse(args); err != nil {
+		if err := parseFlags(fs, args); err != nil {
 			return err
 		}
 		if cfg.parseOnly {
@@ -31,7 +31,7 @@ func runPresence(ctx context.Context, cfg config, api comitia.API, out *json.Enc
 		instance := fs.String("agent-instance", "", "self-reported instance ID (defaults to COMITIA_AGENT_INSTANCE)")
 		label := fs.String("agent-instance-label", "", "optional self-reported instance label (defaults to COMITIA_AGENT_INSTANCE_LABEL)")
 		file := fs.String("resume-file", "", "resume metadata JSON object file (at most 4096 bytes)")
-		if err := fs.Parse(args); err != nil {
+		if err := parseFlags(fs, args); err != nil {
 			return err
 		}
 		if cfg.parseOnly {
