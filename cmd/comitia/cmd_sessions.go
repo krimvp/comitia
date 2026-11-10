@@ -18,11 +18,11 @@ func runSessions(ctx context.Context, cfg config, api comitia.API, out *json.Enc
 		if err := parseFlags(fs, args); err != nil {
 			return err
 		}
+		if cfg.bootstrapCredential == "" {
+			return comitia.Invalidf("bootstrap requires --bootstrap-credential (or COMITIA_BOOTSTRAP_CREDENTIAL)")
+		}
 		if cfg.parseOnly {
 			return nil
-		}
-		if cfg.bootstrapCredential == "" {
-			return comitia.Invalidf("bootstrap credential is required")
 		}
 		p, c, e := api.Bootstrap(ctx, comitia.BootstrapInput{Credential: cfg.bootstrapCredential, AdminName: *name, SessionTTL: *ttl})
 		if e != nil {
@@ -39,6 +39,9 @@ func runSessions(ctx context.Context, cfg config, api comitia.API, out *json.Enc
 		var grantSpecs repeatedGrants
 		fs.Var(&grantSpecs, "grant", "repeat CONTEXT_ID:PERMISSIONS:TTL for atomic multi-context delegation; excludes --context-id/--permissions/--grant-ttl")
 		if err := parseFlags(fs, args); err != nil {
+			return err
+		}
+		if err := requireAny(fs, "context-id", "grant"); err != nil {
 			return err
 		}
 		if cfg.parseOnly {
@@ -81,6 +84,9 @@ func runSessions(ctx context.Context, cfg config, api comitia.API, out *json.Enc
 		fs := newFlags(cmd)
 		sid := fs.String("session-id", "", "session ID")
 		if err := parseFlags(fs, args); err != nil {
+			return err
+		}
+		if err := requireFlags(fs, "session-id"); err != nil {
 			return err
 		}
 		if cfg.parseOnly {

@@ -21,6 +21,9 @@ func runTasks(ctx context.Context, cfg config, api comitia.API, out *json.Encode
 		if err := parseFlags(fs, args); err != nil {
 			return err
 		}
+		if err := requireFlags(fs, "context-id", "title"); err != nil {
+			return err
+		}
 		if cfg.parseOnly {
 			return nil
 		}
@@ -35,11 +38,11 @@ func runTasks(ctx context.Context, cfg config, api comitia.API, out *json.Encode
 		if err := parseFlags(fs, args); err != nil {
 			return err
 		}
+		if err := requireFlags(fs, "task-id"); err != nil {
+			return err
+		}
 		if cfg.parseOnly {
 			return nil
-		}
-		if *tid == "" {
-			return comitia.Invalidf("task-id is required")
 		}
 		v, e := api.GetTask(ctx, needCredential(cfg), *tid)
 		if e != nil {
@@ -52,7 +55,7 @@ func runTasks(ctx context.Context, cfg config, api comitia.API, out *json.Encode
 		ownerSession := fs.String("owner-session", "", "session ID holding live leases")
 		ownerInstance := fs.String("owner-instance", "", "instance ID holding live leases")
 		mine := fs.Bool("mine", false, "caller live leases, scoped to configured instance when available")
-		page := fs.Bool("page", false, "return items, next_after and has_more")
+		page := fs.Bool("page", false, "return tasks, next_after and has_more")
 		after := fs.String("after-id", "", "exclusive cursor from next_after (implies --page)")
 		cid := fs.String("context-id", "", "context ID")
 		status := fs.String("status", "", "task status (pending, leased, completed, failed, cancelled)")
@@ -60,11 +63,11 @@ func runTasks(ctx context.Context, cfg config, api comitia.API, out *json.Encode
 		if err := parseFlags(fs, args); err != nil {
 			return err
 		}
+		if err := requireFlags(fs, "context-id"); err != nil {
+			return err
+		}
 		if cfg.parseOnly {
 			return nil
-		}
-		if *cid == "" {
-			return comitia.Invalidf("context-id is required")
 		}
 		if *limit < 1 || *limit > 1000 {
 			return comitia.Invalidf("limit must be between 1 and 1000")
@@ -100,6 +103,9 @@ func runTasks(ctx context.Context, cfg config, api comitia.API, out *json.Encode
 		if err := parseFlags(fs, args); err != nil {
 			return err
 		}
+		if err := requireFlags(fs, "task-id"); err != nil {
+			return err
+		}
 		if cfg.parseOnly {
 			return nil
 		}
@@ -129,6 +135,9 @@ func runTasks(ctx context.Context, cfg config, api comitia.API, out *json.Encode
 		if err := parseFlags(fs, args); err != nil {
 			return err
 		}
+		if err := requireFlags(fs, "task-id", "lease-version"); err != nil {
+			return err
+		}
 		if cfg.parseOnly {
 			return nil
 		}
@@ -156,6 +165,9 @@ func runTasks(ctx context.Context, cfg config, api comitia.API, out *json.Encode
 		if err := parseFlags(fs, args); err != nil {
 			return err
 		}
+		if err := requireFlags(fs, "task-id", "claim-token", "lease-version"); err != nil {
+			return err
+		}
 		if cfg.parseOnly {
 			return nil
 		}
@@ -170,6 +182,9 @@ func runTasks(ctx context.Context, cfg config, api comitia.API, out *json.Encode
 		token := fs.String("claim-token", "", "claim token")
 		ver := fs.Int64("lease-version", 0, "lease version")
 		if err := parseFlags(fs, args); err != nil {
+			return err
+		}
+		if err := requireFlags(fs, "task-id", "claim-token", "lease-version"); err != nil {
 			return err
 		}
 		if cfg.parseOnly {
@@ -188,11 +203,11 @@ func runTasks(ctx context.Context, cfg config, api comitia.API, out *json.Encode
 		if err := parseFlags(fs, args); err != nil {
 			return err
 		}
+		if err := requireFlags(fs, "task-id", "lease-version"); err != nil {
+			return err
+		}
 		if cfg.parseOnly {
 			return nil
-		}
-		if *tid == "" {
-			return comitia.Invalidf("task-id is required")
 		}
 		v, e := api.ReleaseTask(ctx, needCredential(cfg), *tid, *token, *ver)
 		if e != nil {

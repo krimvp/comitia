@@ -163,6 +163,9 @@ Use the exact saved binary for the initial drill. Its checksum and
 `manifest.json` build identity are the snapshot's supported rollback floor.
 A binary older than the snapshot's policy is unsupported even if it opens the
 schema: older versions can ignore later authorization or archive restrictions.
+Binaries stamp the database's SQLite schema version (`PRAGMA user_version`,
+starting at 1) and refuse to open or write a newer one, naming both versions.
+Binaries from before version 1 lack this check.
 This tool deliberately offers no alternate-binary flag. An exact-version
 restore establishes snapshot behavior, not permission to reintroduce a known
 security defect. Apply required security fixes and repeat the isolated drill

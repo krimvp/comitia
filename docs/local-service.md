@@ -285,23 +285,25 @@ The installer connects registered harnesses and detected built-in config
 directories, installing their MCP registration, short instructions and skill.
 Restart connected agent sessions after install or upgrade.
 
-The installer builds a standalone Comitia binary and copies the 3D viewer into
-`~/Library/Application Support/Comitia`. It installs two per-user LaunchAgents:
+The installer builds a standalone Comitia binary into
+`~/Library/Application Support/Comitia` and installs per-user LaunchAgents. The
+unsupported viewer prototype, its credentials and `comitia-viewer` are installed
+only with `--with-viewer`; a rerun without it removes them (credentials revoked, archived in `backups/`):
 
 | Service | Address | Purpose |
 | --- | --- | --- |
 | `com.comitia.server` | http://127.0.0.1:8080 | Durable Comitia HTTP API and `/ui/` inspector |
-| `com.comitia.viewer` | http://127.0.0.1:4174 | 3D agent world, observing the server on port 8080 |
+| `com.comitia.viewer` | http://127.0.0.1:4174 | Optional 3D agent world, observing port 8080 |
 
-Both start when the user logs in, including after restarting the Mac. `KeepAlive`
+They start when the user logs in, including after restarting the Mac. `KeepAlive`
 restarts them if they exit. They do not run before login or while the machine is
 asleep. This follows Apple's [LaunchAgent lifecycle](https://developer.apple.com/library/archive/documentation/MacOSX/Conceptual/BPSystemStartup/Chapters/CreatingLaunchdJobs.html).
-No administrator privileges are required. Both listeners bind to localhost.
+No administrator privileges are required. Listeners bind to localhost.
 
 ### First connection
 
 Run `comitia-viewer` to open http://127.0.0.1:4174 with a private launcher
-handoff. No credential copying is needed. The launcher reads a mode-0600 key and
+handoff. The launcher reads a mode-0600 key and
 passes it in a URL fragment, which the page immediately removes and exchanges
 for an eight-hour viewer session. That session stays in tab storage, scoped to
 the viewer origin and port; reloads in the same tab reconnect. Open the launcher
@@ -333,15 +335,15 @@ Installation creates these private files and directories (credentials have mode
 
 - `data/comitia.db`: persistent SQLite database.
 - `credentials/owner.json`: initial local owner credential, valid for one year.
-- `credentials/viewer.json`: observer credential; its initial read grant is valid
+- `credentials/viewer.json` (with the viewer): observer credential; its initial read grant is valid
   for 30 days, and its session for 31 days.
-- `credentials/viewer-launch-key`: private launcher authentication key.
+- `credentials/viewer-launch-key` (with the viewer): private launcher authentication key.
 - `local-context.json`: initial workspace/context IDs, without credentials.
 - `logs/`: server and viewer standard-output/error logs.
 - `bin/comitia`: installed binary, independent of the checkout and temporary files.
-- `viewer/`: installed snapshot of the world prototype, independent of the checkout.
+- `viewer/` (with the viewer): installed snapshot of the world prototype.
 
-Credentials expire independently of the service; the server continues running. Automatic viewer reads use the observer credential’s lifetime and read grants (initially 31 and 30 days). Replacing its private credential file takes effect on subsequent requests without restarting the viewer. Restart the viewer after replacing its launcher key; restarts invalidate existing browser sessions.
+Credentials expire independently of the service; the server continues running. Replacing the viewer's private credential file takes effect on subsequent requests without restarting the viewer. Restart the viewer after replacing its launcher key; restarts invalidate existing browser sessions.
 Use the owner credential through `COMITIA_CREDENTIAL` to delegate additional
 scoped sessions or create workspaces and contexts. Agent clients can use
 `COMITIA_SERVER_URL=http://127.0.0.1:8080` with their own session credential.
@@ -373,7 +375,7 @@ with empty values, while using its configured database and listen arguments.
 Optional ports or an existing built binary:
 
 ```sh
-python3 scripts/install_macos_service.py --port 8080 --viewer-port 4174
+python3 scripts/install_macos_service.py --port 8080 --with-viewer --viewer-port 4174
 python3 scripts/install_macos_service.py --binary /absolute/path/to/comitia
 ```
 

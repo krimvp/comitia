@@ -387,15 +387,17 @@ func TestMessageFilterBackfillAndLegacyRepair(t *testing.T) {
 		}
 	}
 	assertReads()
-	// A changed schema generation backfills each missing projection class.
+	// A changed backfill generation backfills each missing projection class.
 	for _, query := range []string{
 		"DELETE FROM message_filters", "DELETE FROM message_recipients WHERE kind='broadcast'", "DELETE FROM message_recipients WHERE kind='session'", "DELETE FROM message_recipients WHERE kind='instance'",
 	} {
 		if _, err := st.db.Exec(query); err != nil {
 			t.Fatal(err)
 		}
-		if _, err := st.db.Exec("DELETE FROM comitia_generations WHERE generation=?", schemaGeneration(messageSchema)); err != nil {
-			t.Fatal(err)
+		for _, generation := range backfills[0].generations() {
+			if _, err := st.db.Exec("DELETE FROM comitia_generations WHERE generation=?", generation); err != nil {
+				t.Fatal(err)
+			}
 		}
 		if !st.migrationPending(ctx) {
 			t.Fatalf("new projection generation not detected: %s", query)

@@ -15,10 +15,13 @@ func runPresence(ctx context.Context, cfg config, api comitia.API, out *json.Enc
 	case "instances":
 		fs := newFlags(cmd)
 		cid := fs.String("context-id", "", "context ID")
-		page := fs.Bool("page", false, "return items, next_after and has_more")
+		page := fs.Bool("page", false, "return instances, next_after and has_more")
 		after := fs.String("after-id", "", "exclusive cursor from next_after (implies --page)")
 		limit := fs.Int("limit", comitia.DefaultInstanceListLimit, "maximum instances (1-1000)")
 		if err := parseFlags(fs, args); err != nil {
+			return err
+		}
+		if err := requireFlags(fs, "context-id"); err != nil {
 			return err
 		}
 		if cfg.parseOnly {
@@ -50,11 +53,11 @@ func runPresence(ctx context.Context, cfg config, api comitia.API, out *json.Enc
 		if err := parseFlags(fs, args); err != nil {
 			return err
 		}
+		if err := requireFlags(fs, "context-id", "resume-file"); err != nil {
+			return err
+		}
 		if cfg.parseOnly {
 			return nil
-		}
-		if *file == "" {
-			return comitia.Invalidf("resume-file required")
 		}
 		input, err := os.Open(*file)
 		if err != nil {

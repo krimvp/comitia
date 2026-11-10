@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {ConversationState,filterMessages,threadIDs} from '../ui/model.mjs';
+import {ConversationState,filterMessages,threadIDs,pollDelay} from '../ui/model.mjs';
 const message = (ID, Sequence, envelope = {}) => ({ID,Sequence,ContextID:'a',SessionID:'sender',Body:`Message ${ID}`,envelope});
 
 test('context switch and reconnect discard stale responses; dedupe preserves sequence',()=>{
@@ -81,4 +81,8 @@ test('self-reported instances split session nodes and route instance recipients'
   assert.deepEqual(filterMessages(messages,{to:BROADCAST}).map(m=>m.ID),['w2']);
   // Without any instance participants, an idle participant still appears.
   assert.ok(interactionGraph([],[{SessionID:'idle',Name:'idle'}]).nodes.some(n=>n.id==='idle'));
+});
+
+test('poll delay doubles after consecutive failures up to one minute', () => {
+  assert.deepEqual([0,1,2,3,4,5,6,50,-1].map(pollDelay),[3000,6000,12000,24000,48000,60000,60000,60000,3000]);
 });

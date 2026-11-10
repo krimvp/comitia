@@ -89,7 +89,8 @@ all three filters; otherwise scoped reads return an explicit unsupported error.
 No existing exported interface gains methods. `LookupMessage` handles optional
 API capability detection.
 
-New HTTP clients probe `/v1/messages/query-support` before scoped reads or lookup.
+New HTTP clients probe `/v1/messages/query-support` before scoped reads or lookup,
+once per client after a success.
 Old servers return a clear “unsupported by this server” error; clients never
 retry without filters. This protects against both strict endpoint DTO servers
 and older servers that ignore unknown union fields. Unset new fields are omitted,
@@ -186,7 +187,11 @@ roles, expected responders, request/task correlation, required checks, approved
 verdicts, exact current artifact and issuance/expiry. Feed it records from
 authenticated Comitia reads and the head fetched from GitHub. It verifies a
 snapshot; callers must supply all certificate approvals and independently enforce
-a maximum certificate/review age in their policy.
+a maximum certificate/review age in their policy. `VerifyMergeCertificateWithOptions`
+adds opt-in rules: `DistinctReviewers` (one session per role),
+`ForbidRequesterReview`, `ForbidIssuerReview`, and `Replies`, every `approval.v1`
+reply to the request read through issuance; a counted reviewer's changes-requested
+verdict on the current artifact after their approval and by `issued_at` fails.
 
 Before using that snapshot, the gate reads through a chosen high-water mark and
 invalidates it on any newer changes-requested verdict, replacement request, policy
@@ -219,7 +224,9 @@ External one-shot protocol:
 
 The server checks receipt certificate/head/key correlation; consumers still check
 the authenticated receipt sender against the external merger assignment and compare
-its evidence with GitHub. Comitia dedupe makes receipt publication recoverable, not
+its evidence with GitHub. Any writer may append receipts, so
+`AuthoritativeMergeReceipt(cert, receipts, merger)` counts only the merger's
+matching receipts, returning the earliest, or a conflict if they disagree. Comitia dedupe makes receipt publication recoverable, not
 GitHub mutation atomic. External reservation and reconciliation supply one-shot
 consumption. A lease can serialize controllers, but expired leases alone do not
 prove a previously launched merge operation stopped.

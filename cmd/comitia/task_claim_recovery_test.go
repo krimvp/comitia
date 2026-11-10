@@ -41,7 +41,7 @@ func TestCLIRecoverClaim(t *testing.T) {
 			}
 		})
 	}
-	if err := runTasks(context.Background(), config{parseOnly: true}, nil, nil, "task-recover", nil); err != nil {
+	if err := runTasks(context.Background(), config{parseOnly: true}, nil, nil, "task-recover", []string{"--task-id", "t", "--lease-version", "1"}); err != nil {
 		t.Fatalf("parseOnly: %v", err)
 	}
 }

@@ -130,6 +130,12 @@ type participantPageDTO struct {
 	HasMore      bool             `json:"has_more"`
 }
 
+type referencePageDTO struct {
+	References []referenceDTO `json:"references"`
+	NextAfter  string         `json:"next_after"`
+	HasMore    bool           `json:"has_more"`
+}
+
 type createContextInput struct {
 	WorkspaceID string `json:"workspace_id"`
 	Name        string `json:"name"`
@@ -230,6 +236,12 @@ type contextsRequest struct {
 }
 
 type childrenRequest struct {
+	ContextID string `json:"context_id"`
+	AfterID   string `json:"after_id,omitempty"`
+	Limit     *int   `json:"limit,omitempty"`
+}
+
+type referencesRequest struct {
 	ContextID string `json:"context_id"`
 	AfterID   string `json:"after_id,omitempty"`
 	Limit     *int   `json:"limit,omitempty"`
@@ -396,6 +408,9 @@ type contextResult struct {
 type referenceResult struct {
 	Reference *referenceDTO `json:"reference"`
 }
+type referencePageResult struct {
+	ReferencePage *referencePageDTO `json:"reference_page"`
+}
 type grantResult struct {
 	Grant *grantDTO `json:"grant"`
 }
@@ -492,6 +507,12 @@ func wireParticipantPage(p comitia.ParticipantPage) participantPageDTO {
 }
 func (p participantPageDTO) core() comitia.ParticipantPage {
 	return comitia.ParticipantPage{Participants: mapSlice(p.Participants, func(v participantDTO) comitia.Participant { return comitia.Participant(v) }), NextAfter: p.NextAfter, HasMore: p.HasMore}
+}
+func wireReferencePage(p comitia.ReferencePage) referencePageDTO {
+	return referencePageDTO{mapSlice(p.References, func(v comitia.Reference) referenceDTO { return referenceDTO(v) }), p.NextAfter, p.HasMore}
+}
+func (p referencePageDTO) core() comitia.ReferencePage {
+	return comitia.ReferencePage{References: mapSlice(p.References, func(v referenceDTO) comitia.Reference { return comitia.Reference(v) }), NextAfter: p.NextAfter, HasMore: p.HasMore}
 }
 func wirePage(p comitia.MessagePage) pageDTO {
 	return pageDTO{mapSlice(p.Messages, func(m comitia.Message) messageDTO { return messageDTO(m) }), p.NextAfter, p.ScannedThrough, p.HasMore}

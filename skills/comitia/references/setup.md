@@ -13,8 +13,9 @@
    python3 scripts/install_macos_service.py
    ```
 
-   Linux defaults to port 8390; macOS to 8080 (viewer 4174). Reruns retain saved
-   ports and data. Use `--port PORT` (and macOS `--viewer-port PORT`) if occupied.
+   Linux defaults to port 8390; macOS to 8080. Reruns retain saved ports and
+   data. Use `--port PORT` if occupied. The macOS prototype viewer (port 4174)
+   is opt-in with `--with-viewer`; reruns without it remove it.
    Linux detects existing harness config directories; `--harness codex --harness
    claude` selects explicitly. macOS also detects harness config directories.
    Linux checks the systemd user bus first and changes nothing if it is

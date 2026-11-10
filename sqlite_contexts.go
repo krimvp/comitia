@@ -1,9 +1,10 @@
 package comitia
 
-const contextSchema = `
+var contextSchema = `
 CREATE TABLE IF NOT EXISTS workspaces (id TEXT PRIMARY KEY, name TEXT NOT NULL, created_at TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS contexts (id TEXT PRIMARY KEY, workspace_id TEXT NOT NULL REFERENCES workspaces(id), name TEXT NOT NULL, created_at TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS refs (id TEXT PRIMARY KEY, context_id TEXT NOT NULL REFERENCES contexts(id), kind TEXT NOT NULL, uri TEXT NOT NULL, created_at TEXT NOT NULL);
+CREATE INDEX IF NOT EXISTS refs_created_page ON refs(context_id,` + sortableCreated + `,id);
 `
 
 // contextTreeSchema keeps child-context metadata in a side table, so existing contexts simply have no row (no parent).
@@ -62,6 +63,37 @@ func (x *sqlStore) Context(id string) (WorkContext, error) {
 func (x *sqlStore) PutReference(r Reference) error {
 	_, e := x.q.Exec("INSERT INTO refs VALUES(?,?,?,?,?)", r.ID, r.ContextID, r.Kind, r.URI, ts(r.CreatedAt))
 	return e
+}
+
+// referencePageQuery seeks refs_created_page.
+func referencePageQuery(cid, created, afterID string, limit int) (string, []any) {
+	q, args := "SELECT id,context_id,kind,uri,created_at FROM refs WHERE context_id=?", []any{cid}
+	if afterID != "" {
+		q += " AND " + sortableCreated + ">=? AND (" + sortableCreated + ">? OR id>?)"
+		at := sortableTS(parse(created))
+		args = append(args, at, at, afterID)
+	}
+	return q + " ORDER BY " + sortableCreated + ",id LIMIT ?", append(args, limit)
+}
+
+func (x *sqlStore) ReferencesAfter(cid, created, afterID string, limit int) ([]Reference, error) {
+	q, args := referencePageQuery(cid, created, afterID, limit)
+	rows, err := x.q.Query(q, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := []Reference{}
+	for rows.Next() {
+		var r Reference
+		var at string
+		if err := rows.Scan(&r.ID, &r.ContextID, &r.Kind, &r.URI, &at); err != nil {
+			return nil, err
+		}
+		r.CreatedAt = parse(at)
+		out = append(out, r)
+	}
+	return out, rows.Err()
 }
 
 // ContextCandidates only narrows discovery; Service rechecks effective read

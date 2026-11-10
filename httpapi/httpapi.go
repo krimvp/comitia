@@ -13,6 +13,7 @@ import (
 	"net/url"
 	"reflect"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/krimvp/comitia"
@@ -211,6 +212,7 @@ type Client struct {
 	http             *http.Client
 	InstanceDefaults comitia.InstanceDefaults
 	waits            *waitDrain
+	querySupported   *atomic.Bool // positive messages/query-support probe
 }
 
 // NewClient validates and captures COMITIA_AGENT_INSTANCE / LABEL defaults.
@@ -236,7 +238,7 @@ func NewClientWithInstanceDefaults(baseURL string, hc *http.Client, defaults com
 		hc = &clone
 	}
 	hc.CheckRedirect = func(_ *http.Request, _ []*http.Request) error { return http.ErrUseLastResponse }
-	return &Client{base: u, http: hc, InstanceDefaults: defaults, waits: &waitDrain{ended: make(chan struct{})}}, nil
+	return &Client{base: u, http: hc, InstanceDefaults: defaults, waits: &waitDrain{ended: make(chan struct{})}, querySupported: new(atomic.Bool)}, nil
 }
 func (c *Client) call(ctx context.Context, token, path string, in, out any) error {
 	b, err := json.Marshal(legacyValue(reflect.ValueOf(in)))

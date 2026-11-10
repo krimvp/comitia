@@ -15,6 +15,7 @@ type SQLiteStore struct {
 	db      *sql.DB
 	readers *sql.DB
 	writers chan struct{}
+	changes sqliteChanges
 }
 
 const sqliteReaderLimit = 4
@@ -68,12 +69,19 @@ func OpenSQLite(path string) (*SQLiteStore, error) {
 		}
 		s.readers.SetMaxOpenConns(sqliteReaderLimit)
 		s.readers.SetMaxIdleConns(sqliteReaderLimit)
+		// sql.Open connects lazily, so stores that never wait pay nothing.
+		if s.changes.db, e = sql.Open("sqlite", readDSN); e != nil {
+			s.readers.Close()
+			db.Close()
+			return nil, e
+		}
+		s.changes.db.SetMaxOpenConns(1)
 	}
 	return s, nil
 }
 func (s *SQLiteStore) Close() error {
 	if s.readers != s.db {
-		return errors.Join(s.readers.Close(), s.db.Close())
+		return errors.Join(s.changes.close(), s.readers.Close(), s.db.Close())
 	}
 	return s.db.Close()
 }
@@ -101,11 +109,18 @@ func (s *SQLiteStore) Update(ctx context.Context, fn func(WriteStore) error) err
 		return e
 	}
 	defer tx.Rollback()
+	// A newer binary may have upgraded the file since this process opened it.
+	if _, e = checkSchemaVersion(ctx, tx); e != nil {
+		return e
+	}
 	v := &sqlStore{q: transactionQuery{tx, ctx}}
 	if e = fn(v); e != nil {
 		return e
 	}
-	return tx.Commit()
+	if e = tx.Commit(); e == nil {
+		s.changes.commits.Add(1)
+	}
+	return e
 }
 
 func (s *SQLiteStore) begin(ctx context.Context, opts *sql.TxOptions) (*sql.Tx, error) {
@@ -171,7 +186,18 @@ type sqlStore struct {
 	grantEvaluator *GrantEvaluator
 }
 
-func ts(t time.Time) string    { return t.UTC().Format(time.RFC3339Nano) }
+func ts(t time.Time) string { return t.UTC().Format(time.RFC3339Nano) }
+
+// ts trims trailing fractional zeros, so its strings do not sort by time:
+// "05Z" follows "05.25Z". sortableTS is the fixed-width form; sortableTime
+// renders SQL mapping a stored ts() column, including rows written by older
+// binaries, to it. Indexes must repeat the expression exactly.
+const sortableLayout = "2006-01-02T15:04:05.000000000Z"
+
+func sortableTS(t time.Time) string { return t.UTC().Format(sortableLayout) }
+func sortableTime(column string) string {
+	return "(CASE WHEN length(" + column + ")=20 THEN substr(" + column + ",1,19)||'.000000000Z' ELSE substr(" + column + ",1,length(" + column + ")-1)||substr('000000000Z',length(" + column + ")-20) END)"
+}
 func parse(s string) time.Time { t, _ := time.Parse(time.RFC3339Nano, s); return t }
 func nullTime(n sql.NullString) *time.Time {
 	if !n.Valid {

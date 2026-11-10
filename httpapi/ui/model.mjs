@@ -1,6 +1,9 @@
 import {taskEvent} from './task-outcomes.mjs';
 export const PAGE_SIZE = 100;
 export const WINDOW_LIMIT = 5000;
+// Polls every 3 s, doubling after each consecutive failed sync up to one minute.
+export const POLL_INTERVAL = 3000, POLL_MAX = 60000;
+export const pollDelay = failures => Math.min(POLL_MAX, POLL_INTERVAL * 2 ** Math.min(Math.max(0, failures), 5));
 export const shortID = value => String(value || '').slice(0, 8);
 export const messageType = message => message.envelope?.schema || 'plain-text';
 export const typeLabel = schema => schema === 'plain-text' ? 'Message' : schema.replace(/^comitia\./, '').replace(/\.v\d+$/, '').replaceAll('-', ' ');

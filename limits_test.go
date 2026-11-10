@@ -37,7 +37,7 @@ func TestContentLimitsRejectOversizedAndInvalidUTF8Writes(t *testing.T) {
 	if err := f.createTask(TaskInput{Title: strings.Repeat("t", MaxTaskTitleBytes), Body: strings.Repeat("b", MaxTaskBodyBytes)}); err != nil {
 		t.Fatalf("maximum task rejected: %v", err)
 	}
-	if err := f.addReference(strings.Repeat("k", MaxReferenceKindBytes), strings.Repeat("u", MaxReferenceURIBytes)); err != nil {
+	if err := f.addReference(strings.Repeat("k", MaxReferenceKindBytes), "u:"+strings.Repeat("u", MaxReferenceURIBytes-2)); err != nil {
 		t.Fatalf("maximum reference rejected: %v", err)
 	}
 	info, err := f.svc.ServerInfo(ctx, tok)

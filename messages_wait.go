@@ -266,13 +266,23 @@ func (s *Service) waitMessagesScanned(ctx context.Context, raw, cid string, afte
 	ended := s.messageNotifications.endedChannel()
 	timer := time.NewTimer(timeout)
 	defer timer.Stop()
-	poll := time.NewTicker(200 * time.Millisecond)
-	defer poll.Stop()
+	ticks, stop := s.messageWaitTicker()
+	defer stop()
+	changes := s.changeVersionStore()
 	for {
 		if err := ctx.Err(); err != nil {
 			return nil, after, err
 		}
 		changed := s.messageNotifications.channel(v)
+		// Read the version before the scan so a commit the scan misses
+		// changes the next probe.
+		var version uint64
+		probed := false
+		if changes != nil {
+			var err error
+			version, err = changes.ChangeVersion(scanCtx)
+			probed = err == nil
+		}
 		messages, scanned, err := s.scanMessages(scanCtx, raw, cid, after, 100, filters)
 		if err := ctx.Err(); err != nil {
 			return nil, after, err
@@ -290,18 +300,52 @@ func (s *Service) waitMessagesScanned(ctx context.Context, raw, cid string, afte
 			return messages, after, err
 		}
 		after = scanned
-		select {
-		case <-ctx.Done():
-			return nil, after, ctx.Err()
-		case <-timer.C:
-			if err := ctx.Err(); err != nil {
-				return nil, after, err
+		for idle := 0; ; idle++ {
+			select {
+			case <-ctx.Done():
+				return nil, after, ctx.Err()
+			case <-timer.C:
+				if err := ctx.Err(); err != nil {
+					return nil, after, err
+				}
+				return []Message{}, after, nil
+			case <-ended:
+				return []Message{}, after, nil
+			case <-changed:
+			case <-ticks:
+				// Unchanged storage skips the scan; authorization can still
+				// lapse by time, so rescan every messageWaitReauthorizePolls.
+				if probed && idle+1 < messageWaitReauthorizePolls {
+					if current, err := changes.ChangeVersion(scanCtx); err == nil && current == version {
+						continue
+					}
+				}
 			}
-			return []Message{}, after, nil
-		case <-ended:
-			return []Message{}, after, nil
-		case <-changed:
-		case <-poll.C:
+			break
 		}
 	}
+}
+
+// Idle waits probe for commits every messageWaitPoll and rerun the authorized
+// scan at least every messageWaitReauthorizePolls polls (5 s).
+const (
+	messageWaitPoll             = 200 * time.Millisecond
+	messageWaitReauthorizePolls = 25
+)
+
+func (s *Service) messageWaitTicker() (<-chan time.Time, func()) {
+	if s.waitTicker != nil {
+		return s.waitTicker()
+	}
+	t := time.NewTicker(messageWaitPoll)
+	return t.C, t.Stop
+}
+
+func (s *Service) changeVersionStore() ChangeVersionStore {
+	st := s.store
+	if o, ok := st.(*observedStore); ok {
+		st = o.Store
+	}
+	changes, _ := st.(ChangeVersionStore)
+	return changes
 }

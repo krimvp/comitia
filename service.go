@@ -19,6 +19,7 @@ type Service struct {
 	maxContextDepth          int
 	maxChildContextsPerGrant int
 	messageNotifications     messageNotifications
+	waitTicker               func() (<-chan time.Time, func()) // tests replace the wait poll
 }
 
 func New(cfg Config) (*Service, error) {

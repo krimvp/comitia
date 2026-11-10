@@ -109,28 +109,32 @@ type taskCursor struct {
 	ID        string `json:"id"`
 }
 
-func encodeTaskCursor(t Task) string {
-	raw, _ := json.Marshal(taskCursor{ts(t.CreatedAt), t.ID})
+func encodeTaskCursor(t Task) string { return encodeCreatedCursor(t.CreatedAt, t.ID) }
+func encodeCreatedCursor(at time.Time, id string) string {
+	raw, _ := json.Marshal(taskCursor{ts(at), id})
 	return base64.RawURLEncoding.EncodeToString(raw)
 }
-func decodeTaskCursor(after string) (taskCursor, error) {
+func decodeTaskCursor(after string) (taskCursor, error) { return decodeCreatedCursor(after, "task") }
+
+// decodeCreatedCursor reads an exclusive (created_at, id) cursor; name labels errors.
+func decodeCreatedCursor(after, name string) (taskCursor, error) {
 	var c taskCursor
 	if after == "" {
 		return c, nil
 	}
 	if len(after) > 684 {
-		return c, Invalidf("invalid task cursor")
+		return c, Invalidf("invalid %s cursor", name)
 	}
 	raw, err := base64.RawURLEncoding.DecodeString(after)
 	if err != nil || len(raw) > 512 {
-		return c, Invalidf("invalid task cursor")
+		return c, Invalidf("invalid %s cursor", name)
 	}
 	if err = json.Unmarshal(raw, &c); err != nil || c.ID == "" || len(c.ID) > 128 {
-		return c, Invalidf("invalid task cursor")
+		return c, Invalidf("invalid %s cursor", name)
 	}
 	at, err := time.Parse(time.RFC3339Nano, c.CreatedAt)
 	if err != nil || ts(at) != c.CreatedAt {
-		return c, Invalidf("invalid task cursor creation time")
+		return c, Invalidf("invalid %s cursor creation time", name)
 	}
 	return c, nil
 }
@@ -234,13 +238,14 @@ func legacyTaskPage(tasks []Task, after string, cursor taskCursor, limit int, so
 	}
 	tasks = append([]Task{}, tasks...)
 	sort.Slice(tasks, func(i, j int) bool {
-		a, b := ts(tasks[i].CreatedAt), ts(tasks[j].CreatedAt)
+		a, b := sortableTS(tasks[i].CreatedAt), sortableTS(tasks[j].CreatedAt)
 		return a < b || a == b && tasks[i].ID < tasks[j].ID
 	})
 	page := TaskPage{Tasks: []Task{}, NextAfter: after}
+	at := sortableTS(parse(cursor.CreatedAt))
 	for _, task := range tasks {
-		created := ts(task.CreatedAt)
-		if after != "" && (created < cursor.CreatedAt || created == cursor.CreatedAt && task.ID <= cursor.ID) {
+		created := sortableTS(task.CreatedAt)
+		if after != "" && (created < at || created == at && task.ID <= cursor.ID) {
 			continue
 		}
 		if len(page.Tasks) == limit {

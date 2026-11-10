@@ -70,6 +70,9 @@ comitia send --context-id CONTEXT_ID --dedupe-key note-1 --body 'Please review' 
   --recipient-session-id SESSION_ID --recipient-instance reviewer
 ```
 
+For long bodies, `--body-file PATH` sends the file verbatim instead of `--body`;
+`--body-file -` and `--envelope-file -` read stdin.
+
 Without an envelope, nonempty recipient lists normalize to
 `comitia.discussion.v1` with `payload:{}` and require a nonblank body. Responses
 and stored messages carry recipients in that envelope, so existing filters,
@@ -332,7 +335,8 @@ tolerant of older servers that omitted empty collections.
 Append broadcasts an in-process notification **after commit** to every waiter
 in that context. Wait subscribes before reading to prevent a lost wakeup. A
 200 ms fallback poll detects commits by other services/processes using the same
-SQLite database and rechecks session/read-grant validity. No database transaction
+SQLite database; an unchanged `PRAGMA data_version` skips the scan, and
+session/read-grant validity is rechecked after any commit and at least every 5 s. No database transaction
 or connection is held while waiting. Context cancellation interrupts the wait;
 service/HTTP errors preserve the existing authentication, authorization and
 invalid-input sentinels. Deduplicated retries do not notify because they append
@@ -368,7 +372,7 @@ those calls have no responses. Server context cancellation interrupts calls
 immediately, with up to one second to stop. MCP's
 default wait remains 30 seconds, consistent with HTTP/CLI. Both replay and wait
 reject fields belonging only to the other tool (`timeout_seconds` on replay and
-`limit` on wait).
+`limit` on wait); CLI `replay`, `wait` and `watch` likewise reject flags they ignore.
 
 ### Watching from the CLI
 
@@ -736,8 +740,8 @@ comitia send --context-id CONTEXT_ID --dedupe-key review-1 \
 A `dedupe_key` is at most 256 bytes (MCP advertises `maxLength`); longer keys
 are rejected as `invalid`, while messages stored with longer keys before the cap
 remain readable. The same holds for valid UTF-8 limits on message bodies (1 MiB),
-task titles (4096 bytes) and bodies (1 MiB), and reference kinds (256) and URIs
-(8192), exported as `comitia.Max*Bytes` and listed in `server_info.limits`. A retry with the same key, body, envelope, instance and task
+task titles (4096 bytes) and bodies (1 MiB), and reference kinds (256, `[A-Za-z0-9._+/-]`) and URIs
+(8192, with a scheme), exported as `comitia.Max*Bytes` and listed in `server_info.limits`. A retry with the same key, body, envelope, instance and task
 attempt returns the original message, subject to current read permission for
 resource references. A different send under a used key fails
 with `conflict`; the error message and its additive `details` object

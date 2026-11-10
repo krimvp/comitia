@@ -2,7 +2,7 @@ import {taskMarker, taskEvent} from './task-outcomes.mjs';
 import {on, renderChildren} from './dom.mjs';
 import {normalizeResponse} from './wire.mjs';
 import {instanceSeen} from './presence.mjs';
-import {ConversationState, HistoryWindows, recipientLabel, messagePreview, PAGE_SIZE, WINDOW_LIMIT, shortID, messageType, typeLabel, filterMessages, interactionGraph, BROADCAST, parseActor, senderActor, recipientActors, instanceClaims, taskStatus, stateLabel} from './model.mjs';
+import {ConversationState, HistoryWindows, recipientLabel, messagePreview, PAGE_SIZE, WINDOW_LIMIT, pollDelay, shortID, messageType, typeLabel, filterMessages, interactionGraph, BROADCAST, parseActor, senderActor, recipientActors, instanceClaims, taskStatus, stateLabel} from './model.mjs';
 import {renderInteractionMap} from './graph.mjs';
 import {sequenceLayout, renderSequence, LANE_LIMIT, timeLabel} from './sequence.mjs';
 import {readableContexts, contextTree, taskBoard, renderContextTree, renderTaskBoard} from './tree.mjs';
@@ -73,11 +73,16 @@ async function moreDiscovery(kind) {
   finally {
     if (generation === state.generation) {
       busy = false; renderDiscoveryControls();
-      if (!paused && token) timer = setTimeout(() => sync(generation),3000);
+      schedule(generation);
     }
   }
 }
-let participants = [], tasks = [], instances = [], selected = '', thread = '', paused = false, busy = false, windowStart = 0, displayStart = null, route = null, connectionPage = 0;
+let participants = [], tasks = [], instances = [], selected = '', thread = '', paused = false, busy = false, windowStart = 0, displayStart = null, route = null, connectionPage = 0, failures = 0;
+// Hidden tabs do not poll; consecutive failed syncs back off.
+function schedule(generation) {
+  clearTimeout(timer);
+  if (!paused && token && !document.hidden) timer = setTimeout(() => sync(generation), pollDelay(failures));
+}
 let instancesUnavailable = false;
 let detailReturn = null, detailScroll = 0;
 let followLatest = true;
@@ -147,7 +152,7 @@ function disconnect(message = '', forget = true) {
   if (forget) rememberCredential('');
   connection++; controller.abort(); controller = new AbortController(); clearTimeout(timer);
   token = ''; state.reset(); history.reset(); displayStart = null; contexts = []; contextsAfter = ''; contextsBusy = false; children = new Map(); truncated = new Set(); taskTitles = new Map();
-  participants = []; tasks = []; resetDiscovery(); instances = []; instancesUnavailable = false; selected = ''; thread = ''; route = null; connectionPage = 0; busy = false;
+  participants = []; tasks = []; resetDiscovery(); instances = []; instancesUnavailable = false; selected = ''; thread = ''; route = null; connectionPage = 0; busy = false; failures = 0;
   $('credential').value = ''; $('connect-error').textContent = message;
   $('connect-panel').hidden = false; $('workspace').hidden = true; $('disconnect').hidden = true;
   for (const id of ['messages', 'contexts', 'tasks', 'task-board', 'instances', 'details', 'interaction-map', 'connections', 'sequence-canvas', 'sequence-routes']) $(id).replaceChildren();
@@ -252,7 +257,7 @@ function clearContext() {
   closeDetails(false); $('selection-status').textContent = '';
   sequenceOptions = {}; sequenceFilterKey = '';
   controller.abort(); controller = new AbortController(); clearTimeout(timer); state.reset(); history.reset();
-  participants = []; tasks = []; resetDiscovery(); instances = []; instancesUnavailable = false; selected = ''; thread = ''; route = null; connectionPage = 0; busy = false;
+  participants = []; tasks = []; resetDiscovery(); instances = []; instancesUnavailable = false; selected = ''; thread = ''; route = null; connectionPage = 0; busy = false; failures = 0;
   $('context-title').textContent = 'Choose a context'; $('context-meta').textContent = '';
   $('workspace-label').textContent = 'WORK CONTEXT'; $('sync-status').textContent = 'No context selected';
   $('load-more').hidden = true; $('next-window').hidden = true;
@@ -267,7 +272,7 @@ async function openContext(id, after = 0, navigate = false) {
   sequenceOptions = {}; sequenceFilterKey = '';
   controller.abort(); controller = new AbortController(); clearTimeout(timer);
   const generation = state.reset(id, after); windowStart = after; displayStart = null;
-  participants = []; tasks = []; resetDiscovery(); instances = []; instancesUnavailable = false; selected = ''; thread = ''; route = null; connectionPage = 0; busy = false; paused = false;
+  participants = []; tasks = []; resetDiscovery(); instances = []; instancesUnavailable = false; selected = ''; thread = ''; route = null; connectionPage = 0; busy = false; paused = false; failures = 0;
   $('pause').textContent = 'Pause'; $('timeline-error').textContent = '';
   $('search').value = ''; for (const id of ['agent-filter','type-filter','task-filter']) $(id).value = '';
   $('context-title').textContent = readable().find(c => c.ID === id)?.Name || 'Loading context…';
@@ -286,6 +291,7 @@ async function sync(generation = state.generation) {
   if (!token || !state.contextID || busy || generation !== state.generation) return;
   busy = true; $('load-more').disabled = true; renderDiscoveryControls(); clearTimeout(timer);
   const cid = state.contextID;
+  let synced = false;
   try {
     const end = history.current.end;
     const room = Math.min(WINDOW_LIMIT - state.messages.length, end === null ? WINDOW_LIMIT : Math.max(0, end - state.after));
@@ -312,11 +318,13 @@ async function sync(generation = state.generation) {
     $('next-window').hidden = history.index + 1 >= history.frames.length && state.messages.length < WINDOW_LIMIT && !(end !== null && state.after >= end);
     if (state.messages.length >= WINDOW_LIMIT || (end !== null && state.after >= end)) { paused = true; $('pause').textContent = 'Resume'; $('sync-status').textContent = 'Window full'; }
     refreshFilters(); renderTasks(); renderInstances(); renderMessages(); renderDetails(); renderBoard(); renderContexts();
+    synced = true;
   } catch(error) { fail(error, generation); }
   finally {
     if (generation === state.generation) {
       busy = false; $('load-more').disabled = false; renderDiscoveryControls();
-      if (!paused && token) timer = setTimeout(() => sync(generation), 3000);
+      failures = synced ? 0 : failures + 1;
+      schedule(generation);
     }
   }
 }
@@ -561,6 +569,7 @@ $('more-participants').addEventListener('click',()=>moreDiscovery('participants'
 $('more-contexts').addEventListener('click',()=>loadContexts());
 $('pause').addEventListener('click',()=>{paused=!paused;$('pause').textContent=paused?'Resume':'Pause';$('sync-status').textContent=paused?'Paused':'Updating';if(paused)clearTimeout(timer);else sync();});
 $('load-more').addEventListener('click',()=>sync());
+document.addEventListener?.('visibilitychange',()=>{if(document.hidden)clearTimeout(timer);else if(!paused&&!busy)sync();});
 $('next-window').addEventListener('click',()=>{if(busy)return;const frame=history.next(state.after);return openContext(state.contextID,frame.after,true);});
 $('previous-window').addEventListener('click',()=>{if(busy)return;const frame=history.previous();return openContext(state.contextID,frame.after,true);});
 $('jump-history').addEventListener('submit',event=>{

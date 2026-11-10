@@ -78,11 +78,11 @@ func runServe(ctx context.Context, cfg config, api comitia.API, out *json.Encode
 		if err := parseFlags(fs, args); err != nil {
 			return err
 		}
-		if cfg.parseOnly {
-			return nil
-		}
 		if cfg.serverURL == "" {
 			return comitia.Invalidf("mcp-http requires --server-url (or COMITIA_SERVER_URL)")
+		}
+		if cfg.parseOnly {
+			return nil
 		}
 		if cfg.credential != "" || os.Getenv("COMITIA_CREDENTIAL") != "" {
 			return comitia.Invalidf("mcp-http takes credentials per request; unset COMITIA_CREDENTIAL")

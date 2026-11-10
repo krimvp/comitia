@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"time"
 
 	"github.com/krimvp/comitia"
@@ -15,6 +14,9 @@ func runGrants(ctx context.Context, cfg config, api comitia.API, out *json.Encod
 		cid := fs.String("context-id", "", "context whose permissions to check")
 		perms := fs.String("permissions", "read", "required comma-separated permissions")
 		if err := parseFlags(fs, args); err != nil {
+			return err
+		}
+		if err := requireFlags(fs, "context-id"); err != nil {
 			return err
 		}
 		if cfg.parseOnly {
@@ -41,11 +43,11 @@ func runGrants(ctx context.Context, cfg config, api comitia.API, out *json.Encod
 		if err := parseFlags(fs, args); err != nil {
 			return err
 		}
+		if err := requireFlags(fs, "grant-id"); err != nil {
+			return err
+		}
 		if cfg.parseOnly {
 			return nil
-		}
-		if *id == "" {
-			return comitia.Invalidf("grant-revoke requires --grant-id")
 		}
 		if err := api.RevokeGrant(ctx, needCredential(cfg), *id); err != nil {
 			return err
@@ -63,11 +65,14 @@ func runGrants(ctx context.Context, cfg config, api comitia.API, out *json.Encod
 	if e := parseFlags(fs, args); e != nil {
 		return e
 	}
+	if e := requireFlags(fs, "session-id", "context-id"); e != nil {
+		return e
+	}
+	if *ttl <= 0 {
+		return comitia.Invalidf("grant requires a positive --ttl")
+	}
 	if cfg.parseOnly {
 		return nil
-	}
-	if *sid == "" || *cid == "" || *ttl <= 0 {
-		return fmt.Errorf("%w: session-id, context-id and positive ttl are required", comitia.ErrInvalid)
 	}
 	p, e := parsePermissions(*perms)
 	if e != nil {

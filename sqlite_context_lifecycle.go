@@ -9,12 +9,6 @@ const contextLifecycleSchema = `
 CREATE TABLE IF NOT EXISTS context_archives (context_id TEXT PRIMARY KEY REFERENCES contexts(id), archived_at TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS context_creators (context_id TEXT PRIMARY KEY REFERENCES contexts(id), creator_grant_id TEXT NOT NULL REFERENCES grants(id), creating_grant_id TEXT NOT NULL REFERENCES grants(id));
 CREATE INDEX IF NOT EXISTS context_creators_grant ON context_creators(creating_grant_id);
-INSERT OR IGNORE INTO context_creators
-SELECT p.context_id,g.id,g.parent_grant_id FROM context_parents p JOIN grants g ON g.id=(
- SELECT g2.id FROM grants g2 JOIN grants source ON source.id=g2.parent_grant_id
- WHERE g2.context_id=p.context_id AND g2.session_id=p.creator_session_id AND g2.issuer_session_id=p.creator_session_id
- AND source.context_id=p.parent_context_id ORDER BY g2.created_at,g2.id LIMIT 1
-);
 `
 
 func (x *sqlStore) PutContextCreator(contextID, creatorGrantID, creatingGrantID string) error {

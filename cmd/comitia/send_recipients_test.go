@@ -54,7 +54,7 @@ func TestSendRecipientsCLI(t *testing.T) {
 		})
 	}
 	// Parsing help must not read the envelope file or call the API.
-	if err := runMessages(context.Background(), config{parseOnly: true}, nil, nil, "send", []string{"--recipient-session-id", "s", "--recipient-instance", "i", "--envelope-file", "missing.json"}); err != nil {
+	if err := runMessages(context.Background(), config{parseOnly: true}, nil, nil, "send", []string{"--context-id", "c", "--dedupe-key", "k", "--recipient-session-id", "s", "--recipient-instance", "i", "--envelope-file", "missing.json"}); err != nil {
 		t.Fatalf("parseOnly: %v", err)
 	}
 }

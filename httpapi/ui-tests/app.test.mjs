@@ -238,3 +238,54 @@ test('inspector pages task and participant tails and retains them on refresh',as
     assert.equal(elements.get('more-tasks').hidden,true);assert.equal(elements.get('more-participants').hidden,true);
   } finally {Object.assign(globalThis,saved);}
 });
+
+test('inspector pauses polling in hidden tabs and backs off after failed syncs',async()=>{
+  const html=await readFile(new URL('../ui/index.html',import.meta.url),'utf8');
+  const elements=new Map([...html.matchAll(/id="([^"]+)"/g)].map(m=>[m[1],new Element()]));
+  const saved={document:globalThis.document,window:globalThis.window,location:globalThis.location,Option:globalThis.Option,fetch:globalThis.fetch,setTimeout:globalThis.setTimeout,clearTimeout:globalThis.clearTimeout,sessionStorage:globalThis.sessionStorage};
+  const timers=new Map(),docEvents={};let timer=0,failing=false,replays=0;
+  const doc={hidden:false,getElementById:id=>elements.get(id),createElement:tag=>new Element(tag),createElementNS:(_ns,tag)=>new Element(tag),addEventListener:(event,fn)=>{docEvents[event]=fn;}};
+  Object.assign(globalThis,{
+    document:doc,window:new Element(),location:{href:'http://localhost:8080/ui/'},
+    Option:class extends Element {constructor(label,value){super('option');this.textContent=label;this.value=value;}},
+    sessionStorage:{getItem:()=>null,setItem(){},removeItem(){}},
+    setTimeout:(fn,delay)=>{timers.set(++timer,{fn,delay});return timer;},clearTimeout:id=>timers.delete(id)
+  });
+  const context={ID:'a',Name:'A',WorkspaceID:'w'};
+  globalThis.fetch=async url=>{
+    const path=new URL(url).pathname;
+    const ok=data=>({ok:true,status:200,json:async()=>data});
+    if(path.endsWith('/contexts/list'))return ok({contexts:[context]});
+    if(path.endsWith('/contexts/get'))return ok({context});
+    if(path.endsWith('/contexts/children'))return ok({contexts:[]});
+    if(path.endsWith('/messages/replay')){replays++;return failing?{ok:false,status:503}:ok({messages:[]});}
+    if(path.endsWith('/participants/list'))return ok({participants:[]});
+    if(path.endsWith('/tasks/list'))return ok({tasks:[]});
+    if(path.endsWith('/instances/list'))return ok({instances:[]});
+    throw new Error(path);
+  };
+  // Request deadlines are cleared on completion; only the poll timer remains.
+  const polls=()=>[...timers].filter(([,t])=>t.delay!==15000);
+  const pollDelays=()=>polls().map(([,t])=>t.delay);
+  const firePoll=async()=>{const [[id,{fn}]]=polls();timers.delete(id);await fn();await settle();};
+  try {
+    await import(`../ui/app.js?polling-test=${Date.now()}`);
+    elements.get('credential').value='observer';await elements.get('connect-form').fire('submit');await settle();
+    assert.deepEqual(pollDelays(),[3000]);
+    failing=true;
+    for(const delay of [6000,12000,24000,48000,60000,60000]){await firePoll();assert.deepEqual(pollDelays(),[delay]);}
+    assert.equal(elements.get('sync-status').textContent,'Connection interrupted');
+    failing=false;await firePoll();
+    assert.deepEqual(pollDelays(),[3000]);
+    doc.hidden=true;docEvents.visibilitychange();
+    assert.deepEqual(pollDelays(),[]);
+    // A sync finishing while hidden does not reschedule.
+    await elements.get('load-more').fire('click');await settle();
+    assert.deepEqual(pollDelays(),[]);
+    const before=replays;
+    doc.hidden=false;docEvents.visibilitychange();await settle();
+    assert.equal(replays,before+1);
+    assert.deepEqual(pollDelays(),[3000]);
+    await elements.get('disconnect').fire('click');
+  } finally {Object.assign(globalThis,saved);}
+});

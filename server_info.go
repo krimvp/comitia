@@ -143,6 +143,7 @@ var serverFeatures = []string{
 	"operational_errors",
 	"build_provenance",
 	"content_limits",
+	"context_references",
 }
 
 func (s *Service) ServerInfo(ctx context.Context, raw string) (ServerInfo, error) {

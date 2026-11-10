@@ -5,12 +5,18 @@ import (
 	"encoding/json"
 )
 
-const taskSchema = `
+// Pages seek the sortable expression indexes; older binaries still use
+// tasks_page and tasks_status_page.
+var sortableCreated = sortableTime("created_at")
+
+var taskSchema = `
 CREATE TABLE IF NOT EXISTS task_mutation_receipts (session_id TEXT NOT NULL REFERENCES sessions(id), operation_id TEXT NOT NULL, fingerprint TEXT NOT NULL, result TEXT NOT NULL, PRIMARY KEY(session_id,operation_id));
 CREATE TABLE IF NOT EXISTS tasks (id TEXT PRIMARY KEY, context_id TEXT NOT NULL REFERENCES contexts(id), title TEXT NOT NULL, body TEXT NOT NULL, status TEXT NOT NULL, lease_owner_session_id TEXT, lease_version INTEGER NOT NULL, lease_expires_at TEXT, lease_token_hash TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL);
 CREATE INDEX IF NOT EXISTS tasks_lookup ON tasks(context_id,status,created_at);
 CREATE INDEX IF NOT EXISTS tasks_page ON tasks(context_id,created_at,id);
 CREATE INDEX IF NOT EXISTS tasks_status_page ON tasks(context_id,status,created_at,id);
+CREATE INDEX IF NOT EXISTS tasks_created_page ON tasks(context_id,` + sortableCreated + `,id);
+CREATE INDEX IF NOT EXISTS tasks_status_created_page ON tasks(context_id,status,` + sortableCreated + `,id);
 CREATE TABLE IF NOT EXISTS task_outcomes (task_id TEXT PRIMARY KEY REFERENCES tasks(id), reason TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS task_instances (task_id TEXT PRIMARY KEY REFERENCES tasks(id), instance_id TEXT NOT NULL, label TEXT NOT NULL);
 `
@@ -62,6 +68,26 @@ func (x *sqlStore) TasksAfter(cid string, status TaskStatus, created, afterID st
 	return x.TasksFilteredAfter(cid, status, TaskFilters{}, created, afterID, limit)
 }
 func (x *sqlStore) TasksFilteredAfter(cid string, status TaskStatus, f TaskFilters, created, afterID string, limit int) ([]Task, error) {
+	q, args := taskPageQuery(cid, status, f, created, afterID, limit)
+	rows, e := x.q.Query(q, args...)
+	if e != nil {
+		return nil, e
+	}
+	defer rows.Close()
+	var out []Task
+	for rows.Next() {
+		t, e := scanTask(rows)
+		if e != nil {
+			return nil, e
+		}
+		t.LeaseTokenHash = ""
+		out = append(out, t)
+	}
+	return out, rows.Err()
+}
+
+// taskPageQuery seeks tasks_created_page or tasks_status_created_page.
+func taskPageQuery(cid string, status TaskStatus, f TaskFilters, created, afterID string, limit int) (string, []any) {
 	q := taskSelect + " WHERE t.context_id=?"
 	args := []any{cid}
 	if status != "" {
@@ -83,26 +109,13 @@ func (x *sqlStore) TasksFilteredAfter(cid string, status TaskStatus, f TaskFilte
 		args = append(args, f.OwnerInstance)
 	}
 	if afterID != "" {
-		q += " AND (t.created_at,t.id)>(?,?)"
-		args = append(args, created, afterID)
+		// Expression indexes serve this range, not a row-value comparison.
+		q += " AND " + sortableCreated + ">=? AND (" + sortableCreated + ">? OR t.id>?)"
+		at := sortableTS(parse(created))
+		args = append(args, at, at, afterID)
 	}
-	q += " ORDER BY t.created_at,t.id LIMIT ?"
-	args = append(args, limit)
-	rows, e := x.q.Query(q, args...)
-	if e != nil {
-		return nil, e
-	}
-	defer rows.Close()
-	var out []Task
-	for rows.Next() {
-		t, e := scanTask(rows)
-		if e != nil {
-			return nil, e
-		}
-		t.LeaseTokenHash = ""
-		out = append(out, t)
-	}
-	return out, rows.Err()
+	q += " ORDER BY " + sortableCreated + ",t.id LIMIT ?"
+	return q, append(args, limit)
 }
 
 func (x *sqlStore) TaskReceipt(sid, operationID string) (TaskReceipt, error) {

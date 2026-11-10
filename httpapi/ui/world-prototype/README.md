@@ -58,7 +58,11 @@ Click an activity entry or a visible message path in the scene to open its full 
 
 ## Observe a real context
 
-Run `comitia-viewer` for the installed macOS viewer on port 4174. Its private
+The macOS installer registers this prototype as the `com.comitia.viewer` service
+(port 4174) only when run with `--with-viewer`; a later run without the flag
+removes the service, revokes its observer credential and archives it, and
+`--uninstall` removes it too. It is unsupported, has no CSP and has no macOS CI
+coverage. Run `comitia-viewer` for that installed viewer. Its private
 launcher passes a key in the URL fragment; the page removes it immediately and
 exchanges it for an eight-hour viewer session stored only in the tab, scoped to
 this origin and port. Reloads reuse the session; reopen the launcher after
