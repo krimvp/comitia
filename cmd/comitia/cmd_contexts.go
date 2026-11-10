@@ -162,11 +162,11 @@ func runContexts(ctx context.Context, cfg config, api comitia.API, out *json.Enc
 		if err := parseFlags(fs, args); err != nil {
 			return err
 		}
+		if err := requireFlags(fs, "context-id"); err != nil {
+			return err
+		}
 		if cfg.parseOnly {
 			return nil
-		}
-		if *cid == "" {
-			return comitia.Invalidf("reference-list requires --context-id")
 		}
 		v, e := comitia.ListReferences(ctx, api, needCredential(cfg), *cid, *after, *limit)
 		if e != nil {

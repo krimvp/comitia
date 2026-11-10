@@ -19,7 +19,7 @@ func TestEveryCommandNamesMissingRequiredFlag(t *testing.T) {
 		"bootstrap": "--bootstrap-credential", "delegate": "--context-id or --grant", "revoke": "--session-id",
 		"grant": "--session-id", "grant-revoke": "--grant-id", "credential-check": "--context-id",
 		"workspace-create": "--name", "context-create": "--name", "context-get": "--context-id",
-		"context-children": "--parent-id", "context-archive": "--context-id", "reference-add": "--context-id",
+		"context-children": "--parent-id", "context-archive": "--context-id", "reference-add": "--context-id", "reference-list": "--context-id",
 		"send": "--context-id", "replay": "--context-id", "wait": "--context-id", "message-get": "--context-id",
 		"watch": "--context-id", "ack": "--context-id", "cursor": "--context-id", "participants": "--context-id",
 		"instances": "--context-id", "instance-resume": "--context-id", "task-create": "--context-id",
