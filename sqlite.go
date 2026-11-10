@@ -16,6 +16,10 @@ type SQLiteStore struct {
 	readers *sql.DB
 	writers chan struct{}
 	changes sqliteChanges
+	// anchor holds an in-memory database open. SQLite destroys a shared-cache
+	// memory database when its last connection closes, and database/sql
+	// replaces the working connection after a cancelled statement.
+	anchor *sql.DB
 }
 
 const sqliteReaderLimit = 4
@@ -52,8 +56,20 @@ func OpenSQLite(path string) (*SQLiteStore, error) {
 	}
 	db.SetMaxOpenConns(1)
 	s := &SQLiteStore{db: db, writers: make(chan struct{}, 1)}
+	if path == ":memory:" {
+		if s.anchor, e = sql.Open("sqlite", dsn); e == nil {
+			s.anchor.SetMaxOpenConns(1)
+			s.anchor.SetConnMaxIdleTime(0)
+			s.anchor.SetConnMaxLifetime(0)
+			e = s.anchor.Ping()
+		}
+		if e != nil {
+			s.Close()
+			return nil, e
+		}
+	}
 	if e = s.migrate(context.Background()); e != nil {
-		db.Close()
+		s.Close()
 		return nil, e
 	}
 	if path == ":memory:" {
@@ -80,10 +96,15 @@ func OpenSQLite(path string) (*SQLiteStore, error) {
 	return s, nil
 }
 func (s *SQLiteStore) Close() error {
-	if s.readers != s.db {
-		return errors.Join(s.changes.close(), s.readers.Close(), s.db.Close())
+	var errs []error
+	if s.readers != nil && s.readers != s.db {
+		errs = append(errs, s.changes.close(), s.readers.Close())
 	}
-	return s.db.Close()
+	errs = append(errs, s.db.Close())
+	if s.anchor != nil {
+		errs = append(errs, s.anchor.Close())
+	}
+	return errors.Join(errs...)
 }
 func (s *SQLiteStore) View(ctx context.Context, fn func(ReadStore) error) error {
 	tx, e := s.begin(ctx, &sql.TxOptions{ReadOnly: true})
