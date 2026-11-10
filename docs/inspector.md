@@ -15,7 +15,8 @@ have a separate shared-context node; they are not inferred private deliveries. F
 loaded messages by sender/recipient session, task, message type, or text; follow
 reply threads and inspect structured payloads and evidence references. Task
 status comes from the task API, separately from agents' reported results.
-Messages update by polling every three seconds. Pause stops automatic polling;
+Messages update by polling every three seconds while the tab is visible; failed
+syncs back off, doubling up to one minute. Pause stops automatic polling;
 manual refresh remains available. Browsing never acknowledges messages or changes
 task state. While a message or route control has focus (or its mobile details
 are open), polling keeps that displayed page available as new messages arrive.
