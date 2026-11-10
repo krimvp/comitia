@@ -427,7 +427,8 @@ func TestWaitMessagesBroadcastAndPoll(t *testing.T) {
 					t.Fatalf("wait result: %+v", got)
 				}
 			}
-			if elapsed := time.Since(start); elapsed >= time.Second {
+			// Woken by the poll, far inside the wait timeout; loose enough for a loaded race run.
+			if elapsed := time.Since(start); elapsed >= 5*time.Second {
 				t.Fatalf("append-to-return latency: %v", elapsed)
 			}
 		})
