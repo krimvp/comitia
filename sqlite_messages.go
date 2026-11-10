@@ -15,18 +15,12 @@ CREATE TABLE IF NOT EXISTS message_envelopes (message_id TEXT PRIMARY KEY REFERE
 CREATE TABLE IF NOT EXISTS message_instances (message_id TEXT PRIMARY KEY REFERENCES messages(id), instance_id TEXT NOT NULL, label TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS instance_acks (session_id TEXT NOT NULL REFERENCES sessions(id), context_id TEXT NOT NULL REFERENCES contexts(id), instance_id TEXT NOT NULL, seq INTEGER NOT NULL, updated_at TEXT NOT NULL, PRIMARY KEY(session_id,context_id,instance_id));
 CREATE TABLE IF NOT EXISTS message_dedupe_scopes (context_id TEXT NOT NULL REFERENCES contexts(id), session_id TEXT NOT NULL REFERENCES sessions(id), instance_id TEXT NOT NULL, dedupe_key TEXT NOT NULL, message_id TEXT NOT NULL UNIQUE REFERENCES messages(id), PRIMARY KEY(context_id,session_id,instance_id,dedupe_key));
-INSERT INTO message_dedupe_scopes SELECT m.context_id,m.session_id,COALESCE(i.instance_id,''),m.dedupe_key,m.id FROM messages m LEFT JOIN message_instances i ON i.message_id=m.id WHERE NOT EXISTS (SELECT 1 FROM message_dedupe_scopes d WHERE d.message_id=m.id);
 CREATE TABLE IF NOT EXISTS message_filters (message_id TEXT PRIMARY KEY REFERENCES messages(id), context_id TEXT NOT NULL REFERENCES contexts(id), seq INTEGER NOT NULL, schema TEXT NOT NULL, task_id TEXT NOT NULL, sender TEXT NOT NULL);
 CREATE INDEX IF NOT EXISTS message_filters_schema ON message_filters(context_id,schema,seq);
 CREATE INDEX IF NOT EXISTS message_filters_task ON message_filters(context_id,task_id,seq);
 CREATE INDEX IF NOT EXISTS message_filters_sender ON message_filters(context_id,sender,seq);
 CREATE TABLE IF NOT EXISTS message_recipients (message_id TEXT NOT NULL REFERENCES messages(id), context_id TEXT NOT NULL REFERENCES contexts(id), seq INTEGER NOT NULL, kind TEXT NOT NULL, recipient TEXT NOT NULL, PRIMARY KEY(message_id,kind,recipient));
 CREATE INDEX IF NOT EXISTS message_recipients_lookup ON message_recipients(context_id,kind,recipient,seq);
-INSERT OR REPLACE INTO message_filters SELECT m.id,m.context_id,m.seq,COALESCE(json_extract(e.envelope,'$.schema'),''),COALESCE(json_extract(e.envelope,'$.task_id'),''),COALESCE(i.instance_id,'') FROM messages m LEFT JOIN message_envelopes e ON e.message_id=m.id LEFT JOIN message_instances i ON i.message_id=m.id;
-DELETE FROM message_recipients;
-INSERT INTO message_recipients SELECT m.id,m.context_id,m.seq,'broadcast','' FROM messages m LEFT JOIN message_envelopes e ON e.message_id=m.id WHERE COALESCE(json_array_length(e.envelope,'$.recipient_instances'),0)=0 AND COALESCE(json_array_length(e.envelope,'$.recipient_session_ids'),0)=0;
-INSERT INTO message_recipients SELECT DISTINCT m.id,m.context_id,m.seq,'session',j.value FROM messages m JOIN message_envelopes e ON e.message_id=m.id JOIN json_each(e.envelope,'$.recipient_session_ids') j WHERE COALESCE(json_array_length(e.envelope,'$.recipient_instances'),0)=0;
-INSERT INTO message_recipients SELECT DISTINCT m.id,m.context_id,m.seq,'instance',j.value FROM messages m JOIN message_envelopes e ON e.message_id=m.id JOIN json_each(e.envelope,'$.recipient_instances') j;
 CREATE TRIGGER IF NOT EXISTS comitia_message_filter_insert AFTER INSERT ON messages BEGIN
  INSERT INTO message_filters VALUES(NEW.id,NEW.context_id,NEW.seq,'','','');
  INSERT INTO message_recipients VALUES(NEW.id,NEW.context_id,NEW.seq,'broadcast','');
@@ -44,7 +38,6 @@ END;
 CREATE TABLE IF NOT EXISTS message_replies (message_id TEXT PRIMARY KEY REFERENCES messages(id), context_id TEXT NOT NULL, seq INTEGER NOT NULL, reply_to TEXT NOT NULL);
 CREATE INDEX IF NOT EXISTS message_replies_lookup ON message_replies(context_id,reply_to,seq);
 CREATE INDEX IF NOT EXISTS messages_author ON messages(context_id,session_id,seq);
-INSERT OR REPLACE INTO message_replies SELECT m.id,m.context_id,m.seq,json_extract(e.envelope,'$.reply_to') FROM messages m JOIN message_envelopes e ON e.message_id=m.id WHERE COALESCE(json_extract(e.envelope,'$.reply_to'),'')<>'';
 CREATE TRIGGER IF NOT EXISTS comitia_message_reply_insert AFTER INSERT ON message_envelopes WHEN COALESCE(json_extract(NEW.envelope,'$.reply_to'),'')<>'' BEGIN
  INSERT INTO message_replies SELECT id,context_id,seq,json_extract(NEW.envelope,'$.reply_to') FROM messages WHERE id=NEW.message_id;
 END;
