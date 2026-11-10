@@ -9,6 +9,6 @@ Comitia context through read-only polling. Run it alongside the HTTP adapter:
 python3 httpapi/ui/world-prototype/serve.py
 ```
 
-Open http://127.0.0.1:4173. Agent movement is illustrative, and message arrival
-animations do not constitute read receipts. This is a separate design prototype;
-the embedded conversation inspector remains the supported inspector.
+Open http://127.0.0.1:4173. Agent movement is illustrative; arrival animations
+are not read receipts. This unsupported prototype is a macOS service only with
+`--with-viewer`; the embedded inspector remains the supported inspector.

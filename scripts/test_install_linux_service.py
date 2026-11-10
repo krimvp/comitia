@@ -381,7 +381,7 @@ class MacOSInstallerTest(Base):
                 launchd.append(command)
                 return subprocess.CompletedProcess(command, 0, '', '')
             return real(command, *args, **kwargs)
-        argv = ['install_macos_service.py', '--binary', str(self.fake)]
+        argv = ['install_macos_service.py', '--binary', str(self.fake), '--with-viewer']
         with mock.patch.object(sys, 'platform', 'darwin'), mock.patch.object(sys, 'argv', argv), \
                 mock.patch.object(subprocess, 'run', run), mock.patch.object(Path, 'home', lambda: self.home), \
                 contextlib.redirect_stdout(io.StringIO()):

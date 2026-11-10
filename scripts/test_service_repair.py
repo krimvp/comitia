@@ -296,7 +296,7 @@ class MacFixture(helpers.Base):
             self.viewer_port = helpers.free_port()
 
     def install_mac(self):
-        self.mac('--port', str(self.server_port), '--viewer-port', str(self.viewer_port))
+        self.mac('--with-viewer', '--port', str(self.server_port), '--viewer-port', str(self.viewer_port))
 
     def mac(self, *args):
         real_run = subprocess.run
@@ -330,7 +330,7 @@ class MacFixture(helpers.Base):
 class MacRepairTest(MacFixture):
     def test_bare_reinstall_keeps_both_saved_ports(self):
         self.install_mac()
-        self.mac()
+        self.mac('--with-viewer')
         config = json.loads((self.root/'service.json').read_text())
         self.assertEqual(config, {'server_url': f'http://127.0.0.1:{self.server_port}',
                                   'viewer_url': f'http://127.0.0.1:{self.viewer_port}'})
@@ -344,7 +344,7 @@ class MacRepairTest(MacFixture):
                 before = {p: p.read_bytes() for p in self.home.rglob('*') if p.is_file()}
                 calls = len(self.manager_calls)
                 with self.assertRaisesRegex(SystemExit, f'Port {port} is already occupied'):
-                    self.mac(flag, str(port))
+                    self.mac('--with-viewer', flag, str(port))
                 self.assertEqual({p: p.read_bytes() for p in before}, before)
                 self.assertFalse(any(c[1] != 'print' for c in self.manager_calls[calls:]))
 
@@ -361,7 +361,7 @@ class MacRepairTest(MacFixture):
                 loaded = self.loaded_configs[label]
                 self.fail_lint = label
                 with self.assertRaisesRegex(SystemExit, 'plutil'):
-                    self.mac(flag, str(new_port))
+                    self.mac('--with-viewer', flag, str(new_port))
                 self.fail_lint = None
                 self.assertEqual(local.saved_port(self.root, key), new_port)
                 self.assertEqual(self.loaded_configs[label], loaded)
@@ -369,7 +369,7 @@ class MacRepairTest(MacFixture):
                 before = {p: p.read_bytes() for p in self.home.rglob('*') if p.is_file()}
                 calls = len(self.manager_calls)
                 with self.assertRaisesRegex(SystemExit, f'Port {new_port} is already occupied'):
-                    self.mac()
+                    self.mac('--with-viewer')
                 self.assertEqual({p: p.read_bytes() for p in before}, before)
                 self.assertFalse(any(c[1] != 'print' for c in self.manager_calls[calls:]))
 
@@ -378,7 +378,7 @@ class MacRepairTest(MacFixture):
         with socket.socket() as server, socket.socket() as viewer:
             server.bind(('127.0.0.1', self.server_port))
             viewer.bind(('127.0.0.1', self.viewer_port))
-            self.mac()
+            self.mac('--with-viewer')
 
     def test_loaded_job_without_running_process_evidence_does_not_own_port(self):
         self.install_mac()
@@ -387,7 +387,7 @@ class MacRepairTest(MacFixture):
             self.running = False
             before = {p: p.read_bytes() for p in self.home.rglob('*') if p.is_file()}
             with self.assertRaisesRegex(SystemExit, 'already occupied'):
-                self.mac()
+                self.mac('--with-viewer')
             self.assertEqual({p: p.read_bytes() for p in before}, before)
 
     def test_uninstall_removes_only_matching_plists_and_links_and_keeps_data(self):
@@ -441,10 +441,80 @@ class MacRepairTest(MacFixture):
         self.assertEqual([p.name for p in self.root.iterdir()] if self.root.exists() else [], ['.install.lock'])
         self.assertEqual(link.read_text(), 'my viewer\n')
 
+    def viewer_files(self):
+        return [self.home/'Library/LaunchAgents/com.comitia.viewer.plist', self.home/'.local/bin/comitia-viewer',
+                self.root/'bin/comitia-viewer', self.root/'viewer', self.root/'credentials/viewer.json',
+                self.root/'credentials/viewer-launch-key']
+
+    def test_plain_install_leaves_out_the_prototype_viewer(self):
+        link = self.home/'.local/bin/comitia-viewer'
+        link.parent.mkdir(parents=True, exist_ok=True)
+        link.write_text('my viewer\n')
+        self.mac('--port', str(self.server_port))
+        for path in self.viewer_files()[2:]:
+            self.assertFalse(path.exists() or path.is_symlink(), path)
+        self.assertFalse((self.home/'Library/LaunchAgents/com.comitia.viewer.plist').exists())
+        self.assertEqual(link.read_text(), 'my viewer\n')
+        self.assertEqual(json.loads((self.root/'service.json').read_text()),
+                         {'server_url': f'http://127.0.0.1:{self.server_port}'})
+        self.assertFalse(any('com.comitia.viewer' in ' '.join(c) for c in self.manager_calls))
+        self.assertFalse(any('World viewer' in c['args'] for c in self.calls()))
+        self.assertTrue((self.home/'Library/LaunchAgents/com.comitia.server.plist').exists())
+
+    def test_viewer_port_requires_the_viewer(self):
+        with self.assertRaises(SystemExit), contextlib.redirect_stderr(io.StringIO()):
+            self.mac('--viewer-port', str(self.viewer_port))
+        self.assertFalse(self.root.exists())
+
+    def test_plain_reinstall_removes_an_installed_viewer(self):
+        self.install_mac()
+        session = json.loads((self.root/'credentials/viewer.json').read_text())['credential']['Session']['ID']
+        saved = {p.name: p.read_bytes() for p in self.viewer_files()[4:]}
+        self.mac()
+        for path in self.viewer_files():
+            self.assertFalse(path.exists() or path.is_symlink(), path)
+        self.assertIn(['launchctl', 'bootout', f'gui/{os.getuid()}/com.comitia.viewer'], self.manager_calls)
+        self.assertNotIn('com.comitia.viewer', self.loaded)
+        self.assertTrue(any(c['args'][:3] == ['revoke', '--session-id', session] for c in self.calls()))
+        archive, = self.root.glob('backups/viewer-*')
+        self.assertEqual({p.name: p.read_bytes() for p in archive.iterdir()}, saved)
+        self.assertIn('com.comitia.server', self.loaded)
+        # Repeating the plain install, re-opting in and uninstalling all stay consistent.
+        self.mac()
+        self.mac('--with-viewer')
+        self.assertTrue((self.root/'credentials/viewer.json').exists())
+        self.mac('--uninstall')
+        self.assertFalse((self.home/'Library/LaunchAgents/com.comitia.viewer.plist').exists())
+        self.assertFalse((self.home/'.local/bin/comitia-viewer').is_symlink())
+
+    def test_plain_reinstall_keeps_a_customized_viewer_plist_and_its_credentials(self):
+        self.install_mac()
+        path = self.home/'Library/LaunchAgents/com.comitia.viewer.plist'
+        config = plistlib.loads(path.read_bytes())
+        config['ThrottleInterval'] = 30
+        path.write_bytes(plistlib.dumps(config))
+        with self.assertRaisesRegex(SystemExit, 'Could not remove the existing world viewer'):
+            self.mac()
+        self.assertTrue(path.exists())
+        self.assertTrue((self.root/'credentials/viewer.json').exists())
+        self.assertFalse(any(c['args'][0] == 'revoke' for c in self.calls()))
+
 
 class MacDaemonTest(MacFixture):
     setUpClass = classmethod(helpers.RealBinaryTest.setUpClass.__func__)
     tearDownClass = classmethod(helpers.RealBinaryTest.tearDownClass.__func__)
+
+    def test_removed_viewer_credential_is_revoked(self):
+        self.fake = self.binary
+        self.install_mac()
+        credential = self.root/'credentials/viewer.json'
+        token = local.token(credential)
+        run = local.runner(self.binary, self.root/'data/comitia.db')
+        context_id = json.loads((self.root/'local-context.json').read_text())['context_id']
+        run('participants', '--context-id', context_id, token=token)
+        self.mac()
+        with self.assertRaises(RuntimeError):
+            run('participants', '--context-id', context_id, token=token)
 
     def test_daemon_binds_despite_inherited_client_routing_and_secrets(self):
         self.fake = self.binary
@@ -454,7 +524,7 @@ class MacDaemonTest(MacFixture):
         with mock.patch.dict(os.environ, {'COMITIA_SERVER_URL': 'http://127.0.0.1:1',
                                          'COMITIA_CREDENTIAL': 'client-secret',
                                          'COMITIA_BOOTSTRAP_CREDENTIAL': 'bootstrap-secret'}):
-            self.mac('--port', str(port), '--viewer-port', str(viewer_port))
+            self.mac('--with-viewer', '--port', str(port), '--viewer-port', str(viewer_port))
             config = plistlib.loads((self.home/'Library/LaunchAgents/com.comitia.server.plist').read_bytes())
             env = dict(os.environ)
             env.update(config.get('EnvironmentVariables', {}))
