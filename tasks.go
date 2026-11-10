@@ -42,6 +42,7 @@ type TaskInput struct {
 }
 
 // TaskReceipt records a non-secret mutation outcome. Tokens are never persisted.
+// Result omits Title and Body, which retries re-read from the task.
 type TaskReceipt struct {
 	Fingerprint string
 	Result      Task
@@ -571,6 +572,15 @@ func taskReceipt(r TaskReadStore, sid, operationID, fingerprint string) (Task, b
 	if receipt.Fingerprint != fingerprint {
 		return Task{}, false, ErrConflict
 	}
+	// Titles are required, so an empty one marks a compact receipt. Receipts
+	// written by older binaries carry the full task and are returned as stored.
+	if receipt.Result.Title == "" {
+		t, e := r.Task(receipt.Result.ID)
+		if e != nil {
+			return Task{}, false, e
+		}
+		receipt.Result.Title, receipt.Result.Body = t.Title, t.Body
+	}
 	return receipt.Result, true, nil
 }
 
@@ -582,6 +592,9 @@ func putTaskReceipt(w TaskWriteStore, sid, operationID, fingerprint string, resu
 	if !ok {
 		return Invalidf("task mutation receipts unsupported by store")
 	}
+	// Title and body never change after create; retries re-read them from the
+	// task so each receipt stays small however large the task is.
+	result.Title, result.Body = "", ""
 	return store.PutTaskReceipt(sid, operationID, TaskReceipt{Fingerprint: fingerprint, Result: result})
 }
 

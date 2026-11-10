@@ -535,3 +535,57 @@ func TestOldWorkerResultAfterReassignment(t *testing.T) {
 		t.Fatalf("unfenced observer review: %v", err)
 	}
 }
+
+func TestTaskReceiptsStoreNoTaskTextAndRetriesRereadIt(t *testing.T) {
+	f := setup(t, ":memory:")
+	defer f.store.Close()
+	ctx := context.Background()
+	in := TaskInput{Title: "receipt title", Body: strings.Repeat("large body ", 1000), OperationID: "create"}
+	task, err := f.svc.CreateTask(ctx, f.admin.Token, f.context.ID, in)
+	if err != nil {
+		t.Fatal(err)
+	}
+	claim, err := f.svc.ClaimTaskWithOperation(ctx, f.admin.Token, task.ID, time.Minute, "claim")
+	if err != nil {
+		t.Fatal(err)
+	}
+	renewed, err := f.svc.RenewClaimWithOperation(ctx, f.admin.Token, task.ID, claim.Token, claim.Task.LeaseVersion, time.Minute, "renew")
+	if err != nil {
+		t.Fatal(err)
+	}
+	retried, err := f.svc.RenewClaimWithOperation(ctx, f.admin.Token, task.ID, claim.Token, claim.Task.LeaseVersion, time.Minute, "renew")
+	if err != nil || !reflect.DeepEqual(retried.Task, renewed.Task) {
+		t.Fatalf("renew retry lost task text: %+v %v", retried.Task, err)
+	}
+	failure := TaskOutcomeInput{ClaimToken: retried.Token, LeaseVersion: retried.Task.LeaseVersion, Reason: "broken", OperationID: "fail"}
+	failed, err := f.svc.FailTask(ctx, f.admin.Token, task.ID, failure)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var stored int
+	if err = f.store.db.QueryRow("SELECT COUNT(*) FROM task_mutation_receipts WHERE result LIKE '%receipt title%' OR result LIKE '%large body%' OR LENGTH(result)>1024").Scan(&stored); err != nil || stored != 0 {
+		t.Fatalf("receipts persist task text: %d %v", stored, err)
+	}
+	again, err := f.svc.CreateTask(ctx, f.admin.Token, f.context.ID, in)
+	if err != nil || !reflect.DeepEqual(again, task) {
+		t.Fatalf("create retry lost task text: %+v %v", again, err)
+	}
+	if again, err = f.svc.FailTask(ctx, f.admin.Token, task.ID, failure); err != nil || !reflect.DeepEqual(again, failed) {
+		t.Fatalf("fail retry lost task text: %+v %v", again, err)
+	}
+	// Receipts written by older binaries hold the full task and stay authoritative.
+	legacy := task
+	legacy.Title, legacy.Body = "legacy title", "legacy body"
+	raw, err := json.Marshal(legacy)
+	if err != nil {
+		t.Fatal(err)
+	}
+	fingerprint := taskFingerprint("create", f.context.ID, legacy.Title, legacy.Body)
+	if _, err = f.store.db.Exec("INSERT INTO task_mutation_receipts VALUES(?,?,?,?)", f.admin.Session.ID, "legacy", fingerprint, string(raw)); err != nil {
+		t.Fatal(err)
+	}
+	again, err = f.svc.CreateTask(ctx, f.admin.Token, f.context.ID, TaskInput{Title: legacy.Title, Body: legacy.Body, OperationID: "legacy"})
+	if err != nil || !reflect.DeepEqual(again, legacy) {
+		t.Fatalf("legacy full receipt not honoured: %+v %v", again, err)
+	}
+}
