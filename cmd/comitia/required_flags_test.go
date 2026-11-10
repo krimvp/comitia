@@ -27,7 +27,7 @@ func TestEveryCommandNamesMissingRequiredFlag(t *testing.T) {
 		"task-renew": "--task-id", "task-complete": "--task-id", "task-release": "--task-id", "task-fail": "--task-id",
 		"task-cancel": "--task-id", "mcp-http": "--server-url",
 	}
-	optional := map[string]bool{"context-list": true, "server-info": true, "storage-status": true, "serve": true, "mcp": true}
+	optional := map[string]bool{"context-list": true, "server-info": true, "storage-status": true, "serve": true, "mcp": true, "version": true, "help": true}
 	for _, cmd := range usageCommands(t) {
 		t.Run(cmd, func(t *testing.T) {
 			want, ok := required[cmd]

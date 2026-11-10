@@ -133,6 +133,10 @@ acknowledging them. Watch's print-then-ack cursor is separate from a
 See [Message protocol](message-protocol.md#filtered-replay-and-waiting) for
 filters, byte budgets, page cursors, MCP compact results, and restart semantics.
 `comitia --help` groups commands; `comitia <command> --help` describes flags.
+`comitia version` prints the build identity. A failure writes one JSON
+`{"error":...}` line to stderr and exits 2 for usage or invalid input,
+3 unauthenticated, 4 forbidden, 5 not found, 6 conflict or stale claim,
+7 transport failure, timeout or busy storage, and 1 otherwise.
 
 
 ## Isolated demo
