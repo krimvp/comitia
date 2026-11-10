@@ -14,13 +14,24 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
+# Every job runs on the shared self-hosted runner, so pull requests from forks
+# must not start them.
 jobs:
   test:
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
     runs-on: self-hosted
     timeout-minutes: 60
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - name: Record source revision
+        # Same Revision/Dirty stamping as scripts/comitia_install.py build_flags,
+        # taken before later steps can leave files in the checkout.
+        run: |
+          dirty=false
+          test -z "$(git status --porcelain --untracked-files=all)" || dirty=true
+          echo "COMITIA_REVISION=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
+          echo "COMITIA_DIRTY=$dirty" >> "$GITHUB_ENV"
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
         with:
           go-version-file: go.mod
           cache: true
@@ -28,7 +39,7 @@ jobs:
         run: |
           gofmt -d .
           test -z "$(gofmt -l .)"
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: 22
       - name: Inspector state and landing page tests
@@ -41,16 +52,22 @@ jobs:
       - name: Repeat race and crash recovery checks
         run: go test -race -timeout 20m -count=10 -run 'TestCrashRecovery|TestSecurity|TestSQLite' .
       - name: Build Linux binary
-        run: CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath -o dist/comitia ./cmd/comitia
+        run: |
+          CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath \
+            -ldflags "-X github.com/krimvp/comitia.Revision=$COMITIA_REVISION -X github.com/krimvp/comitia.Dirty=$COMITIA_DIRTY" \
+            -o dist/comitia ./cmd/comitia
+          (cd dist && sha256sum comitia > comitia.sha256)
       - name: Multi-process stress (3 runs)
         run: for run in 1 2 3; do python3 scripts/stress_agents.py --binary "$PWD/dist/comitia" --workers 12 --messages 100 >> dist/stress.json || exit 1; done
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: comitia-linux-amd64
-          path: dist/comitia
+          path: |
+            dist/comitia
+            dist/comitia.sha256
           if-no-files-found: error
           retention-days: 7
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: stress-results
           path: dist/stress.json
@@ -58,18 +75,19 @@ jobs:
           retention-days: 7
 
   inspector-browser:
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
     runs-on: self-hosted
     timeout-minutes: 30
     env:
       GOTOOLCHAIN: go1.24.13
       GOFLAGS: -buildvcs=false
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
         with:
           go-version-file: go.mod
           cache: true
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: 22
           cache: npm

@@ -137,12 +137,15 @@ test("get started is the shared agent prompt and two examples", () => {
 test("Pages checks the checkout before staging and uploading the site", () => {
   const workflow = readFileSync(join(root, "../.github/workflows/pages.yml"), "utf8");
   const build = workflow.slice(workflow.indexOf("  build:"), workflow.indexOf("  deploy:"));
-  const setup = build.indexOf("actions/setup-node@v4");
+  const setup = build.indexOf("actions/setup-node@");
   const checks = build.indexOf("node --test site/*.test.mjs");
   const browser = build.indexOf("node --test site/browser/*.test.mjs");
   const stage = build.indexOf("rsync");
-  const upload = build.indexOf("actions/upload-pages-artifact@v3");
+  const upload = build.indexOf("actions/upload-pages-artifact@");
   assert.ok(setup >= 0 && setup < checks && checks < browser && browser < stage && stage < upload);
+  // Actions are pinned to commit SHAs, and only the deploy job may write to Pages.
+  for (const use of workflow.matchAll(/uses: (\S+)/g)) assert.match(use[1], /@[0-9a-f]{40}$/);
+  assert.doesNotMatch(workflow.slice(0, workflow.indexOf("  deploy:")), /pages: write|id-token: write/);
   assert.match(build, /node-version: 22/);
   assert.match(build, /npm ci --prefix site\/browser/);
   assert.match(build, /playwright install --with-deps chromium/);
