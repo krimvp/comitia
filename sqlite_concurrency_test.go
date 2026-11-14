@@ -7,6 +7,8 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/krimvp/comitia/internal/model"
 )
 
 // Each store has its own *sql.DB and therefore its own SQLite connection and
@@ -69,7 +71,7 @@ func TestSQLiteMigrationPendingOnlyWhenWorkRemains(t *testing.T) {
 		t.Fatal("migrated store reports pending work")
 	}
 	// An older binary appends without a dedupe scope; the next open backfills it.
-	if _, err = f.store.db.Exec("INSERT INTO messages VALUES(?,?,?,?,?,?,?)", "old", m.ContextID, m.SessionID, 2, "old-key", "old", ts(*f.now)); err != nil {
+	if _, err = f.store.db.Exec("INSERT INTO messages VALUES(?,?,?,?,?,?,?)", "old", m.ContextID, m.SessionID, 2, "old-key", "old", model.TS(*f.now)); err != nil {
 		t.Fatal(err)
 	}
 	if !f.store.migrationPending(ctx) {

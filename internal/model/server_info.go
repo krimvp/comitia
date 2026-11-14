@@ -1,4 +1,4 @@
-package comitia
+package model
 
 import (
 	"context"
@@ -21,10 +21,10 @@ type BuildInfo struct {
 
 func BuildIdentity() BuildInfo {
 	info, _ := debug.ReadBuildInfo()
-	return buildIdentity(info)
+	return IdentityFromBuildInfo(info)
 }
 
-func buildIdentity(info *debug.BuildInfo) BuildInfo {
+func IdentityFromBuildInfo(info *debug.BuildInfo) BuildInfo {
 	b := BuildInfo{Version: BuildVersion(), Revision: Revision, Dirty: Dirty}
 	if info != nil {
 		for _, setting := range info.Settings {

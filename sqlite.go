@@ -9,6 +9,8 @@ import (
 	"path/filepath"
 	"slices"
 	"time"
+
+	"github.com/krimvp/comitia/internal/model"
 )
 
 type SQLiteStore struct {
@@ -48,7 +50,7 @@ func OpenSQLite(path string) (*SQLiteStore, error) {
 	// begin retains the overall contention budget for separate CLI processes.
 	dsn := (&url.URL{Scheme: "file", Path: absPath}).String() + "?_pragma=foreign_keys(1)&_pragma=busy_timeout(10)&_pragma=journal_mode(WAL)&_txlock=immediate"
 	if path == ":memory:" {
-		dsn = "file:comitia-memory-" + id() + "?mode=memory&cache=shared&_pragma=foreign_keys(1)&_pragma=busy_timeout(10)&_txlock=immediate"
+		dsn = "file:comitia-memory-" + model.NewID() + "?mode=memory&cache=shared&_pragma=foreign_keys(1)&_pragma=busy_timeout(10)&_txlock=immediate"
 	}
 	db, e := sql.Open("sqlite", dsn)
 	if e != nil {
@@ -221,7 +223,7 @@ func nullTime(n sql.NullString) *time.Time {
 	if !n.Valid {
 		return nil
 	}
-	t := parse(n.String)
+	t := model.ParseTime(n.String)
 	return &t
 }
 
@@ -243,5 +245,5 @@ func timeString(t *time.Time) any {
 	if t == nil {
 		return nil
 	}
-	return ts(*t)
+	return model.TS(*t)
 }

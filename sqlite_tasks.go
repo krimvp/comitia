@@ -3,6 +3,8 @@ package comitia
 import (
 	"database/sql"
 	"encoding/json"
+
+	"github.com/krimvp/comitia/internal/model"
 )
 
 // Pages seek the sortable expression indexes; older binaries still use
@@ -22,7 +24,7 @@ CREATE TABLE IF NOT EXISTS task_instances (task_id TEXT PRIMARY KEY REFERENCES t
 `
 
 func (x *sqlStore) PutTask(t Task) error {
-	_, e := x.q.Exec(`INSERT INTO tasks VALUES(?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET status=excluded.status,lease_owner_session_id=excluded.lease_owner_session_id,lease_version=excluded.lease_version,lease_expires_at=excluded.lease_expires_at,lease_token_hash=excluded.lease_token_hash,updated_at=excluded.updated_at`, t.ID, t.ContextID, t.Title, t.Body, t.Status, nullString(t.LeaseOwnerSessionID), t.LeaseVersion, timeString(t.LeaseExpiresAt), t.LeaseTokenHash, ts(t.CreatedAt), ts(t.UpdatedAt))
+	_, e := x.q.Exec(`INSERT INTO tasks VALUES(?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET status=excluded.status,lease_owner_session_id=excluded.lease_owner_session_id,lease_version=excluded.lease_version,lease_expires_at=excluded.lease_expires_at,lease_token_hash=excluded.lease_token_hash,updated_at=excluded.updated_at`, t.ID, t.ContextID, t.Title, t.Body, t.Status, nullString(t.LeaseOwnerSessionID), t.LeaseVersion, timeString(t.LeaseExpiresAt), t.LeaseTokenHash, model.TS(t.CreatedAt), model.TS(t.UpdatedAt))
 	if e != nil {
 		return e
 	}
@@ -52,8 +54,8 @@ func scanTask(row interface{ Scan(...any) error }) (Task, error) {
 		t.LeaseOwnerInstance = &AgentInstance{ID: instance, Label: label}
 	}
 	t.LeaseExpiresAt = nullTime(exp)
-	t.CreatedAt = parse(c)
-	t.UpdatedAt = parse(u)
+	t.CreatedAt = model.ParseTime(c)
+	t.UpdatedAt = model.ParseTime(u)
 	return t, dbErr(e)
 }
 
@@ -115,7 +117,7 @@ func taskPageQuery(cid string, status TaskStatus, f TaskFilters, created, afterI
 	if afterID != "" {
 		// Expression indexes serve this range, not a row-value comparison.
 		q += " AND " + sortableCreated + ">=? AND (" + sortableCreated + ">? OR t.id>?)"
-		at := sortableTS(parse(created))
+		at := model.SortableTS(model.ParseTime(created))
 		args = append(args, at, at, afterID)
 	}
 	q += " ORDER BY " + sortableCreated + ",t.id LIMIT ?"

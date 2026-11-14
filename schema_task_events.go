@@ -2,6 +2,8 @@ package comitia
 
 import (
 	"encoding/json"
+
+	"github.com/krimvp/comitia/internal/model"
 )
 
 type TaskEventPayload struct {
@@ -27,7 +29,7 @@ func validTaskEvent(raw json.RawMessage) error {
 	if p.Status == "" || !validTaskStatusFilter(p.Status) || !validTaskStatusFilter(p.PreviousStatus) || p.LeaseVersion < 0 {
 		return Invalidf("status and previous_status must be task statuses; lease_version must be nonnegative")
 	}
-	if p.LeaseOwnerInstance != nil && !validInstanceID(p.LeaseOwnerInstance.ID) {
+	if p.LeaseOwnerInstance != nil && !model.ValidInstanceID(p.LeaseOwnerInstance.ID) {
 		return Invalidf("lease_owner_instance.id must be a valid instance ID")
 	}
 	return nil

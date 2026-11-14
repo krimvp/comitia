@@ -4,6 +4,8 @@ import (
 	"database/sql"
 	"strings"
 	"time"
+
+	"github.com/krimvp/comitia/internal/model"
 )
 
 func contextIDArgs(ids []string) (string, []any, error) {
@@ -82,7 +84,7 @@ WHERE c.id IN (`+marks+")", args...)
 	seen := map[string]bool{}
 	for _, m := range records {
 		if m.creator.Valid {
-			if _, ok := knownGrant(policy, m.creator.String); !ok && !seen[m.creator.String] {
+			if _, ok := model.KnownGrant(policy, m.creator.String); !ok && !seen[m.creator.String] {
 				missing = append(missing, m.creator.String)
 				seen[m.creator.String] = true
 			}
@@ -98,7 +100,7 @@ WHERE c.id IN (`+marks+")", args...)
 			return nil, err
 		}
 		for _, g := range grants {
-			rememberGrant(policy, g)
+			model.RememberGrant(policy, g)
 		}
 	}
 	for _, m := range records {

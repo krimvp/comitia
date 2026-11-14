@@ -7,6 +7,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/krimvp/comitia/internal/model"
 )
 
 type grantQueryCounts struct{ auth, sessions, grants, archives int }
@@ -109,7 +111,7 @@ func TestDeepGrantFanInEvaluatesEachRecordOnce(t *testing.T) {
 	ctx := context.Background()
 	// Deeper than new delegations may go: written as an older binary could have.
 	cred := legacyChain(t, f, 40, true)
-	leaf := Credential{Session: Session{ID: id(), PrincipalID: cred.Session.PrincipalID, ParentID: cred.Session.ID, ExpiresAt: f.now.Add(time.Hour), CreatedAt: *f.now}}
+	leaf := Credential{Session: Session{ID: model.NewID(), PrincipalID: cred.Session.PrincipalID, ParentID: cred.Session.ID, ExpiresAt: f.now.Add(time.Hour), CreatedAt: *f.now}}
 	if err := f.store.Update(ctx, func(w WriteStore) error {
 		parents, err := w.Grants(cred.Session.ID, f.context.ID, *f.now)
 		if err != nil || len(parents) != 1 {
@@ -119,7 +121,7 @@ func TestDeepGrantFanInEvaluatesEachRecordOnce(t *testing.T) {
 			return err
 		}
 		for i := 0; i < 40; i++ {
-			if err = w.PutGrant(Grant{ID: id(), SessionID: leaf.Session.ID, ContextID: f.context.ID, ParentGrantID: parents[0].ID, IssuerSessionID: cred.Session.ID, Permissions: PermissionRead, ExpiresAt: f.now.Add(time.Hour), CreatedAt: *f.now}); err != nil {
+			if err = w.PutGrant(Grant{ID: model.NewID(), SessionID: leaf.Session.ID, ContextID: f.context.ID, ParentGrantID: parents[0].ID, IssuerSessionID: cred.Session.ID, Permissions: PermissionRead, ExpiresAt: f.now.Add(time.Hour), CreatedAt: *f.now}); err != nil {
 				return err
 			}
 		}

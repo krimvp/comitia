@@ -5,6 +5,8 @@ import (
 	"errors"
 	"path/filepath"
 	"testing"
+
+	"github.com/krimvp/comitia/internal/model"
 )
 
 func TestReferenceFieldsSurviveReopen(t *testing.T) {
@@ -41,7 +43,7 @@ func TestReferenceFieldsSurviveReopen(t *testing.T) {
 	if err := reopened.db.QueryRow("SELECT id,context_id,kind,uri,created_at FROM refs WHERE id=?", reference.ID).Scan(&got.ID, &got.ContextID, &got.Kind, &got.URI, &created); err != nil {
 		t.Fatal(err)
 	}
-	got.CreatedAt = parse(created)
+	got.CreatedAt = model.ParseTime(created)
 	if got != reference {
 		t.Fatalf("persisted: %+v want %+v", got, reference)
 	}

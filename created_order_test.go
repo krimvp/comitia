@@ -6,6 +6,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/krimvp/comitia/internal/model"
 )
 
 func TestTasksAndReferencesListChronologicallyWithinASecond(t *testing.T) {
@@ -64,8 +66,8 @@ func TestTasksAndReferencesListChronologicallyWithinASecond(t *testing.T) {
 	if err != nil || len(page.Tasks) != 3 || page.Tasks[0].ID != "fixed" || page.Tasks[2].ID != "trimmed" {
 		t.Fatalf("after trimmed cursor: %+v %v", page, err)
 	}
-	if ts(first.CreatedAt) != "2026-01-02T03:04:05Z" {
-		t.Fatalf("cursor time format changed: %s", ts(first.CreatedAt))
+	if model.TS(first.CreatedAt) != "2026-01-02T03:04:05Z" {
+		t.Fatalf("cursor time format changed: %s", model.TS(first.CreatedAt))
 	}
 	legacy, err := legacyTaskPage([]Task{second, first}, "", taskCursor{}, 10, "test")
 	if err != nil || len(legacy.Tasks) != 2 || legacy.Tasks[0].ID != first.ID {
@@ -87,7 +89,7 @@ func TestCreatedOrderPagesSeekIndexes(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer st.Close()
-	at := ts(time.Date(2026, 1, 2, 3, 4, 5, 0, time.UTC))
+	at := model.TS(time.Date(2026, 1, 2, 3, 4, 5, 0, time.UTC))
 	tasks, taskArgs := taskPageQuery("c", "", TaskFilters{}, at, "id", 10)
 	status, statusArgs := taskPageQuery("c", TaskPending, TaskFilters{}, at, "id", 10)
 	refs, refArgs := referencePageQuery("c", at, "id", 10)

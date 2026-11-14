@@ -11,6 +11,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/krimvp/comitia/internal/model"
 )
 
 type payloadCaseVariant struct {
@@ -146,7 +148,7 @@ func TestPayloadCaseRulesPreserveStoredMessages(t *testing.T) {
 	defer f.store.Close()
 	ctx := context.Background()
 	raw := json.RawMessage(`{"Severity":"warning","Summary":"Historical finding"}`)
-	historical := Message{ID: id(), ContextID: f.context.ID, SessionID: f.admin.Session.ID, DedupeKey: "historical", CreatedAt: f.now.UTC(), Envelope: &MessageEnvelope{Schema: "comitia.finding.v1", Payload: raw}}
+	historical := Message{ID: model.NewID(), ContextID: f.context.ID, SessionID: f.admin.Session.ID, DedupeKey: "historical", CreatedAt: f.now.UTC(), Envelope: &MessageEnvelope{Schema: "comitia.finding.v1", Payload: raw}}
 	if err := f.store.Update(ctx, func(w WriteStore) error { _, err := w.PutMessage(historical); return err }); err != nil {
 		t.Fatal(err)
 	}

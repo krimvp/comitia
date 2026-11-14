@@ -3,6 +3,8 @@ package comitia
 import (
 	"database/sql"
 	"time"
+
+	"github.com/krimvp/comitia/internal/model"
 )
 
 const grantSchema = `
@@ -17,7 +19,7 @@ const revokeGrantTreeSQL = `WITH RECURSIVE d(id) AS (SELECT id FROM grants WHERE
 
 func (x *sqlStore) PutGrant(g Grant) error {
 	x.invalidateGrantPolicy()
-	_, e := x.q.Exec("INSERT INTO grants VALUES(?,?,?,?,?,?,?,?,?)", g.ID, g.SessionID, g.ContextID, nullString(g.ParentGrantID), g.IssuerSessionID, g.Permissions, ts(g.ExpiresAt), timeString(g.RevokedAt), ts(g.CreatedAt))
+	_, e := x.q.Exec("INSERT INTO grants VALUES(?,?,?,?,?,?,?,?,?)", g.ID, g.SessionID, g.ContextID, nullString(g.ParentGrantID), g.IssuerSessionID, g.Permissions, model.TS(g.ExpiresAt), timeString(g.RevokedAt), model.TS(g.CreatedAt))
 	return e
 }
 
@@ -27,9 +29,9 @@ func scanGrant(row interface{ Scan(...any) error }) (Grant, error) {
 	var exp, created string
 	e := row.Scan(&g.ID, &g.SessionID, &g.ContextID, &par, &g.IssuerSessionID, &g.Permissions, &exp, &rev, &created)
 	g.ParentGrantID = par.String
-	g.ExpiresAt = parse(exp)
+	g.ExpiresAt = model.ParseTime(exp)
 	g.RevokedAt = nullTime(rev)
-	g.CreatedAt = parse(created)
+	g.CreatedAt = model.ParseTime(created)
 	return g, dbErr(e)
 }
 
@@ -67,7 +69,7 @@ func (x *sqlStore) rawGrants(query string, args ...any) ([]Grant, error) {
 func (x *sqlStore) effectiveGrants(candidates []Grant, now time.Time) ([]Grant, error) {
 	policy := x.grantPolicy()
 	for _, g := range candidates {
-		rememberGrant(policy, g)
+		model.RememberGrant(policy, g)
 	}
 	var out []Grant
 	for _, g := range candidates {
@@ -84,7 +86,7 @@ func (x *sqlStore) effectiveGrants(candidates []Grant, now time.Time) ([]Grant, 
 
 func (x *sqlStore) RevokeGrantTree(root string, at time.Time) error {
 	x.invalidateGrantPolicy()
-	r, e := x.q.Exec(revokeGrantTreeSQL, root, ts(at))
+	r, e := x.q.Exec(revokeGrantTreeSQL, root, model.TS(at))
 	if e != nil {
 		return e
 	}

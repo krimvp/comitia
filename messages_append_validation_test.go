@@ -10,6 +10,8 @@ import (
 	"sort"
 	"strings"
 	"testing"
+
+	"github.com/krimvp/comitia/internal/model"
 )
 
 func TestAppendRejectsDuplicateNestedAlias(t *testing.T) {
@@ -36,7 +38,7 @@ func TestHistoricalEvaluationParsingAndReport(t *testing.T) {
 		t.Fatal(err)
 	}
 	raw := json.RawMessage(`{"Evaluation_id":"eval","outcome":"accepted","grader":{"kind":"human","id":"grader"},"criteria":[{"name":"test","outcome":"passed","evidence_refs":["log"]}]}`)
-	m := Message{ID: id(), ContextID: f.context.ID, SessionID: f.admin.Session.ID, DedupeKey: "historical-eval", CreatedAt: f.now.UTC(), Envelope: &MessageEnvelope{Schema: EvaluationResultSchema, TaskID: task.ID, Payload: raw}}
+	m := Message{ID: model.NewID(), ContextID: f.context.ID, SessionID: f.admin.Session.ID, DedupeKey: "historical-eval", CreatedAt: f.now.UTC(), Envelope: &MessageEnvelope{Schema: EvaluationResultSchema, TaskID: task.ID, Payload: raw}}
 	if err := f.store.Update(ctx, func(w WriteStore) error { _, err := w.PutMessage(m); return err }); err != nil {
 		t.Fatal(err)
 	}

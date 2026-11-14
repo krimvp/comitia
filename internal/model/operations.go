@@ -1,4 +1,4 @@
-package comitia
+package model
 
 import (
 	"context"
@@ -52,7 +52,7 @@ func ErrorClass(err error) string {
 	return "internal"
 }
 
-func NewRequestID() string { return id() }
+func NewRequestID() string { return NewID() }
 
 func SafeError(operation string, err error, requestID string) ErrorInfo {
 	var remote *OperationalError
@@ -69,7 +69,7 @@ func SafeError(operation string, err error, requestID string) ErrorInfo {
 		info.Message = ErrUnauthenticated.Error()
 	case "forbidden":
 		info.Message = ErrForbidden.Error()
-		if message := safeReferenceMessage(err); message != "" {
+		if message := SafeReferenceMessage(err); message != "" {
 			info.Message = message
 		}
 	case "not_found":

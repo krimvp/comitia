@@ -6,6 +6,8 @@ import (
 	"errors"
 	"path/filepath"
 	"testing"
+
+	"github.com/krimvp/comitia/internal/model"
 )
 
 func TestMessageProjectionMissingTriggerRecovery(t *testing.T) {
@@ -74,7 +76,7 @@ func TestMessageProjectionTriggersCommitAtomically(t *testing.T) {
 	rollback := errors.New("rollback")
 	err := f.store.Update(ctx, func(w WriteStore) error {
 		q := w.(*sqlStore).q
-		if _, err := q.Exec("INSERT INTO messages VALUES(?,?,?,?,?,?,?)", "pending", f.context.ID, f.admin.Session.ID, 1, "pending", "ready", ts(*f.now)); err != nil {
+		if _, err := q.Exec("INSERT INTO messages VALUES(?,?,?,?,?,?,?)", "pending", f.context.ID, f.admin.Session.ID, 1, "pending", "ready", model.TS(*f.now)); err != nil {
 			return err
 		}
 		checkHidden := func() error {

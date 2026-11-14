@@ -1,5 +1,9 @@
 package comitia
 
+import (
+	"github.com/krimvp/comitia/internal/model"
+)
+
 var contextSchema = `
 CREATE TABLE IF NOT EXISTS workspaces (id TEXT PRIMARY KEY, name TEXT NOT NULL, created_at TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS contexts (id TEXT PRIMARY KEY, workspace_id TEXT NOT NULL REFERENCES workspaces(id), name TEXT NOT NULL, created_at TEXT NOT NULL);
@@ -19,7 +23,7 @@ func scanContext(row interface{ Scan(...any) error }) (WorkContext, error) {
 	var c WorkContext
 	var at string
 	e := row.Scan(&c.ID, &c.WorkspaceID, &c.Name, &at, &c.ParentContextID, &c.TaskID, &c.CreatorSessionID, &c.ParentReadable)
-	c.CreatedAt = parse(at)
+	c.CreatedAt = model.ParseTime(at)
 	return c, dbErr(e)
 }
 
@@ -41,7 +45,7 @@ func (x *sqlStore) contexts(query string, args ...any) ([]WorkContext, error) {
 }
 
 func (x *sqlStore) PutWorkspace(w Workspace) error {
-	_, e := x.q.Exec("INSERT INTO workspaces VALUES(?,?,?)", w.ID, w.Name, ts(w.CreatedAt))
+	_, e := x.q.Exec("INSERT INTO workspaces VALUES(?,?,?)", w.ID, w.Name, model.TS(w.CreatedAt))
 	return e
 }
 
@@ -49,12 +53,12 @@ func (x *sqlStore) Workspace(id string) (Workspace, error) {
 	var w Workspace
 	var c string
 	e := x.q.QueryRow("SELECT id,name,created_at FROM workspaces WHERE id=?", id).Scan(&w.ID, &w.Name, &c)
-	w.CreatedAt = parse(c)
+	w.CreatedAt = model.ParseTime(c)
 	return w, dbErr(e)
 }
 
 func (x *sqlStore) PutContext(c WorkContext) error {
-	if _, e := x.q.Exec("INSERT INTO contexts VALUES(?,?,?,?)", c.ID, c.WorkspaceID, c.Name, ts(c.CreatedAt)); e != nil || c.ParentContextID == "" {
+	if _, e := x.q.Exec("INSERT INTO contexts VALUES(?,?,?,?)", c.ID, c.WorkspaceID, c.Name, model.TS(c.CreatedAt)); e != nil || c.ParentContextID == "" {
 		return e
 	}
 	_, e := x.q.Exec("INSERT INTO context_parents VALUES(?,?,?,?,?)", c.ID, c.ParentContextID, nullString(c.TaskID), c.CreatorSessionID, c.ParentReadable)
@@ -66,7 +70,7 @@ func (x *sqlStore) Context(id string) (WorkContext, error) {
 }
 
 func (x *sqlStore) PutReference(r Reference) error {
-	_, e := x.q.Exec("INSERT INTO refs VALUES(?,?,?,?,?)", r.ID, r.ContextID, r.Kind, r.URI, ts(r.CreatedAt))
+	_, e := x.q.Exec("INSERT INTO refs VALUES(?,?,?,?,?)", r.ID, r.ContextID, r.Kind, r.URI, model.TS(r.CreatedAt))
 	return e
 }
 
@@ -75,7 +79,7 @@ func referencePageQuery(cid, created, afterID string, limit int) (string, []any)
 	q, args := "SELECT id,context_id,kind,uri,created_at FROM refs WHERE context_id=?", []any{cid}
 	if afterID != "" {
 		q += " AND " + sortableCreated + ">=? AND (" + sortableCreated + ">? OR id>?)"
-		at := sortableTS(parse(created))
+		at := model.SortableTS(model.ParseTime(created))
 		args = append(args, at, at, afterID)
 	}
 	return q + " ORDER BY " + sortableCreated + ",id LIMIT ?", append(args, limit)
@@ -95,7 +99,7 @@ func (x *sqlStore) ReferencesAfter(cid, created, afterID string, limit int) ([]R
 		if err := rows.Scan(&r.ID, &r.ContextID, &r.Kind, &r.URI, &at); err != nil {
 			return nil, err
 		}
-		r.CreatedAt = parse(at)
+		r.CreatedAt = model.ParseTime(at)
 		out = append(out, r)
 	}
 	return out, rows.Err()

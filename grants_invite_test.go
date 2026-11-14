@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"testing"
 	"time"
+
+	"github.com/krimvp/comitia/internal/model"
 )
 
 func inviteSession(t *testing.T, f fixture, name string, ttl time.Duration) Credential {
@@ -212,7 +214,7 @@ func TestGrantInviteOwnMembershipAndChildPath(t *testing.T) {
 				target.Session.ParentID = ""
 			}
 			// An unrelated child without its own grants must not inherit membership.
-			target.Session.ID = id()
+			target.Session.ID = model.NewID()
 			err := f.store.Update(ctx, func(w WriteStore) error { return w.PutSession(target.Session, tokenHash(token())) })
 			if err != nil {
 				t.Fatal(err)
@@ -263,7 +265,7 @@ func TestGrantInviteMembershipAfterFirstCandidatePage(t *testing.T) {
 			if e := w.PutContext(c); e != nil {
 				return e
 			}
-			if e := w.PutGrant(Grant{ID: id(), SessionID: target.Session.ID, ContextID: c.ID, IssuerSessionID: f.admin.Session.ID, Permissions: PermissionWrite, ExpiresAt: f.now.Add(time.Hour), CreatedAt: *f.now}); e != nil {
+			if e := w.PutGrant(Grant{ID: model.NewID(), SessionID: target.Session.ID, ContextID: c.ID, IssuerSessionID: f.admin.Session.ID, Permissions: PermissionWrite, ExpiresAt: f.now.Add(time.Hour), CreatedAt: *f.now}); e != nil {
 				return e
 			}
 		}

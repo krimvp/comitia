@@ -6,6 +6,8 @@ import (
 	"errors"
 	"strings"
 	"time"
+
+	"github.com/krimvp/comitia/internal/model"
 )
 
 const messageSchema = `
@@ -45,7 +47,7 @@ CREATE TABLE IF NOT EXISTS acks (session_id TEXT NOT NULL REFERENCES sessions(id
 `
 
 func (x *sqlStore) MessageByDedupe(cid, sid, key string, instances ...string) (Message, error) {
-	instance, err := cursorInstance(instances)
+	instance, err := model.CursorInstance(instances)
 	if err != nil {
 		return Message{}, err
 	}
@@ -73,7 +75,7 @@ func scanMessage(row interface{ Scan(...any) error }) (Message, error) {
 	if attempt.TaskID != "" {
 		m.TaskAttempt = &attempt
 	}
-	m.CreatedAt = parse(c)
+	m.CreatedAt = model.ParseTime(c)
 	return m, dbErr(e)
 }
 
@@ -99,7 +101,7 @@ func (x *sqlStore) PutMessage(m Message) (Message, error) {
 			storageKey += "."
 		}
 	}
-	_, e = x.q.Exec("INSERT INTO messages VALUES(?,?,?,?,?,?,?)", m.ID, m.ContextID, m.SessionID, m.Sequence, storageKey, m.Body, ts(m.CreatedAt))
+	_, e = x.q.Exec("INSERT INTO messages VALUES(?,?,?,?,?,?,?)", m.ID, m.ContextID, m.SessionID, m.Sequence, storageKey, m.Body, model.TS(m.CreatedAt))
 	if e == nil && m.Envelope != nil {
 		var raw []byte
 		raw, e = json.Marshal(m.Envelope)
@@ -155,7 +157,7 @@ func messageQuery(cid, sid string, after int64, limit int, f MessageFilters) (st
 				args = append(args, sid)
 			}
 		}
-	} else if f.ForInstance != "" && !scopedMessageFilters(f) {
+	} else if f.ForInstance != "" && !model.ScopedMessageFilters(f) {
 		// The routing classes are disjoint. Bound each ordered seek before
 		// merging, so a small page does not materialize all eligible history.
 		recipients := `SELECT message_id,seq FROM (SELECT message_id,seq FROM message_recipients WHERE context_id=? AND seq>? AND kind='broadcast' AND recipient='' ORDER BY seq LIMIT ?)
@@ -194,7 +196,7 @@ UNION ALL SELECT message_id,seq FROM (SELECT message_id,seq FROM message_recipie
 	}
 	if f.ExcludeSelf {
 		where += " AND NOT (m.session_id=? AND COALESCE(i.instance_id,'')=?)"
-		args = append(args, sid, filterAgentInstance(f))
+		args = append(args, sid, model.FilterAgentInstance(f))
 	}
 	if len(f.Schemas) != 0 {
 		// Any schema list selects the projection seek above.
@@ -203,7 +205,7 @@ UNION ALL SELECT message_id,seq FROM (SELECT message_id,seq FROM message_recipie
 			args = append(args, schema)
 		}
 	}
-	if !filterIncludesRenewals(f) {
+	if !model.FilterIncludesRenewals(f) {
 		where += " AND NOT EXISTS (SELECT 1 FROM message_hidden h WHERE h.message_id=m.id)"
 	}
 	if f.FromSession != "" {
@@ -231,7 +233,7 @@ func strictRecipientSessions(envelope string) string {
 }
 
 func (x *sqlStore) Messages(cid, callerSessionID string, after int64, limit int, filters ...MessageFilters) ([]Message, error) {
-	f, err := messageFilters(filters)
+	f, err := model.CombineMessageFilters(filters)
 	if err != nil {
 		return nil, err
 	}
@@ -242,7 +244,7 @@ func (x *sqlStore) Messages(cid, callerSessionID string, after int64, limit int,
 	}
 	defer rows.Close()
 	var out []Message
-	budget := messageByteBudget(f.MaxBytes)
+	budget := model.MessageByteBudget(f.MaxBytes)
 	used := 2 // Array brackets.
 	for rows.Next() {
 		m, e := scanMessage(rows)
@@ -290,10 +292,10 @@ func (x *sqlStore) Ack(sid, cid string, seq int64, at time.Time, instance string
 		return Invalidf("sequence must not exceed the latest message sequence")
 	}
 	if instance != "" {
-		_, e := x.q.Exec(`INSERT INTO instance_acks VALUES(?,?,?,?,?) ON CONFLICT(session_id,context_id,instance_id) DO UPDATE SET seq=MAX(seq,excluded.seq),updated_at=excluded.updated_at`, sid, cid, instance, seq, ts(at))
+		_, e := x.q.Exec(`INSERT INTO instance_acks VALUES(?,?,?,?,?) ON CONFLICT(session_id,context_id,instance_id) DO UPDATE SET seq=MAX(seq,excluded.seq),updated_at=excluded.updated_at`, sid, cid, instance, seq, model.TS(at))
 		return e
 	}
-	_, e := x.q.Exec(`INSERT INTO acks VALUES(?,?,?,?) ON CONFLICT(session_id,context_id) DO UPDATE SET seq=MAX(seq,excluded.seq),updated_at=excluded.updated_at`, sid, cid, seq, ts(at))
+	_, e := x.q.Exec(`INSERT INTO acks VALUES(?,?,?,?) ON CONFLICT(session_id,context_id) DO UPDATE SET seq=MAX(seq,excluded.seq),updated_at=excluded.updated_at`, sid, cid, seq, model.TS(at))
 	return e
 }
 
@@ -395,7 +397,7 @@ func messageReadPredicate(sid string, f MessageFilters, mid string) (string, []a
 	var args []any
 	if f.ExcludeSelf {
 		predicates = append(predicates, "NOT EXISTS (SELECT 1 FROM messages m LEFT JOIN message_instances i ON i.message_id=m.id WHERE m.id="+mid+" AND m.session_id=? AND COALESCE(i.instance_id,'')=?)")
-		args = append(args, sid, filterAgentInstance(f))
+		args = append(args, sid, model.FilterAgentInstance(f))
 	}
 	if len(f.Schemas) != 0 {
 		predicates = append(predicates, "EXISTS (SELECT 1 FROM message_filters f WHERE f.message_id="+mid+" AND f.schema IN ("+strings.TrimSuffix(strings.Repeat("?,", len(f.Schemas)), ",")+"))")
@@ -403,7 +405,7 @@ func messageReadPredicate(sid string, f MessageFilters, mid string) (string, []a
 			args = append(args, schema)
 		}
 	}
-	if !filterIncludesRenewals(f) {
+	if !model.FilterIncludesRenewals(f) {
 		predicates = append(predicates, "NOT EXISTS (SELECT 1 FROM message_hidden h WHERE h.message_id="+mid+")")
 	}
 	return strings.Join(predicates, " AND "), args

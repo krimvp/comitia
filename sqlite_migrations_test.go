@@ -7,6 +7,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/krimvp/comitia/internal/model"
 )
 
 func TestSQLiteLegacyCreatorRepairIncludingLateGrant(t *testing.T) {
@@ -85,7 +87,7 @@ func TestSQLiteRepairQueueSchemaRecovery(t *testing.T) {
 	if _, err := f.store.db.Exec("DROP TRIGGER comitia_message_repair_enqueue"); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := f.store.db.Exec("INSERT INTO messages VALUES(?,?,?,?,?,?,?)", "legacy", f.context.ID, f.admin.Session.ID, 1, "legacy", "legacy", ts(*f.now)); err != nil {
+	if _, err := f.store.db.Exec("INSERT INTO messages VALUES(?,?,?,?,?,?,?)", "legacy", f.context.ID, f.admin.Session.ID, 1, "legacy", "legacy", model.TS(*f.now)); err != nil {
 		t.Fatal(err)
 	}
 	if err := f.store.Close(); err != nil {
@@ -193,7 +195,7 @@ func TestSQLiteLegacyRepairBatchIsAtomicAndResumable(t *testing.T) {
 					return err
 				}
 			}
-			if _, err := q.Exec("INSERT INTO messages VALUES(?,?,?,?,?,?,?)", mid, f.context.ID, f.admin.Session.ID, i+2, key, "legacy", ts(*f.now)); err != nil {
+			if _, err := q.Exec("INSERT INTO messages VALUES(?,?,?,?,?,?,?)", mid, f.context.ID, f.admin.Session.ID, i+2, key, "legacy", model.TS(*f.now)); err != nil {
 				return err
 			}
 			if _, err := q.Exec("INSERT INTO message_instances VALUES(?,?,?)", mid, "worker", "legacy worker"); err != nil {

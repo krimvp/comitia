@@ -4,6 +4,8 @@ import (
 	"database/sql"
 	"errors"
 	"time"
+
+	"github.com/krimvp/comitia/internal/model"
 )
 
 const sessionSchema = `
@@ -32,7 +34,7 @@ func (x *sqlStore) MarkBootstrapDone() error {
 }
 
 func (x *sqlStore) PutPrincipal(p Principal) error {
-	_, e := x.q.Exec("INSERT INTO principals VALUES(?,?,?,?)", p.ID, p.Name, p.Admin, ts(p.CreatedAt))
+	_, e := x.q.Exec("INSERT INTO principals VALUES(?,?,?,?)", p.ID, p.Name, p.Admin, model.TS(p.CreatedAt))
 	return e
 }
 
@@ -42,13 +44,13 @@ func (x *sqlStore) Principal(id string) (Principal, error) {
 	var c string
 	e := x.q.QueryRow("SELECT id,name,admin,created_at FROM principals WHERE id=?", id).Scan(&p.ID, &p.Name, &a, &c)
 	p.Admin = a != 0
-	p.CreatedAt = parse(c)
+	p.CreatedAt = model.ParseTime(c)
 	return p, dbErr(e)
 }
 
 func (x *sqlStore) PutSession(s Session, h string) error {
 	x.invalidateGrantPolicy()
-	_, e := x.q.Exec("INSERT INTO sessions VALUES(?,?,?,?,?,?,?)", s.ID, s.PrincipalID, nullString(s.ParentID), h, ts(s.ExpiresAt), timeString(s.RevokedAt), ts(s.CreatedAt))
+	_, e := x.q.Exec("INSERT INTO sessions VALUES(?,?,?,?,?,?,?)", s.ID, s.PrincipalID, nullString(s.ParentID), h, model.TS(s.ExpiresAt), timeString(s.RevokedAt), model.TS(s.CreatedAt))
 	return e
 }
 
@@ -58,9 +60,9 @@ func scanSession(row interface{ Scan(...any) error }) (Session, error) {
 	var exp, created string
 	e := row.Scan(&s.ID, &s.PrincipalID, &parent, &exp, &rev, &created)
 	s.ParentID = parent.String
-	s.ExpiresAt = parse(exp)
+	s.ExpiresAt = model.ParseTime(exp)
 	s.RevokedAt = nullTime(rev)
-	s.CreatedAt = parse(created)
+	s.CreatedAt = model.ParseTime(created)
 	return s, dbErr(e)
 }
 
@@ -74,7 +76,7 @@ func (x *sqlStore) SessionByTokenHash(h string) (Session, error) {
 
 func (x *sqlStore) RevokeSessionTree(root string, at time.Time) error {
 	x.invalidateGrantPolicy()
-	r, e := x.q.Exec(revokeSessionTreeSQL, root, ts(at))
+	r, e := x.q.Exec(revokeSessionTreeSQL, root, model.TS(at))
 	if e != nil {
 		return e
 	}

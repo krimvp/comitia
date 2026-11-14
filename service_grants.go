@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"time"
+
+	"github.com/krimvp/comitia/internal/model"
 )
 
 // maxDelegationDepth bounds new grant and session chains, which every later
@@ -134,7 +136,7 @@ func (s *Service) GrantContext(ctx context.Context, raw string, in GrantInput) (
 			if e = s.contextActive(w, in.ContextID); e != nil {
 				return e
 			}
-			g = Grant{ID: id(), SessionID: in.SessionID, ContextID: in.ContextID, IssuerSessionID: a.session.ID, Permissions: in.Permissions, ExpiresAt: in.ExpiresAt, CreatedAt: s.now().UTC()}
+			g = Grant{ID: model.NewID(), SessionID: in.SessionID, ContextID: in.ContextID, IssuerSessionID: a.session.ID, Permissions: in.Permissions, ExpiresAt: in.ExpiresAt, CreatedAt: s.now().UTC()}
 			return w.PutGrant(g)
 		}
 		source, e := delegationSource(w, parents, in.Permissions, in.ExpiresAt)
@@ -144,7 +146,7 @@ func (s *Service) GrantContext(ctx context.Context, raw string, in GrantInput) (
 		if e = s.contextActive(w, in.ContextID); e != nil {
 			return e
 		}
-		g = Grant{ID: id(), SessionID: in.SessionID, ContextID: in.ContextID, ParentGrantID: source.ID, IssuerSessionID: a.session.ID, Permissions: in.Permissions, ExpiresAt: in.ExpiresAt, CreatedAt: s.now().UTC()}
+		g = Grant{ID: model.NewID(), SessionID: in.SessionID, ContextID: in.ContextID, ParentGrantID: source.ID, IssuerSessionID: a.session.ID, Permissions: in.Permissions, ExpiresAt: in.ExpiresAt, CreatedAt: s.now().UTC()}
 		return w.PutGrant(g)
 	})
 	return g, e

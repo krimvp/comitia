@@ -1,4 +1,4 @@
-package comitia
+package model
 
 import (
 	"errors"
@@ -130,10 +130,10 @@ func (p *GrantEvaluator) End(grantID string) (time.Time, error) {
 }
 
 // knownGrant returns the grant p has already loaded under id, if any.
-func knownGrant(p *GrantEvaluator, id string) (Grant, bool) {
+func KnownGrant(p *GrantEvaluator, id string) (Grant, bool) {
 	g, ok := p.grants[id]
 	return g, ok
 }
 
 // rememberGrant records a grant a store loaded for p, so later evaluation reuses it.
-func rememberGrant(p *GrantEvaluator, g Grant) { p.grants[g.ID] = g }
+func RememberGrant(p *GrantEvaluator, g Grant) { p.grants[g.ID] = g }

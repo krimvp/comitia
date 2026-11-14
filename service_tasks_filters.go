@@ -3,6 +3,8 @@ package comitia
 import (
 	"context"
 	"time"
+
+	"github.com/krimvp/comitia/internal/model"
 )
 
 // taskFiltersEmpty reports whether f selects no filter at all.
@@ -73,7 +75,7 @@ func (s *Service) listTasksPageFiltered(ctx context.Context, raw, cid string, st
 		return TaskPage{}, Invalidf("owner_session must be at most 128 bytes")
 	}
 	if f.OwnerInstance != "" {
-		if _, err := normalizeAgentInstance(&AgentInstance{ID: f.OwnerInstance}); err != nil {
+		if _, err := model.NormalizeAgentInstance(&AgentInstance{ID: f.OwnerInstance}); err != nil {
 			return TaskPage{}, err
 		}
 	}
@@ -136,7 +138,7 @@ func (s *Service) listTasksPageFiltered(ctx context.Context, raw, cid string, st
 				return nil
 			}
 			last := tasks[len(tasks)-1]
-			cursor = taskCursor{ts(last.CreatedAt), last.ID}
+			cursor = taskCursor{model.TS(last.CreatedAt), last.ID}
 		}
 	})
 	if err != nil {

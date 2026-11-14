@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"errors"
 	"time"
+
+	"github.com/krimvp/comitia/internal/model"
 )
 
 const messageSchema = `
@@ -18,7 +20,7 @@ CREATE TABLE IF NOT EXISTS acks (session_id TEXT NOT NULL REFERENCES sessions(id
 `
 
 func (x *sqlStore) MessageByDedupe(cid, sid, key string, instances ...string) (Message, error) {
-	instance, err := cursorInstance(instances)
+	instance, err := model.CursorInstance(instances)
 	if err != nil {
 		return Message{}, err
 	}
@@ -41,7 +43,7 @@ func scanMessage(row interface{ Scan(...any) error }) (Message, error) {
 		m.AgentInstance = &AgentInstance{ID: instance, Label: label}
 		m.AgentInstanceSelfReported = true
 	}
-	m.CreatedAt = parse(c)
+	m.CreatedAt = model.ParseTime(c)
 	return m, dbErr(e)
 }
 func (x *sqlStore) PutMessage(m Message) (Message, error) {
@@ -66,7 +68,7 @@ func (x *sqlStore) PutMessage(m Message) (Message, error) {
 			storageKey += "."
 		}
 	}
-	_, e = x.q.Exec("INSERT INTO messages VALUES(?,?,?,?,?,?,?)", m.ID, m.ContextID, m.SessionID, m.Sequence, storageKey, m.Body, ts(m.CreatedAt))
+	_, e = x.q.Exec("INSERT INTO messages VALUES(?,?,?,?,?,?,?)", m.ID, m.ContextID, m.SessionID, m.Sequence, storageKey, m.Body, model.TS(m.CreatedAt))
 	if e == nil && m.Envelope != nil {
 		var raw []byte
 		raw, e = json.Marshal(m.Envelope)
@@ -87,7 +89,7 @@ func (x *sqlStore) PutMessage(m Message) (Message, error) {
 	return m, e
 }
 func (x *sqlStore) Messages(cid, callerSessionID string, after int64, limit int, filters ...MessageFilters) ([]Message, error) {
-	f, err := messageFilters(filters)
+	f, err := model.CombineMessageFilters(filters)
 	if err != nil {
 		return nil, err
 	}
@@ -116,7 +118,7 @@ func (x *sqlStore) Messages(cid, callerSessionID string, after int64, limit int,
 	}
 	defer rows.Close()
 	var out []Message
-	budget := messageByteBudget(f.MaxBytes)
+	budget := model.MessageByteBudget(f.MaxBytes)
 	used := 2 // Array brackets.
 	for rows.Next() {
 		m, e := scanMessage(rows)
@@ -161,10 +163,10 @@ func (x *sqlStore) Ack(sid, cid string, seq int64, at time.Time, instance string
 		return Invalidf("sequence must not exceed the latest message sequence")
 	}
 	if instance != "" {
-		_, e := x.q.Exec(`INSERT INTO instance_acks VALUES(?,?,?,?,?) ON CONFLICT(session_id,context_id,instance_id) DO UPDATE SET seq=MAX(seq,excluded.seq),updated_at=excluded.updated_at`, sid, cid, instance, seq, ts(at))
+		_, e := x.q.Exec(`INSERT INTO instance_acks VALUES(?,?,?,?,?) ON CONFLICT(session_id,context_id,instance_id) DO UPDATE SET seq=MAX(seq,excluded.seq),updated_at=excluded.updated_at`, sid, cid, instance, seq, model.TS(at))
 		return e
 	}
-	_, e := x.q.Exec(`INSERT INTO acks VALUES(?,?,?,?) ON CONFLICT(session_id,context_id) DO UPDATE SET seq=MAX(seq,excluded.seq),updated_at=excluded.updated_at`, sid, cid, seq, ts(at))
+	_, e := x.q.Exec(`INSERT INTO acks VALUES(?,?,?,?) ON CONFLICT(session_id,context_id) DO UPDATE SET seq=MAX(seq,excluded.seq),updated_at=excluded.updated_at`, sid, cid, seq, model.TS(at))
 	return e
 }
 func (x *sqlStore) AckCursor(sid, cid, instance string) (int64, error) {

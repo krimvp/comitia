@@ -1,5 +1,4 @@
-// Package comitia implements the application rules for durable, delegated agent work.
-package comitia
+package model
 
 import (
 	"context"

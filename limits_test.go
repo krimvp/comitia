@@ -5,6 +5,8 @@ import (
 	"errors"
 	"strings"
 	"testing"
+
+	"github.com/krimvp/comitia/internal/model"
 )
 
 func TestContentLimitsRejectOversizedAndInvalidUTF8Writes(t *testing.T) {
@@ -41,7 +43,7 @@ func TestContentLimitsRejectOversizedAndInvalidUTF8Writes(t *testing.T) {
 		t.Fatalf("maximum reference rejected: %v", err)
 	}
 	info, err := f.svc.ServerInfo(ctx, tok)
-	if err != nil || info.Limits == nil || *info.Limits != *contentLimits() || info.Limits.MessageBodyBytes != MaxMessageBodyBytes {
+	if err != nil || info.Limits == nil || *info.Limits != *model.DefaultContentLimits() || info.Limits.MessageBodyBytes != MaxMessageBodyBytes {
 		t.Fatalf("server_info limits=%+v err=%v", info.Limits, err)
 	}
 }
@@ -52,9 +54,9 @@ func TestLegacyOversizedRowsStayReadable(t *testing.T) {
 	ctx := context.Background()
 	tok, cid := f.admin.Token, f.context.ID
 	big := strings.Repeat("x", 2*MaxMessageBodyBytes)
-	task := Task{ID: id(), ContextID: cid, Title: strings.Repeat("t", 2*MaxTaskTitleBytes), Body: big, Status: TaskPending, CreatedAt: *f.now, UpdatedAt: *f.now}
+	task := Task{ID: model.NewID(), ContextID: cid, Title: strings.Repeat("t", 2*MaxTaskTitleBytes), Body: big, Status: TaskPending, CreatedAt: *f.now, UpdatedAt: *f.now}
 	err := f.store.Update(ctx, func(w WriteStore) error {
-		if _, err := w.PutMessage(Message{ID: id(), ContextID: cid, SessionID: f.admin.Session.ID, DedupeKey: "legacy", Body: big, CreatedAt: *f.now}); err != nil {
+		if _, err := w.PutMessage(Message{ID: model.NewID(), ContextID: cid, SessionID: f.admin.Session.ID, DedupeKey: "legacy", Body: big, CreatedAt: *f.now}); err != nil {
 			return err
 		}
 		return w.PutTask(task)

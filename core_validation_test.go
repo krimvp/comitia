@@ -6,6 +6,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/krimvp/comitia/internal/model"
 )
 
 func TestGrantsRejectUndefinedPermissionBits(t *testing.T) {
@@ -96,7 +98,7 @@ func TestValidationErrorsNameAcceptedValueAndField(t *testing.T) {
 	if !errors.Is(err, ErrForbidden) || !strings.Contains(err.Error(), "expected_responders[1]") {
 		t.Fatalf("responder error: %v", err)
 	}
-	if got := safeReferenceMessage(err); !strings.Contains(got, "expected_responders[1]") {
+	if got := model.SafeReferenceMessage(err); !strings.Contains(got, "expected_responders[1]") {
 		t.Fatalf("public responder message: %q", got)
 	}
 }

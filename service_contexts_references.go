@@ -3,6 +3,8 @@ package comitia
 import (
 	"context"
 	"net/url"
+
+	"github.com/krimvp/comitia/internal/model"
 )
 
 // ListReferences selects reference listing without changing ContextAPI.
@@ -68,10 +70,10 @@ func validReference(in AddReferenceInput) error {
 	if in.Kind == "" || in.URI == "" {
 		return Invalidf("kind and uri required")
 	}
-	if e := validText("kind", in.Kind, MaxReferenceKindBytes); e != nil {
+	if e := model.ValidText("kind", in.Kind, MaxReferenceKindBytes); e != nil {
 		return e
 	}
-	if e := validText("uri", in.URI, MaxReferenceURIBytes); e != nil {
+	if e := model.ValidText("uri", in.URI, MaxReferenceURIBytes); e != nil {
 		return e
 	}
 	for i, c := range in.Kind {

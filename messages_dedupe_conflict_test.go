@@ -8,6 +8,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/krimvp/comitia/internal/model"
 )
 
 func TestDedupeConflictIdentifiesExistingMessage(t *testing.T) {
@@ -73,7 +75,7 @@ func TestDedupeKeyLengthCap(t *testing.T) {
 	// Keys stored before the cap remain readable.
 	long := strings.Repeat("e", 600)
 	if err := f.store.Update(ctx, func(w WriteStore) error {
-		_, err := w.PutMessage(Message{ID: id(), ContextID: f.context.ID, SessionID: a.Session.ID, DedupeKey: long, Body: "legacy", CreatedAt: f.now.UTC()})
+		_, err := w.PutMessage(Message{ID: model.NewID(), ContextID: f.context.ID, SessionID: a.Session.ID, DedupeKey: long, Body: "legacy", CreatedAt: f.now.UTC()})
 		return err
 	}); err != nil {
 		t.Fatal(err)

@@ -1,4 +1,4 @@
-package comitia
+package model
 
 import (
 	"context"

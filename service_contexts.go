@@ -5,6 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+
+	"github.com/krimvp/comitia/internal/model"
 )
 
 // ListContexts returns readable contexts ordered by ID, strictly after afterID.
@@ -77,7 +79,7 @@ func (s *Service) CreateWorkspace(ctx context.Context, raw, name string) (Worksp
 		if _, e := s.admin(w, raw); e != nil {
 			return e
 		}
-		x = Workspace{ID: id(), Name: name, CreatedAt: s.now().UTC()}
+		x = Workspace{ID: model.NewID(), Name: name, CreatedAt: s.now().UTC()}
 		return w.PutWorkspace(x)
 	})
 	return x, e
@@ -96,11 +98,11 @@ func (s *Service) CreateContext(ctx context.Context, raw string, in CreateContex
 		if _, e = w.Workspace(in.WorkspaceID); e != nil {
 			return e
 		}
-		x = WorkContext{ID: id(), WorkspaceID: in.WorkspaceID, Name: in.Name, CreatedAt: s.now().UTC()}
+		x = WorkContext{ID: model.NewID(), WorkspaceID: in.WorkspaceID, Name: in.Name, CreatedAt: s.now().UTC()}
 		if e = w.PutContext(x); e != nil {
 			return e
 		}
-		return w.PutGrant(Grant{ID: id(), SessionID: a.session.ID, ContextID: x.ID, IssuerSessionID: a.session.ID, Permissions: PermissionAll, ExpiresAt: a.session.ExpiresAt, CreatedAt: s.now().UTC()})
+		return w.PutGrant(Grant{ID: model.NewID(), SessionID: a.session.ID, ContextID: x.ID, IssuerSessionID: a.session.ID, Permissions: PermissionAll, ExpiresAt: a.session.ExpiresAt, CreatedAt: s.now().UTC()})
 	})
 	return x, e
 }
@@ -158,11 +160,11 @@ func (s *Service) CreateChildContext(ctx context.Context, raw string, in CreateC
 			expires = a.session.ExpiresAt
 		}
 		now := s.now().UTC()
-		x = WorkContext{ID: id(), WorkspaceID: parent.WorkspaceID, Name: in.Name, ParentContextID: parent.ID, TaskID: in.TaskID, CreatorSessionID: a.session.ID, ParentReadable: in.ParentReadable, CreatedAt: now}
+		x = WorkContext{ID: model.NewID(), WorkspaceID: parent.WorkspaceID, Name: in.Name, ParentContextID: parent.ID, TaskID: in.TaskID, CreatorSessionID: a.session.ID, ParentReadable: in.ParentReadable, CreatedAt: now}
 		if e = w.PutContext(x); e != nil {
 			return e
 		}
-		g := Grant{ID: id(), SessionID: a.session.ID, ContextID: x.ID, ParentGrantID: source.ID, IssuerSessionID: a.session.ID, Permissions: childPermissions, ExpiresAt: expires, CreatedAt: now}
+		g := Grant{ID: model.NewID(), SessionID: a.session.ID, ContextID: x.ID, ParentGrantID: source.ID, IssuerSessionID: a.session.ID, Permissions: childPermissions, ExpiresAt: expires, CreatedAt: now}
 		if e = w.PutGrant(g); e != nil {
 			return e
 		}
@@ -223,7 +225,7 @@ func (s *Service) AddReference(ctx context.Context, raw string, in AddReferenceI
 		if _, _, e := s.require(w, raw, in.ContextID, PermissionWrite); e != nil {
 			return e
 		}
-		x = Reference{ID: id(), ContextID: in.ContextID, Kind: in.Kind, URI: in.URI, CreatedAt: s.now().UTC()}
+		x = Reference{ID: model.NewID(), ContextID: in.ContextID, Kind: in.Kind, URI: in.URI, CreatedAt: s.now().UTC()}
 		return w.PutReference(x)
 	})
 	return x, e

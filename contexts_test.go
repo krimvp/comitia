@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"testing"
 	"time"
+
+	"github.com/krimvp/comitia/internal/model"
 )
 
 func TestListContextsScopePaginationAndRevocation(t *testing.T) {
@@ -77,7 +79,7 @@ func TestListContextsSkipsUnreadableCandidatePages(t *testing.T) {
 			if err := w.PutContext(WorkContext{ID: cid, WorkspaceID: f.context.WorkspaceID, Name: "candidate", CreatedAt: *f.now}); err != nil {
 				return err
 			}
-			if err := w.PutGrant(Grant{ID: id(), ContextID: cid, SessionID: f.admin.Session.ID, IssuerSessionID: f.admin.Session.ID, Permissions: PermissionWrite, ExpiresAt: f.now.Add(time.Hour), CreatedAt: *f.now}); err != nil {
+			if err := w.PutGrant(Grant{ID: model.NewID(), ContextID: cid, SessionID: f.admin.Session.ID, IssuerSessionID: f.admin.Session.ID, Permissions: PermissionWrite, ExpiresAt: f.now.Add(time.Hour), CreatedAt: *f.now}); err != nil {
 				return err
 			}
 		}

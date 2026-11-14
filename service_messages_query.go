@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+
+	"github.com/krimvp/comitia/internal/model"
 )
 
 func contextMessage(r MessageReadStore, cid, mid string) (Message, error) {
@@ -21,7 +23,7 @@ func validateMessageQuery(r ReadStore, cid string, f MessageFilters) error {
 			return Invalidf("message read options unsupported by store")
 		}
 	}
-	if !scopedMessageFilters(f) {
+	if !model.ScopedMessageFilters(f) {
 		return nil
 	}
 	query, ok := r.(MessageQueryStore)
@@ -33,7 +35,7 @@ func validateMessageQuery(r ReadStore, cid string, f MessageFilters) error {
 		if mid != "" {
 			if _, err := contextMessage(r, cid, mid); err != nil {
 				if errors.Is(err, ErrForbidden) {
-					return referenceError{ref.field}
+					return model.ReferenceError{Field: ref.field}
 				}
 				return err
 			}
@@ -71,7 +73,7 @@ func CheckMessageQueryAPI(api MessageAPI, f MessageFilters) error {
 			return Invalidf("message read options unsupported by API")
 		}
 	}
-	if !scopedMessageFilters(f) {
+	if !model.ScopedMessageFilters(f) {
 		return nil
 	}
 	if _, ok := api.(MessageQueryAPI); !ok {
@@ -97,7 +99,7 @@ func resolveMessageAfter(ctx context.Context, api MessageAPI, token, cid string,
 	if after != 0 {
 		return after, f, Invalidf("from_cursor cannot be combined with after")
 	}
-	after, err := api.MessageCursor(ctx, token, cid, filterAgentInstance(f))
+	after, err := api.MessageCursor(ctx, token, cid, model.FilterAgentInstance(f))
 	f.FromCursor = false
 	return after, f, err
 }

@@ -3,6 +3,8 @@ package comitia
 import (
 	"database/sql"
 	"time"
+
+	"github.com/krimvp/comitia/internal/model"
 )
 
 const contextLifecycleSchema = `
@@ -23,7 +25,7 @@ func (x *sqlStore) ChildContextCount(grantID string) (int, error) {
 }
 
 func (x *sqlStore) PutContextArchive(contextID string, at time.Time) error {
-	_, err := x.q.Exec("INSERT OR IGNORE INTO context_archives VALUES(?,?)", contextID, ts(at))
+	_, err := x.q.Exec("INSERT OR IGNORE INTO context_archives VALUES(?,?)", contextID, model.TS(at))
 	return err
 }
 

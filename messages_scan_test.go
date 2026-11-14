@@ -11,6 +11,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/krimvp/comitia/internal/model"
 )
 
 type filterPlanQuery struct {
@@ -221,7 +223,7 @@ func TestThreadFilterScalesWithThreadShape(t *testing.T) {
 			}
 			// Bulk-load replies; the insert triggers maintain message_replies.
 			series := "WITH RECURSIVE n(i) AS (SELECT 1 UNION ALL SELECT i+1 FROM n WHERE i<?) "
-			if _, err = f.store.db.Exec(series+"INSERT INTO messages SELECT ?||i,?,?,?+i,?||i,'reply',? FROM n", replies, shape, f.context.ID, f.admin.Session.ID, root.Sequence, shape, ts(*f.now)); err != nil {
+			if _, err = f.store.db.Exec(series+"INSERT INTO messages SELECT ?||i,?,?,?+i,?||i,'reply',? FROM n", replies, shape, f.context.ID, f.admin.Session.ID, root.Sequence, shape, model.TS(*f.now)); err != nil {
 				t.Fatal(err)
 			}
 			parent := "?2" // Star: every reply answers the root.
@@ -417,7 +419,7 @@ func TestMessageFilterBackfillAndLegacyRepair(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	if _, err := st.db.Exec("INSERT INTO messages VALUES(?,?,?,?,?,?,?)", "legacy", f.context.ID, f.admin.Session.ID, 5, "legacy", "legacy", ts(*f.now)); err != nil {
+	if _, err := st.db.Exec("INSERT INTO messages VALUES(?,?,?,?,?,?,?)", "legacy", f.context.ID, f.admin.Session.ID, 5, "legacy", "legacy", model.TS(*f.now)); err != nil {
 		t.Fatal(err)
 	}
 	if !st.migrationPending(ctx) {

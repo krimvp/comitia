@@ -4,6 +4,8 @@ import (
 	"context"
 	"crypto/subtle"
 	"errors"
+
+	"github.com/krimvp/comitia/internal/model"
 )
 
 func (s *Service) AppendMessage(ctx context.Context, raw, cid string, in MessageInput) (Message, error) {
@@ -18,10 +20,10 @@ func (s *Service) AppendMessage(ctx context.Context, raw, cid string, in Message
 	if in.Envelope == nil && in.Body == "" {
 		return m, Invalidf("body or envelope required")
 	}
-	if e := validText("body", in.Body, MaxMessageBodyBytes); e != nil {
+	if e := model.ValidText("body", in.Body, MaxMessageBodyBytes); e != nil {
 		return m, e
 	}
-	instance, err := normalizeAgentInstance(in.AgentInstance)
+	instance, err := model.NormalizeAgentInstance(in.AgentInstance)
 	if err != nil {
 		return m, err
 	}
@@ -92,7 +94,7 @@ func (s *Service) AppendMessage(ctx context.Context, raw, cid string, in Message
 		if e := s.validateProtocolReferences(w, cid, a.session.ID, envelope); e != nil {
 			return e
 		}
-		m = Message{TaskAttempt: attempt, ID: id(), ContextID: cid, SessionID: a.session.ID, DedupeKey: in.DedupeKey, Body: in.Body, CreatedAt: s.now().UTC(), Envelope: envelope, AgentInstance: instance, AgentInstanceSelfReported: instance != nil}
+		m = Message{TaskAttempt: attempt, ID: model.NewID(), ContextID: cid, SessionID: a.session.ID, DedupeKey: in.DedupeKey, Body: in.Body, CreatedAt: s.now().UTC(), Envelope: envelope, AgentInstance: instance, AgentInstanceSelfReported: instance != nil}
 		m, e = w.PutMessage(m)
 		appended = e == nil
 		if e == nil {
@@ -137,7 +139,7 @@ func (s *Service) ReplayMessages(ctx context.Context, raw, cid string, after int
 }
 
 func (s *Service) AckMessages(ctx context.Context, raw, cid string, seq int64, instances ...string) error {
-	instance, err := cursorInstance(instances)
+	instance, err := model.CursorInstance(instances)
 	if err != nil {
 		return err
 	}
@@ -158,7 +160,7 @@ func (s *Service) AckMessages(ctx context.Context, raw, cid string, seq int64, i
 }
 
 func (s *Service) MessageCursor(ctx context.Context, raw, cid string, instances ...string) (int64, error) {
-	instance, err := cursorInstance(instances)
+	instance, err := model.CursorInstance(instances)
 	if err != nil {
 		return 0, err
 	}

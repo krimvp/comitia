@@ -2,6 +2,8 @@ package comitia
 
 import (
 	"encoding/json"
+
+	"github.com/krimvp/comitia/internal/model"
 )
 
 // putTaskEvent attributes the event to the acting session and, when that
@@ -25,7 +27,7 @@ func putTaskEventAs(w MessageWriteStore, sid string, instance *AgentInstance, t 
 	if err != nil {
 		return err
 	}
-	_, err = w.PutMessage(Message{ID: id(), ContextID: t.ContextID, SessionID: sid, DedupeKey: "task-event." + id(), CreatedAt: t.UpdatedAt, Envelope: &MessageEnvelope{Schema: TaskEventSchema, TaskID: t.ID, Payload: payload}, AgentInstance: instance, AgentInstanceSelfReported: instance != nil})
+	_, err = w.PutMessage(Message{ID: model.NewID(), ContextID: t.ContextID, SessionID: sid, DedupeKey: "task-event." + model.NewID(), CreatedAt: t.UpdatedAt, Envelope: &MessageEnvelope{Schema: TaskEventSchema, TaskID: t.ID, Payload: payload}, AgentInstance: instance, AgentInstanceSelfReported: instance != nil})
 	return err
 }
 

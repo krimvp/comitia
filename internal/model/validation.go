@@ -1,4 +1,4 @@
-package comitia
+package model
 
 import (
 	"bytes"
@@ -33,11 +33,11 @@ type ContentLimits struct {
 	ReferenceURIBytes  int `json:"reference_uri_bytes"`
 }
 
-func contentLimits() *ContentLimits {
+func DefaultContentLimits() *ContentLimits {
 	return &ContentLimits{MaxMessageBodyBytes, MaxTaskTitleBytes, MaxTaskBodyBytes, MaxReferenceKindBytes, MaxReferenceURIBytes}
 }
 
-func validText(field, s string, limit int) error {
+func ValidText(field, s string, limit int) error {
 	if len(s) > limit {
 		return Invalidf("%s must be at most %d bytes", field, limit)
 	}
@@ -301,23 +301,23 @@ func unknownObjectFields(raw json.RawMessage, typ reflect.Type, name string) ([]
 
 // Only these fixed reference descriptions can cross the public error boundary.
 // Missing and unreadable targets deliberately share the same description.
-type referenceError struct{ field string }
+type ReferenceError struct{ Field string }
 
-func (e referenceError) Error() string {
-	switch e.field {
+func (e ReferenceError) Error() string {
+	switch e.Field {
 	case "task_id":
 		return "forbidden: task_id must name a task in a readable context; use list_tasks"
 	case "reply_to", "thread_id":
-		return "forbidden: " + e.field + " must name a message in a readable context; use get_message or replay_messages"
+		return "forbidden: " + e.Field + " must name a message in a readable context; use get_message or replay_messages"
 	default:
-		return "forbidden: " + e.field + " is not a reader of this context; use list_participants"
+		return "forbidden: " + e.Field + " is not a reader of this context; use list_participants"
 	}
 }
 
-func (e referenceError) Unwrap() error { return ErrForbidden }
+func (e ReferenceError) Unwrap() error { return ErrForbidden }
 
-func safeReferenceMessage(err error) string {
-	var ref referenceError
+func SafeReferenceMessage(err error) string {
+	var ref ReferenceError
 	if errors.As(err, &ref) {
 		return ref.Error()
 	}
@@ -330,7 +330,7 @@ func safeReferenceMessage(err error) string {
 		fields = append(fields, fmt.Sprintf("recipient_session_ids[%d]", i), fmt.Sprintf("expected_responders[%d]", i))
 	}
 	for _, field := range fields {
-		message := (referenceError{field}).Error()
+		message := (ReferenceError{field}).Error()
 		if remote.Info.Message == message {
 			return message
 		}

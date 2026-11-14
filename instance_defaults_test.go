@@ -7,6 +7,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/krimvp/comitia/internal/model"
 )
 
 func TestInstanceDefaultsEnvironment(t *testing.T) {
@@ -187,7 +189,7 @@ func TestInstanceDedupeDowngradeAndReupgrade(t *testing.T) {
 		t.Fatalf("downgraded retry: %q %v", oldID, err)
 	}
 	// The old binary can append new messages, but knows nothing about scopes.
-	if _, err := f.store.db.Exec("INSERT INTO messages VALUES(?,?,?,?,?,?,?)", "old-binary-message", cid, original.SessionID, 2, "old-binary-key", "from old binary", ts(*f.now)); err != nil {
+	if _, err := f.store.db.Exec("INSERT INTO messages VALUES(?,?,?,?,?,?,?)", "old-binary-message", cid, original.SessionID, 2, "old-binary-key", "from old binary", model.TS(*f.now)); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := f.store.db.Exec("INSERT INTO message_instances VALUES(?,?,?)", "old-binary-message", "worker", ""); err != nil {
@@ -248,7 +250,7 @@ func TestInstanceDedupeBackfillRejectsConflictingRows(t *testing.T) {
 	if _, err := f.store.db.Exec("UPDATE messages SET dedupe_key=? WHERE id=?", m.ID, m.ID); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := f.store.db.Exec("INSERT INTO messages VALUES(?,?,?,?,?,?,?)", "duplicate", cid, m.SessionID, 2, "started", "ready", ts(*f.now)); err != nil {
+	if _, err := f.store.db.Exec("INSERT INTO messages VALUES(?,?,?,?,?,?,?)", "duplicate", cid, m.SessionID, 2, "started", "ready", model.TS(*f.now)); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := f.store.db.Exec("INSERT INTO message_instances VALUES(?,?,?)", "duplicate", "worker", ""); err != nil {

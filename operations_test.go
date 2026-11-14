@@ -8,6 +8,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/krimvp/comitia/internal/model"
 )
 
 func TestSafeRecoveryInformation(t *testing.T) {
@@ -65,19 +67,19 @@ func TestSafeDiagnosticAndRemoteCorrelation(t *testing.T) {
 }
 
 func TestBuildIdentityFallbackAndStamp(t *testing.T) {
-	oldRevision, oldDirty := Revision, Dirty
-	t.Cleanup(func() { Revision, Dirty = oldRevision, oldDirty })
-	Revision, Dirty = "", ""
-	fallback := buildIdentity(&debug.BuildInfo{Settings: []debug.BuildSetting{{Key: "vcs.revision", Value: "revision-from-go"}, {Key: "vcs.modified", Value: "true"}}})
+	oldRevision, oldDirty := model.Revision, model.Dirty
+	t.Cleanup(func() { model.Revision, model.Dirty = oldRevision, oldDirty })
+	model.Revision, model.Dirty = "", ""
+	fallback := model.IdentityFromBuildInfo(&debug.BuildInfo{Settings: []debug.BuildSetting{{Key: "vcs.revision", Value: "revision-from-go"}, {Key: "vcs.modified", Value: "true"}}})
 	if fallback.Revision != "revision-from-go" || fallback.Dirty != "true" {
 		t.Fatalf("build info lost: %+v", fallback)
 	}
-	if unknown := buildIdentity(nil); unknown.Revision != "unknown" || unknown.Dirty != "unknown" {
+	if unknown := model.IdentityFromBuildInfo(nil); unknown.Revision != "unknown" || unknown.Dirty != "unknown" {
 		t.Fatalf("unknown=%+v", unknown)
 	}
-	Revision, Dirty = "stamped-revision", "false"
-	stamp := buildIdentity(&debug.BuildInfo{Settings: []debug.BuildSetting{{Key: "vcs.revision", Value: "ignored"}}})
-	if stamp.Revision != Revision || stamp.Dirty != Dirty {
+	model.Revision, model.Dirty = "stamped-revision", "false"
+	stamp := model.IdentityFromBuildInfo(&debug.BuildInfo{Settings: []debug.BuildSetting{{Key: "vcs.revision", Value: "ignored"}}})
+	if stamp.Revision != model.Revision || stamp.Dirty != model.Dirty {
 		t.Fatalf("stamp=%+v", stamp)
 	}
 }

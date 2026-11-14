@@ -9,6 +9,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/krimvp/comitia/internal/model"
 )
 
 // Preserve the pre-projection SQLite writer from 2df3561 in a public CLI
@@ -20,7 +22,7 @@ func legacyMessageCLI(t *testing.T) string {
 		return binary
 	}
 	dir := t.TempDir()
-	for _, pattern := range []string{"*.go", "go.mod", "go.sum", "cmd/comitia/*.go", "httpapi/*.go", "httpapi/ui/*", "mcp/*.go", "sqlite/*.go"} {
+	for _, pattern := range []string{"*.go", "go.mod", "go.sum", "internal/*/*.go", "cmd/comitia/*.go", "httpapi/*.go", "httpapi/ui/*", "mcp/*.go", "sqlite/*.go"} {
 		paths, err := filepath.Glob(pattern)
 		if err != nil {
 			t.Fatal(err)
@@ -74,7 +76,7 @@ func TestRunningReaderSeesOlderCLIWriter(t *testing.T) {
 	// Isolate real CLI wall-clock credentials to this temporary database.
 	*f.now = time.Now().UTC()
 	for _, table := range []string{"sessions", "grants"} {
-		if _, err := f.store.db.Exec("UPDATE "+table+" SET expires_at=?", ts(f.now.Add(time.Hour))); err != nil {
+		if _, err := f.store.db.Exec("UPDATE "+table+" SET expires_at=?", model.TS(f.now.Add(time.Hour))); err != nil {
 			t.Fatal(err)
 		}
 	}

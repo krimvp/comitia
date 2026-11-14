@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"errors"
 	"time"
+
+	"github.com/krimvp/comitia/internal/model"
 )
 
 func boundMessages(messages []Message, budget int) ([]Message, error) {
@@ -17,7 +19,7 @@ func boundMessages(messages []Message, budget int) ([]Message, error) {
 		n := len(raw)
 		if i > 0 {
 			n++
-			if used+n > messageByteBudget(budget) {
+			if used+n > model.MessageByteBudget(budget) {
 				return messages[:i], nil
 			}
 		}
@@ -27,7 +29,7 @@ func boundMessages(messages []Message, budget int) ([]Message, error) {
 }
 
 func messagePage(ctx context.Context, api MessageAPI, token, cid string, after int64, messages []Message, filters []MessageFilters) (MessagePage, error) {
-	f, err := messageFilters(filters)
+	f, err := model.CombineMessageFilters(filters)
 	if err != nil {
 		return MessagePage{}, err
 	}
@@ -50,7 +52,7 @@ func messagePage(ctx context.Context, api MessageAPI, token, cid string, after i
 }
 
 func ReplayMessagePage(ctx context.Context, api MessageAPI, token, cid string, after int64, limit int, filters ...MessageFilters) (MessagePage, error) {
-	f, err := messageFilters(filters)
+	f, err := model.CombineMessageFilters(filters)
 	if err != nil {
 		return MessagePage{}, err
 	}
@@ -73,7 +75,7 @@ func ReplayMessagePage(ctx context.Context, api MessageAPI, token, cid string, a
 }
 
 func WaitMessagePage(ctx context.Context, api MessageAPI, token, cid string, after int64, timeout time.Duration, filters ...MessageFilters) (MessagePage, error) {
-	f, err := messageFilters(filters)
+	f, err := model.CombineMessageFilters(filters)
 	if err != nil {
 		return MessagePage{}, err
 	}
@@ -87,7 +89,7 @@ func WaitMessagePage(ctx context.Context, api MessageAPI, token, cid string, aft
 }
 
 func (s *Service) ReplayMessagesPage(ctx context.Context, token, cid string, after int64, limit int, filters ...MessageFilters) (MessagePage, error) {
-	f, err := messageFilters(filters)
+	f, err := model.CombineMessageFilters(filters)
 	if err != nil {
 		return MessagePage{}, err
 	}
@@ -112,7 +114,7 @@ func (s *Service) WaitMessagesPage(ctx context.Context, token, cid string, after
 // The page's lookahead shares the wait budget. If it runs out after matches
 // were read, a conservative continuation preserves those messages.
 func waitMessagePage(ctx context.Context, api MessageAPI, token, cid string, after int64, timeout time.Duration, filters []MessageFilters) (MessagePage, error) {
-	f, err := messageFilters(filters)
+	f, err := model.CombineMessageFilters(filters)
 	if err != nil {
 		return MessagePage{}, err
 	}

@@ -954,7 +954,7 @@ build version is used when available.
 
 ## Compatibility
 
-The feature inventory is maintained in [server_info.go](../server_info.go).
+The feature inventory is maintained in [server_info.go](../internal/model/server_info.go).
 Use optional functionality only when both the daemon's advertised feature and
 such fields/tools in your running MCP schema support it. A new daemon does not
 upgrade an already running stdio adapter. HTTP delegation additionally requires

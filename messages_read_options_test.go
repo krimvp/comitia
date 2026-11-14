@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 	"testing"
 	"time"
+
+	"github.com/krimvp/comitia/internal/model"
 )
 
 var _ MessageReadOptionsAPI = (*Service)(nil)
@@ -272,7 +274,7 @@ func (s legacyRenewalStore) View(ctx context.Context, fn func(ReadStore) error) 
 }
 func (r legacyRenewalReader) Messages(cid, sid string, after int64, limit int, filters ...MessageFilters) ([]Message, error) {
 	// Simulate an older store that returns renewals by default.
-	f, err := messageFilters(filters)
+	f, err := model.CombineMessageFilters(filters)
 	if err != nil {
 		return nil, err
 	}

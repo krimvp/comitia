@@ -5,6 +5,8 @@ import (
 	"errors"
 	"sync"
 	"time"
+
+	"github.com/krimvp/comitia/internal/model"
 )
 
 type observedStore struct {
@@ -67,7 +69,7 @@ func (s *Service) StorageStatus(ctx context.Context, raw string) (StorageStatus,
 		if _, err := s.admin(w, raw); err != nil {
 			return err
 		}
-		if err := w.PutPrincipal(Principal{ID: id(), Name: "storage-probe", CreatedAt: s.now().UTC()}); err != nil {
+		if err := w.PutPrincipal(Principal{ID: model.NewID(), Name: "storage-probe", CreatedAt: s.now().UTC()}); err != nil {
 			return err
 		}
 		return errStorageProbe

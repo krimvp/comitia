@@ -4,6 +4,8 @@ import (
 	"database/sql"
 	"encoding/json"
 	"time"
+
+	"github.com/krimvp/comitia/internal/model"
 )
 
 const presenceSchema = `
@@ -40,7 +42,7 @@ func (x *sqlStore) putInstancePresence(p InstancePresence, heartbeat bool) error
  ON CONFLICT(session_id,context_id,instance_id) DO UPDATE SET
  label=CASE WHEN excluded.label='' THEN instance_presence.label ELSE excluded.label END,
  last_seen=excluded.last_seen, resume=COALESCE(excluded.resume,instance_presence.resume)`,
-		p.SessionID, p.ContextID, p.ID, p.Label, ts(p.LastSeen), resume)
+		p.SessionID, p.ContextID, p.ID, p.Label, model.TS(p.LastSeen), resume)
 	if err != nil || existing != 0 {
 		return err
 	}
@@ -52,7 +54,7 @@ func (x *sqlStore) putInstancePresence(p InstancePresence, heartbeat bool) error
 		return err
 	}
 	// Prune this context's rows of sessions that ended before the retention window.
-	cutoff := ts(p.LastSeen.Add(-InstanceRetention))
+	cutoff := model.TS(p.LastSeen.Add(-InstanceRetention))
 	_, err = x.q.Exec(`DELETE FROM instance_presence WHERE context_id=? AND session_id IN (
  SELECT s.id FROM sessions s WHERE s.id IN (SELECT session_id FROM instance_presence WHERE context_id=?)
  AND (julianday(s.expires_at)<=julianday(?) OR julianday(s.revoked_at)<=julianday(?)))`, p.ContextID, p.ContextID, cutoff, cutoff)
@@ -62,7 +64,7 @@ func (x *sqlStore) putInstancePresence(p InstancePresence, heartbeat bool) error
 func (x *sqlStore) InstanceLastSeen(sid, cid, instance string) (time.Time, error) {
 	var seen string
 	err := x.q.QueryRow("SELECT last_seen FROM instance_presence WHERE session_id=? AND context_id=? AND instance_id=?", sid, cid, instance).Scan(&seen)
-	return parse(seen), dbErr(err)
+	return model.ParseTime(seen), dbErr(err)
 }
 
 func (x *sqlStore) InstanceLabel(sid, cid, instance string) (string, error) {
@@ -92,7 +94,7 @@ func (x *sqlStore) Instances(cid string, now time.Time) ([]InstancePresence, err
 
 // Rows of sessions that ended before the retention window are hidden.
 func (x *sqlStore) InstancesAfter(cid string, now time.Time, afterSession, afterInstance string, limit int) ([]InstancePresence, error) {
-	cutoff := ts(now.Add(-InstanceRetention))
+	cutoff := model.TS(now.Add(-InstanceRetention))
 	rows, err := x.q.Query(`SELECT p.session_id,p.context_id,p.instance_id,p.label,p.last_seen,COALESCE(p.resume,''),s.expires_at,s.revoked_at
  FROM instance_presence p JOIN sessions s ON s.id=p.session_id
  WHERE p.context_id=? AND (p.session_id,p.instance_id)>(?,?)
@@ -110,8 +112,8 @@ func (x *sqlStore) InstancesAfter(cid string, now time.Time, afterSession, after
 		if err := rows.Scan(&p.SessionID, &p.ContextID, &p.ID, &p.Label, &seen, &resume, &expires, &revoked); err != nil {
 			return nil, err
 		}
-		p.LastSeen = parse(seen)
-		p.Active = !revoked.Valid && parse(expires).After(now)
+		p.LastSeen = model.ParseTime(seen)
+		p.Active = !revoked.Valid && model.ParseTime(expires).After(now)
 		if resume != "" {
 			p.Resume = json.RawMessage(resume)
 		}

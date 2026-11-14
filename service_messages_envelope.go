@@ -9,6 +9,8 @@ import (
 	"io"
 	"sort"
 	"strings"
+
+	"github.com/krimvp/comitia/internal/model"
 )
 
 // Normalization owns its slices and payload and makes retries independent of
@@ -82,7 +84,7 @@ func (s *Service) normalizeEnvelope(in *MessageEnvelope, body string) (*MessageE
 	}
 	sort.Strings(out.RecipientInstances)
 	for i, instance := range out.RecipientInstances {
-		if !validInstanceID(instance) || (i > 0 && instance == out.RecipientInstances[i-1]) {
+		if !model.ValidInstanceID(instance) || (i > 0 && instance == out.RecipientInstances[i-1]) {
 			return nil, Invalidf("recipient_instances must be valid instance IDs and unique")
 		}
 	}
@@ -102,13 +104,13 @@ func (s *Service) validateEnvelopeReferences(r ReadStore, cid string, env *Messa
 	if env.TaskID != "" {
 		task, err := r.Task(env.TaskID)
 		if err != nil || task.ContextID != cid {
-			return referenceError{"task_id"}
+			return model.ReferenceError{Field: "task_id"}
 		}
 	}
 	if env.ReplyTo != "" {
 		message, err := r.Message(env.ReplyTo)
 		if err != nil || message.ContextID != cid {
-			return referenceError{"reply_to"}
+			return model.ReferenceError{Field: "reply_to"}
 		}
 	}
 	if err := validateTaskStatusReferences(r, cid, env); err != nil {
@@ -122,7 +124,7 @@ func (s *Service) validateEnvelopeReferences(r ReadStore, cid string, env *Messa
 func (s *Service) validateReaders(r ReadStore, cid, field string, sids []string) error {
 	now := s.now().UTC()
 	for i, sid := range sids {
-		failure := referenceError{fmt.Sprintf("%s[%d]", field, i)}
+		failure := model.ReferenceError{Field: fmt.Sprintf("%s[%d]", field, i)}
 		session, err := r.Session(sid)
 		if err != nil || session.RevokedAt != nil || !session.ExpiresAt.After(now) {
 			return failure
@@ -201,7 +203,7 @@ func (s *Service) validateMessageReferenceAccess(r ReadStore, a authInfo, cid st
 	// returning a deduplicated reply, so write-only callers cannot probe IDs.
 	if _, _, err := s.requireAuthenticated(r, a, cid, PermissionRead); err != nil {
 		if errors.Is(err, ErrForbidden) {
-			return referenceError{field}
+			return model.ReferenceError{Field: field}
 		}
 		return err
 	}

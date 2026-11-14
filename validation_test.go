@@ -13,6 +13,8 @@ import (
 	"sort"
 	"strings"
 	"testing"
+
+	"github.com/krimvp/comitia/internal/model"
 )
 
 func TestValidationDetails(t *testing.T) {
@@ -25,7 +27,7 @@ func TestValidationDetails(t *testing.T) {
 	}{
 		{"title", "title required", func() error { _, err := f.svc.CreateTask(ctx, f.admin.Token, f.context.ID, TaskInput{}); return err }},
 		{"limit", "limit", func() error { _, err := f.svc.ListTasks(ctx, f.admin.Token, f.context.ID, "", 0); return err }},
-		{"instance", "agent_instance.id", func() error { _, err := normalizeAgentInstance(&AgentInstance{ID: "secret value"}); return err }},
+		{"instance", "agent_instance.id", func() error { _, err := model.NormalizeAgentInstance(&AgentInstance{ID: "secret value"}); return err }},
 		{"resume instance", "agent_instance required", func() error {
 			return f.svc.SetInstanceResume(ctx, f.admin.Token, f.context.ID, nil, json.RawMessage(`{}`))
 		}},

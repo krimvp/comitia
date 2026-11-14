@@ -7,6 +7,8 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/krimvp/comitia/internal/model"
 )
 
 const instanceHeartbeatBudget = 25 * time.Millisecond
@@ -97,7 +99,7 @@ func decodeInstanceCursor(after string, limit int) (string, string, error) {
 		return "", "", nil
 	}
 	i := strings.LastIndexByte(after, '/')
-	if i < 1 || len(after) > 256 || !validInstanceID(after[i+1:]) {
+	if i < 1 || len(after) > 256 || !model.ValidInstanceID(after[i+1:]) {
 		return "", "", Invalidf("invalid instance cursor")
 	}
 	return after[:i], after[i+1:], nil
@@ -148,7 +150,7 @@ func ListInstancePage(ctx context.Context, api PresenceAPI, token, cid, after st
 }
 
 func (s *Service) SetInstanceResume(ctx context.Context, raw, cid string, in *AgentInstance, resume json.RawMessage) error {
-	instance, err := normalizeAgentInstance(in)
+	instance, err := model.NormalizeAgentInstance(in)
 	if err != nil {
 		return err
 	}

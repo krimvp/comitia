@@ -1,4 +1,4 @@
-package comitia
+package model
 
 import (
 	"context"
@@ -18,7 +18,7 @@ type InstanceDefaults struct {
 }
 
 func NewInstanceDefaults(instance *AgentInstance) (InstanceDefaults, error) {
-	instance, err := normalizeAgentInstance(instance)
+	instance, err := NormalizeAgentInstance(instance)
 	return InstanceDefaults{instance: instance}, err
 }
 
@@ -53,7 +53,7 @@ func (d InstanceDefaults) Message(explicit *AgentInstance) *AgentInstance {
 // the legacy cursor, even when a process default is configured.
 func (d InstanceDefaults) ID(explicit ...string) (string, error) {
 	if len(explicit) != 0 {
-		return cursorInstance(explicit)
+		return CursorInstance(explicit)
 	}
 	if d.instance != nil {
 		return d.instance.ID, nil
@@ -154,7 +154,7 @@ type MessageWriteStore interface {
 }
 
 // Instance IDs are short, printable routing keys. They confer no permissions.
-func validInstanceID(id string) bool {
+func ValidInstanceID(id string) bool {
 	if len(id) == 0 || len(id) > 64 {
 		return false
 	}
@@ -166,11 +166,11 @@ func validInstanceID(id string) bool {
 	return true
 }
 
-func normalizeAgentInstance(in *AgentInstance) (*AgentInstance, error) {
+func NormalizeAgentInstance(in *AgentInstance) (*AgentInstance, error) {
 	if in == nil {
 		return nil, nil
 	}
-	if !validInstanceID(in.ID) {
+	if !ValidInstanceID(in.ID) {
 		return nil, Invalidf("agent_instance.id must be 1-64 ASCII letters, digits, dot, underscore or hyphen")
 	}
 	if len(in.Label) > 128 || !utf8.ValidString(in.Label) {
@@ -186,14 +186,14 @@ func normalizeAgentInstance(in *AgentInstance) (*AgentInstance, error) {
 }
 
 // Omitting the instance (or supplying an empty ID) selects the legacy cursor.
-func cursorInstance(instances []string) (string, error) {
+func CursorInstance(instances []string) (string, error) {
 	if len(instances) > 1 {
 		return "", Invalidf("agent_instance accepts at most one instance")
 	}
 	if len(instances) == 0 || instances[0] == "" {
 		return "", nil
 	}
-	if !validInstanceID(instances[0]) {
+	if !ValidInstanceID(instances[0]) {
 		return "", Invalidf("agent_instance must be 1-64 ASCII letters, digits, dot, underscore or hyphen")
 	}
 	return instances[0], nil
@@ -220,7 +220,7 @@ type MessagePageAPI interface {
 	WaitMessagesPage(context.Context, string, string, int64, time.Duration, ...MessageFilters) (MessagePage, error)
 }
 
-func messageByteBudget(n int) int {
+func MessageByteBudget(n int) int {
 	if n == 0 {
 		return DefaultMessageBytes
 	}
@@ -239,7 +239,7 @@ type MessageQueryStore interface {
 	SupportsMessageQueries() bool
 }
 
-func scopedMessageFilters(f MessageFilters) bool {
+func ScopedMessageFilters(f MessageFilters) bool {
 	return f.ReplyTo != "" || f.ThreadID != "" || f.FromSession != ""
 }
 
@@ -255,7 +255,7 @@ type MessageReadOptionsStore interface {
 }
 
 // filterIncludesRenewals reports whether f explicitly selects task events.
-func filterIncludesRenewals(f MessageFilters) bool {
+func FilterIncludesRenewals(f MessageFilters) bool {
 	if f.Schema == TaskEventSchema {
 		return true
 	}
@@ -308,7 +308,7 @@ const (
 	maxFilterSchemaBytes = 128
 )
 
-func messageFilters(filters []MessageFilters) (MessageFilters, error) {
+func CombineMessageFilters(filters []MessageFilters) (MessageFilters, error) {
 	if len(filters) > 1 {
 		return MessageFilters{}, Invalidf("at most one filter set allowed")
 	}
@@ -322,13 +322,13 @@ func messageFilters(filters []MessageFilters) (MessageFilters, error) {
 	if f.StrictRecipients && f.ForInstance == "" {
 		return f, Invalidf("strict_recipients requires for_instance")
 	}
-	if f.ForInstance != "" && !validInstanceID(f.ForInstance) {
+	if f.ForInstance != "" && !ValidInstanceID(f.ForInstance) {
 		return f, Invalidf("for_instance must be 1-64 letters, digits, '.', '_' or '-'")
 	}
-	if f.FromInstance != "" && !validInstanceID(f.FromInstance) {
+	if f.FromInstance != "" && !ValidInstanceID(f.FromInstance) {
 		return f, Invalidf("from_instance must be 1-64 letters, digits, '.', '_' or '-'")
 	}
-	if instance := filterAgentInstance(f); instance != "" && !validInstanceID(instance) {
+	if instance := FilterAgentInstance(f); instance != "" && !ValidInstanceID(instance) {
 		return f, Invalidf("agent_instance must be 1-64 letters, digits, '.', '_' or '-'")
 	}
 	// Each name is a bound SQL variable; keep lists well inside driver limits.
@@ -344,7 +344,7 @@ func messageFilters(filters []MessageFilters) (MessageFilters, error) {
 }
 
 // filterAgentInstance returns the instance named by f.AgentInstance, or "".
-func filterAgentInstance(f MessageFilters) string {
+func FilterAgentInstance(f MessageFilters) string {
 	if f.AgentInstance == nil {
 		return ""
 	}

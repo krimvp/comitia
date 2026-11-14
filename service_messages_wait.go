@@ -5,6 +5,8 @@ import (
 	"math"
 	"sync"
 	"time"
+
+	"github.com/krimvp/comitia/internal/model"
 )
 
 // MessageWaitTimeout converts wire seconds without overflowing a duration.
@@ -100,7 +102,7 @@ func (n *messageNotifications) notify(cid string) {
 }
 
 func (s *Service) scanMessages(ctx context.Context, raw, cid string, after int64, limit int, filters []MessageFilters) ([]Message, int64, error) {
-	f, err := messageFilters(filters)
+	f, err := model.CombineMessageFilters(filters)
 	if err != nil {
 		return nil, after, err
 	}
@@ -114,7 +116,7 @@ func (s *Service) scanMessages(ctx context.Context, raw, cid string, after int64
 	if limit < 1 || limit > 1000 {
 		return nil, after, Invalidf("limit must be between 1 and 1000")
 	}
-	instance := filterAgentInstance(f)
+	instance := model.FilterAgentInstance(f)
 	var sid string
 	var heartbeat bool
 	var out []Message
@@ -141,7 +143,7 @@ func (s *Service) scanMessages(ctx context.Context, raw, cid string, after int64
 			}
 			for _, m := range batch {
 				next = max(next, m.Sequence)
-				if filterIncludesRenewals(f) || !renewedMessage(m) {
+				if model.FilterIncludesRenewals(f) || !renewedMessage(m) {
 					out = append(out, m)
 				}
 			}
@@ -184,7 +186,7 @@ func (s *Service) WaitMessages(ctx context.Context, raw, cid string, after int64
 }
 
 func (s *Service) waitMessagesScanned(ctx context.Context, raw, cid string, after int64, timeout time.Duration, filters ...MessageFilters) ([]Message, int64, error) {
-	f, err := messageFilters(filters)
+	f, err := model.CombineMessageFilters(filters)
 	if err != nil {
 		return nil, after, err
 	}

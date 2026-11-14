@@ -7,6 +7,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/krimvp/comitia/internal/model"
 )
 
 // legacyChain writes a delegation chain directly, as an older binary without
@@ -24,9 +26,9 @@ func legacyChain(t *testing.T, f fixture, depth int, nest bool) Credential {
 		parent, issuer := roots[0], f.admin.Session.ID
 		for i := 0; i < depth; i++ {
 			if i == 0 || i == depth-1 || nest {
-				p := Principal{ID: id(), Name: fmt.Sprint("legacy", i), CreatedAt: *f.now}
+				p := Principal{ID: model.NewID(), Name: fmt.Sprint("legacy", i), CreatedAt: *f.now}
 				tok := token()
-				c = Credential{Token: tok, Session: Session{ID: id(), PrincipalID: p.ID, ParentID: issuer, ExpiresAt: f.now.Add(time.Hour), CreatedAt: *f.now}}
+				c = Credential{Token: tok, Session: Session{ID: model.NewID(), PrincipalID: p.ID, ParentID: issuer, ExpiresAt: f.now.Add(time.Hour), CreatedAt: *f.now}}
 				if err = w.PutPrincipal(p); err != nil {
 					return err
 				}
@@ -34,7 +36,7 @@ func legacyChain(t *testing.T, f fixture, depth int, nest bool) Credential {
 					return err
 				}
 			}
-			g := Grant{ID: id(), SessionID: c.Session.ID, ContextID: f.context.ID, ParentGrantID: parent.ID, IssuerSessionID: issuer, Permissions: PermissionRead | PermissionGrant, ExpiresAt: f.now.Add(time.Hour), CreatedAt: *f.now}
+			g := Grant{ID: model.NewID(), SessionID: c.Session.ID, ContextID: f.context.ID, ParentGrantID: parent.ID, IssuerSessionID: issuer, Permissions: PermissionRead | PermissionGrant, ExpiresAt: f.now.Add(time.Hour), CreatedAt: *f.now}
 			if err = w.PutGrant(g); err != nil {
 				return err
 			}

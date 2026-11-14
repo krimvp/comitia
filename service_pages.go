@@ -6,6 +6,8 @@ import (
 	"encoding/json"
 	"sort"
 	"time"
+
+	"github.com/krimvp/comitia/internal/model"
 )
 
 // boundedCount returns how many leading items fit budget encoded bytes.
@@ -75,7 +77,7 @@ type taskCursor struct {
 func encodeTaskCursor(t Task) string { return encodeCreatedCursor(t.CreatedAt, t.ID) }
 
 func encodeCreatedCursor(at time.Time, id string) string {
-	raw, _ := json.Marshal(taskCursor{ts(at), id})
+	raw, _ := json.Marshal(taskCursor{model.TS(at), id})
 	return base64.RawURLEncoding.EncodeToString(raw)
 }
 
@@ -98,7 +100,7 @@ func decodeCreatedCursor(after, name string) (taskCursor, error) {
 		return c, Invalidf("invalid %s cursor", name)
 	}
 	at, err := time.Parse(time.RFC3339Nano, c.CreatedAt)
-	if err != nil || ts(at) != c.CreatedAt {
+	if err != nil || model.TS(at) != c.CreatedAt {
 		return c, Invalidf("invalid %s cursor creation time", name)
 	}
 	return c, nil
@@ -206,13 +208,13 @@ func legacyTaskPage(tasks []Task, after string, cursor taskCursor, limit int, so
 	}
 	tasks = append([]Task{}, tasks...)
 	sort.Slice(tasks, func(i, j int) bool {
-		a, b := sortableTS(tasks[i].CreatedAt), sortableTS(tasks[j].CreatedAt)
+		a, b := model.SortableTS(tasks[i].CreatedAt), model.SortableTS(tasks[j].CreatedAt)
 		return a < b || a == b && tasks[i].ID < tasks[j].ID
 	})
 	page := TaskPage{Tasks: []Task{}, NextAfter: after}
-	at := sortableTS(parse(cursor.CreatedAt))
+	at := model.SortableTS(model.ParseTime(cursor.CreatedAt))
 	for _, task := range tasks {
-		created := sortableTS(task.CreatedAt)
+		created := model.SortableTS(task.CreatedAt)
 		if after != "" && (created < at || created == at && task.ID <= cursor.ID) {
 			continue
 		}

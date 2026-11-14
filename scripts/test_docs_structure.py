@@ -294,7 +294,7 @@ class DocsStructure(unittest.TestCase):
         usage = re.search(r'const commandUsage = `(.*?)`', cli, re.S)[1]
         commands = {c for line in re.findall(r'^  ([a-z, -]+?)\s{2,}', usage, re.M) for c in line.split(', ')}
         tools = set(re.findall(r'\btool\("([a-z_]+)"', go))
-        features = set(re.findall(r'^\t"([a-z_]+)",$', (ROOT/'server_info.go').read_text(), re.M))
+        features = set(re.findall(r'^\t"([a-z_]+)",$', (ROOT/'internal/model/server_info.go').read_text(), re.M))
         for path in sorted((ROOT/'skills/comitia').rglob('*.md')):
             text = re.sub(r'\\\n\s*', ' ', path.read_text())
             spans = re.findall(r'`([^`\n]+)`', text) + re.findall(r'^comitia[^\n]*$', text, re.M)

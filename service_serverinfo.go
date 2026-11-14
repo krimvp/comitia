@@ -2,6 +2,8 @@ package comitia
 
 import (
 	"context"
+
+	"github.com/krimvp/comitia/internal/model"
 )
 
 func (s *Service) ServerInfo(ctx context.Context, raw string) (ServerInfo, error) {
@@ -12,5 +14,5 @@ func (s *Service) ServerInfo(ctx context.Context, raw string) (ServerInfo, error
 	if err != nil {
 		return ServerInfo{}, err
 	}
-	return ServerInfo{Build: BuildIdentity(), Version: BuildVersion(), ProtocolVersion: ProtocolVersion, Features: Features(), Limits: contentLimits()}, nil
+	return ServerInfo{Build: BuildIdentity(), Version: BuildVersion(), ProtocolVersion: ProtocolVersion, Features: Features(), Limits: model.DefaultContentLimits()}, nil
 }

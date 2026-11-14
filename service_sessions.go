@@ -6,6 +6,8 @@ import (
 	"errors"
 	"strings"
 	"time"
+
+	"github.com/krimvp/comitia/internal/model"
 )
 
 func (s *Service) Bootstrap(ctx context.Context, in BootstrapInput) (Principal, Credential, error) {
@@ -26,9 +28,9 @@ func (s *Service) Bootstrap(ctx context.Context, in BootstrapInput) (Principal, 
 			return ErrBootstrapUsed
 		}
 		now := s.now().UTC()
-		p = Principal{ID: id(), Name: in.AdminName, Admin: true, CreatedAt: now}
+		p = Principal{ID: model.NewID(), Name: in.AdminName, Admin: true, CreatedAt: now}
 		raw := token()
-		c = Credential{Token: raw, Session: Session{ID: id(), PrincipalID: p.ID, ExpiresAt: now.Add(in.SessionTTL), CreatedAt: now}}
+		c = Credential{Token: raw, Session: Session{ID: model.NewID(), PrincipalID: p.ID, ExpiresAt: now.Add(in.SessionTTL), CreatedAt: now}}
 		if e = w.PutPrincipal(p); e != nil {
 			return e
 		}
@@ -49,7 +51,7 @@ func (s *Service) CreatePrincipal(ctx context.Context, raw, name string) (Princi
 		if _, e := s.admin(w, raw); e != nil {
 			return e
 		}
-		p = Principal{ID: id(), Name: name, CreatedAt: s.now().UTC()}
+		p = Principal{ID: model.NewID(), Name: name, CreatedAt: s.now().UTC()}
 		return w.PutPrincipal(p)
 	})
 	return p, e
@@ -69,7 +71,7 @@ func (s *Service) MintSession(ctx context.Context, raw, principalID string, ttl 
 		}
 		now := s.now().UTC()
 		t := token()
-		c = Credential{Token: t, Session: Session{ID: id(), PrincipalID: principalID, ExpiresAt: now.Add(ttl), CreatedAt: now}}
+		c = Credential{Token: t, Session: Session{ID: model.NewID(), PrincipalID: principalID, ExpiresAt: now.Add(ttl), CreatedAt: now}}
 		return w.PutSession(c.Session, tokenHash(t))
 	})
 	return c, e
@@ -95,9 +97,9 @@ func (s *Service) DelegateSession(ctx context.Context, raw string, in DelegateIn
 		if e = checkDelegationDepth("session", parent.session.ID, sessionParent(w)); e != nil {
 			return e
 		}
-		p = Principal{ID: id(), Name: in.PrincipalName, CreatedAt: now}
+		p = Principal{ID: model.NewID(), Name: in.PrincipalName, CreatedAt: now}
 		tok := token()
-		c = Credential{Token: tok, Session: Session{ID: id(), PrincipalID: p.ID, ParentID: parent.session.ID, ExpiresAt: expiry, CreatedAt: now}}
+		c = Credential{Token: tok, Session: Session{ID: model.NewID(), PrincipalID: p.ID, ParentID: parent.session.ID, ExpiresAt: expiry, CreatedAt: now}}
 		for _, req := range in.Grants {
 			if req.Permissions == 0 || req.Permissions&^PermissionAll != 0 || req.ExpiresAt.After(expiry) || !req.ExpiresAt.After(now) {
 				return Invalidf("grants permissions must be nonzero known bits and expires_at must be within session expiry")
@@ -113,7 +115,7 @@ func (s *Service) DelegateSession(ctx context.Context, raw string, in DelegateIn
 			if e != nil {
 				return e
 			}
-			out = append(out, Grant{ID: id(), SessionID: c.Session.ID, ContextID: req.ContextID, ParentGrantID: source.ID, IssuerSessionID: parent.session.ID, Permissions: req.Permissions, ExpiresAt: req.ExpiresAt, CreatedAt: now})
+			out = append(out, Grant{ID: model.NewID(), SessionID: c.Session.ID, ContextID: req.ContextID, ParentGrantID: source.ID, IssuerSessionID: parent.session.ID, Permissions: req.Permissions, ExpiresAt: req.ExpiresAt, CreatedAt: now})
 		}
 		if e = w.PutPrincipal(p); e != nil {
 			return e

@@ -1,6 +1,8 @@
 package comitia
 
 import (
+	"github.com/krimvp/comitia/internal/model"
+
 	"context"
 	"encoding/json"
 	"errors"
@@ -59,13 +61,13 @@ func TestServerInfoSessionAndFeatures(t *testing.T) {
 }
 
 func TestBuildVersion(t *testing.T) {
-	old := Version
-	t.Cleanup(func() { Version = old })
-	Version = ""
+	old := model.Version
+	t.Cleanup(func() { model.Version = old })
+	model.Version = ""
 	if got := BuildVersion(); got != "dev" {
 		t.Fatalf("fallback=%q", got)
 	}
-	Version = "v1.2.3"
+	model.Version = "v1.2.3"
 	if got := BuildVersion(); got != "v1.2.3" {
 		t.Fatalf("ldflags override=%q", got)
 	}

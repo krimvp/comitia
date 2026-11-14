@@ -7,6 +7,8 @@ import (
 	"errors"
 	"fmt"
 	"time"
+
+	"github.com/krimvp/comitia/internal/model"
 )
 
 // RecoverClaim selects holder recovery without changing the original task API.
@@ -28,7 +30,7 @@ func (s *Service) RecoverClaim(ctx context.Context, raw, taskID string, version 
 	var owner *AgentInstance
 	if len(instance) == 1 {
 		var e error
-		if owner, e = normalizeAgentInstance(&instance[0]); e != nil {
+		if owner, e = model.NormalizeAgentInstance(&instance[0]); e != nil {
 			return c, e
 		}
 	}
@@ -70,10 +72,10 @@ func (s *Service) CreateTask(ctx context.Context, raw, cid string, in TaskInput)
 	if in.Title == "" {
 		return t, Invalidf("title required")
 	}
-	if e := validText("title", in.Title, MaxTaskTitleBytes); e != nil {
+	if e := model.ValidText("title", in.Title, MaxTaskTitleBytes); e != nil {
 		return t, e
 	}
-	if e := validText("body", in.Body, MaxTaskBodyBytes); e != nil {
+	if e := model.ValidText("body", in.Body, MaxTaskBodyBytes); e != nil {
 		return t, e
 	}
 	e := s.store.Update(ctx, func(w WriteStore) error {
@@ -91,7 +93,7 @@ func (s *Service) CreateTask(ctx context.Context, raw, cid string, in TaskInput)
 			return nil
 		}
 		now := s.now().UTC()
-		t = Task{ID: id(), ContextID: cid, Title: in.Title, Body: in.Body, Status: TaskPending, CreatedAt: now, UpdatedAt: now}
+		t = Task{ID: model.NewID(), ContextID: cid, Title: in.Title, Body: in.Body, Status: TaskPending, CreatedAt: now, UpdatedAt: now}
 		if e := w.PutTask(t); e != nil {
 			return e
 		}
@@ -178,7 +180,7 @@ func (s *Service) ClaimTaskWithOperation(ctx context.Context, raw, taskID string
 	var owner *AgentInstance
 	if len(instance) == 1 {
 		var e error
-		if owner, e = normalizeAgentInstance(&instance[0]); e != nil {
+		if owner, e = model.NormalizeAgentInstance(&instance[0]); e != nil {
 			return c, e
 		}
 	}

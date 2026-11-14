@@ -8,6 +8,8 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/krimvp/comitia/internal/model"
 )
 
 func queryPlan(t *testing.T, st *SQLiteStore, query string, args ...any) string {
@@ -41,7 +43,7 @@ func TestRevokeCascadesSeekParentIndexes(t *testing.T) {
 		{revokeSessionTreeSQL, coord.Session.ID, "sessions_parent"},
 		{revokeGrantTreeSQL, g.ID, "grants_parent"},
 	} {
-		plan := queryPlan(t, f.store, tc.query, tc.root, ts(*f.now))
+		plan := queryPlan(t, f.store, tc.query, tc.root, model.TS(*f.now))
 		if !strings.Contains(plan, tc.index) || strings.Contains(plan, "AUTOMATIC") {
 			t.Fatalf("revoke cascade does not seek %s:\n%s", tc.index, plan)
 		}
@@ -111,7 +113,7 @@ func TestParentIndexesAddedToPopulatedDatabase(t *testing.T) {
 	if err = st.db.QueryRow("SELECT COUNT(*) FROM sqlite_master WHERE type='index' AND name IN ('sessions_parent','grants_parent')").Scan(&n); err != nil || n != 2 {
 		t.Fatalf("parent indexes=%d err=%v", n, err)
 	}
-	if !strings.Contains(queryPlan(t, st, revokeGrantTreeSQL, g.ID, ts(*f.now)), "grants_parent") {
+	if !strings.Contains(queryPlan(t, st, revokeGrantTreeSQL, g.ID, model.TS(*f.now)), "grants_parent") {
 		t.Fatal("upgraded database does not seek grants_parent")
 	}
 	if err = st.Update(context.Background(), func(w WriteStore) error { return w.RevokeSessionTree(coord.Session.ID, *f.now) }); err != nil {

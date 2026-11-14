@@ -6,6 +6,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/krimvp/comitia/internal/model"
 )
 
 // Renewal-heavy fixture: one visible claim and several hidden renewals.
@@ -126,7 +128,7 @@ func TestHiddenProjectionBackfillsOldDatabaseIncrementally(t *testing.T) {
 		sql  string
 		args []any
 	}{
-		{"INSERT INTO messages VALUES('legacy-renewal',?,?,100,'legacy-renewal','',?)", []any{f.context.ID, f.admin.Session.ID, ts(*f.now)}},
+		{"INSERT INTO messages VALUES('legacy-renewal',?,?,100,'legacy-renewal','',?)", []any{f.context.ID, f.admin.Session.ID, model.TS(*f.now)}},
 		{"INSERT INTO message_envelopes VALUES('legacy-renewal',?)", []any{envelope}},
 	} {
 		if _, err = st.db.Exec(query.sql, query.args...); err != nil {
