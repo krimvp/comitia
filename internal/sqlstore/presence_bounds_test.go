@@ -77,7 +77,7 @@ func TestInstancePresenceEvictsOwnLeastRecentlySeen(t *testing.T) {
 	var rows map[string]bool
 	// A read heartbeat is best effort and is skipped when its small time
 	// budget runs out under load, so read again until it is recorded.
-	for tries := 0; tries < 20 && !rows[heartbeat]; tries++ {
+	for retry := time.Now().Add(30 * time.Second); !rows[heartbeat] && time.Now().Before(retry); {
 		if _, err := svc.ReplayMessages(ctx, reader.Token, cid, 0, 10, model.MessageFilters{AgentInstance: &heartbeat}); err != nil {
 			t.Fatal(err)
 		}

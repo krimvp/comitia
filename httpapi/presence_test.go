@@ -53,24 +53,35 @@ func TestHTTPInstancePresence(t *testing.T) {
 		t.Fatal(err)
 	}
 	worker := "worker"
-	for _, call := range []func() error{
-		func() error {
+	list := func() ([]comitia.InstancePresence, error) { return client.ListInstances(ctx, owner.Token, c.ID) }
+	roundtrip := func(rows []comitia.InstancePresence) bool {
+		return len(rows) == 1 && rows[0].Label == "HTTP worker" && rows[0].Active && string(rows[0].Resume) == string(resume) && rows[0].LastSeen.Equal(now)
+	}
+	for _, step := range []struct {
+		read bool
+		call func() error
+	}{
+		{call: func() error {
 			_, err := client.AppendMessage(ctx, owner.Token, c.ID, comitia.MessageInput{DedupeKey: "x", Body: "x", AgentInstance: &comitia.AgentInstance{ID: "worker", Label: "HTTP worker"}})
 			return err
-		},
-		func() error {
+		}},
+		{read: true, call: func() error {
 			_, err := client.ReplayMessages(ctx, owner.Token, c.ID, 0, 10, comitia.MessageFilters{AgentInstance: &worker})
 			return err
-		},
-		func() error { _, err := client.MessageCursor(ctx, owner.Token, c.ID, "worker"); return err },
-		func() error { return client.AckMessages(ctx, owner.Token, c.ID, 0, "worker") },
+		}},
+		{read: true, call: func() error { _, err := client.MessageCursor(ctx, owner.Token, c.ID, "worker"); return err }},
+		{call: func() error { return client.AckMessages(ctx, owner.Token, c.ID, 0, "worker") }},
 	} {
 		now = now.Add(31 * time.Second)
-		if err := call(); err != nil {
+		if step.read {
+			awaitReadHeartbeat(t, step.call, list, roundtrip)
+			continue
+		}
+		if err := step.call(); err != nil {
 			t.Fatal(err)
 		}
-		rows, err := client.ListInstances(ctx, owner.Token, c.ID)
-		if err != nil || len(rows) != 1 || rows[0].Label != "HTTP worker" || !rows[0].Active || string(rows[0].Resume) != string(resume) || !rows[0].LastSeen.Equal(now) {
+		// Writes record presence in their own transaction, with no budget.
+		if rows, err := list(); err != nil || !roundtrip(rows) {
 			t.Fatalf("roundtrip: %v %v", rows, err)
 		}
 	}
@@ -126,5 +137,27 @@ func TestHTTPInstancePresence(t *testing.T) {
 	defer response.Body.Close()
 	if response.StatusCode != http.StatusBadRequest {
 		t.Fatalf("unknown field: %d", response.StatusCode)
+	}
+}
+
+// awaitReadHeartbeat repeats a read until list shows the presence it records.
+// A read's heartbeat is best effort under a 25 ms real-time budget
+// (docs/presence.md), which a slow machine (-race, a loaded runner) can exceed
+// without contention. A dropped heartbeat leaves the row stale, so the next
+// read is due again and records the same presence.
+func awaitReadHeartbeat(t *testing.T, read func() error, list func() ([]comitia.InstancePresence, error), recorded func([]comitia.InstancePresence) bool) {
+	t.Helper()
+	for deadline := time.Now().Add(30 * time.Second); ; {
+		if err := read(); err != nil {
+			t.Fatal(err)
+		}
+		rows, err := list()
+		if err == nil && recorded(rows) {
+			return
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("read heartbeat not recorded: %v %v", rows, err)
+		}
+		time.Sleep(10 * time.Millisecond)
 	}
 }

@@ -23,6 +23,7 @@ type Service struct {
 	maxChildContextsPerGrant int
 	messageNotifications     messageNotifications
 	waitTicker               func() (<-chan time.Time, func()) // tests replace the wait poll
+	heartbeatBudget          time.Duration                     // tests lengthen it; zero is instanceHeartbeatBudget
 }
 
 func New(cfg model.Config) (*Service, error) {

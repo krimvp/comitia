@@ -13,6 +13,8 @@ import (
 func TestExcludeSelfSkipsOwnTaskEventsPerInstance(t *testing.T) {
 	f := setup(t, ":memory:")
 	defer f.store.Close()
+	// worker-2's presence comes only from its read's heartbeat.
+	landReadHeartbeats(f)
 	ctx := context.Background()
 	worker, _ := delegate(t, f, f.admin.Token, "worker", f.context.ID, model.PermissionRead|model.PermissionWrite|model.PermissionClaim, time.Hour)
 	inst := "worker-1"

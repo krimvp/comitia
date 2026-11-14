@@ -13,9 +13,16 @@ import (
 	"github.com/krimvp/comitia/internal/sqlstore"
 )
 
+// landReadHeartbeats is for tests that assert what a read heartbeat records.
+// Its 25 ms real-time budget can run out on a slow machine (-race, a loaded
+// runner) even without contention, which the design accepts: heartbeats are
+// best effort. The budget under contention is tested with the default.
+func landReadHeartbeats(f fixture) { f.svc.heartbeatBudget = time.Minute }
+
 func TestInstancePresenceHeartbeatsAndResume(t *testing.T) {
 	f := setup(t, ":memory:")
 	defer f.store.Close()
+	landReadHeartbeats(f)
 	ctx, raw, cid := context.Background(), f.admin.Token, f.context.ID
 	instance := &model.AgentInstance{ID: "worker", Label: "Worker"}
 	in := model.MessageInput{DedupeKey: "ready", Body: "ready", AgentInstance: instance}
@@ -224,6 +231,7 @@ func (w *failingPresenceWriter) TouchInstancePresence(p model.InstancePresence) 
 func TestInstancePresenceFailureDoesNotFailMessages(t *testing.T) {
 	f := setup(t, ":memory:")
 	defer f.store.Close()
+	landReadHeartbeats(f)
 	broken := &failingPresenceStore{Store: f.store}
 	f.svc.store = broken
 	ctx, raw, cid := context.Background(), f.admin.Token, f.context.ID
@@ -306,6 +314,7 @@ func (w *countingPresenceWriter) TouchInstancePresence(p model.InstancePresence)
 func TestPresenceHeartbeatTransactionBudget(t *testing.T) {
 	f := setup(t, ":memory:")
 	defer f.store.Close()
+	landReadHeartbeats(f)
 	counted := &countingPresenceStore{Store: f.store}
 	f.svc.store = counted
 	ctx, raw, cid := context.Background(), f.admin.Token, f.context.ID
@@ -358,6 +367,51 @@ func TestPresenceHeartbeatTransactionBudget(t *testing.T) {
 	}
 	if counted.updates != 5 || counted.heartbeats != 5 {
 		t.Fatalf("dedupe retry: updates=%d heartbeats=%d", counted.updates, counted.heartbeats)
+	}
+}
+
+// slowHeartbeatStore models a machine too slow to finish a heartbeat in its
+// budget: the first `slow` Updates run only once their deadline has passed.
+type slowHeartbeatStore struct {
+	model.Store
+	slow int
+}
+
+func (s *slowHeartbeatStore) Update(ctx context.Context, fn func(model.WriteStore) error) error {
+	if s.slow > 0 {
+		s.slow--
+		if _, ok := ctx.Deadline(); !ok {
+			return errors.New("read heartbeat without a budget")
+		}
+		<-ctx.Done()
+	}
+	return s.Store.Update(ctx, fn)
+}
+
+// Tests outside this package rely on this: a read heartbeat that runs out of
+// budget leaves the row stale, so the next read is due again and records it.
+func TestDroppedReadHeartbeatIsRecordedByTheNextRead(t *testing.T) {
+	f := setup(t, ":memory:")
+	defer f.store.Close()
+	slow := &slowHeartbeatStore{Store: f.store, slow: 1}
+	f.svc.store = slow
+	ctx, raw, cid := context.Background(), f.admin.Token, f.context.ID
+	started := time.Now()
+	if _, err := f.svc.ReplayMessages(ctx, raw, cid, 0, 10, instanceFilter("worker")); err != nil {
+		t.Fatal(err)
+	}
+	if elapsed := time.Since(started); slow.slow != 0 || elapsed > time.Second {
+		t.Fatalf("heartbeat not attempted under its default budget: pending=%d elapsed=%v", slow.slow, elapsed)
+	}
+	if rows, err := f.svc.ListInstances(ctx, raw, cid); err != nil || len(rows) != 0 {
+		t.Fatalf("expired heartbeat recorded presence: %v %v", rows, err)
+	}
+	landReadHeartbeats(f)
+	if _, err := f.svc.ReplayMessages(ctx, raw, cid, 0, 10, instanceFilter("worker")); err != nil {
+		t.Fatal(err)
+	}
+	if rows, err := f.svc.ListInstances(ctx, raw, cid); err != nil || len(rows) != 1 || rows[0].ID != "worker" || !rows[0].LastSeen.Equal(*f.now) {
+		t.Fatalf("next read did not record presence: %v %v", rows, err)
 	}
 }
 
