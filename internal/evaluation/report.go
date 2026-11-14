@@ -1,9 +1,11 @@
-package comitia
+package evaluation
 
 import (
 	"fmt"
 	"math"
 	"sort"
+
+	"github.com/krimvp/comitia/internal/model"
 
 	"github.com/krimvp/comitia/internal/schema"
 )
@@ -38,28 +40,28 @@ type EvaluationReport struct {
 }
 
 // ParseEvaluationResult extracts and validates one evaluation-result message.
-func ParseEvaluationResult(message Message) (EvaluationResultPayload, error) {
-	var result EvaluationResultPayload
-	if message.Envelope == nil || message.Envelope.Schema != EvaluationResultSchema || message.Envelope.TaskID == "" {
-		return result, fmt.Errorf("%w: evaluation-result envelope required", ErrInvalid)
+func ParseEvaluationResult(message model.Message) (schema.EvaluationResultPayload, error) {
+	var result schema.EvaluationResultPayload
+	if message.Envelope == nil || message.Envelope.Schema != model.EvaluationResultSchema || message.Envelope.TaskID == "" {
+		return result, fmt.Errorf("%w: evaluation-result envelope required", model.ErrInvalid)
 	}
 	if err := schema.ValidEvaluationResult(message.Envelope.Payload); err != nil {
-		return EvaluationResultPayload{}, err
+		return schema.EvaluationResultPayload{}, err
 	}
 	if err := schema.StrictPayload(message.Envelope.Payload, &result); err != nil {
-		return EvaluationResultPayload{}, err
+		return schema.EvaluationResultPayload{}, err
 	}
 	return result, nil
 }
 
 // BuildEvaluationReport aggregates evaluation-result messages and ignores other
 // message schemas. Evaluation IDs must be unique within the supplied window.
-func BuildEvaluationReport(messages []Message) (EvaluationReport, error) {
+func BuildEvaluationReport(messages []model.Message) (EvaluationReport, error) {
 	report := EvaluationReport{Schema: "comitia.evaluation-report.v1", Costs: []EvaluationCostMetric{}}
 	totals := map[string]int64{}
 	seen := map[string]struct{}{}
 	for _, message := range messages {
-		if message.Envelope == nil || message.Envelope.Schema != EvaluationResultSchema {
+		if message.Envelope == nil || message.Envelope.Schema != model.EvaluationResultSchema {
 			continue
 		}
 		result, err := ParseEvaluationResult(message)
@@ -67,21 +69,21 @@ func BuildEvaluationReport(messages []Message) (EvaluationReport, error) {
 			return EvaluationReport{}, err
 		}
 		if _, duplicate := seen[result.EvaluationID]; duplicate {
-			return EvaluationReport{}, Invalidf("evaluation_id must be unique")
+			return EvaluationReport{}, model.Invalidf("evaluation_id must be unique")
 		}
 		seen[result.EvaluationID] = struct{}{}
 		report.TotalResults++
 		switch result.Outcome {
-		case EvaluationAccepted:
+		case schema.EvaluationAccepted:
 			report.Outcomes.Accepted++
-		case EvaluationRejected:
+		case schema.EvaluationRejected:
 			report.Outcomes.Rejected++
-		case EvaluationInconclusive:
+		case schema.EvaluationInconclusive:
 			report.Outcomes.Inconclusive++
 		}
 		for _, criterion := range result.Criteria {
 			report.TotalCriteria++
-			if criterion.Outcome == CriterionNotRun {
+			if criterion.Outcome == schema.CriterionNotRun {
 				report.NotRunCriteria++
 			} else {
 				report.EvidenceBackedCriteria++
@@ -92,7 +94,7 @@ func BuildEvaluationReport(messages []Message) (EvaluationReport, error) {
 		} else {
 			report.CostedResults++
 			if result.Cost.AmountMicros > math.MaxInt64-totals[result.Cost.Currency] {
-				return EvaluationReport{}, fmt.Errorf("%w: cost total overflow for %s", ErrInvalid, result.Cost.Currency)
+				return EvaluationReport{}, fmt.Errorf("%w: cost total overflow for %s", model.ErrInvalid, result.Cost.Currency)
 			}
 			totals[result.Cost.Currency] += result.Cost.AmountMicros
 		}

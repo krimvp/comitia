@@ -1,9 +1,11 @@
-package comitia
+package mergegate
 
 import (
 	"encoding/json"
 	"slices"
 	"time"
+
+	"github.com/krimvp/comitia/internal/model"
 
 	"github.com/krimvp/comitia/internal/schema"
 )
@@ -28,19 +30,19 @@ type MergeVerifyOptions struct {
 	DistinctReviewers     bool
 	ForbidRequesterReview bool
 	ForbidIssuerReview    bool
-	Replies               []Message
+	Replies               []model.Message
 }
 
 // VerifyMergeCertificate checks a snapshot, not GitHub or one-shot consumption.
 // Inputs must come from authenticated Comitia reads, not arbitrary JSON files.
-func VerifyMergeCertificate(cert, request Message, approvals []Message, policy MergePolicy, currentArtifact string, now time.Time) error {
+func VerifyMergeCertificate(cert, request model.Message, approvals []model.Message, policy MergePolicy, currentArtifact string, now time.Time) error {
 	return VerifyMergeCertificateWithOptions(cert, request, approvals, policy, currentArtifact, now, MergeVerifyOptions{})
 }
 
 // VerifyMergeCertificateWithOptions is VerifyMergeCertificate plus opts.
-func VerifyMergeCertificateWithOptions(cert, request Message, approvals []Message, policy MergePolicy, currentArtifact string, now time.Time, opts MergeVerifyOptions) error {
-	if cert.Envelope == nil || cert.Envelope.Schema != MergeCertificateSchema || request.Envelope == nil || request.Envelope.Schema != RequestSchema {
-		return Invalidf("certificate and request schemas required")
+func VerifyMergeCertificateWithOptions(cert, request model.Message, approvals []model.Message, policy MergePolicy, currentArtifact string, now time.Time, opts MergeVerifyOptions) error {
+	if cert.Envelope == nil || cert.Envelope.Schema != model.MergeCertificateSchema || request.Envelope == nil || request.Envelope.Schema != model.RequestSchema {
+		return model.Invalidf("certificate and request schemas required")
 	}
 	if err := schema.ValidMergeCertificate(cert.Envelope.Payload); err != nil {
 		return err
@@ -48,53 +50,53 @@ func VerifyMergeCertificateWithOptions(cert, request Message, approvals []Messag
 	if err := schema.ValidRequest(request.Envelope.Payload); err != nil {
 		return err
 	}
-	var p MergeCertificatePayload
+	var p schema.MergeCertificatePayload
 	_ = json.Unmarshal(cert.Envelope.Payload, &p)
-	var req RequestPayload
+	var req schema.RequestPayload
 	_ = json.Unmarshal(request.Envelope.Payload, &req)
 	if policy.ID == "" || policy.IssuerSessionID == "" || policy.RequesterSessionID == "" || len(policy.Reviewers) == 0 || !schema.NonEmpty(policy.Checks) {
-		return Invalidf("authenticated issuer, requester, reviewer roles and checks required")
+		return model.Invalidf("authenticated issuer, requester, reviewer roles and checks required")
 	}
 	if cert.SessionID != policy.IssuerSessionID || request.SessionID != policy.RequesterSessionID {
-		return ErrForbidden
+		return model.ErrForbidden
 	}
 	if cert.ContextID != request.ContextID || cert.Envelope.ReplyTo != request.ID || cert.Envelope.TaskID != request.Envelope.TaskID || req.Operation != "review" || p.PolicyID != policy.ID || p.ArtifactRef != currentArtifact || !slices.Contains(req.ArtifactRefs, p.ArtifactRef) {
-		return Invalidf("certificate correlation, policy or current artifact mismatch")
+		return model.Invalidf("certificate correlation, policy or current artifact mismatch")
 	}
 	issued, _ := schema.ProtocolTime(p.IssuedAt)
 	expires, _ := schema.ProtocolTime(p.ExpiresAt)
 	deadline, _ := schema.ProtocolTime(req.Deadline)
 	if issued.Before(request.CreatedAt) || issued.After(cert.CreatedAt) || cert.CreatedAt.After(now) || !expires.After(now) || !deadline.After(now) {
-		return Invalidf("certificate or request is stale or future-dated")
+		return model.Invalidf("certificate or request is stale or future-dated")
 	}
 	if len(approvals) != len(p.ApprovalIDs) {
-		return Invalidf("complete approval snapshot required")
+		return model.Invalidf("complete approval snapshot required")
 	}
 	if err := checkReviewerSeparation(approvals, policy, opts); err != nil {
 		return err
 	}
 	seen := map[string]bool{}
 	reviewers := map[string]bool{}
-	lastApproval := map[string]Message{}
+	lastApproval := map[string]model.Message{}
 	for _, approval := range approvals {
 		if seen[approval.ID] || !slices.Contains(p.ApprovalIDs, approval.ID) {
-			return Invalidf("approval ID mismatch")
+			return model.Invalidf("approval ID mismatch")
 		}
 		seen[approval.ID] = true
-		if approval.ContextID != cert.ContextID || approval.Envelope == nil || approval.Envelope.Schema != ApprovalSchema || approval.Envelope.ReplyTo != request.ID || approval.Envelope.TaskID != request.Envelope.TaskID || approval.CreatedAt.Before(request.CreatedAt) || approval.CreatedAt.After(issued) || !slices.Contains(req.ExpectedResponders, approval.SessionID) {
-			return Invalidf("approval correlation or freshness mismatch")
+		if approval.ContextID != cert.ContextID || approval.Envelope == nil || approval.Envelope.Schema != model.ApprovalSchema || approval.Envelope.ReplyTo != request.ID || approval.Envelope.TaskID != request.Envelope.TaskID || approval.CreatedAt.Before(request.CreatedAt) || approval.CreatedAt.After(issued) || !slices.Contains(req.ExpectedResponders, approval.SessionID) {
+			return model.Invalidf("approval correlation or freshness mismatch")
 		}
 		if err := schema.ValidApproval(approval.Envelope.Payload); err != nil {
 			return err
 		}
-		var verdict ApprovalPayload
+		var verdict schema.ApprovalPayload
 		_ = json.Unmarshal(approval.Envelope.Payload, &verdict)
-		if verdict.Verdict != ApprovalApproved || !slices.Contains(verdict.ArtifactRefs, currentArtifact) {
-			return Invalidf("approval does not approve current artifact")
+		if verdict.Verdict != schema.ApprovalApproved || !slices.Contains(verdict.ArtifactRefs, currentArtifact) {
+			return model.Invalidf("approval does not approve current artifact")
 		}
 		for _, check := range policy.Checks {
 			if !slices.Contains(verdict.Checks, check) {
-				return Invalidf("approval missing required check")
+				return model.Invalidf("approval missing required check")
 			}
 		}
 		reviewers[approval.SessionID] = true
@@ -104,7 +106,7 @@ func VerifyMergeCertificateWithOptions(cert, request Message, approvals []Messag
 	}
 	for role, sid := range policy.Reviewers {
 		if role == "" || sid == "" || !reviewers[sid] {
-			return ErrForbidden
+			return model.ErrForbidden
 		}
 	}
 	if opts.Replies != nil {
@@ -113,12 +115,12 @@ func VerifyMergeCertificateWithOptions(cert, request Message, approvals []Messag
 	return nil
 }
 
-func checkReviewerSeparation(approvals []Message, policy MergePolicy, opts MergeVerifyOptions) error {
+func checkReviewerSeparation(approvals []model.Message, policy MergePolicy, opts MergeVerifyOptions) error {
 	if opts.DistinctReviewers {
 		roles := map[string]string{}
 		for role, sid := range policy.Reviewers {
 			if other, ok := roles[sid]; ok {
-				return Invalidf("distinct reviewers required: one session fills roles %q and %q", min(role, other), max(role, other))
+				return model.Invalidf("distinct reviewers required: one session fills roles %q and %q", min(role, other), max(role, other))
 			}
 			roles[sid] = role
 		}
@@ -132,26 +134,26 @@ func checkReviewerSeparation(approvals []Message, policy MergePolicy, opts Merge
 	}
 	for _, sid := range sessions {
 		if opts.ForbidRequesterReview && sid == policy.RequesterSessionID {
-			return Invalidf("requester session must not act as reviewer")
+			return model.Invalidf("requester session must not act as reviewer")
 		}
 		if opts.ForbidIssuerReview && sid == policy.IssuerSessionID {
-			return Invalidf("certificate issuer session must not act as reviewer")
+			return model.Invalidf("certificate issuer session must not act as reviewer")
 		}
 	}
 	return nil
 }
 
-func checkSupersedingVerdicts(cert, request Message, replies []Message, counted map[string]bool, last map[string]Message, currentArtifact string, issued time.Time) error {
+func checkSupersedingVerdicts(cert, request model.Message, replies []model.Message, counted map[string]bool, last map[string]model.Message, currentArtifact string, issued time.Time) error {
 	present := map[string]bool{}
 	for _, r := range replies {
-		if r.ContextID != cert.ContextID || r.Envelope == nil || r.Envelope.Schema != ApprovalSchema || r.Envelope.ReplyTo != request.ID || r.Envelope.TaskID != request.Envelope.TaskID {
-			return Invalidf("replies must be approval.v1 replies to the certificate request")
+		if r.ContextID != cert.ContextID || r.Envelope == nil || r.Envelope.Schema != model.ApprovalSchema || r.Envelope.ReplyTo != request.ID || r.Envelope.TaskID != request.Envelope.TaskID {
+			return model.Invalidf("replies must be approval.v1 replies to the certificate request")
 		}
 		present[r.ID] = true
 	}
 	for id := range counted {
 		if !present[id] {
-			return Invalidf("replies must include every certificate approval")
+			return model.Invalidf("replies must include every certificate approval")
 		}
 	}
 	for _, r := range replies {
@@ -159,16 +161,16 @@ func checkSupersedingVerdicts(cert, request Message, replies []Message, counted 
 		if !ok || r.CreatedAt.After(issued) || !messageAfter(r, approval) {
 			continue
 		}
-		var verdict ApprovalPayload
-		if json.Unmarshal(r.Envelope.Payload, &verdict) == nil && verdict.Verdict == ApprovalChangesRequested && slices.Contains(verdict.ArtifactRefs, currentArtifact) {
-			return Invalidf("approval superseded by a later changes-requested verdict from the same reviewer before issuance")
+		var verdict schema.ApprovalPayload
+		if json.Unmarshal(r.Envelope.Payload, &verdict) == nil && verdict.Verdict == schema.ApprovalChangesRequested && slices.Contains(verdict.ArtifactRefs, currentArtifact) {
+			return model.Invalidf("approval superseded by a later changes-requested verdict from the same reviewer before issuance")
 		}
 	}
 	return nil
 }
 
 // messageAfter orders by context sequence when both are stored, else by time.
-func messageAfter(a, b Message) bool {
+func messageAfter(a, b model.Message) bool {
 	if a.Sequence > 0 && b.Sequence > 0 {
 		return a.Sequence > b.Sequence
 	}
@@ -179,33 +181,33 @@ func messageAfter(a, b Message) bool {
 // gate's assigned mergerSessionID that match the certificate's reply, task,
 // head and consumption key count; others are ignored. It returns the earliest
 // one, ErrNotFound if none, or ErrConflict if they disagree on status/merge_sha.
-func AuthoritativeMergeReceipt(cert Message, receipts []Message, mergerSessionID string) (Message, error) {
-	if cert.Envelope == nil || cert.Envelope.Schema != MergeCertificateSchema || mergerSessionID == "" {
-		return Message{}, Invalidf("certificate and merger session required")
+func AuthoritativeMergeReceipt(cert model.Message, receipts []model.Message, mergerSessionID string) (model.Message, error) {
+	if cert.Envelope == nil || cert.Envelope.Schema != model.MergeCertificateSchema || mergerSessionID == "" {
+		return model.Message{}, model.Invalidf("certificate and merger session required")
 	}
-	var p MergeCertificatePayload
+	var p schema.MergeCertificatePayload
 	_ = json.Unmarshal(cert.Envelope.Payload, &p)
-	var chosen Message
-	var first MergeReceiptPayload
+	var chosen model.Message
+	var first schema.MergeReceiptPayload
 	found := false
 	for _, m := range receipts {
-		if m.SessionID != mergerSessionID || m.ContextID != cert.ContextID || m.Envelope == nil || m.Envelope.Schema != MergeReceiptSchema || m.Envelope.ReplyTo != cert.ID || m.Envelope.TaskID != cert.Envelope.TaskID || schema.ValidMergeReceipt(m.Envelope.Payload) != nil {
+		if m.SessionID != mergerSessionID || m.ContextID != cert.ContextID || m.Envelope == nil || m.Envelope.Schema != model.MergeReceiptSchema || m.Envelope.ReplyTo != cert.ID || m.Envelope.TaskID != cert.Envelope.TaskID || schema.ValidMergeReceipt(m.Envelope.Payload) != nil {
 			continue
 		}
-		var r MergeReceiptPayload
+		var r schema.MergeReceiptPayload
 		_ = json.Unmarshal(m.Envelope.Payload, &r)
 		if r.HeadSHA != p.HeadSHA || r.OperationID != p.ConsumptionKey {
 			continue
 		}
 		if found && (r.Status != first.Status || r.MergeSHA != first.MergeSHA) {
-			return Message{}, ErrConflict
+			return model.Message{}, model.ErrConflict
 		}
 		if !found || messageAfter(chosen, m) {
 			chosen, first, found = m, r, true
 		}
 	}
 	if !found {
-		return Message{}, ErrNotFound
+		return model.Message{}, model.ErrNotFound
 	}
 	return chosen, nil
 }
