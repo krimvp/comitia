@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/krimvp/comitia"
+	"github.com/krimvp/comitia/internal/httpserve"
 )
 
 // PathPrefix is the route this transport is mounted at. A credential may be
@@ -333,16 +334,12 @@ func ServeHTTP(ctx context.Context, srv *http.Server) error {
 	if srv == nil {
 		return errors.New("mcp: server is required")
 	}
-	errCh := make(chan error, 1)
-	go func() { errCh <- srv.ListenAndServe() }()
-	select {
-	case <-ctx.Done():
-		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		defer cancel()
-		_ = srv.Shutdown(shutdownCtx)
-		_ = srv.Close()
-		return ctx.Err()
-	case err := <-errCh:
+	if _, err := httpserve.Serve(ctx, srv, srv.ListenAndServe, serveShutdownGrace); err != nil {
 		return err
 	}
+	return ctx.Err()
 }
+
+// serveShutdownGrace bounds how long ServeHTTP lets in-flight requests finish
+// after cancellation.
+const serveShutdownGrace = 5 * time.Second

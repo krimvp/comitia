@@ -15,7 +15,9 @@ const module = "github.com/krimvp/comitia"
 
 // layering lists every internal package with the internal packages its
 // production code may import. Nothing else of the module may be imported, and
-// no internal package, tests included, may import the root package.
+// no internal package, tests included, may import the root package. The table
+// describes what internal packages import, not who imports them: cmd/comitia
+// and mcp importing internal/httpserve is allowed by Go and listed in doc.go.
 const layering = `
 internal/model
 internal/schema      internal/model
@@ -23,6 +25,7 @@ internal/sqlstore    internal/model
 internal/service     internal/model internal/schema
 internal/mergegate   internal/model internal/schema
 internal/evaluation  internal/model internal/schema
+internal/httpserve
 `
 
 type listedPackage struct {

@@ -1,6 +1,7 @@
 // What the serving commands (serve, mcp, mcp-http) share: shutdown on a
-// signal, the long-poll drain, HTTP server timeouts, the serve-and-shut-down
-// loop and serve's request logging.
+// signal, the long-poll drain, HTTP server timeouts, serve's listener and
+// serve's request logging. The serve-and-shut-down loop and the logging
+// wrapper themselves live in internal/httpserve, shared with package mcp.
 
 package main
 
@@ -17,6 +18,7 @@ import (
 	"time"
 
 	"github.com/krimvp/comitia"
+	"github.com/krimvp/comitia/internal/httpserve"
 )
 
 // serveTimeouts bound unauthenticated slow clients. Writes may outlast the
@@ -39,21 +41,11 @@ func serveListener(ctx context.Context, listener net.Listener, handler http.Hand
 	for _, f := range onShutdown {
 		server.RegisterOnShutdown(f)
 	}
-	served := make(chan error, 1)
-	go func() { served <- server.Serve(listener) }()
-	select {
-	case err := <-served:
-		return err
-	case <-ctx.Done():
+	shutdownErr, err := httpserve.Serve(ctx, server, func() error { return server.Serve(listener) }, serveShutdownTimeout)
+	if shutdownErr != nil {
+		log.Printf("comitia serve shutdown: %v", shutdownErr)
 	}
-	shutdownCtx, cancel := context.WithTimeout(context.Background(), serveShutdownTimeout)
-	defer cancel()
-	if err := server.Shutdown(shutdownCtx); err != nil {
-		log.Printf("comitia serve shutdown: %v", err)
-	}
-	_ = server.Close()
-	<-served
-	return nil
+	return err
 }
 
 // serveSignals cancels on SIGINT or SIGTERM so a service drains long polls,
@@ -81,52 +73,27 @@ func endWaits(api comitia.API) func() {
 	return func() {}
 }
 
+// serveLoggingHandler gives each request an X-Request-ID (the API handler may
+// replace it with the ID of an error it reports) and logs the allowlisted
+// method, the operation route, the status, the duration and that ID.
 func serveLoggingHandler(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		started := time.Now()
-		w.Header().Set("X-Request-ID", comitia.NewRequestID())
-		rec := &serveStatusRecorder{ResponseWriter: w, status: http.StatusOK}
-		next.ServeHTTP(rec, r)
-		method := r.Method
-		switch method {
-		case http.MethodGet, http.MethodHead, http.MethodPost, http.MethodPut,
-			http.MethodPatch, http.MethodDelete, http.MethodOptions, http.MethodConnect, http.MethodTrace:
-		default:
-			method = "other"
-		}
+	logged := httpserve.Logged(next, func(q httpserve.Request) {
 		route := "unknown"
-		if strings.HasPrefix(r.URL.Path, "/v1/") {
-			if operation := comitia.SafeOperation(strings.TrimPrefix(r.URL.Path, "/v1/")); operation != "unknown" {
+		if strings.HasPrefix(q.R.URL.Path, "/v1/") {
+			if operation := comitia.SafeOperation(strings.TrimPrefix(q.R.URL.Path, "/v1/")); operation != "unknown" {
 				route = "/v1/" + operation
 			}
-		} else if strings.HasPrefix(r.URL.Path, "/ui/") {
+		} else if strings.HasPrefix(q.R.URL.Path, "/ui/") {
 			route = "/ui/"
 		}
-		requestID := rec.Header().Get("X-Request-ID")
+		requestID := q.Header.Get("X-Request-ID")
 		if decoded, err := hex.DecodeString(requestID); err != nil || len(decoded) != 16 {
 			requestID = "unknown"
 		}
-		log.Printf("comitia http method=%s route=%s status=%d duration_ms=%d request_id=%s", method, route, rec.status, time.Since(started).Milliseconds(), requestID)
+		log.Printf("comitia http method=%s route=%s status=%d duration_ms=%d request_id=%s", q.Method, route, q.Status, q.Elapsed.Milliseconds(), requestID)
 	})
-}
-
-type serveStatusRecorder struct {
-	http.ResponseWriter
-	status      int
-	wroteHeader bool
-}
-
-func (s *serveStatusRecorder) WriteHeader(code int) {
-	if !s.wroteHeader {
-		s.status = code
-		s.wroteHeader = true
-	}
-	s.ResponseWriter.WriteHeader(code)
-}
-
-func (s *serveStatusRecorder) Write(b []byte) (int, error) {
-	if !s.wroteHeader {
-		s.WriteHeader(http.StatusOK)
-	}
-	return s.ResponseWriter.Write(b)
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("X-Request-ID", comitia.NewRequestID())
+		logged.ServeHTTP(w, r)
+	})
 }
