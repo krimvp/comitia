@@ -34,6 +34,17 @@ const (
 
 const PermissionAll = model.PermissionAll
 
+// ParsePermissions maps canonical permission names to their bits: read,
+// write, claim, grant, admin and create, plus all for PermissionAll. Names
+// are exact; repeats are allowed. An empty list is no permissions.
+func ParsePermissions(names ...string) (Permission, error) {
+	return model.ParsePermissions(names...)
+}
+
+// FormatPermissions returns the canonical names of the bits set in p, in bit
+// order; it never returns all.
+func FormatPermissions(p Permission) []string { return model.FormatPermissions(p) }
+
 // ErrorInfo contains only public, safe recovery information.
 type ErrorInfo = model.ErrorInfo
 

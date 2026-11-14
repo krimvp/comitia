@@ -73,6 +73,7 @@ func ErrorClass(err error) string
 func FailTask(ctx context.Context, api TaskAPI, raw string, tid string, in TaskOutcomeInput) (Task, error)
 func FailureClass(err error) string
 func Features() []string
+func FormatPermissions(p Permission) []string
 func InstanceDefaultsFromEnv() (InstanceDefaults, error)
 func InvalidJSON(err error, field string) error
 func InvalidJSONFields(err error, field string, raw json.RawMessage, target any) error
@@ -92,6 +93,7 @@ func NewInstanceDefaults(instance *AgentInstance) (InstanceDefaults, error)
 func NewRequestID() string
 func OpenSQLite(path string) (*SQLiteStore, error)
 func ParseEvaluationResult(message Message) (EvaluationResultPayload, error)
+func ParsePermissions(names ...string) (Permission, error)
 func RecoverClaim(ctx context.Context, api TaskAPI, raw string, taskID string, version int64, instance ...AgentInstance) (TaskClaim, error)
 func RenewClaimOperation(ctx context.Context, api TaskAPI, raw string, taskID string, claimToken string, version int64, lease time.Duration, operationID string) (TaskClaim, error)
 func ReplayMessagePage(ctx context.Context, api MessageAPI, token string, cid string, after int64, limit int, filters ...MessageFilters) (MessagePage, error)

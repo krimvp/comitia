@@ -10,26 +10,23 @@ import (
 	"github.com/krimvp/comitia"
 )
 
+// toolPermissions are the permissions the tools grant and delegate: the
+// canonical set without admin (and so without all). Admin stays a CLI and
+// operator decision; agents cannot ask for it through MCP.
+const toolPermissions = comitia.PermissionAll &^ comitia.PermissionAdmin
+
 func permissionSchema() map[string]any {
-	return map[string]any{"type": "array", "minItems": 1, "uniqueItems": true, "items": map[string]any{"type": "string", "enum": []string{"read", "write", "claim", "grant", "create"}}}
+	return map[string]any{"type": "array", "minItems": 1, "uniqueItems": true, "items": map[string]any{"type": "string", "enum": comitia.FormatPermissions(toolPermissions)}}
 }
 
+// parseToolPermissions reads a permissions array. On top of the canonical
+// names (comitia.ParsePermissions) the tools accept only toolPermissions
+// (no admin, no all), and reject repeats and an empty list.
 func parseToolPermissions(field string, names []string) (comitia.Permission, error) {
 	var bits comitia.Permission
 	for _, name := range names {
-		var bit comitia.Permission
-		switch name {
-		case "read":
-			bit = comitia.PermissionRead
-		case "write":
-			bit = comitia.PermissionWrite
-		case "claim":
-			bit = comitia.PermissionClaim
-		case "grant":
-			bit = comitia.PermissionGrant
-		case "create":
-			bit = comitia.PermissionCreate
-		default:
+		bit, err := comitia.ParsePermissions(name)
+		if err != nil || name == "all" || bit&^toolPermissions != 0 {
 			return 0, comitia.Invalidf("%s must contain only read, write, claim, grant or create", field)
 		}
 		if bits&bit != 0 {
