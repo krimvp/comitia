@@ -273,8 +273,11 @@ func TestWatchInstanceDefault(t *testing.T) {
 				os.Stdout = w
 				ctx, cancel := context.WithCancel(context.Background())
 				done := make(chan error, 1)
+				// A wait discards a scan that ends after the wait's timeout, so a
+				// short timeout would return nothing on a slow machine whatever
+				// the store; the watch is cancelled once it has acknowledged.
 				go func() {
-					done <- run(ctx, append(append(append([]string{}, base...), "watch", "--context-id", cid, "--timeout-seconds", "0.1"), extra...))
+					done <- run(ctx, append(append(append([]string{}, base...), "watch", "--context-id", cid, "--timeout-seconds", "30"), extra...))
 				}()
 				var ended error
 				stopped := false
