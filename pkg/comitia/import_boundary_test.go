@@ -4,8 +4,12 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"reflect"
+	"runtime"
 	"strings"
 	"testing"
+
+	"github.com/krimvp/comitia/pkg/sqlite"
 )
 
 func TestRemoteImportsExcludeSQLiteDriver(t *testing.T) {
@@ -26,8 +30,15 @@ func TestRemoteImportsExcludeSQLiteDriver(t *testing.T) {
 	}
 }
 
+// The program also checks that comitia.OpenSQLite, without a driver, sends
+// the caller to the function that supplies one, by its import path. The path
+// comes from the function itself, so the message cannot keep a stale one.
 func TestRemoteImportsDoNotRegisterSQLite(t *testing.T) {
-	cmd := exec.Command("go", "run", "./testdata/remote-import", filepath.Join(t.TempDir(), "state.db"))
+	openSQLite := runtime.FuncForPC(reflect.ValueOf(sqlite.OpenSQLite).Pointer()).Name()
+	if !strings.HasPrefix(openSQLite, module+"/") || !strings.HasSuffix(openSQLite, "/sqlite.OpenSQLite") {
+		t.Fatalf("sqlite.OpenSQLite is named %s", openSQLite)
+	}
+	cmd := exec.Command("go", "run", "./testdata/remote-import", filepath.Join(t.TempDir(), "state.db"), openSQLite)
 	cmd.Env = append(os.Environ(), "GOTOOLCHAIN=go1.24.13", "GOFLAGS=-buildvcs=false")
 	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("remote process: %v\n%s", err, out)
