@@ -1,4 +1,4 @@
-package comitia
+package comitia_test
 
 import (
 	"os"
@@ -53,12 +53,14 @@ func checkCoordinationDocRule(doc string, rule coordinationDocRule) bool {
 	return true
 }
 
-// durableCoordinationDoc is the document these tests pin, relative to this
-// package's directory, pkg/comitia.
-var durableCoordinationDoc = filepath.Join("..", "..", "docs", "durable-coordination.md")
+// durableCoordinationDoc is the document these tests pin.
+func durableCoordinationDoc(t *testing.T) string {
+	t.Helper()
+	return filepath.Join(moduleRoot(t), "docs", "durable-coordination.md")
+}
 
 func TestDurableCoordinationDocumentation(t *testing.T) {
-	raw, err := os.ReadFile(durableCoordinationDoc)
+	raw, err := os.ReadFile(durableCoordinationDoc(t))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -72,7 +74,7 @@ func TestDurableCoordinationDocumentation(t *testing.T) {
 }
 
 func TestDurableCoordinationDocumentationMutationSensitivity(t *testing.T) {
-	raw, err := os.ReadFile(durableCoordinationDoc)
+	raw, err := os.ReadFile(durableCoordinationDoc(t))
 	if err != nil {
 		t.Fatal(err)
 	}
