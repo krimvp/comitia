@@ -80,9 +80,11 @@ func (s *Service) StorageStatus(ctx context.Context, raw string) (model.StorageS
 		}
 		return model.StorageStatus{}, errCredentialCheck
 	}
+	// start precedes the budget's deadline, so a probe cut by the budget
+	// reports at least model.StorageProbeTimeout.
+	start := time.Now()
 	probe, cancel := context.WithTimeout(ctx, model.StorageProbeTimeout)
 	defer cancel()
-	start := time.Now()
 	store := s.store.(*observedStore)
 	// An empty transaction commits even on a read-only database, so write a
 	// row through the generic store interface and roll it back. The credential

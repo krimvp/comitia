@@ -14,15 +14,20 @@ import (
 	"github.com/krimvp/comitia/internal/sqlstore"
 )
 
+// blockedWrites blocks a write until its context ends, recording when the
+// write arrived and the deadline it came with.
 type blockedWrites struct {
 	model.Store
-	block   bool
-	updates int
+	block              bool
+	updates            int
+	received, deadline time.Time
 }
 
 func (s *blockedWrites) Update(ctx context.Context, fn func(model.WriteStore) error) error {
 	s.updates++
 	if s.block {
+		s.received = time.Now()
+		s.deadline, _ = ctx.Deadline()
 		<-ctx.Done()
 		return ctx.Err()
 	}
@@ -62,11 +67,20 @@ func TestStorageProbeBoundAndAuthorization(t *testing.T) {
 	if err != nil || status.WriteReady || status.WriteFailures != 1 || status.WriteAttempts != 1 || status.LastWriteErrorClass != "deadline_exceeded" {
 		t.Fatalf("status=%+v err=%v", status, err)
 	}
-	if elapsed := time.Since(start); elapsed < model.StorageProbeTimeout || elapsed > time.Second {
-		t.Fatalf("probe took %s", elapsed)
+	// Bounded by the budget: the write came with a deadline at most the budget
+	// away and was released only when it passed. These follow from the order of
+	// the measurements, not from the machine's speed.
+	elapsed := time.Since(start)
+	if blocked.deadline.IsZero() || blocked.deadline.Sub(blocked.received) > model.StorageProbeTimeout || elapsed < model.StorageProbeTimeout {
+		t.Fatalf("probe not bounded by its budget: received=%v deadline=%v elapsed=%s", blocked.received, blocked.deadline, elapsed)
 	}
-	if status.ProbeDurationMS < 200 || status.LastWriteDurationMS < 200 || status.MaxWriteDurationMS < status.LastWriteDurationMS {
-		t.Fatalf("missing latency: %+v", status)
+	// The probe's clock starts before its deadline is set and the write's
+	// before the store receives it, so each covers the wait it reports.
+	waited := blocked.deadline.Sub(blocked.received).Milliseconds()
+	if status.ProbeDurationMS < model.StorageProbeTimeout.Milliseconds() || status.ProbeDurationMS > elapsed.Milliseconds() ||
+		status.LastWriteDurationMS < waited || status.LastWriteDurationMS > status.ProbeDurationMS ||
+		status.LastWriteFailureDurationMS != status.LastWriteDurationMS || status.MaxWriteDurationMS < status.LastWriteDurationMS {
+		t.Fatalf("missing latency: %+v waited=%dms elapsed=%s", status, waited, elapsed)
 	}
 	blocked.block = false
 	// Each probe that is not ready counts one more failure.
