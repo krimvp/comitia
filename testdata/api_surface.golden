@@ -581,5 +581,5 @@ func SupportedProtocolVersion(rev string) bool
 method Server pointer.Serve func(ctx context.Context, in io.Reader, out io.Writer) error
 type HTTPConfig struct{DiagnosticHook DiagnosticHook; InstanceDefaults InstanceDefaults; SessionsDir string; ServerURL string; AllowDelegation bool; AllowedOrigins []string; MaxBody int64; RatePerSecond float64; RateBurst int}
 type Server struct{DiagnosticHook DiagnosticHook; API API; Credential string; InstanceDefaults InstanceDefaults; SessionsDir string; ServerURL string}
-var ProtocolVersions []string
-var SupportedProtocolVersions []string
+var ProtocolVersions []string = []string{"2025-06-18"}
+var SupportedProtocolVersions []string = []string{"2025-06-18"}

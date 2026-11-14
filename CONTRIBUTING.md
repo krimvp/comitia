@@ -194,7 +194,8 @@ example side by side: the one named in each heading.
    `internal/model`: the root aliases them, so they become public API.
 2. Run `go test -run TestPublicAPISurface -update .` and commit
    `testdata/api_surface.golden` in the same commit; its diff is the change
-   reviewers read. A new exported error variable goes into `errorTexts` first.
+   reviewers read. A new exported error variable goes into `errorTexts` first, any
+   other exported variable into `varValues` (or `assignedVars`, with the reason).
 
 ## Rules
 
