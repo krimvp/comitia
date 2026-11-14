@@ -88,18 +88,18 @@ func runTaskList(ctx context.Context, cfg config, api comitia.API, out *json.Enc
 	after := fs.String("after-id", "", "exclusive cursor from next_after (implies --page)")
 	cid := fs.String("context-id", "", "context ID")
 	status := fs.String("status", "", "task status (pending, leased, completed, failed, cancelled)")
-	limit := fs.Int("limit", 100, "maximum tasks (1-1000)")
+	limit := fs.Int("limit", comitia.DefaultListLimit, listLimitUsage("tasks"))
 	if err := parseFlags(fs, args); err != nil {
 		return err
 	}
 	if err := requireFlags(fs, "context-id"); err != nil {
 		return err
 	}
+	if *limit < 1 || *limit > comitia.MaxListLimit {
+		return comitia.Invalidf("limit must be between 1 and %d", comitia.MaxListLimit)
+	}
 	if cfg.parseOnly {
 		return nil
-	}
-	if *limit < 1 || *limit > 1000 {
-		return comitia.Invalidf("limit must be between 1 and 1000")
 	}
 	st, e := parseTaskStatus(*status)
 	if e != nil {
@@ -127,7 +127,7 @@ func runTaskClaim(ctx context.Context, cfg config, api comitia.API, out *json.En
 	fs := newFlags(cmd)
 	operationID := fs.String("operation-id", "", "stable session-scoped mutation ID for recovery after lost responses")
 	tid := fs.String("task-id", "", "task ID")
-	lease := fs.Duration("lease", 5*time.Minute, "lease duration")
+	lease := fs.Duration("lease", comitia.DefaultLease, "lease duration")
 	openEnded := fs.Bool("open-ended", false, "hold the lease until completed or released (capped at session expiry)")
 	instanceID := fs.String("agent-instance", "", "self-reported instance ID holding the claim (defaults to COMITIA_AGENT_INSTANCE)")
 	instanceLabel := fs.String("agent-instance-label", "", "optional self-reported instance label (defaults to COMITIA_AGENT_INSTANCE_LABEL)")
@@ -140,15 +140,7 @@ func runTaskClaim(ctx context.Context, cfg config, api comitia.API, out *json.En
 	if cfg.parseOnly {
 		return nil
 	}
-	owner := cfg.instances.Message(nil)
-	if flagProvided(fs, "agent-instance") {
-		owner = &comitia.AgentInstance{ID: *instanceID, Label: *instanceLabel}
-	} else if flagProvided(fs, "agent-instance-label") {
-		if owner == nil {
-			owner = &comitia.AgentInstance{}
-		}
-		owner.Label = *instanceLabel
-	}
+	owner := messageInstance(cfg, fs, *instanceID, *instanceLabel)
 	var instance []comitia.AgentInstance
 	if owner != nil {
 		instance = append(instance, *owner)
@@ -195,7 +187,7 @@ func runTaskRenew(ctx context.Context, cfg config, api comitia.API, out *json.En
 	tid := fs.String("task-id", "", "task ID")
 	token := fs.String("claim-token", "", "claim token")
 	ver := fs.Int64("lease-version", 0, "lease version")
-	lease := fs.Duration("lease", 5*time.Minute, "lease duration")
+	lease := fs.Duration("lease", comitia.DefaultLease, "lease duration")
 	openEnded := fs.Bool("open-ended", false, "hold the lease until completed or released (capped at session expiry)")
 	if err := parseFlags(fs, args); err != nil {
 		return err

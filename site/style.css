@@ -251,6 +251,7 @@ h2 { margin: 0; font-size: var(--s2); line-height: 1.2; font-weight: 600; letter
   color: var(--muted);
 }
 .foot p { margin: 0; }
+.foot-docs { display: flex; flex-wrap: wrap; gap: 0.25rem 1.25rem; }
 
 @media (max-width: 520px) {
   h1 { margin-left: 0; }

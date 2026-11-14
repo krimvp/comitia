@@ -43,7 +43,7 @@ jobs:
         with:
           node-version: 22
       - name: Inspector state and landing page tests
-        run: node --test httpapi/ui-tests/*.test.mjs site/*.test.mjs
+        run: node --test httpapi/ui-tests/*.test.mjs site/*.test.mjs tools/world-viewer/*.test.mjs
       - run: go vet ./...
       - name: Documentation structure, onboarding, evaluation and installer tests
         run: python3 -m unittest scripts/test_*.py
@@ -109,3 +109,23 @@ jobs:
         env:
           COMITIA_BROWSER_REQUIRED: '1'
         run: COMITIA_BINARY="$RUNNER_TEMP/comitia-inspector" node --test httpapi/ui-tests/browser/*.test.mjs
+
+  # The landing page's browser tests, as pages.yml runs them before
+  # publishing, so a broken page fails the pull request instead of the deploy.
+  site-browser:
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: self-hosted
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: site/browser/package-lock.json
+      - name: Install browser test dependencies
+        run: |
+          npm ci --prefix site/browser
+          site/browser/node_modules/.bin/playwright install --with-deps chromium
+      - name: Site browser regressions
+        run: node --test site/browser/*.test.mjs

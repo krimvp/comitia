@@ -36,6 +36,7 @@ internal/sqlstore    internal/model
 internal/service     internal/model internal/schema
 internal/mergegate   internal/model internal/schema
 internal/evaluation  internal/model internal/schema
+internal/httpserve
 `
 
 type listedPackage struct {
@@ -139,16 +140,16 @@ func TestInternalLayering(t *testing.T) {
 // through the root package and sqlite: no package under them, production code
 // or tests, imports a package of the module's internal/ tree directly. Only
 // direct imports are checked; the root and sqlite import internal packages,
-// so the adapters depend on them indirectly.
-var adapterPatterns = []string{"./cmd/...", "./mcp/...", "./httpapi/..."}
+// so the adapters depend on them indirectly. The examples are held to the same
+// rule, since they show the public API.
+var adapterPatterns = []string{"./cmd/...", "./mcp/...", "./httpapi/...", "./examples/..."}
 
 // adapterMayImport lists the internal packages the adapters may nevertheless
-// import directly, one per line. It is empty today. An internal package meant
-// for the adapters, such as a planned internal/httpserve shared by cmd/comitia
-// and mcp, is added here as
-//
-//	"internal/httpserve": true,
-var adapterMayImport = map[string]bool{}
+// import directly, one per line: internal packages meant for the adapters.
+// internal/httpserve holds the HTTP listener code cmd/comitia and mcp share.
+var adapterMayImport = map[string]bool{
+	"internal/httpserve": true,
+}
 
 // adapterViolations names each adapter package and the internal package it
 // imports directly without adapterMayImport allowing it.

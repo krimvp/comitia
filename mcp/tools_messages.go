@@ -7,7 +7,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"time"
 
 	"github.com/krimvp/comitia"
 )
@@ -19,11 +18,11 @@ func messageTools() []map[string]any {
 		tool("list_message_schemas", "Discover registered message schema IDs, payload JSON Schemas, task/body requirements and examples, including configured extensions.", schema(map[string]any{})),
 		tool("get_message_schema", "Get one registered versioned message schema descriptor; use its example envelope with real context/task IDs.", schema(map[string]any{"schema": str("Exact registered versioned message schema ID")}, "schema")),
 		tool("send_message", "Append a message; top-level recipients route plain notes without an envelope; session IDs, not names. Context readers can see all messages. Omitted agent_instance defaults to COMITIA_AGENT_INSTANCE / COMITIA_AGENT_INSTANCE_LABEL.", schema(map[string]any{"context_id": str("Context ID"), "dedupe_key": map[string]any{"type": "string", "maxLength": comitia.MaxDedupeKeyBytes, "description": "Stable caller-chosen key (at most 256 bytes); scoped to this session and instance. A conflict names the existing message ID and sequence"}, "body": limited("Message explanation; required for untyped/discussion messages", comitia.MaxMessageBodyBytes), "recipient_session_ids": recipients["recipient_session_ids"], "recipient_instances": recipients["recipient_instances"], "envelope": envelopeSchema(), "agent_instance": agentInstanceSchema(), "task_fence": schema(map[string]any{"task_id": str("Must match envelope.task_id"), "claim_token": str("Current opaque lease token; never published"), "lease_version": integer("Current lease version; requires a live claim owned by this session")}, "task_id", "claim_token", "lease_version")}, "context_id", "dedupe_key")),
-		tool("list_participants", "Discover active readable sessions in a context. Names may repeat; address by SessionID.", schema(map[string]any{"context_id": str("Context ID"), "limit": integer("Maximum participants (default 100)"), "page": map[string]any{"type": "boolean", "description": "Return participants, next_after and has_more"}, "after_id": str("Exclusive session ID from next_after; implies page")}, "context_id")),
+		tool("list_participants", "Discover active readable sessions in a context. Names may repeat; address by SessionID.", schema(map[string]any{"context_id": str("Context ID"), "limit": integer(fmt.Sprintf("Maximum participants (default %d)", comitia.DefaultListLimit)), "page": map[string]any{"type": "boolean", "description": "Return participants, next_after and has_more"}, "after_id": str("Exclusive session ID from next_after; implies page")}, "context_id")),
 		tool("replay_messages", "Read context messages after a sequence; renewed task events are skipped unless task-event schema is selected", schema(messageReadProperties(false), "context_id")),
 		tool("ack_messages", "Record consumption through a sequence; omitted agent_instance defaults to COMITIA_AGENT_INSTANCE", schema(map[string]any{"context_id": str("Context ID"), "sequence": integer("Inclusive sequence"), "agent_instance": str("Optional instance ID; defaults to COMITIA_AGENT_INSTANCE; isolates this cursor within the authenticated session")}, "context_id", "sequence")),
 		tool("message_cursor", "Read this session's persisted acknowledgement cursor; omitted agent_instance defaults to COMITIA_AGENT_INSTANCE", schema(map[string]any{"context_id": str("Context ID"), "agent_instance": str("Optional instance ID used by ack_messages; defaults to COMITIA_AGENT_INSTANCE")}, "context_id")),
-		tool("wait_messages", "Wait for matching context messages (default 30 seconds, capped at 60); returns up to 100 or empty on timeout", schema(messageReadProperties(true), "context_id")),
+		tool("wait_messages", fmt.Sprintf("Wait for matching context messages (default %g seconds, capped at %g); returns up to 100 or empty on timeout", comitia.DefaultMessageWait.Seconds(), comitia.MaxMessageWait.Seconds()), schema(messageReadProperties(true), "context_id")),
 	}
 }
 
@@ -36,11 +35,10 @@ func messageReadProperties(wait bool) map[string]any {
 	p["thread_id"] = str("Root message and recursive descendants in this context")
 	p["from_session"] = str("Authenticated sender session ID")
 	p["strict_recipients"] = map[string]any{"type": "boolean", "description": "Require both nonempty recipient lists to match caller session and for_instance; requires for_instance; default false preserves instance precedence"}
-	p["max_bytes"] = integer("Encoded messages-array byte budget (default 1048576, max 4194304); first message always returned intact")
+	p["max_bytes"] = integer(fmt.Sprintf("Encoded messages-array byte budget (default %d, max %d); first message always returned intact", comitia.DefaultMessageBytes, comitia.MaxMessageBytes))
 	p["page"] = map[string]any{"type": "boolean", "description": "Return messages, next_after, scanned_through and has_more instead of the legacy array"}
-	p["compact"] = map[string]any{"type": "boolean", "description": "Short text summary; full result remains in structuredContent"}
 	if wait {
-		p["timeout_seconds"] = map[string]any{"type": "number", "description": "Timeout seconds (default 30, capped at 60; zero reads immediately)"}
+		p["timeout_seconds"] = map[string]any{"type": "number", "description": fmt.Sprintf("Timeout seconds (default %g, capped at %g; zero reads immediately)", comitia.DefaultMessageWait.Seconds(), comitia.MaxMessageWait.Seconds())}
 	} else {
 		p["limit"] = integer("Maximum matching messages")
 	}
@@ -143,12 +141,12 @@ func (s *Server) callListParticipants(ctx context.Context, raw json.RawMessage) 
 	if err := required("context_id", a.ContextID); err != nil {
 		return nil, err
 	}
-	limit := 100
+	limit := comitia.DefaultListLimit
 	if a.Limit != nil {
 		limit = *a.Limit
 	}
-	if limit < 1 || limit > 1000 {
-		return nil, comitia.Invalidf("limit must be between 1 and 1000")
+	if limit < 1 || limit > comitia.MaxListLimit {
+		return nil, comitia.Invalidf("limit must be between 1 and %d", comitia.MaxListLimit)
 	}
 	if a.Page || a.AfterID != "" {
 		return comitia.ListParticipantPage(ctx, s.API, s.Credential, a.ContextID, a.AfterID, limit)
@@ -159,7 +157,10 @@ func (s *Server) callListParticipants(ctx context.Context, raw json.RawMessage) 
 func (s *Server) callReplayMessages(ctx context.Context, raw json.RawMessage) (any, error) {
 	var a struct {
 		comitia.MessageFilters
-		Page      bool   `json:"page"`
+		Page bool `json:"page"`
+		// Compact is never set: resultArguments strips compact before any tool
+		// runs and presents the result (see Server.handle). The field only keeps
+		// compact in this tool's accepted-fields hint.
 		Compact   bool   `json:"compact"`
 		ContextID string `json:"context_id"`
 		After     *int64 `json:"after"`
@@ -172,7 +173,7 @@ func (s *Server) callReplayMessages(ctx context.Context, raw json.RawMessage) (a
 		return nil, err
 	}
 	if a.Limit == 0 {
-		a.Limit = 100
+		a.Limit = comitia.DefaultListLimit
 	}
 	filters, err := presenceFilters(s.InstanceDefaults, a.MessageFilters)
 	if err != nil {
@@ -190,16 +191,17 @@ func (s *Server) callReplayMessages(ctx context.Context, raw json.RawMessage) (a
 		if !a.Page {
 			return cursorMessageResult(page), err
 		}
-		return messageResult(page, a.Compact), err
+		return page, err
 	}
 	value, err := s.API.ReplayMessages(ctx, s.Credential, a.ContextID, after, a.Limit, filters)
-	return messageResult(value, a.Compact), err
+	return value, err
 }
 
 func (s *Server) callWaitMessages(ctx context.Context, raw json.RawMessage) (any, error) {
 	var a struct {
 		comitia.MessageFilters
-		Page           bool     `json:"page"`
+		Page bool `json:"page"`
+		// Compact is never set; see callReplayMessages.
 		Compact        bool     `json:"compact"`
 		ContextID      string   `json:"context_id"`
 		After          *int64   `json:"after"`
@@ -211,7 +213,7 @@ func (s *Server) callWaitMessages(ctx context.Context, raw json.RawMessage) (any
 	if err := required("context_id", a.ContextID); err != nil {
 		return nil, err
 	}
-	timeout := 30 * time.Second
+	timeout := comitia.DefaultMessageWait
 	if a.TimeoutSeconds != nil {
 		var err error
 		timeout, err = comitia.MessageWaitTimeout(*a.TimeoutSeconds)
@@ -235,10 +237,10 @@ func (s *Server) callWaitMessages(ctx context.Context, raw json.RawMessage) (any
 		if !a.Page {
 			return cursorMessageResult(page), err
 		}
-		return messageResult(page, a.Compact), err
+		return page, err
 	}
 	value, err := s.API.WaitMessages(ctx, s.Credential, a.ContextID, after, timeout, filters)
-	return messageResult(value, a.Compact), err
+	return value, err
 }
 
 func (s *Server) callAckMessages(ctx context.Context, raw json.RawMessage) (any, error) {
@@ -286,27 +288,6 @@ func (s *Server) callMessageCursor(ctx context.Context, raw json.RawMessage) (an
 		return nil, err
 	}
 	return map[string]int64{"sequence": v}, nil
-}
-
-func messageResult(value any, compact bool) any {
-	if !compact {
-		return value
-	}
-	var count int
-	var after int64
-	var text string
-	switch v := value.(type) {
-	case comitia.MessagePage:
-		count, after = len(v.Messages), v.NextAfter
-		text = fmt.Sprintf("%d messages; next_after=%d; has_more=%t. Full result in structuredContent.", count, after, v.HasMore)
-	case []comitia.Message:
-		count = len(v)
-		if count > 0 {
-			after = v[count-1].Sequence
-		}
-		text = fmt.Sprintf("%d messages; next_after=%d; last_sequence=%d. Full result in structuredContent.", count, after, after)
-	}
-	return compactResult{value: value, text: text}
 }
 
 func messageAfter(after *int64, f comitia.MessageFilters) (int64, error) {

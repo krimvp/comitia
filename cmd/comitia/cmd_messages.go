@@ -7,6 +7,7 @@ import (
 	"context"
 	"encoding/json"
 	"flag"
+	"fmt"
 	"os"
 	"os/signal"
 	"slices"
@@ -124,7 +125,7 @@ func runParticipants(ctx context.Context, cfg config, api comitia.API, out *json
 	page := fs.Bool("page", false, "return participants, next_after and has_more")
 	after := fs.String("after-id", "", "exclusive cursor from next_after (implies --page)")
 	cid := fs.String("context-id", "", "work context ID")
-	limit := fs.Int("limit", 100, "maximum participants (1-1000)")
+	limit := fs.Int("limit", comitia.DefaultListLimit, listLimitUsage("participants"))
 	if err := parseFlags(fs, args); err != nil {
 		return err
 	}
@@ -152,8 +153,8 @@ func runMessageRead(ctx context.Context, cfg config, api comitia.API, out *json.
 	fs := newFlags(cmd)
 	cid := fs.String("context-id", "", "context ID")
 	after := fs.Int64("after", 0, "exclusive sequence cursor")
-	limit := fs.Int("limit", 100, "maximum matching messages for replay")
-	timeoutSeconds := fs.Float64("timeout-seconds", 30, "wait timeout seconds (capped at 60)")
+	limit := fs.Int("limit", comitia.DefaultListLimit, "maximum matching messages for replay")
+	timeoutSeconds := fs.Float64("timeout-seconds", comitia.DefaultMessageWait.Seconds(), fmt.Sprintf("wait timeout seconds (capped at %g)", comitia.MaxMessageWait.Seconds()))
 	defaultID, _ := cfg.instances.ID()
 	instance := fs.String("agent-instance", defaultID, "self-reported instance ID for presence and the watch cursor (defaults to COMITIA_AGENT_INSTANCE)")
 	jsonLines := fs.Bool("json-lines", false, "full messages as JSON lines; requires --manual-ack or --no-ack")
@@ -161,7 +162,7 @@ func runMessageRead(ctx context.Context, cfg config, api comitia.API, out *json.
 	noAck := fs.Bool("no-ack", false, "do not acknowledge printed watch messages")
 	page := fs.Bool("page", false, "return messages, next_after and has_more")
 	filters := messageFilterFlags(fs)
-	fs.IntVar(&filters.MaxBytes, "max-bytes", 0, "encoded messages-array byte budget (default 1048576, max 4194304; first message intact)")
+	fs.IntVar(&filters.MaxBytes, "max-bytes", 0, fmt.Sprintf("encoded messages-array byte budget (default %d, max %d; first message intact)", comitia.DefaultMessageBytes, comitia.MaxMessageBytes))
 	if err := parseFlags(fs, args); err != nil {
 		return err
 	}

@@ -64,7 +64,7 @@ func runContexts(ctx context.Context, cfg config, api comitia.API, out *json.Enc
 	case "context-list":
 		fs := newFlags(cmd)
 		after := fs.String("after-id", "", "exclusive context ID cursor")
-		limit := fs.Int("limit", 100, "maximum contexts (1-1000)")
+		limit := fs.Int("limit", comitia.DefaultListLimit, listLimitUsage("contexts"))
 		if err := parseFlags(fs, args); err != nil {
 			return err
 		}
@@ -119,7 +119,7 @@ func runContexts(ctx context.Context, cfg config, api comitia.API, out *json.Enc
 		fs := newFlags(cmd)
 		parent := fs.String("parent-id", "", "parent context ID")
 		after := fs.String("after-id", "", "exclusive context ID cursor")
-		limit := fs.Int("limit", 100, "maximum contexts (1-1000)")
+		limit := fs.Int("limit", comitia.DefaultListLimit, listLimitUsage("contexts"))
 		if err := parseFlags(fs, args); err != nil {
 			return err
 		}
@@ -160,7 +160,7 @@ func runContexts(ctx context.Context, cfg config, api comitia.API, out *json.Enc
 		fs := newFlags(cmd)
 		cid := fs.String("context-id", "", "context ID (needs read permission)")
 		after := fs.String("after-id", "", "exclusive cursor from next_after")
-		limit := fs.Int("limit", 100, "maximum references (1-1000)")
+		limit := fs.Int("limit", comitia.DefaultListLimit, listLimitUsage("references"))
 		if err := parseFlags(fs, args); err != nil {
 			return err
 		}

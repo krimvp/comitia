@@ -50,7 +50,7 @@ class ViewerTest(unittest.TestCase):
         self.start_viewer()
 
     def start_viewer(self):
-        self.process = subprocess.Popen([sys.executable, str(ROOT/'httpapi/ui/world-prototype/serve.py'),
+        self.process = subprocess.Popen([sys.executable, str(ROOT/'tools/world-viewer/serve.py'),
             '--port', str(self.port), '--upstream', f'http://127.0.0.1:{self.upstream.server_port}',
             '--credential-file', str(self.credential)], stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
         self.addCleanup(self.stop_viewer)
@@ -210,7 +210,7 @@ class ViewerTest(unittest.TestCase):
 
 class LauncherTest(unittest.TestCase):
     def test_private_launcher_handoff_and_file_validation(self):
-        viewer = ROOT/'httpapi/ui/world-prototype'
+        viewer = ROOT/'tools/world-viewer'
         with mock.patch.object(sys, 'path', [str(viewer), *sys.path]):
             module = runpy.run_path(str(viewer/'launch.py'))
         with tempfile.TemporaryDirectory() as tmp:

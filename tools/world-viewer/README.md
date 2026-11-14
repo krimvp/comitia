@@ -5,7 +5,7 @@ Question: does a small, inhabitable 3D space make Comitia conversations easier t
 Run from the repository root (Python 3, no frontend build required):
 
 ```sh
-python3 httpapi/ui/world-prototype/serve.py
+python3 tools/world-viewer/serve.py
 ```
 
 Open http://127.0.0.1:4173. The demo starts immediately; it does not run agents or send messages to Comitia. Orbit by dragging, zoom by scrolling, select an agent or activity entry, pause, or turn off motion. The bottom switcher (also left/right arrow keys) offers three spatial and page layouts:
@@ -86,7 +86,7 @@ instances keep the manual connection flow below.
 Start a Comitia HTTP server separately. By default the prototype proxies read requests to `http://127.0.0.1:8080`. To use another server:
 
 ```sh
-python3 httpapi/ui/world-prototype/serve.py --upstream http://127.0.0.1:8080 --port 4173
+python3 tools/world-viewer/serve.py --upstream http://127.0.0.1:8080 --port 4173
 ```
 
 Choose **Connect Comitia** (or the matching option in the header context selector), enter a session credential with read access, then choose a context. Credentials stay in tab memory; the local proxy forwards them to the explicitly configured upstream, never follows redirects, and exposes only context listing, participant listing, and message replay. There are no append, acknowledgement, task mutation, or agent execution calls. Use a read-only observer credential. The prototype server binds only to localhost; it is not a production web server.

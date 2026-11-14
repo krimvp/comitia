@@ -19,7 +19,7 @@ const (
 	exitForbidden       = 4
 	exitNotFound        = 5
 	exitConflict        = 6 // includes stale claims and a used bootstrap
-	exitUnavailable     = 7 // transport failure, timeout or busy storage
+	exitUnavailable     = 7 // transport failure, timeout or storage failure (busy, read-only, I/O or full)
 )
 
 func exitCode(err error) int {
@@ -38,7 +38,10 @@ func exitCode(err error) int {
 		return exitUnavailable
 	}
 	var netErr net.Error
-	// The HTTP client reports a non-JSON error status (a proxy's 502 or 503) as plain text.
+	// A server's storage failure arrives classified (the HTTP client keeps its
+	// failure_class), so FailureClass above maps it. Only an error body that is
+	// not JSON at all, such as a proxy's 502 or 503 page, reaches this point as
+	// the client's plain "http status N: malformed error response" text.
 	if errors.As(err, &netErr) || strings.HasPrefix(err.Error(), "http status 5") {
 		return exitUnavailable
 	}

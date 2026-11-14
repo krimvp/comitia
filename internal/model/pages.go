@@ -37,6 +37,13 @@ type ParticipantPageStore interface {
 	ParticipantsAfter(string, time.Time, string, int) ([]Participant, error)
 }
 
+// List limits shared by every list call: a limit must be between 1 and
+// MaxListLimit, and adapters default an omitted limit to DefaultListLimit.
+const (
+	DefaultListLimit = 100
+	MaxListLimit     = 1000
+)
+
 // ListPageBytes softly bounds the encoded items array of task and participant
 // pages: a page stops early with has_more, but always returns its first item
 // so readers can advance. MaxListBytes bounds legacy task arrays, which have

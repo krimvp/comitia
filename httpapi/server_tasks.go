@@ -2,7 +2,6 @@ package httpapi
 
 import (
 	"context"
-	"time"
 
 	"github.com/krimvp/comitia"
 )
@@ -38,7 +37,7 @@ func (h *handler) taskRoutes() map[string]endpoint {
 			return listTasksResult{Tasks: ptr(mapSlice(v, func(t comitia.Task) taskDTO { return taskDTO(t) }))}, err
 		}),
 		"tasks/claim": typedEndpoint(func(ctx context.Context, token string, q claimRequest) (claimResult, error) {
-			lease, err := durationSeconds(q.LeaseSeconds, q.TTL, 300*time.Second, q.OpenEnded)
+			lease, err := durationSeconds(q.LeaseSeconds, q.TTL, comitia.DefaultLease, q.OpenEnded)
 			if err != nil {
 				return claimResult{}, err
 			}
@@ -64,7 +63,7 @@ func (h *handler) taskRoutes() map[string]endpoint {
 			if q.LeaseVersion == nil {
 				return claimResult{}, comitia.Invalidf("lease_version required")
 			}
-			lease, err := durationSeconds(q.LeaseSeconds, q.TTL, 300*time.Second, q.OpenEnded)
+			lease, err := durationSeconds(q.LeaseSeconds, q.TTL, comitia.DefaultLease, q.OpenEnded)
 			if err != nil {
 				return claimResult{}, err
 			}

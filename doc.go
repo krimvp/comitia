@@ -15,10 +15,13 @@
 //	internal/service     the Service and all its methods: model, schema
 //	internal/mergegate   merge certificate verification: model, schema
 //	internal/evaluation  evaluation reports: model, schema
+//	internal/httpserve   HTTP request logging and the serve-and-shut-down loop: nothing
 //
 // No internal package imports this one.
 //
-// The adapters cmd/comitia, mcp and httpapi use only this package and sqlite.
+// The adapters cmd/comitia, mcp and httpapi use only this package and sqlite,
+// except that cmd/comitia and mcp share their HTTP listener code through
+// internal/httpserve.
 // Package sqlite registers the SQLite driver and opens embedded stores, so
 // remote clients that import comitia, httpapi or mcp do not link the driver.
 // Package storetest checks Store implementations for conformance.

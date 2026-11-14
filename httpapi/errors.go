@@ -10,7 +10,43 @@ import (
 	"github.com/krimvp/comitia"
 )
 
-type errorResponse = comitia.ErrorInfo
+// errorResponse is the error body: the public ErrorInfo and, for an internal
+// failure whose storage class the server recognizes, that class as
+// failure_class (a comitia.FailureClass value such as storage_busy). The
+// status and the other members are unchanged by it. Every client decodes
+// error bodies without rejecting unknown members, the frozen legacy client
+// included, so older clients ignore it; an older server omits it.
+type errorResponse struct {
+	comitia.ErrorInfo
+	FailureClass string `json:"failure_class,omitempty"`
+}
+
+// storageClasses maps each storage failure class that comitia.FailureClass
+// derives from a SQLite primary result code to one such code.
+var storageClasses = map[string]int{"storage_busy": 5, "storage_read_only": 8, "storage_io": 10, "storage_full": 13}
+
+// storageError is a server's classified storage failure. Its Code is a SQLite
+// primary result code of the class, so comitia.FailureClass gives the client
+// the class the server saw; its text is that of any other remote error.
+type storageError struct {
+	message string
+	code    int
+}
+
+func (e *storageError) Error() string { return e.message }
+func (e *storageError) Code() int     { return e.code }
+
+// remoteCause is the error behind a decoded error body.
+func remoteCause(e errorResponse) error {
+	if e.Code == "conflict" && e.Details != nil && e.Details.MessageID != "" {
+		return &comitia.DedupeConflictError{MessageID: e.Details.MessageID, Sequence: e.Details.Sequence, Differs: e.Details.Differs}
+	}
+	cause := decodeError(e.Code, e.Message)
+	if code, ok := storageClasses[e.FailureClass]; ok && e.Code == "internal" {
+		return &storageError{message: cause.Error(), code: code}
+	}
+	return cause
+}
 
 func writeError(w http.ResponseWriter, err error, status int) {
 	writeOperationError(w, err, status, "unknown", w.Header().Get("X-Request-ID"))
@@ -38,11 +74,15 @@ func writeOperationError(w http.ResponseWriter, err error, status int, operation
 	if status == http.StatusMethodNotAllowed {
 		info.Code = "method_not_allowed"
 	}
+	body := errorResponse{ErrorInfo: info}
 	if info.Code == "internal" {
-		info.Message = "internal server error"
+		body.Message = "internal server error"
+		if class := comitia.FailureClass(err); storageClasses[class] != 0 {
+			body.FailureClass = class
+		}
 	}
 	w.WriteHeader(status)
-	_ = json.NewEncoder(w).Encode(info)
+	_ = json.NewEncoder(w).Encode(body)
 }
 
 func decodeError(code, msg string) error {

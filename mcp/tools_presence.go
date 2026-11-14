@@ -5,6 +5,7 @@ package mcp
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 
 	"github.com/krimvp/comitia"
 )
@@ -15,8 +16,8 @@ func agentInstanceSchema() map[string]any {
 
 func presenceTools() []map[string]any {
 	return []map[string]any{
-		tool("list_instances", "List self-reported instance presence and resume metadata in a readable context; seen_seconds_ago uses the server clock, recent means seen within 90 seconds, active means the session is valid. Activity does not prove liveness.", schema(map[string]any{"context_id": str("Context ID"), "limit": integer("Maximum instances (default 100)"), "page": map[string]any{"type": "boolean", "description": "Return instances, next_after and has_more"}, "after_id": str("Exclusive cursor from next_after; implies page")}, "context_id")),
-		tool("set_instance_resume", "Set self-reported resume metadata for this session's instance. Never used for authorization. Omitted agent_instance defaults to COMITIA_AGENT_INSTANCE / COMITIA_AGENT_INSTANCE_LABEL.", schema(map[string]any{"context_id": str("Context ID"), "agent_instance": agentInstanceSchema(), "resume": map[string]any{"type": "object", "description": "Self-reported resume metadata, at most 4096 JSON bytes (e.g. harness, session_id, cwd, pid)", "additionalProperties": true}}, "context_id", "resume")),
+		tool("list_instances", "List self-reported instance presence and resume metadata in a readable context; seen_seconds_ago uses the server clock, recent means seen within "+fmt.Sprint(comitia.InstanceRecentWindow.Seconds())+" seconds, active means the session is valid. Activity does not prove liveness.", schema(map[string]any{"context_id": str("Context ID"), "limit": integer(fmt.Sprintf("Maximum instances (default %d)", comitia.DefaultInstanceListLimit)), "page": map[string]any{"type": "boolean", "description": "Return instances, next_after and has_more"}, "after_id": str("Exclusive cursor from next_after; implies page")}, "context_id")),
+		tool("set_instance_resume", "Set self-reported resume metadata for this session's instance. Never used for authorization. Omitted agent_instance defaults to COMITIA_AGENT_INSTANCE / COMITIA_AGENT_INSTANCE_LABEL.", schema(map[string]any{"context_id": str("Context ID"), "agent_instance": agentInstanceSchema(), "resume": map[string]any{"type": "object", "description": fmt.Sprintf("Self-reported resume metadata, at most %d JSON bytes (e.g. harness, session_id, cwd, pid)", comitia.MaxInstanceResumeBytes), "additionalProperties": true}}, "context_id", "resume")),
 	}
 }
 

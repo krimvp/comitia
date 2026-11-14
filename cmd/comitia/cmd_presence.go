@@ -5,7 +5,7 @@ package main
 import (
 	"context"
 	"encoding/json"
-	"flag"
+	"fmt"
 	"io"
 	"os"
 
@@ -19,7 +19,7 @@ func runPresence(ctx context.Context, cfg config, api comitia.API, out *json.Enc
 		cid := fs.String("context-id", "", "context ID")
 		page := fs.Bool("page", false, "return instances, next_after and has_more")
 		after := fs.String("after-id", "", "exclusive cursor from next_after (implies --page)")
-		limit := fs.Int("limit", comitia.DefaultInstanceListLimit, "maximum instances (1-1000)")
+		limit := fs.Int("limit", comitia.DefaultInstanceListLimit, listLimitUsage("instances"))
 		if err := parseFlags(fs, args); err != nil {
 			return err
 		}
@@ -29,9 +29,7 @@ func runPresence(ctx context.Context, cfg config, api comitia.API, out *json.Enc
 		if cfg.parseOnly {
 			return nil
 		}
-		limited := false
-		fs.Visit(func(f *flag.Flag) { limited = limited || f.Name == "limit" })
-		if *page || *after != "" || limited {
+		if *page || *after != "" || flagProvided(fs, "limit") {
 			v, err := comitia.ListInstancePage(ctx, api, needCredential(cfg), *cid, *after, *limit)
 			if err != nil {
 				return err
@@ -51,7 +49,7 @@ func runPresence(ctx context.Context, cfg config, api comitia.API, out *json.Enc
 		cid := fs.String("context-id", "", "context ID")
 		instance := fs.String("agent-instance", "", "self-reported instance ID (defaults to COMITIA_AGENT_INSTANCE)")
 		label := fs.String("agent-instance-label", "", "optional self-reported instance label (defaults to COMITIA_AGENT_INSTANCE_LABEL)")
-		file := fs.String("resume-file", "", "resume metadata JSON object file (at most 4096 bytes)")
+		file := fs.String("resume-file", "", fmt.Sprintf("resume metadata JSON object file (at most %d bytes)", comitia.MaxInstanceResumeBytes))
 		if err := parseFlags(fs, args); err != nil {
 			return err
 		}

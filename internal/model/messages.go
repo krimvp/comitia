@@ -302,6 +302,15 @@ type TaskAttempt struct {
 
 const MaxMessageWait = 60 * time.Second
 
+// DefaultMessageWait is the wait timeout adapters use when none is given.
+const DefaultMessageWait = 30 * time.Second
+
+// Envelope bounds: the encoded envelope and the length of each recipient list.
+const (
+	MaxEnvelopeBytes      = 65536
+	MaxEnvelopeRecipients = 64
+)
+
 // Bounds for the MessageFilters.Schemas list.
 const (
 	maxFilterSchemas     = 64

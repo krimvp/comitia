@@ -113,3 +113,8 @@ func nonNilList[T any](v []T) []T {
 	}
 	return v
 }
+
+// listLimitUsage is the --limit help of a list command.
+func listLimitUsage(items string) string {
+	return fmt.Sprintf("maximum %s (1-%d)", items, comitia.MaxListLimit)
+}

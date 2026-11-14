@@ -1014,8 +1014,12 @@ not diagnostic labels. HTTP returns `X-Request-ID`; MCP forwards a daemon's safe
 request ID through remote errors so the operator can correlate both adapters.
 SQLite diagnostics distinguish safe primary classes `storage_busy`,
 `storage_read_only`, `storage_io` and `storage_full` without printing SQL or error
-text; the public error code remains `internal`. Embedded integrations may supply
-a `DiagnosticHook` instead of the default log.
+text; the public error code remains `internal`. An HTTP error body for an internal
+failure in one of these classes also carries `failure_class` with that value;
+status and `code` are unchanged and older clients ignore the member. The HTTP
+client turns it back into an error that `comitia.FailureClass` classifies the
+same way, so a remote CLI exits as an embedded one does. Embedded integrations
+may supply a `DiagnosticHook` instead of the default log.
 
 Capability discovery and the inspector loading successfully do not establish
 write availability. An administrator can call the `storage_status` MCP tool with

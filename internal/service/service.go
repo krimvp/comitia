@@ -65,16 +65,14 @@ func token() string {
 
 func tokenHash(t string) string { h := sha256.Sum256([]byte(t)); return hex.EncodeToString(h[:]) }
 
-// Lease and session TTL bounds, enforced here so every adapter shares them.
-const (
-	minLease      = time.Second
-	maxLease      = 24 * time.Hour
-	minSessionTTL = time.Second
-)
+// The session TTL bound, enforced here so every adapter shares it. The lease
+// bounds are model.MinLease and model.MaxLease.
+const minSessionTTL = time.Second
 
-// validLease admits OpenLease or a lease between minLease and maxLease.
+// validLease admits OpenLease or a lease between model.MinLease and
+// model.MaxLease; the message spells those bounds as 1s and 24h.
 func validLease(d time.Duration) error {
-	if d != model.OpenLease && (d < minLease || d > maxLease) {
+	if d != model.OpenLease && (d < model.MinLease || d > model.MaxLease) {
 		return model.Invalidf("lease must be between 1s and 24h, or open-ended")
 	}
 	return nil

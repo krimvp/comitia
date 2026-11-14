@@ -134,6 +134,8 @@ func ValidEvaluationResult(raw json.RawMessage) error {
 	return nil
 }
 
+// currencyCode reports an uppercase three-letter (ISO 4217 shaped) code; the
+// evaluation and execution-event schemas share it.
 func currencyCode(s string) bool {
 	if len(s) != 3 {
 		return false

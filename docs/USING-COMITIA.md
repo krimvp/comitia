@@ -136,7 +136,9 @@ filters, byte budgets, page cursors, MCP compact results, and restart semantics.
 `comitia version` prints the build identity. A failure writes one JSON
 `{"error":...}` line to stderr and exits 2 for usage or invalid input,
 3 unauthenticated, 4 forbidden, 5 not found, 6 conflict or stale claim,
-7 transport failure, timeout or busy storage, and 1 otherwise.
+7 transport failure, timeout or a storage failure (busy, read-only, I/O or
+full), in embedded and remote mode alike, and 1 otherwise. `bootstrap` with
+`--server-url` exits 2: it works only on an embedded database.
 
 
 ## Isolated demo

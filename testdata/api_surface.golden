@@ -6,7 +6,10 @@ const CriterionFailed CriterionOutcome = "failed"
 const CriterionNotRun CriterionOutcome = "not_run"
 const CriterionPassed CriterionOutcome = "passed"
 const DefaultInstanceListLimit untyped int = 100
+const DefaultLease time.Duration = 300000000000
+const DefaultListLimit untyped int = 100
 const DefaultMessageBytes untyped int = 1048576
+const DefaultMessageWait time.Duration = 30000000000
 const EvaluationAccepted EvaluationOutcome = "accepted"
 const EvaluationInconclusive EvaluationOutcome = "inconclusive"
 const EvaluationRejected EvaluationOutcome = "rejected"
@@ -20,18 +23,24 @@ const InstanceRecentWindow time.Duration = 90000000000
 const InstanceRetention time.Duration = 86400000000000
 const ListPageBytes untyped int = 1048576
 const MaxDedupeKeyBytes untyped int = 256
+const MaxEnvelopeBytes untyped int = 65536
+const MaxEnvelopeRecipients untyped int = 64
 const MaxInstanceResumeBytes untyped int = 4096
 const MaxInstancesPerSession untyped int = 64
+const MaxLease time.Duration = 86400000000000
 const MaxListBytes untyped int = 8388608
+const MaxListLimit untyped int = 1000
 const MaxMessageBodyBytes untyped int = 1048576
 const MaxMessageBytes untyped int = 4194304
 const MaxMessageWait time.Duration = 60000000000
 const MaxReferenceKindBytes untyped int = 256
 const MaxReferenceURIBytes untyped int = 8192
 const MaxTaskBodyBytes untyped int = 1048576
+const MaxTaskReasonBytes untyped int = 4096
 const MaxTaskTitleBytes untyped int = 4096
 const MergeCertificateSchema untyped string = "comitia.merge-certificate.v1"
 const MergeReceiptSchema untyped string = "comitia.merge-receipt.v1"
+const MinLease time.Duration = 1000000000
 const OpenLease time.Duration = 9223372036854775807
 const PermissionAdmin Permission = 16
 const PermissionAll Permission = 63
@@ -64,6 +73,7 @@ func ErrorClass(err error) string
 func FailTask(ctx context.Context, api TaskAPI, raw string, tid string, in TaskOutcomeInput) (Task, error)
 func FailureClass(err error) string
 func Features() []string
+func FormatPermissions(p Permission) []string
 func InstanceDefaultsFromEnv() (InstanceDefaults, error)
 func InvalidJSON(err error, field string) error
 func InvalidJSONFields(err error, field string, raw json.RawMessage, target any) error
@@ -83,6 +93,7 @@ func NewInstanceDefaults(instance *AgentInstance) (InstanceDefaults, error)
 func NewRequestID() string
 func OpenSQLite(path string) (*SQLiteStore, error)
 func ParseEvaluationResult(message Message) (EvaluationResultPayload, error)
+func ParsePermissions(names ...string) (Permission, error)
 func RecoverClaim(ctx context.Context, api TaskAPI, raw string, taskID string, version int64, instance ...AgentInstance) (TaskClaim, error)
 func RenewClaimOperation(ctx context.Context, api TaskAPI, raw string, taskID string, claimToken string, version int64, lease time.Duration, operationID string) (TaskClaim, error)
 func ReplayMessagePage(ctx context.Context, api MessageAPI, token string, cid string, after int64, limit int, filters ...MessageFilters) (MessagePage, error)
@@ -570,5 +581,5 @@ func SupportedProtocolVersion(rev string) bool
 method Server pointer.Serve func(ctx context.Context, in io.Reader, out io.Writer) error
 type HTTPConfig struct{DiagnosticHook DiagnosticHook; InstanceDefaults InstanceDefaults; SessionsDir string; ServerURL string; AllowDelegation bool; AllowedOrigins []string; MaxBody int64; RatePerSecond float64; RateBurst int}
 type Server struct{DiagnosticHook DiagnosticHook; API API; Credential string; InstanceDefaults InstanceDefaults; SessionsDir string; ServerURL string}
-var ProtocolVersions []string
-var SupportedProtocolVersions []string
+var ProtocolVersions []string = []string{"2025-06-18"}
+var SupportedProtocolVersions []string = []string{"2025-06-18"}

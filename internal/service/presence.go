@@ -92,8 +92,8 @@ func annotateInstances(rows []model.InstancePresence, now time.Time) {
 func instanceCursor(p model.InstancePresence) string { return p.SessionID + "/" + p.ID }
 
 func decodeInstanceCursor(after string, limit int) (string, string, error) {
-	if limit < 1 || limit > 1000 {
-		return "", "", model.Invalidf("limit must be between 1 and 1000")
+	if limit < 1 || limit > model.MaxListLimit {
+		return "", "", model.Invalidf("limit must be between 1 and %d", model.MaxListLimit)
 	}
 	if after == "" {
 		return "", "", nil

@@ -8,27 +8,14 @@ import (
 	"github.com/krimvp/comitia"
 )
 
+// parsePermissions reads a comma-separated --permissions value. On top of the
+// canonical names (comitia.ParsePermissions) the CLI trims spaces around each
+// name and accepts every canonical name, admin and all included, and repeats;
+// an empty name is invalid.
 func parsePermissions(s string) (comitia.Permission, error) {
-	var p comitia.Permission
-	for _, v := range strings.Split(s, ",") {
-		switch strings.TrimSpace(v) {
-		case "read":
-			p |= comitia.PermissionRead
-		case "write":
-			p |= comitia.PermissionWrite
-		case "claim":
-			p |= comitia.PermissionClaim
-		case "grant":
-			p |= comitia.PermissionGrant
-		case "admin":
-			p |= comitia.PermissionAdmin
-		case "create":
-			p |= comitia.PermissionCreate
-		case "all":
-			p |= comitia.PermissionAll
-		default:
-			return 0, comitia.Invalidf("permissions must be read, write, claim, grant, admin, create or all")
-		}
+	names := strings.Split(s, ",")
+	for i, name := range names {
+		names[i] = strings.TrimSpace(name)
 	}
-	return p, nil
+	return comitia.ParsePermissions(names...)
 }

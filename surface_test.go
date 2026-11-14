@@ -19,6 +19,7 @@ import (
 
 	"github.com/krimvp/comitia"
 	"github.com/krimvp/comitia/httpapi"
+	"github.com/krimvp/comitia/mcp"
 )
 
 var update = flag.Bool("update", false, "rewrite testdata/api_surface.golden from the current tree")
@@ -51,6 +52,24 @@ var errorTexts = map[string]error{
 	module + "/httpapi.ErrTaskResultFencingUnsupported":    httpapi.ErrTaskResultFencingUnsupported,
 }
 
+// varValues holds the other exported variables of the public packages by
+// package path and name; the surface prints each value with %#v. Some cross
+// the wire (mcp.SupportedProtocolVersions is offered in the MCP handshake), so
+// a new value is a change of contract. The surface fails on an exported
+// variable missing from both this table and assignedVars.
+var varValues = map[string]any{
+	module + "/mcp.ProtocolVersions":          mcp.ProtocolVersions,
+	module + "/mcp.SupportedProtocolVersions": mcp.SupportedProtocolVersions,
+}
+
+// assignedVars lists the exported variables that programs assign, with the
+// reason; the surface pins their types but not their values.
+var assignedVars = map[string]string{
+	module + ".Version":  "build stamp, set with -ldflags -X or at run time",
+	module + ".Revision": "build stamp, set with -ldflags -X or at run time",
+	module + ".Dirty":    "build stamp, set with -ldflags -X or at run time",
+}
+
 const surfaceGolden = "testdata/api_surface.golden"
 
 func TestPublicAPISurface(t *testing.T) {
@@ -76,8 +95,9 @@ func TestPublicAPISurface(t *testing.T) {
 // their compiled export data. Types print their underlying type and exported
 // method sets, so an alias and the type it names print alike; packages of
 // this module print unqualified, so moving a declaration behind an alias does
-// not change the surface. Constants print their exact values and error
-// variables their texts (from errorTexts).
+// not change the surface. Constants print their exact values, error
+// variables their texts (from errorTexts) and other variables their values
+// (from varValues), except those in assignedVars.
 func apiSurface(t *testing.T) string {
 	t.Helper()
 	cmd := exec.Command("go", append([]string{"list", "-export", "-deps", "-json=ImportPath,Export"}, publicPackages...)...)
@@ -117,7 +137,7 @@ func apiSurface(t *testing.T) string {
 		return p.Name()
 	}
 	var b strings.Builder
-	errorVars := 0
+	errorVars, valueVars, assigned := 0, 0, 0
 	for _, path := range publicPackages {
 		pkg, err := imp.Import(path)
 		if err != nil {
@@ -141,6 +161,16 @@ func apiSurface(t *testing.T) string {
 				}
 				line += " = " + strconv.Quote(err.Error())
 				errorVars++
+			} else if ok {
+				key := path + "." + name
+				if value, pinned := varValues[key]; pinned {
+					line += " = " + fmt.Sprintf("%#v", value)
+					valueVars++
+				} else if _, exempt := assignedVars[key]; exempt {
+					assigned++
+				} else {
+					t.Fatalf("%s.%s is an exported variable missing from varValues; add it so the surface pins its value, or to assignedVars with the reason programs assign it", path, name)
+				}
 			}
 			if tn, ok := obj.(*types.TypeName); ok {
 				line = "type " + name + " " + types.TypeString(tn.Type().Underlying(), qualifier)
@@ -160,6 +190,9 @@ func apiSurface(t *testing.T) string {
 	}
 	if len(errorTexts) != errorVars {
 		t.Fatalf("errorTexts names %d error variables, the public packages export %d; remove the stale entries", len(errorTexts), errorVars)
+	}
+	if len(varValues) != valueVars || len(assignedVars) != assigned {
+		t.Fatalf("varValues names %d variables and assignedVars %d, the public packages export %d and %d of them; remove the stale entries", len(varValues), len(assignedVars), valueVars, assigned)
 	}
 	return b.String()
 }

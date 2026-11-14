@@ -5,12 +5,13 @@ package mcp
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 
 	"github.com/krimvp/comitia"
 )
 
 func taskOutcomeSchema(cancel bool) map[string]any {
-	fields := map[string]any{"task_id": str("Task ID"), "claim_token": str("Current claim token; optional for admin cancellation"), "lease_version": integer("Current version, including 0 for pending tasks"), "reason": str("Terminal reason, at most 4096 UTF-8 bytes; do not include secrets"), "operation_id": taskOperationID()}
+	fields := map[string]any{"task_id": str("Task ID"), "claim_token": str("Current claim token; optional for admin cancellation"), "lease_version": integer("Current version, including 0 for pending tasks"), "reason": str(fmt.Sprintf("Terminal reason, at most %d UTF-8 bytes; do not include secrets", comitia.MaxTaskReasonBytes)), "operation_id": taskOperationID()}
 	if cancel {
 		return schema(fields, "task_id", "lease_version", "reason")
 	}

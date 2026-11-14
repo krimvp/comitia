@@ -113,8 +113,8 @@ func (s *Service) scanMessages(ctx context.Context, raw, cid string, after int64
 	if after < 0 {
 		return nil, after, model.Invalidf("after must be nonnegative")
 	}
-	if limit < 1 || limit > 1000 {
-		return nil, after, model.Invalidf("limit must be between 1 and 1000")
+	if limit < 1 || limit > model.MaxListLimit {
+		return nil, after, model.Invalidf("limit must be between 1 and %d", model.MaxListLimit)
 	}
 	instance := model.FilterAgentInstance(f)
 	var sid string

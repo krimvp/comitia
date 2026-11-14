@@ -53,7 +53,7 @@ func validExecutionEvent(raw json.RawMessage) error {
 		if p.Currency != "" || p.CostSource != "" {
 			return model.Invalidf("currency and cost_source require cost_micros")
 		}
-	} else if !telemetryCurrencyCode(p.Currency) || (p.CostSource != "provider_reported" && p.CostSource != "estimated" && p.CostSource != "configured") {
+	} else if !currencyCode(p.Currency) || (p.CostSource != "provider_reported" && p.CostSource != "estimated" && p.CostSource != "configured") {
 		return model.Invalidf("currency or cost_source invalid for cost_micros")
 	}
 	if len(p.Dimensions) > 32 {
@@ -85,16 +85,4 @@ func validExecutionEvent(raw json.RawMessage) error {
 	default:
 		return model.Invalidf("kind must be run_started, model_usage, tool_usage or run_finished")
 	}
-}
-
-func telemetryCurrencyCode(value string) bool {
-	if len(value) != 3 {
-		return false
-	}
-	for _, c := range value {
-		if c < 'A' || c > 'Z' {
-			return false
-		}
-	}
-	return true
 }
