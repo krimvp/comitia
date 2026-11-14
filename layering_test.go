@@ -140,8 +140,9 @@ func TestInternalLayering(t *testing.T) {
 // through the root package and sqlite: no package under them, production code
 // or tests, imports a package of the module's internal/ tree directly. Only
 // direct imports are checked; the root and sqlite import internal packages,
-// so the adapters depend on them indirectly.
-var adapterPatterns = []string{"./cmd/...", "./mcp/...", "./httpapi/..."}
+// so the adapters depend on them indirectly. The examples are held to the same
+// rule, since they show the public API.
+var adapterPatterns = []string{"./cmd/...", "./mcp/...", "./httpapi/...", "./examples/..."}
 
 // adapterMayImport lists the internal packages the adapters may nevertheless
 // import directly, one per line: internal packages meant for the adapters.

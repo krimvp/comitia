@@ -32,7 +32,8 @@ WORD_BASELINE = {
     'docs/chatgpt-integration.md': 17,
     'docs/child-contexts.md': 596,
     'docs/evaluation.md': 1496,
-    'docs/examples.md': 323,
+    # The compiled examples/embedded program, shown whole (was 323).
+    'docs/examples.md': 534,
     'docs/execution-telemetry.md': 445,
     'docs/inspector.md': 1505,
     'docs/local-daemon.md': 821,
@@ -321,6 +322,11 @@ class DocsStructure(unittest.TestCase):
                 self.assertIn(rest[0], commands, f'{path.name}: unknown CLI command in {span}')
                 for flag in re.findall(r'(?<!\S)--([a-z-]+)', ' '.join(rest)):
                     self.assertTrue(f'"{flag}"' in cli, f'{path.name}: unknown flag --{flag} in {span}')
+
+    def test_library_example_matches_compiled_program(self):
+        doc = (ROOT/'docs/examples.md').read_text()
+        program = (ROOT/'examples/embedded/main.go').read_text()
+        self.assertIn('```go\n' + program + '```', doc, 'docs/examples.md must show examples/embedded/main.go as it is')
 
     def test_merged_workflows_are_linked(self):
         using = (ROOT/'docs/USING-COMITIA.md').read_text()

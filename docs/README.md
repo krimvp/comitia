@@ -29,7 +29,7 @@ One line per document: who it is for and what it answers. The groups follow the
 - [Presence](presence.md): self-reported instance activity and resume metadata.
 - [Architecture](architecture.md): the model, the package boundaries and the consistency rules.
 - [Security](security.md): the threat model and authorization invariants.
-- [Library example](examples.md): for Go programs embedding Comitia; a minimal embedded program.
+- [Library example](examples.md): for Go programs embedding Comitia; a compiled embedded program.
 - [Evaluation](evaluation.md): how to compare single-agent, multi-agent and Comitia runs on cost and quality.
 - [Execution telemetry](execution-telemetry.md): how runners record execution events.
 - [Agent world](agent-world.md): the experimental 3D viewer.

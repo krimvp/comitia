@@ -85,7 +85,7 @@ Run the whole sequence before you ask for review.
   an experimental viewer.
 - `scripts`: installers, clients and CI tooling ([scripts/README.md](scripts/README.md)).
   `deploy`: a past single-host deployment. `skills/comitia`: the agent skill.
-- `docs`: [the documentation](docs/README.md). `examples`: evaluation fixtures.
+- `docs`: [the documentation](docs/README.md). `examples`: the compiled embedded program and evaluation fixtures.
 
 ## Recipes
 
