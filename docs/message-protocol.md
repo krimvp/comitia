@@ -949,7 +949,7 @@ unknown-field guidance and internal failure diagnostics. `dirty` is the string
 builds may still use release version `dev`. Source installers stamp `Revision`
 and `Dirty`, including when Go VCS stamping is disabled; other builds fall back
 to Go's `vcs.revision` and `vcs.modified` settings. Release builders can set
-`-ldflags '-X github.com/krimvp/comitia.Version=v1.2.3'`, otherwise the Go module
+`-ldflags '-X github.com/krimvp/comitia/pkg/comitia.Version=v1.2.3'`, otherwise the Go module
 build version is used when available.
 
 ## Compatibility

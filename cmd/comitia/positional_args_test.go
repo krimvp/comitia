@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/krimvp/comitia"
+	"github.com/krimvp/comitia/pkg/comitia"
 )
 
 // usageCommands lists every command named in the global usage table.

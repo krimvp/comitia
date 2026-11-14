@@ -1,0 +1,19 @@
+package comitia_test
+
+import (
+	"github.com/krimvp/comitia/pkg/comitia"
+	"github.com/krimvp/comitia/pkg/sqlite"
+	"github.com/krimvp/comitia/pkg/storetest"
+	"testing"
+)
+
+func TestSQLiteGrantConformance(t *testing.T) {
+	storetest.Grants(t, func(t *testing.T) comitia.Store {
+		t.Helper()
+		st, err := sqlite.OpenSQLite(":memory:")
+		if err != nil {
+			t.Fatal(err)
+		}
+		return st
+	})
+}

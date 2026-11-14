@@ -156,7 +156,7 @@ def build_flags():
         dirty = 'true' if status else 'false'
     except (OSError, subprocess.CalledProcessError):
         pass
-    return f'-X github.com/krimvp/comitia.Revision={revision} -X github.com/krimvp/comitia.Dirty={dirty}'
+    return f'-X github.com/krimvp/comitia/pkg/comitia.Revision={revision} -X github.com/krimvp/comitia/pkg/comitia.Dirty={dirty}'
 
 def install_binary(root, source=None):
     """Install bin/comitia from source, or build it from this checkout."""

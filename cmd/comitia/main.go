@@ -12,7 +12,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/krimvp/comitia"
+	"github.com/krimvp/comitia/pkg/comitia"
 )
 
 type config struct {

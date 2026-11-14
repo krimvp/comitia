@@ -12,8 +12,8 @@ import (
 	"net"
 	"net/http"
 
-	"github.com/krimvp/comitia"
-	"github.com/krimvp/comitia/httpapi"
+	"github.com/krimvp/comitia/pkg/comitia"
+	"github.com/krimvp/comitia/pkg/httpapi"
 )
 
 func runServe(ctx context.Context, cfg config, api comitia.API, out *json.Encoder, cmd string, args []string) error {

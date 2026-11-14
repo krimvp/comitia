@@ -11,8 +11,8 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/krimvp/comitia"
-	"github.com/krimvp/comitia/sqlite"
+	"github.com/krimvp/comitia/pkg/comitia"
+	"github.com/krimvp/comitia/pkg/sqlite"
 )
 
 func main() {

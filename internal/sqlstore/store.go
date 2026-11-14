@@ -28,14 +28,14 @@ const sqliteReaderLimit = 4
 
 // OpenSQLite opens a store using an explicitly registered SQLite driver.
 //
-// Deprecated: use github.com/krimvp/comitia/sqlite.OpenSQLite, which supplies
+// Deprecated: use github.com/krimvp/comitia/pkg/sqlite.OpenSQLite, which supplies
 // the driver. Remote clients importing comitia do not register a driver.
 func OpenSQLite(path string) (*SQLiteStore, error) {
 	if path == "" {
 		return nil, fmt.Errorf("%w: sqlite path", model.ErrInvalid)
 	}
 	if !slices.Contains(sql.Drivers(), "sqlite") {
-		return nil, fmt.Errorf("%w: SQLite driver unavailable; use github.com/krimvp/comitia/sqlite.OpenSQLite", model.ErrInvalid)
+		return nil, fmt.Errorf("%w: SQLite driver unavailable; use github.com/krimvp/comitia/pkg/sqlite.OpenSQLite", model.ErrInvalid)
 	}
 	absPath, e := filepath.Abs(path)
 	if e != nil {

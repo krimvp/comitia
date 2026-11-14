@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/krimvp/comitia"
+	"github.com/krimvp/comitia/pkg/comitia"
 )
 
 func TestEnvelopeUnknownFieldGuidance(t *testing.T) {

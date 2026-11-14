@@ -14,7 +14,7 @@ import (
 	"unicode"
 	"unicode/utf8"
 
-	"github.com/krimvp/comitia"
+	"github.com/krimvp/comitia/pkg/comitia"
 )
 
 func watchMessages(ctx context.Context, api comitia.MessageAPI, token, cid, instance string, timeout time.Duration, filters comitia.MessageFilters, ack bool, out io.Writer) error {

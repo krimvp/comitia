@@ -8,9 +8,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/krimvp/comitia"
-	"github.com/krimvp/comitia/httpapi"
-	"github.com/krimvp/comitia/sqlite"
+	"github.com/krimvp/comitia/pkg/comitia"
+	"github.com/krimvp/comitia/pkg/httpapi"
+	"github.com/krimvp/comitia/pkg/sqlite"
 )
 
 func TestGrantRevokeCommandEmbeddedAndRemote(t *testing.T) {

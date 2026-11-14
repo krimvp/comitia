@@ -13,8 +13,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/krimvp/comitia"
-	"github.com/krimvp/comitia/httpapi"
+	"github.com/krimvp/comitia/pkg/comitia"
+	"github.com/krimvp/comitia/pkg/httpapi"
 )
 
 func captureDaemonLog(t *testing.T) *bytes.Buffer {

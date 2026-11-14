@@ -31,11 +31,11 @@ CI and `scripts/comitia_install.py` stamp the source revision into the build, so
 ```sh
 dirty=false
 test -z "$(git status --porcelain --untracked-files=all)" || dirty=true
-go build -ldflags "-X github.com/krimvp/comitia.Revision=$(git rev-parse HEAD) -X github.com/krimvp/comitia.Dirty=$dirty" \
+go build -ldflags "-X github.com/krimvp/comitia/pkg/comitia.Revision=$(git rev-parse HEAD) -X github.com/krimvp/comitia/pkg/comitia.Dirty=$dirty" \
   -o "$HOME/bin/comitia" ./cmd/comitia
 ```
 
-`-X github.com/krimvp/comitia.Version=...` sets a release label. Code reads the
+`-X github.com/krimvp/comitia/pkg/comitia.Version=...` sets a release label. Code reads the
 stamp through `BuildVersion` and `BuildIdentity`, never in a package-level initialiser.
 
 ## Test

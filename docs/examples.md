@@ -1,6 +1,6 @@
 # Library example
 
-The `github.com/krimvp/comitia` package is the application surface used by every adapter. Embedded callers also import `github.com/krimvp/comitia/sqlite` and call `sqlite.OpenSQLite` to supply the driver; remote clients importing `comitia`, `httpapi` or `mcp` do not build or register it. The deprecated root `comitia.OpenSQLite` requires an explicitly registered driver and returns `ErrInvalid` with migration guidance when none is registered.
+The `github.com/krimvp/comitia/pkg/comitia` package is the application surface used by every adapter. Embedded callers also import `github.com/krimvp/comitia/pkg/sqlite` and call `sqlite.OpenSQLite` to supply the driver; remote clients importing `comitia`, `httpapi` or `mcp` do not build or register it. The deprecated `comitia.OpenSQLite` requires an explicitly registered driver and returns `ErrInvalid` with migration guidance when none is registered.
 
 This program, [`examples/embedded/main.go`](../examples/embedded/main.go), opens a store in a temporary directory, bootstraps its owner, creates a context, appends and reads a message, and creates and claims a task. `go run ./examples/embedded` runs it, and its test checks the output; change both files together.
 
@@ -18,8 +18,8 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/krimvp/comitia"
-	"github.com/krimvp/comitia/sqlite"
+	"github.com/krimvp/comitia/pkg/comitia"
+	"github.com/krimvp/comitia/pkg/sqlite"
 )
 
 func main() {

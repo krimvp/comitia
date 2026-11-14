@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/krimvp/comitia"
+	"github.com/krimvp/comitia/pkg/comitia"
 )
 
 // A missing required flag is named before storage opens, instead of surfacing

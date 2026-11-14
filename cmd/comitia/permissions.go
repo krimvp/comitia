@@ -5,7 +5,7 @@ package main
 import (
 	"strings"
 
-	"github.com/krimvp/comitia"
+	"github.com/krimvp/comitia/pkg/comitia"
 )
 
 // parsePermissions reads a comma-separated --permissions value. On top of the

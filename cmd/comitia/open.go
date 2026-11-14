@@ -9,9 +9,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/krimvp/comitia"
-	"github.com/krimvp/comitia/httpapi"
-	"github.com/krimvp/comitia/sqlite"
+	"github.com/krimvp/comitia/pkg/comitia"
+	"github.com/krimvp/comitia/pkg/httpapi"
+	"github.com/krimvp/comitia/pkg/sqlite"
 )
 
 // remoteTimeout bounds each remote call; it stays above the longest server-side wait.

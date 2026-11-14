@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/krimvp/comitia"
+	"github.com/krimvp/comitia/pkg/comitia"
 )
 
 func TestCLIRecoverClaim(t *testing.T) {
