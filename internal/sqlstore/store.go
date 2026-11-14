@@ -149,8 +149,13 @@ func (s *SQLiteStore) Update(ctx context.Context, fn func(model.WriteStore) erro
 	return e
 }
 
+// lockWait is how long begin retries a busy or locked database, the 15 s that
+// concurrent CLI processes wait for the write lock (docs/task-validation.md).
+// A test lengthens it.
+var lockWait = 15 * time.Second
+
 func (s *SQLiteStore) begin(ctx context.Context, opts *sql.TxOptions) (*sql.Tx, error) {
-	deadline := time.Now().Add(15 * time.Second)
+	deadline := time.Now().Add(lockWait)
 	for {
 		if err := ctx.Err(); err != nil {
 			return nil, err
