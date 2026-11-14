@@ -100,11 +100,7 @@ func (c *Client) call(ctx context.Context, token, path string, in, out any) erro
 		if d.Decode(&e) != nil || ensureEOF(d) != nil {
 			return fmt.Errorf("http status %d: malformed error response", resp.StatusCode)
 		}
-		cause := decodeError(e.Code, e.Message)
-		if d := e.Details; e.Code == "conflict" && d != nil && d.MessageID != "" {
-			cause = &comitia.DedupeConflictError{MessageID: d.MessageID, Sequence: d.Sequence, Differs: d.Differs}
-		}
-		return &comitia.OperationalError{Info: e, Cause: cause}
+		return &comitia.OperationalError{Info: e.ErrorInfo, Cause: remoteCause(e)}
 	}
 	var raw json.RawMessage
 	if err = d.Decode(&raw); err != nil {
