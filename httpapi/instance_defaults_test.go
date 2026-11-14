@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"net/http/httptest"
+	"slices"
 	"testing"
 	"time"
 
@@ -158,9 +159,12 @@ func TestRemoteInstanceDefaults(t *testing.T) {
 	if _, err := worker.ReplayMessages(ctx, owner.Token, presence.ID, 0, 10); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := reviewer.WaitMessages(ctx, owner.Token, presence.ID, 0, 0, comitia.MessageFilters{}); err != nil {
-		t.Fatal(err)
-	}
+	awaitReadHeartbeat(t, func() error {
+		_, err := reviewer.WaitMessages(ctx, owner.Token, presence.ID, 0, 0, comitia.MessageFilters{})
+		return err
+	}, func() ([]comitia.InstancePresence, error) { return svc.ListInstances(ctx, owner.Token, presence.ID) }, func(rows []comitia.InstancePresence) bool {
+		return slices.ContainsFunc(rows, func(p comitia.InstancePresence) bool { return p.ID == "reviewer" })
+	})
 	if err := worker.SetInstanceResume(ctx, owner.Token, presence.ID, nil, []byte(`{"pid":1}`)); err != nil {
 		t.Fatal(err)
 	}

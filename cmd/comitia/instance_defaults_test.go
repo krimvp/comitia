@@ -265,7 +265,8 @@ func TestPresenceCommandsUseInstanceDefaults(t *testing.T) {
 					rows, err := attempt()
 					// A read heartbeat is best effort: under load it is skipped once
 					// its small time budget runs out, so read again before judging.
-					for tries := 0; !explicitEmpty && err == nil && len(rows) == 0 && tries < 5; tries++ {
+					// Bound the retries by time, not by count, which a slow machine exhausts.
+					for retry := time.Now().Add(30 * time.Second); !explicitEmpty && err == nil && len(rows) == 0 && time.Now().Before(retry); {
 						rows, err = attempt()
 					}
 					if explicitEmpty {

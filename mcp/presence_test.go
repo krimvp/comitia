@@ -50,20 +50,35 @@ func TestMCPInstancePresence(t *testing.T) {
 		t.Fatalf("initial: %v", rows)
 	}
 	call("set_instance_resume", map[string]any{"agent_instance": map[string]any{"id": "worker", "label": "MCP worker"}, "resume": map[string]any{"harness": "codex", "pid": 123}})
+	recorded := func(rows []comitia.InstancePresence) bool {
+		return len(rows) == 1 && rows[0].ID == "worker" && rows[0].Label == "MCP worker" && rows[0].LastSeen.Equal(now) && rows[0].SessionID == owner.Session.ID && rows[0].Active && string(rows[0].Resume) == `{"harness":"codex","pid":123}`
+	}
 	for _, operation := range []struct {
 		name string
 		args map[string]any
+		read bool
 	}{
-		{"send_message", map[string]any{"agent_instance": map[string]any{"id": "worker", "label": "MCP worker"}, "dedupe_key": "x", "body": "x"}},
-		{"replay_messages", map[string]any{"agent_instance": "worker"}},
-		{"message_cursor", map[string]any{"agent_instance": "worker"}},
-		{"ack_messages", map[string]any{"agent_instance": "worker", "sequence": 0}},
+		{"send_message", map[string]any{"agent_instance": map[string]any{"id": "worker", "label": "MCP worker"}, "dedupe_key": "x", "body": "x"}, false},
+		{"replay_messages", map[string]any{"agent_instance": "worker"}, true},
+		{"message_cursor", map[string]any{"agent_instance": "worker"}, true},
+		{"ack_messages", map[string]any{"agent_instance": "worker", "sequence": 0}, false},
 	} {
 		now = now.Add(31 * time.Second)
-		call(operation.name, operation.args)
-		rows := call("list_instances", map[string]any{}).([]comitia.InstancePresence)
-		if len(rows) != 1 || rows[0].ID != "worker" || rows[0].Label != "MCP worker" || !rows[0].LastSeen.Equal(now) || rows[0].SessionID != owner.Session.ID || !rows[0].Active || string(rows[0].Resume) != `{"harness":"codex","pid":123}` {
-			t.Fatalf("%s: %v", operation.name, rows)
+		// A read's heartbeat is best effort under a 25 ms real-time budget
+		// (docs/presence.md) that a slow machine can exceed without contention;
+		// a dropped one leaves the row stale, so the next read records it.
+		// Writes record presence in their own transaction, with no budget.
+		deadline := time.Now().Add(30 * time.Second)
+		for {
+			call(operation.name, operation.args)
+			rows := call("list_instances", map[string]any{}).([]comitia.InstancePresence)
+			if recorded(rows) {
+				break
+			}
+			if !operation.read || time.Now().After(deadline) {
+				t.Fatalf("%s: %v", operation.name, rows)
+			}
+			time.Sleep(10 * time.Millisecond)
 		}
 	}
 	callTask := func(name string, args map[string]any) any {

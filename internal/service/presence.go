@@ -215,7 +215,11 @@ func (s *Service) instanceLabel(r model.ReadStore, sid, cid, instance string) (s
 }
 
 func (s *Service) touchInstance(ctx context.Context, sid, cid string, instance *model.AgentInstance) {
-	ctx, cancel := context.WithTimeout(ctx, instanceHeartbeatBudget)
+	budget := s.heartbeatBudget
+	if budget == 0 {
+		budget = instanceHeartbeatBudget
+	}
+	ctx, cancel := context.WithTimeout(ctx, budget)
 	defer cancel()
 	_ = s.store.Update(ctx, func(w model.WriteStore) error {
 		// Another reader may have recorded activity since the original View.
