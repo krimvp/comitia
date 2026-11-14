@@ -191,7 +191,7 @@ func adapterViolations(pkgs []listedPackage) []string {
 			for _, imp := range imports.list {
 				dep, ok := strings.CutPrefix(imp, module+"/")
 				if ok && strings.HasPrefix(dep, "internal/") && !adapterMayImport[dep] {
-					out = append(out, fmt.Sprintf("%s %s; adapters reach the implementation only through the public API package and pkg/sqlite (or add it to adapterMayImport)", imports.who, dep))
+					out = append(out, fmt.Sprintf("%s %s; outside the public API package, packages under cmd/, examples/ and pkg/ reach the implementation only through it (or add the internal package to adapterMayImport)", imports.who, dep))
 				}
 			}
 		}
@@ -223,10 +223,12 @@ func TestAdapterImportsRejectViolations(t *testing.T) {
 		{ImportPath: module + "/pkg/mcp", Imports: []string{facade, module + "/internal/model"}},
 		{ImportPath: module + "/pkg/httpapi", TestImports: []string{module + "/pkg/httpapi/internal/legacy", module + "/pkg/sqlite"}, XTestImports: []string{module + "/internal/service"}},
 		{ImportPath: module + "/cmd/comitia", Imports: []string{module + "/pkg/httpapi", module + "/pkg/mcp", module + "/pkg/sqlite"}},
+		{ImportPath: module + "/pkg/sqlite", Imports: []string{facade, module + "/internal/sqlstore"}},
 	})
 	want := []string{
-		"pkg/mcp imports internal/model; adapters reach the implementation only through the public API package and pkg/sqlite (or add it to adapterMayImport)",
-		"tests of pkg/httpapi import internal/service; adapters reach the implementation only through the public API package and pkg/sqlite (or add it to adapterMayImport)",
+		"pkg/mcp imports internal/model; outside the public API package, packages under cmd/, examples/ and pkg/ reach the implementation only through it (or add the internal package to adapterMayImport)",
+		"tests of pkg/httpapi import internal/service; outside the public API package, packages under cmd/, examples/ and pkg/ reach the implementation only through it (or add the internal package to adapterMayImport)",
+		"pkg/sqlite imports internal/sqlstore; outside the public API package, packages under cmd/, examples/ and pkg/ reach the implementation only through it (or add the internal package to adapterMayImport)",
 	}
 	if strings.Join(got, "\n") != strings.Join(want, "\n") {
 		t.Fatalf("violations:\n%s\nwant:\n%s", strings.Join(got, "\n"), strings.Join(want, "\n"))
