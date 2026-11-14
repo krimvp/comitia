@@ -14,6 +14,9 @@ ROOT = Path(__file__).resolve().parents[1]
 # adding a topic; do not refresh them automatically from the files under test.
 WORD_BASELINE = {
     'README.md': 278,
+    # Contributor guide and agent rules at the root (added with them).
+    'CONTRIBUTING.md': 1584,
+    'AGENTS.md': 91,
     'docs/CONNECTING.md': 881,
     # Reviewed #65 owner budget for consumer/request/supervisor/merge workflows.
     'docs/durable-coordination.md': 2200,
@@ -159,13 +162,13 @@ def link_errors(root, path):
 
 
 def active_files():
-    return [ROOT/'README.md', *sorted((ROOT/'docs').glob('*.md')),
+    return [ROOT/'README.md', ROOT/'CONTRIBUTING.md', ROOT/'AGENTS.md', *sorted((ROOT/'docs').glob('*.md')),
             ROOT/'scripts/local/instructions.md', *sorted((ROOT/'skills/comitia').rglob('*.md'))]
 
 
 class DocsStructure(unittest.TestCase):
     def test_local_links_and_anchors(self):
-        paths = [ROOT/'README.md', *sorted((ROOT/'docs').rglob('*.md')),
+        paths = [*sorted(ROOT.glob('*.md')), *sorted((ROOT/'docs').rglob('*.md')),
                  ROOT/'scripts/local/instructions.md', *sorted((ROOT/'skills/comitia').rglob('*.md'))]
         paths += [p for p in sorted((ROOT/'site').rglob('*'))
                   if p.suffix in ('.md', '.html', '.css', '.svg') and 'node_modules' not in p.parts]
