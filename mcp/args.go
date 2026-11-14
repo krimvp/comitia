@@ -5,7 +5,6 @@ package mcp
 import (
 	"bytes"
 	"encoding/json"
-	"errors"
 	"io"
 	"strings"
 	"time"
@@ -43,20 +42,6 @@ func required(values ...string) error {
 		}
 	}
 	return nil
-}
-func publicError(err error) error {
-	if orphan := (orphanedSessionError{}); errors.As(err, &orphan) {
-		return orphan
-	}
-	for _, e := range []error{comitia.ErrNotFound, comitia.ErrUnauthenticated, comitia.ErrForbidden, comitia.ErrConflict, comitia.ErrInvalid, comitia.ErrStaleClaim, comitia.ErrBootstrapUsed} {
-		if errors.Is(err, e) {
-			if errors.Is(err, comitia.ErrInvalid) {
-				return err
-			}
-			return e
-		}
-	}
-	return errors.New("internal error")
 }
 func seconds(n int64, fallback int64) (time.Duration, error) {
 	if n == 0 {
