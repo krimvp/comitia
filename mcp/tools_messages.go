@@ -37,7 +37,6 @@ func messageReadProperties(wait bool) map[string]any {
 	p["strict_recipients"] = map[string]any{"type": "boolean", "description": "Require both nonempty recipient lists to match caller session and for_instance; requires for_instance; default false preserves instance precedence"}
 	p["max_bytes"] = integer(fmt.Sprintf("Encoded messages-array byte budget (default %d, max %d); first message always returned intact", comitia.DefaultMessageBytes, comitia.MaxMessageBytes))
 	p["page"] = map[string]any{"type": "boolean", "description": "Return messages, next_after, scanned_through and has_more instead of the legacy array"}
-	p["compact"] = map[string]any{"type": "boolean", "description": "Short text summary; full result remains in structuredContent"}
 	if wait {
 		p["timeout_seconds"] = map[string]any{"type": "number", "description": fmt.Sprintf("Timeout seconds (default %g, capped at %g; zero reads immediately)", comitia.DefaultMessageWait.Seconds(), comitia.MaxMessageWait.Seconds())}
 	} else {
@@ -158,7 +157,10 @@ func (s *Server) callListParticipants(ctx context.Context, raw json.RawMessage) 
 func (s *Server) callReplayMessages(ctx context.Context, raw json.RawMessage) (any, error) {
 	var a struct {
 		comitia.MessageFilters
-		Page      bool   `json:"page"`
+		Page bool `json:"page"`
+		// Compact is never set: resultArguments strips compact before any tool
+		// runs and presents the result (see Server.handle). The field only keeps
+		// compact in this tool's accepted-fields hint.
 		Compact   bool   `json:"compact"`
 		ContextID string `json:"context_id"`
 		After     *int64 `json:"after"`
@@ -189,16 +191,17 @@ func (s *Server) callReplayMessages(ctx context.Context, raw json.RawMessage) (a
 		if !a.Page {
 			return cursorMessageResult(page), err
 		}
-		return messageResult(page, a.Compact), err
+		return page, err
 	}
 	value, err := s.API.ReplayMessages(ctx, s.Credential, a.ContextID, after, a.Limit, filters)
-	return messageResult(value, a.Compact), err
+	return value, err
 }
 
 func (s *Server) callWaitMessages(ctx context.Context, raw json.RawMessage) (any, error) {
 	var a struct {
 		comitia.MessageFilters
-		Page           bool     `json:"page"`
+		Page bool `json:"page"`
+		// Compact is never set; see callReplayMessages.
 		Compact        bool     `json:"compact"`
 		ContextID      string   `json:"context_id"`
 		After          *int64   `json:"after"`
@@ -234,10 +237,10 @@ func (s *Server) callWaitMessages(ctx context.Context, raw json.RawMessage) (any
 		if !a.Page {
 			return cursorMessageResult(page), err
 		}
-		return messageResult(page, a.Compact), err
+		return page, err
 	}
 	value, err := s.API.WaitMessages(ctx, s.Credential, a.ContextID, after, timeout, filters)
-	return messageResult(value, a.Compact), err
+	return value, err
 }
 
 func (s *Server) callAckMessages(ctx context.Context, raw json.RawMessage) (any, error) {
@@ -285,27 +288,6 @@ func (s *Server) callMessageCursor(ctx context.Context, raw json.RawMessage) (an
 		return nil, err
 	}
 	return map[string]int64{"sequence": v}, nil
-}
-
-func messageResult(value any, compact bool) any {
-	if !compact {
-		return value
-	}
-	var count int
-	var after int64
-	var text string
-	switch v := value.(type) {
-	case comitia.MessagePage:
-		count, after = len(v.Messages), v.NextAfter
-		text = fmt.Sprintf("%d messages; next_after=%d; has_more=%t. Full result in structuredContent.", count, after, v.HasMore)
-	case []comitia.Message:
-		count = len(v)
-		if count > 0 {
-			after = v[count-1].Sequence
-		}
-		text = fmt.Sprintf("%d messages; next_after=%d; last_sequence=%d. Full result in structuredContent.", count, after, after)
-	}
-	return compactResult{value: value, text: text}
 }
 
 func messageAfter(after *int64, f comitia.MessageFilters) (int64, error) {

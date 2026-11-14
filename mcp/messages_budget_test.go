@@ -119,7 +119,8 @@ func TestRemoteMCPMessagePagesAndCompactResults(t *testing.T) {
 			}
 		})
 	}
-	for _, definition := range messageTools() {
+	// The advertised schema: tools() adds compact to every tool.
+	for _, definition := range tools() {
 		name := definition["name"]
 		if name != "replay_messages" && name != "wait_messages" {
 			continue
