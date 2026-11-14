@@ -20,7 +20,9 @@ WORD_BASELINE = {
     'docs/RUNBOOK.md': 17,
     'docs/USING-COMITIA.md': 1338,
     'docs/agent-world.md': 77,
-    'docs/architecture.md': 1565,
+    # Layered packages, their import table and guard tests (was 1565).
+    'docs/architecture.md': 1836,
+    'docs/code-map.md': 716,
     'docs/backup-restore.md': 1341,
     'docs/chatgpt-cloud.md': 17,
     'docs/chatgpt-integration.md': 17,

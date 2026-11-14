@@ -2,22 +2,32 @@
 
 ## Status
 
-This document distinguishes the current v1 application contract from the intended architecture. Target properties are not claims about implemented behavior. The README and command reference describe only behavior verified in the current tree.
+This document separates the current v1 contract from the intended architecture; target properties are not claims about implemented behavior. The README and command reference describe only what the current tree does.
 
 ## Purpose
 
 Comitia coordinates work among external agents. A workspace groups several work contexts, and each context can refer to an issue, pull request, document, URL, or another resource. Comitia stores coordination state; it does not execute agents and it does not synchronize a local checkout with a remote system.
 
-The application is library-first. One Go application API owns the domain rules and is shared by transport adapters:
+The application is library-first. One Go application API owns the domain rules and is shared by transport adapters; arrows are imports:
 
 ```mermaid
 flowchart TD
-    CLI[CLI] --> APP[Application API]
-    MCP[MCP adapter] --> APP
-    HTTP[HTTP adapter] --> APP
-    APP --> DOMAIN[Domain rules]
-    APP --> STORE[Storage interface]
-    STORE --> SQLITE[(SQLite)]
+    CLI[cmd/comitia] --> ROOT[comitia: public API]
+    MCP[mcp] --> ROOT
+    HTTP[httpapi] --> ROOT
+    CLI --> DRIVER[sqlite: driver]
+    DRIVER --> ROOT
+    CLI --> SERVE[internal/httpserve]
+    MCP --> SERVE
+    ROOT --> SERVICE[internal/service]
+    ROOT --> SQLSTORE[internal/sqlstore]
+    ROOT --> GATES[internal/mergegate, internal/evaluation]
+    SERVICE --> SCHEMA[internal/schema]
+    GATES --> SCHEMA
+    SCHEMA --> MODEL[internal/model]
+    SERVICE --> MODEL
+    GATES --> MODEL
+    SQLSTORE --> MODEL
 ```
 
 Adapters translate input, authentication material, and errors. They must not duplicate authorization, task leasing, message delivery, or revocation rules. Storage implementations provide persistence and transactions without becoming a second application layer.
@@ -69,15 +79,27 @@ After expiry, another worker may recover the task. Late completion from the old 
 
 ## Application boundaries
 
-The application layer exposes use cases rather than transport-shaped handlers through the `github.com/krimvp/comitia` package. Its `API` interface currently groups:
+The root package `github.com/krimvp/comitia` is the public API and nothing else: type aliases, forwarding functions, exported limits and the build stamp (`Version`, `Revision`, `Dirty`). Its `API` interface is the authoritative method inventory.
 
-- workspace and membership management;
-- context creation and resource references (optional `ReferenceListAPI` lists them);
-- session and delegated grant lifecycle;
-- durable message append, replay, acknowledgement, and deduplication;
-- task creation, lease acquisition, renewal, completion, release, and recovery.
+The implementation lives in internal packages, each importing only those listed:
 
-The package's `API` interface is the authoritative method inventory. Embedded applications open storage through `github.com/krimvp/comitia/sqlite.OpenSQLite`; that package supplies the driver, while the SQL implementation lives in `internal/sqlstore`. The root package does not import the SQLite subpackage, so remote `httpapi` and `mcp` callers avoid the driver build dependency and registration. The deprecated root `OpenSQLite` constructor requires explicit driver registration. `Bootstrap` is a one-time, local operation and must not be exposed through the HTTP adapter. Adapters should map the package's stable errors into their own status or exit conventions without exposing SQLite errors as public contracts.
+| Package | Owns | May import |
+|---|---|---|
+| `internal/model` | Data types, errors, permissions, `API` and `Store` interfaces, shared rules | none |
+| `internal/schema` | Built-in message schema registry, payload types, validators | `model` |
+| `internal/sqlstore` | The SQLite `Store`: queries, migrations, backfills | `model` |
+| `internal/service` | `*Service`: authentication, authorization, grants, delivery, leases, presence | `model`, `schema` |
+| `internal/mergegate` | Merge certificate verification | `model`, `schema` |
+| `internal/evaluation` | Evaluation reports | `model`, `schema` |
+| `internal/httpserve` | Request logging and serve loop for `cmd/comitia` and `mcp` | none |
+
+No internal package imports the root. The adapters `cmd/comitia`, `mcp` and `httpapi` reach the implementation only through the root and `sqlite`, except for `internal/httpserve`. Package `sqlite` links the driver and opens embedded stores (`sqlite.OpenSQLite`), so remote clients of the root, `httpapi` and `mcp` never link it; the deprecated root `OpenSQLite` needs a registered driver. Package `storetest` checks external `Store` implementations.
+
+Tests, not this text, are the source of truth: `TestPublicAPISurface` compares the exported API of every public package with `testdata/api_surface.golden`; `TestInternalLayering` and `TestAdapterImports` (`layering_test.go`) enforce the table and the adapter rule; `import_boundary_test.go` keeps the driver out of the root, `httpapi` and `mcp`.
+
+The root aliases the types of `internal/model`, so their exported methods and fields are public API. Nothing in `internal/model` may gain an exported method or field unless it is meant to become public API; a helper another internal package needs is an exported free function instead.
+
+`Bootstrap` is a one-time, local operation and must not be exposed through the HTTP adapter. Adapters map the stable errors into their own status or exit conventions without exposing SQLite errors as public contracts. The [code map](code-map.md) shows where each domain lives and follows a request through the code.
 
 ## Consistency and recovery
 
