@@ -7,11 +7,14 @@ import (
 
 const ProtocolVersion = "2025-06-18"
 
-// Version can be set with -ldflags '-X github.com/krimvp/comitia.Version=...'.
-var Version string
-
-// Revision and Dirty may be stamped by source installers even with buildvcs=false.
-var Revision, Dirty string
+// BuildStamp returns the current build stamp: the root package's exported
+// variables Version, Revision and Dirty, which may be set with -ldflags -X or
+// assigned at runtime. The root's init installs a reader of those variables,
+// so every call sees their current values; model cannot import the root. Until
+// then, and for tests that replace it, the stamp is empty and the defaults
+// below apply. Read it only through BuildVersion and BuildIdentity, never from
+// a package-level initialiser, which may run before the root's init.
+var BuildStamp = func() (version, revision, dirty string) { return "", "", "" }
 
 type BuildInfo struct {
 	Version  string `json:"version"`
@@ -25,7 +28,8 @@ func BuildIdentity() BuildInfo {
 }
 
 func IdentityFromBuildInfo(info *debug.BuildInfo) BuildInfo {
-	b := BuildInfo{Version: BuildVersion(), Revision: Revision, Dirty: Dirty}
+	_, revision, dirty := BuildStamp()
+	b := BuildInfo{Version: BuildVersion(), Revision: revision, Dirty: dirty}
 	if info != nil {
 		for _, setting := range info.Settings {
 			if setting.Key == "vcs.revision" && b.Revision == "" {
@@ -46,8 +50,8 @@ func IdentityFromBuildInfo(info *debug.BuildInfo) BuildInfo {
 }
 
 func BuildVersion() string {
-	if Version != "" {
-		return Version
+	if version, _, _ := BuildStamp(); version != "" {
+		return version
 	}
 	if info, ok := debug.ReadBuildInfo(); ok && info.Main.Version != "" && info.Main.Version != "(devel)" {
 		return info.Main.Version

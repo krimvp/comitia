@@ -13,15 +13,43 @@ import (
 	"path/filepath"
 	"runtime"
 	"sort"
+	"strconv"
 	"strings"
 	"testing"
+
+	"github.com/krimvp/comitia"
+	"github.com/krimvp/comitia/httpapi"
 )
 
 var update = flag.Bool("update", false, "rewrite testdata/api_surface.golden from the current tree")
 
-// The public packages whose exported API is frozen. The internal packages
-// behind them may change freely as long as this surface does not.
-var publicPackages = []string{module, module + "/sqlite", module + "/storetest"}
+// The public packages whose exported API is frozen: every importable path of
+// the module that is not internal or a command. The internal packages behind
+// them may change freely as long as this surface does not.
+var publicPackages = []string{module, module + "/sqlite", module + "/storetest", module + "/httpapi", module + "/mcp"}
+
+// errorTexts holds the exported error variables of the public packages by
+// package path and name. Export data carries no variable values, so the
+// surface takes their texts from here: they cross the wire in error messages,
+// which clients match. The surface fails on an exported error variable
+// missing from this table.
+var errorTexts = map[string]error{
+	module + ".ErrBootstrapUsed":                           comitia.ErrBootstrapUsed,
+	module + ".ErrConflict":                                comitia.ErrConflict,
+	module + ".ErrForbidden":                               comitia.ErrForbidden,
+	module + ".ErrInvalid":                                 comitia.ErrInvalid,
+	module + ".ErrNotFound":                                comitia.ErrNotFound,
+	module + ".ErrStaleClaim":                              comitia.ErrStaleClaim,
+	module + ".ErrUnauthenticated":                         comitia.ErrUnauthenticated,
+	module + "/httpapi.ErrBootstrapOffline":                httpapi.ErrBootstrapOffline,
+	module + "/httpapi.ErrClaimRecoveryUnsupported":        httpapi.ErrClaimRecoveryUnsupported,
+	module + "/httpapi.ErrReferenceListUnsupported":        httpapi.ErrReferenceListUnsupported,
+	module + "/httpapi.ErrResponseTooLarge":                httpapi.ErrResponseTooLarge,
+	module + "/httpapi.ErrTaskFiltersUnsupported":          httpapi.ErrTaskFiltersUnsupported,
+	module + "/httpapi.ErrTaskMutationReceiptsUnsupported": httpapi.ErrTaskMutationReceiptsUnsupported,
+	module + "/httpapi.ErrTaskOutcomesUnsupported":         httpapi.ErrTaskOutcomesUnsupported,
+	module + "/httpapi.ErrTaskResultFencingUnsupported":    httpapi.ErrTaskResultFencingUnsupported,
+}
 
 const surfaceGolden = "testdata/api_surface.golden"
 
@@ -48,7 +76,8 @@ func TestPublicAPISurface(t *testing.T) {
 // their compiled export data. Types print their underlying type and exported
 // method sets, so an alias and the type it names print alike; packages of
 // this module print unqualified, so moving a declaration behind an alias does
-// not change the surface.
+// not change the surface. Constants print their exact values and error
+// variables their texts (from errorTexts).
 func apiSurface(t *testing.T) string {
 	t.Helper()
 	cmd := exec.Command("go", append([]string{"list", "-export", "-deps", "-json=ImportPath,Export"}, publicPackages...)...)
@@ -88,6 +117,7 @@ func apiSurface(t *testing.T) string {
 		return p.Name()
 	}
 	var b strings.Builder
+	errorVars := 0
 	for _, path := range publicPackages {
 		pkg, err := imp.Import(path)
 		if err != nil {
@@ -101,6 +131,17 @@ func apiSurface(t *testing.T) string {
 				continue
 			}
 			line := types.ObjectString(obj, qualifier)
+			if c, ok := obj.(*types.Const); ok {
+				line += " = " + c.Val().ExactString()
+			}
+			if v, ok := obj.(*types.Var); ok && types.Identical(v.Type(), errorType) {
+				err, ok := errorTexts[path+"."+name]
+				if !ok {
+					t.Fatalf("%s.%s is an exported error variable missing from errorTexts; add it so the surface pins its text", path, name)
+				}
+				line += " = " + strconv.Quote(err.Error())
+				errorVars++
+			}
 			if tn, ok := obj.(*types.TypeName); ok {
 				line = "type " + name + " " + types.TypeString(tn.Type().Underlying(), qualifier)
 				for i, typ := range []types.Type{tn.Type(), types.NewPointer(tn.Type())} {
@@ -117,11 +158,17 @@ func apiSurface(t *testing.T) string {
 		sort.Strings(lines)
 		fmt.Fprintf(&b, "## %s\n%s\n", path, strings.Join(lines, "\n"))
 	}
+	if len(errorTexts) != errorVars {
+		t.Fatalf("errorTexts names %d error variables, the public packages export %d; remove the stale entries", len(errorTexts), errorVars)
+	}
 	return b.String()
 }
 
+var errorType = types.Universe.Lookup("error").Type()
+
 // lineDiff lists the lines only in want (-) and only in got (+), in order,
-// from a longest common subsequence.
+// from a longest common subsequence, each under the "## package" header of
+// its section.
 func lineDiff(want, got string) string {
 	a, b := strings.Split(want, "\n"), strings.Split(got, "\n")
 	lcs := make([][]int, len(a)+1)
@@ -138,16 +185,27 @@ func lineDiff(want, got string) string {
 		}
 	}
 	var out []string
+	section, printed := "", ""
+	emit := func(line string) {
+		if section != printed {
+			out = append(out, section)
+			printed = section
+		}
+		out = append(out, line)
+	}
 	i, j := 0, 0
 	for i < len(a) || j < len(b) {
 		switch {
 		case i < len(a) && j < len(b) && a[i] == b[j]:
+			if strings.HasPrefix(a[i], "## ") {
+				section = a[i]
+			}
 			i, j = i+1, j+1
 		case j < len(b) && (i == len(a) || lcs[i][j+1] >= lcs[i+1][j]):
-			out = append(out, "+ "+b[j])
+			emit("+ " + b[j])
 			j++
 		default:
-			out = append(out, "- "+a[i])
+			emit("- " + a[i])
 			i++
 		}
 	}

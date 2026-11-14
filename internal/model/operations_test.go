@@ -65,9 +65,12 @@ func TestSafeDiagnosticAndRemoteCorrelation(t *testing.T) {
 }
 
 func TestBuildIdentityFallbackAndStamp(t *testing.T) {
-	oldRevision, oldDirty := Revision, Dirty
-	t.Cleanup(func() { Revision, Dirty = oldRevision, oldDirty })
-	Revision, Dirty = "", ""
+	oldStamp := BuildStamp
+	t.Cleanup(func() { BuildStamp = oldStamp })
+	stamp := func(revision, dirty string) {
+		BuildStamp = func() (string, string, string) { return "", revision, dirty }
+	}
+	stamp("", "")
 	fallback := IdentityFromBuildInfo(&debug.BuildInfo{Settings: []debug.BuildSetting{{Key: "vcs.revision", Value: "revision-from-go"}, {Key: "vcs.modified", Value: "true"}}})
 	if fallback.Revision != "revision-from-go" || fallback.Dirty != "true" {
 		t.Fatalf("build info lost: %+v", fallback)
@@ -75,10 +78,10 @@ func TestBuildIdentityFallbackAndStamp(t *testing.T) {
 	if unknown := IdentityFromBuildInfo(nil); unknown.Revision != "unknown" || unknown.Dirty != "unknown" {
 		t.Fatalf("unknown=%+v", unknown)
 	}
-	Revision, Dirty = "stamped-revision", "false"
-	stamp := IdentityFromBuildInfo(&debug.BuildInfo{Settings: []debug.BuildSetting{{Key: "vcs.revision", Value: "ignored"}}})
-	if stamp.Revision != Revision || stamp.Dirty != Dirty {
-		t.Fatalf("stamp=%+v", stamp)
+	stamp("stamped-revision", "false")
+	stamped := IdentityFromBuildInfo(&debug.BuildInfo{Settings: []debug.BuildSetting{{Key: "vcs.revision", Value: "ignored"}}})
+	if stamped.Revision != "stamped-revision" || stamped.Dirty != "false" {
+		t.Fatalf("stamp=%+v", stamped)
 	}
 }
 

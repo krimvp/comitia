@@ -1,57 +1,57 @@
 ## github.com/krimvp/comitia
-const ApprovalApproved ApprovalVerdict
-const ApprovalChangesRequested ApprovalVerdict
-const ApprovalSchema untyped string
-const CriterionFailed CriterionOutcome
-const CriterionNotRun CriterionOutcome
-const CriterionPassed CriterionOutcome
-const DefaultInstanceListLimit untyped int
-const DefaultMessageBytes untyped int
-const EvaluationAccepted EvaluationOutcome
-const EvaluationInconclusive EvaluationOutcome
-const EvaluationRejected EvaluationOutcome
-const EvaluationResultSchema untyped string
-const ExecutionEventSchema untyped string
-const GraderAgent GraderKind
-const GraderAutomated GraderKind
-const GraderHuman GraderKind
-const InstanceHeartbeatInterval time.Duration
-const InstanceRecentWindow time.Duration
-const InstanceRetention time.Duration
-const ListPageBytes untyped int
-const MaxDedupeKeyBytes untyped int
-const MaxInstanceResumeBytes untyped int
-const MaxInstancesPerSession untyped int
-const MaxListBytes untyped int
-const MaxMessageBodyBytes untyped int
-const MaxMessageBytes untyped int
-const MaxMessageWait time.Duration
-const MaxReferenceKindBytes untyped int
-const MaxReferenceURIBytes untyped int
-const MaxTaskBodyBytes untyped int
-const MaxTaskTitleBytes untyped int
-const MergeCertificateSchema untyped string
-const MergeReceiptSchema untyped string
-const OpenLease time.Duration
-const PermissionAdmin Permission
-const PermissionAll Permission
-const PermissionClaim Permission
-const PermissionCreate Permission
-const PermissionGrant Permission
-const PermissionRead Permission
-const PermissionWrite Permission
-const ProtocolVersion untyped string
-const ReceiptSchema untyped string
-const RequestSchema untyped string
-const StanceSchema untyped string
-const StorageProbeTimeout time.Duration
-const TaskCancelled TaskStatus
-const TaskCompleted TaskStatus
-const TaskEventSchema untyped string
-const TaskFailed TaskStatus
-const TaskLeased TaskStatus
-const TaskPending TaskStatus
-const TaskStatusSchema untyped string
+const ApprovalApproved ApprovalVerdict = "approved"
+const ApprovalChangesRequested ApprovalVerdict = "changes-requested"
+const ApprovalSchema untyped string = "comitia.approval.v1"
+const CriterionFailed CriterionOutcome = "failed"
+const CriterionNotRun CriterionOutcome = "not_run"
+const CriterionPassed CriterionOutcome = "passed"
+const DefaultInstanceListLimit untyped int = 100
+const DefaultMessageBytes untyped int = 1048576
+const EvaluationAccepted EvaluationOutcome = "accepted"
+const EvaluationInconclusive EvaluationOutcome = "inconclusive"
+const EvaluationRejected EvaluationOutcome = "rejected"
+const EvaluationResultSchema untyped string = "comitia.evaluation-result.v1"
+const ExecutionEventSchema untyped string = "comitia.execution-event.v1"
+const GraderAgent GraderKind = "agent"
+const GraderAutomated GraderKind = "automated"
+const GraderHuman GraderKind = "human"
+const InstanceHeartbeatInterval time.Duration = 30000000000
+const InstanceRecentWindow time.Duration = 90000000000
+const InstanceRetention time.Duration = 86400000000000
+const ListPageBytes untyped int = 1048576
+const MaxDedupeKeyBytes untyped int = 256
+const MaxInstanceResumeBytes untyped int = 4096
+const MaxInstancesPerSession untyped int = 64
+const MaxListBytes untyped int = 8388608
+const MaxMessageBodyBytes untyped int = 1048576
+const MaxMessageBytes untyped int = 4194304
+const MaxMessageWait time.Duration = 60000000000
+const MaxReferenceKindBytes untyped int = 256
+const MaxReferenceURIBytes untyped int = 8192
+const MaxTaskBodyBytes untyped int = 1048576
+const MaxTaskTitleBytes untyped int = 4096
+const MergeCertificateSchema untyped string = "comitia.merge-certificate.v1"
+const MergeReceiptSchema untyped string = "comitia.merge-receipt.v1"
+const OpenLease time.Duration = 9223372036854775807
+const PermissionAdmin Permission = 16
+const PermissionAll Permission = 63
+const PermissionClaim Permission = 4
+const PermissionCreate Permission = 32
+const PermissionGrant Permission = 8
+const PermissionRead Permission = 1
+const PermissionWrite Permission = 2
+const ProtocolVersion untyped string = "2025-06-18"
+const ReceiptSchema untyped string = "comitia.receipt.v1"
+const RequestSchema untyped string = "comitia.request.v1"
+const StanceSchema untyped string = "comitia.stance.v1"
+const StorageProbeTimeout time.Duration = 250000000
+const TaskCancelled TaskStatus = "cancelled"
+const TaskCompleted TaskStatus = "completed"
+const TaskEventSchema untyped string = "comitia.task-event.v1"
+const TaskFailed TaskStatus = "failed"
+const TaskLeased TaskStatus = "leased"
+const TaskPending TaskStatus = "pending"
+const TaskStatusSchema untyped string = "comitia.task-status.v1"
 func AuthoritativeMergeReceipt(cert Message, receipts []Message, mergerSessionID string) (Message, error)
 func BuildEvaluationReport(messages []Message) (EvaluationReport, error)
 func BuildIdentity() BuildInfo
@@ -483,16 +483,92 @@ type WorkContext struct{ID string; WorkspaceID string; Name string; ParentContex
 type Workspace struct{ID string; Name string; CreatedAt time.Time}
 type WriteStore interface{ReadStore; SessionWriteStore; ContextWriteStore; GrantWriteStore; MessageWriteStore; TaskWriteStore; PresenceWriteStore}
 var Dirty string
-var ErrBootstrapUsed error
-var ErrConflict error
-var ErrForbidden error
-var ErrInvalid error
-var ErrNotFound error
-var ErrStaleClaim error
-var ErrUnauthenticated error
+var ErrBootstrapUsed error = "bootstrap already completed"
+var ErrConflict error = "conflict"
+var ErrForbidden error = "forbidden"
+var ErrInvalid error = "invalid input"
+var ErrNotFound error = "not found"
+var ErrStaleClaim error = "stale task claim"
+var ErrUnauthenticated error = "unauthenticated"
 var Revision string
 var Version string
 ## github.com/krimvp/comitia/sqlite
 func OpenSQLite(path string) (*SQLiteStore, error)
 ## github.com/krimvp/comitia/storetest
 func Grants(t *testing.T, open func(*testing.T) Store)
+## github.com/krimvp/comitia/httpapi
+func NewClient(baseURL string, hc *http.Client) (*Client, error)
+func NewClientWithInstanceDefaults(baseURL string, hc *http.Client, defaults InstanceDefaults) (*Client, error)
+func NewHandler(api API) http.Handler
+func NewHandlerWithDiagnostics(api API, hook DiagnosticHook) http.Handler
+method Client pointer.AckMessages func(ctx context.Context, token string, id string, sequence int64, instances ...string) error
+method Client pointer.AddReference func(ctx context.Context, token string, input AddReferenceInput) (Reference, error)
+method Client pointer.AppendMessage func(ctx context.Context, token string, id string, input MessageInput) (Message, error)
+method Client pointer.ArchiveContext func(ctx context.Context, token string, id string) error
+method Client pointer.Bootstrap func(context.Context, BootstrapInput) (Principal, Credential, error)
+method Client pointer.CancelTask func(ctx context.Context, token string, tid string, in TaskOutcomeInput) (Task, error)
+method Client pointer.ClaimTask func(ctx context.Context, token string, id string, lease time.Duration, instances ...AgentInstance) (TaskClaim, error)
+method Client pointer.ClaimTaskWithOperation func(ctx context.Context, token string, id string, lease time.Duration, operationID string, instances ...AgentInstance) (TaskClaim, error)
+method Client pointer.CompleteTask func(ctx context.Context, token string, id string, key string, version int64) (Task, error)
+method Client pointer.CreateChildContext func(ctx context.Context, token string, input CreateChildContextInput) (WorkContext, error)
+method Client pointer.CreateContext func(ctx context.Context, token string, input CreateContextInput) (WorkContext, error)
+method Client pointer.CreatePrincipal func(ctx context.Context, token string, name string) (Principal, error)
+method Client pointer.CreateTask func(ctx context.Context, token string, id string, input TaskInput) (Task, error)
+method Client pointer.CreateWorkspace func(ctx context.Context, token string, name string) (Workspace, error)
+method Client pointer.DelegateSession func(ctx context.Context, token string, input DelegateInput) (Principal, Credential, []Grant, error)
+method Client pointer.EndWaits func()
+method Client pointer.FailTask func(ctx context.Context, token string, tid string, in TaskOutcomeInput) (Task, error)
+method Client pointer.GetContext func(ctx context.Context, token string, id string) (WorkContext, error)
+method Client pointer.GetMessage func(ctx context.Context, token string, cid string, mid string) (Message, error)
+method Client pointer.GetMessageSchema func(ctx context.Context, token string, schema string) (MessageSchemaDescriptor, error)
+method Client pointer.GetTask func(ctx context.Context, token string, id string) (Task, error)
+method Client pointer.GrantContext func(ctx context.Context, token string, input GrantInput) (Grant, error)
+method Client pointer.ListChildContexts func(ctx context.Context, token string, parent string, after string, limit int) ([]WorkContext, error)
+method Client pointer.ListContexts func(ctx context.Context, token string, after string, limit int) ([]WorkContext, error)
+method Client pointer.ListInstances func(ctx context.Context, token string, id string) ([]InstancePresence, error)
+method Client pointer.ListInstancesPage func(ctx context.Context, token string, id string, after string, limit int) (InstancePage, error)
+method Client pointer.ListMessageSchemas func(ctx context.Context, token string) ([]MessageSchemaDescriptor, error)
+method Client pointer.ListParticipants func(ctx context.Context, token string, id string, limit int) ([]Participant, error)
+method Client pointer.ListParticipantsPage func(ctx context.Context, token string, id string, after string, limit int) (ParticipantPage, error)
+method Client pointer.ListReferences func(ctx context.Context, token string, id string, after string, limit int) (ReferencePage, error)
+method Client pointer.ListTasks func(ctx context.Context, token string, id string, status TaskStatus, limit int) ([]Task, error)
+method Client pointer.ListTasksFiltered func(ctx context.Context, token string, cid string, status TaskStatus, f TaskFilters, limit int) ([]Task, error)
+method Client pointer.ListTasksPage func(ctx context.Context, token string, id string, status TaskStatus, after string, limit int) (TaskPage, error)
+method Client pointer.ListTasksPageFiltered func(ctx context.Context, token string, cid string, status TaskStatus, f TaskFilters, after string, limit int) (TaskPage, error)
+method Client pointer.MessageCursor func(ctx context.Context, token string, id string, instances ...string) (int64, error)
+method Client pointer.MintSession func(ctx context.Context, token string, principal string, ttl time.Duration) (Credential, error)
+method Client pointer.RecoverClaim func(ctx context.Context, token string, id string, version int64, instances ...AgentInstance) (TaskClaim, error)
+method Client pointer.ReleaseTask func(ctx context.Context, token string, id string, key string, version int64) (Task, error)
+method Client pointer.RenewClaim func(ctx context.Context, token string, id string, key string, version int64, lease time.Duration) (TaskClaim, error)
+method Client pointer.RenewClaimWithOperation func(ctx context.Context, token string, id string, key string, version int64, lease time.Duration, operationID string) (TaskClaim, error)
+method Client pointer.ReplayMessages func(ctx context.Context, token string, id string, after int64, limit int, filters ...MessageFilters) ([]Message, error)
+method Client pointer.ReplayMessagesPage func(ctx context.Context, token string, id string, after int64, limit int, filters ...MessageFilters) (MessagePage, error)
+method Client pointer.RevokeGrant func(ctx context.Context, token string, id string) error
+method Client pointer.RevokeSession func(ctx context.Context, token string, id string) error
+method Client pointer.ServerInfo func(ctx context.Context, token string) (ServerInfo, error)
+method Client pointer.SetInstanceResume func(ctx context.Context, token string, id string, instance *AgentInstance, resume json.RawMessage) error
+method Client pointer.StorageStatus func(ctx context.Context, token string) (StorageStatus, error)
+method Client pointer.SupportsMessageReadOptions func() bool
+method Client pointer.WaitMessages func(ctx context.Context, token string, id string, after int64, timeout time.Duration, filters ...MessageFilters) ([]Message, error)
+method Client pointer.WaitMessagesPage func(ctx context.Context, token string, id string, after int64, timeout time.Duration, filters ...MessageFilters) (MessagePage, error)
+type Client struct{base *url.URL; http *http.Client; InstanceDefaults InstanceDefaults; waits *waitDrain; querySupported *atomic.Bool}
+var ErrBootstrapOffline error = "bootstrap is available only to embedded clients"
+var ErrClaimRecoveryUnsupported error = "invalid input: claim recovery unsupported by this server; upgrade the server before retrying"
+var ErrReferenceListUnsupported error = "invalid input: server does not support listing references; upgrade the server before retrying"
+var ErrResponseTooLarge error = "remote response exceeds 16777216-byte limit"
+var ErrTaskFiltersUnsupported error = "invalid input: server does not support task filters; upgrade the server before retrying"
+var ErrTaskMutationReceiptsUnsupported error = "invalid input: server does not support task mutation receipts (operation_id); upgrade the server before retrying"
+var ErrTaskOutcomesUnsupported error = "invalid input: server does not support terminal task outcomes; upgrade the server before retrying"
+var ErrTaskResultFencingUnsupported error = "invalid input: server does not support task result fencing (task_fence); upgrade the server before retrying"
+## github.com/krimvp/comitia/mcp
+const PathPrefix untyped string = "/mcp"
+const ProtocolVersion untyped string = "2025-06-18"
+func LoggingHandler(next http.Handler) http.Handler
+func NewHTTPHandler(api API, cfg HTTPConfig) http.Handler
+func ServeHTTP(ctx context.Context, srv *http.Server) error
+func SupportedProtocolVersion(rev string) bool
+method Server pointer.Serve func(ctx context.Context, in io.Reader, out io.Writer) error
+type HTTPConfig struct{DiagnosticHook DiagnosticHook; InstanceDefaults InstanceDefaults; SessionsDir string; ServerURL string; AllowDelegation bool; AllowedOrigins []string; MaxBody int64; RatePerSecond float64; RateBurst int}
+type Server struct{DiagnosticHook DiagnosticHook; API API; Credential string; InstanceDefaults InstanceDefaults; SessionsDir string; ServerURL string}
+var ProtocolVersions []string
+var SupportedProtocolVersions []string

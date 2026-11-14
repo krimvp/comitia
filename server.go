@@ -14,12 +14,11 @@ var Version string
 // Revision and Dirty may be stamped by source installers even with buildvcs=false.
 var Revision, Dirty string
 
-// The build stamp is set on the root variables with -ldflags -X and copied
-// into the implementation before any caller runs.
+// The root variables are the build stamp's single source of truth, set with
+// -ldflags -X (in place before any init) or assigned at runtime. The
+// implementation reads them at call time through this reader.
 func init() {
-	model.Version = Version
-	model.Revision = Revision
-	model.Dirty = Dirty
+	model.BuildStamp = func() (string, string, string) { return Version, Revision, Dirty }
 }
 
 type BuildInfo = model.BuildInfo
