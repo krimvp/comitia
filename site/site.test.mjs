@@ -153,3 +153,29 @@ test("Pages checks the checkout before staging and uploading the site", () => {
   assert.match(build, /--exclude 'browser\/'/);
   assert.match(workflow, /deploy:\s+needs: build/);
 });
+
+test("the page describes itself to link previews", () => {
+  const description = html.match(/<meta name="description" content="([^"]+)">/)[1];
+  for (const [attr, name, value] of [
+    ["property", "og:type", "website"], ["property", "og:site_name", "Comitia"], ["property", "og:title", "Comitia"],
+    ["property", "og:description", description], ["name", "twitter:card", "summary"],
+    ["name", "twitter:title", "Comitia"], ["name", "twitter:description", description],
+  ]) assert.match(html, new RegExp(`<meta ${attr}="${name}" content="${value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}">`), name);
+});
+
+test("the footer links the documentation", () => {
+  const foot = html.slice(html.indexOf('<footer class="foot">'), html.indexOf("</footer>"));
+  const nav = foot.match(/<nav class="foot-docs" aria-label="Documentation">([\s\S]*?)<\/nav>/)?.[1];
+  assert.ok(nav, "documentation links in the footer");
+  const links = [...nav.matchAll(/<a href="([^"]+)">([^<]+)<\/a>/g)].map((m) => [m[2], m[1]]);
+  assert.deepEqual(links, [
+    ["README", "https://github.com/krimvp/comitia#readme"],
+    ["Documentation", "https://github.com/krimvp/comitia/blob/main/docs/README.md"],
+    ["Architecture", "https://github.com/krimvp/comitia/blob/main/docs/architecture.md"],
+    ["Contributing", "https://github.com/krimvp/comitia/blob/main/CONTRIBUTING.md"],
+  ]);
+  const prefix = "https://github.com/krimvp/comitia/blob/main/";
+  for (const [, url] of links.filter(([, url]) => url.startsWith(prefix))) {
+    assert.ok(existsSync(join(root, "..", url.slice(prefix.length))), `missing ${url}`);
+  }
+});
