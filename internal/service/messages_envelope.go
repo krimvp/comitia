@@ -24,8 +24,8 @@ func (s *Service) normalizeEnvelope(in *model.MessageEnvelope, body string) (*mo
 		return nil, model.Invalidf("task events are server-authored")
 	}
 	raw, err := json.Marshal(in)
-	if err != nil || len(raw) > 65536 || len(in.RecipientSessionIDs) > 64 || len(in.RecipientInstances) > 64 {
-		return nil, model.Invalidf("envelope must be valid JSON, at most 65536 bytes with at most 64 recipient_session_ids and recipient_instances")
+	if err != nil || len(raw) > model.MaxEnvelopeBytes || len(in.RecipientSessionIDs) > model.MaxEnvelopeRecipients || len(in.RecipientInstances) > model.MaxEnvelopeRecipients {
+		return nil, model.Invalidf("envelope must be valid JSON, at most %d bytes with at most %d recipient_session_ids and recipient_instances", model.MaxEnvelopeBytes, model.MaxEnvelopeRecipients)
 	}
 	var out model.MessageEnvelope
 	if json.Unmarshal(raw, &out) != nil {
@@ -150,8 +150,8 @@ func (s *Service) validateReaders(r model.ReadStore, cid, field string, sids []s
 
 // Names are display labels, never routing keys. IDs identify concrete sessions.
 func (s *Service) ListParticipants(ctx context.Context, token, cid string, limit int) ([]model.Participant, error) {
-	if limit < 1 || limit > 1000 {
-		return nil, model.Invalidf("limit must be between 1 and 1000")
+	if limit < 1 || limit > model.MaxListLimit {
+		return nil, model.Invalidf("limit must be between 1 and %d", model.MaxListLimit)
 	}
 	out := []model.Participant{}
 	err := s.store.View(ctx, func(r model.ReadStore) error {

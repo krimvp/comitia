@@ -166,10 +166,10 @@ func normalizeFields(raw json.RawMessage, typ reflect.Type, legacy, strict bool)
 
 func listLimit(n *int) (int, error) {
 	if n == nil {
-		return 100, nil
+		return comitia.DefaultListLimit, nil
 	}
-	if *n < 1 || *n > 1000 {
-		return 0, comitia.Invalidf("limit must be between 1 and 1000")
+	if *n < 1 || *n > comitia.MaxListLimit {
+		return 0, comitia.Invalidf("limit must be between 1 and %d", comitia.MaxListLimit)
 	}
 	return *n, nil
 }

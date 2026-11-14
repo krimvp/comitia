@@ -76,8 +76,8 @@ func (s *Service) GetTask(ctx context.Context, raw, id string) (model.Task, erro
 
 func (s *Service) ListTasks(ctx context.Context, raw, cid string, status model.TaskStatus, limit int) ([]model.Task, error) {
 	var out []model.Task
-	if limit < 1 || limit > 1000 {
-		return nil, model.Invalidf("limit must be between 1 and 1000")
+	if limit < 1 || limit > model.MaxListLimit {
+		return nil, model.Invalidf("limit must be between 1 and %d", model.MaxListLimit)
 	}
 	if !schema.ValidTaskStatusFilter(status) {
 		return nil, model.Invalidf("status must be pending, leased, completed, failed or cancelled")

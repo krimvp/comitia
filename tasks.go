@@ -40,6 +40,17 @@ type TaskInput = model.TaskInput
 // TaskReceipt records a non-secret mutation outcome.
 type TaskReceipt = model.TaskReceipt
 
+// Lease bounds: a lease is OpenLease or between MinLease and MaxLease, and
+// adapters default an omitted lease to DefaultLease.
+const (
+	MinLease     = model.MinLease
+	MaxLease     = model.MaxLease
+	DefaultLease = model.DefaultLease
+)
+
+// MaxTaskReasonBytes bounds the reason of a failed or cancelled task.
+const MaxTaskReasonBytes = model.MaxTaskReasonBytes
+
 const // OpenLease asks for a lease that lasts until the task is completed or
 // released.
 OpenLease = model.OpenLease

@@ -13,8 +13,8 @@ import (
 // The cursor is the last returned ID. An empty page marks the end. Administrative
 // status alone does not grant visibility into contexts.
 func (s *Service) ListContexts(ctx context.Context, raw, afterID string, limit int) ([]model.WorkContext, error) {
-	if limit < 1 || limit > 1000 {
-		return nil, model.Invalidf("limit must be between 1 and 1000")
+	if limit < 1 || limit > model.MaxListLimit {
+		return nil, model.Invalidf("limit must be between 1 and %d", model.MaxListLimit)
 	}
 	if len(afterID) > 128 {
 		return nil, model.Invalidf("after_id must be at most 128 bytes")
@@ -176,8 +176,8 @@ func (s *Service) CreateChildContext(ctx context.Context, raw string, in model.C
 // ListChildContexts returns metadata of the parent's children, ordered by ID, strictly after afterID. It needs read
 // on the parent only; reading a child's messages and tasks still needs read on the child itself.
 func (s *Service) ListChildContexts(ctx context.Context, raw, parentID, afterID string, limit int) ([]model.WorkContext, error) {
-	if limit < 1 || limit > 1000 {
-		return nil, model.Invalidf("limit must be between 1 and 1000")
+	if limit < 1 || limit > model.MaxListLimit {
+		return nil, model.Invalidf("limit must be between 1 and %d", model.MaxListLimit)
 	}
 	if len(afterID) > 128 {
 		return nil, model.Invalidf("after_id must be at most 128 bytes")

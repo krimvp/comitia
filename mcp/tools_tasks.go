@@ -5,6 +5,7 @@ package mcp
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"time"
 
 	"github.com/krimvp/comitia"
@@ -15,9 +16,9 @@ func taskTools() []map[string]any {
 		tool("fail_task", "Fail a task permanently with a live claim and reason; release_task remains retryable", taskOutcomeSchema(false)),
 		tool("cancel_task", "Cancel a task with a live claim or context-admin authority and current version; admins may cancel pending work at version 0", taskOutcomeSchema(true)),
 		tool("create_task", "Create a task in a context", schema(map[string]any{"context_id": str("Context ID"), "title": limited("Task title", comitia.MaxTaskTitleBytes), "body": limited("Task details", comitia.MaxTaskBodyBytes), "operation_id": taskOperationID()}, "context_id", "title")),
-		tool("claim_task", "Claim a pending task; lease_seconds defaults to 300 (1–86400), or use open_ended. Returns Task + Token; keep Token and Task.LeaseVersion for renew/complete. Omitted agent_instance defaults to COMITIA_AGENT_INSTANCE / COMITIA_AGENT_INSTANCE_LABEL; explicit objects replace both defaults and an empty ID is invalid", schema(map[string]any{"task_id": str("Task ID"), "operation_id": taskOperationID(), "lease_seconds": integer("Lease duration in seconds"), "open_ended": openEnded(), "agent_instance": schema(map[string]any{"id": str("Self-reported instance ID holding the claim: 1-64 ASCII letters, digits, dot, underscore or hyphen; never identity proof"), "label": str("Optional self-reported display label (at most 128 bytes)")}, "id")}, "task_id")),
+		tool("claim_task", "Claim a pending task; lease_seconds "+leaseSecondsDescription+", or use open_ended. Returns Task + Token; keep Token and Task.LeaseVersion for renew/complete. Omitted agent_instance defaults to COMITIA_AGENT_INSTANCE / COMITIA_AGENT_INSTANCE_LABEL; explicit objects replace both defaults and an empty ID is invalid", schema(map[string]any{"task_id": str("Task ID"), "operation_id": taskOperationID(), "lease_seconds": integer("Lease duration in seconds"), "open_ended": openEnded(), "agent_instance": schema(map[string]any{"id": str("Self-reported instance ID holding the claim: 1-64 ASCII letters, digits, dot, underscore or hyphen; never identity proof"), "label": str("Optional self-reported display label (at most 128 bytes)")}, "id")}, "task_id")),
 		tool("recover_claim", "Recover a lost claim token for your own live lease at its current version; matching agent_instance ID required for instance claims. Rotates Token without extending expiry or changing LeaseVersion; earlier tokens become stale. Omitted agent_instance uses configured defaults.", schema(map[string]any{"task_id": str("Task ID"), "lease_version": integer("Current positive lease version from get_task"), "agent_instance": schema(map[string]any{"id": str("Matching holder instance ID; self-reported, never identity proof"), "label": str("Optional display label")}, "id")}, "task_id", "lease_version")),
-		tool("renew_task", "Renew a task claim using claim_token and lease_version; lease_seconds defaults to 300 (1–86400), or use open_ended. Returns Task + Token; replace both Token and Task.LeaseVersion after renewal.", schema(map[string]any{"task_id": str("Task ID"), "claim_token": str("Opaque claim token"), "lease_version": integer("Current lease version"), "operation_id": taskOperationID(), "lease_seconds": integer("Lease duration in seconds"), "open_ended": openEnded()}, "task_id", "claim_token", "lease_version")),
+		tool("renew_task", "Renew a task claim using claim_token and lease_version; lease_seconds "+leaseSecondsDescription+", or use open_ended. Returns Task + Token; replace both Token and Task.LeaseVersion after renewal.", schema(map[string]any{"task_id": str("Task ID"), "claim_token": str("Opaque claim token"), "lease_version": integer("Current lease version"), "operation_id": taskOperationID(), "lease_seconds": integer("Lease duration in seconds"), "open_ended": openEnded()}, "task_id", "claim_token", "lease_version")),
 		tool("complete_task", "Complete a claimed task using the latest Token as claim_token and Task.LeaseVersion as lease_version from claim/renew.", schema(map[string]any{"task_id": str("Task ID"), "claim_token": str("Opaque claim token"), "lease_version": integer("Current lease version")}, "task_id", "claim_token", "lease_version")),
 		tool("release_task", "Return a leased task to pending; the holder passes its claim token, a context admin may omit it", schema(map[string]any{"task_id": str("Task ID"), "claim_token": str("Opaque claim token; optional for a context admin"), "lease_version": integer("Current lease version")}, "task_id", "lease_version")),
 		tool("get_task", "Get a task by ID", schema(map[string]any{"task_id": str("Task ID")}, "task_id")),
@@ -205,12 +206,12 @@ func (s *Server) callListTasks(ctx context.Context, raw json.RawMessage) (any, e
 	if err := required("context_id", a.ContextID); err != nil {
 		return nil, err
 	}
-	limit := 100
+	limit := comitia.DefaultListLimit
 	if a.Limit != nil {
 		limit = *a.Limit
 	}
-	if limit < 1 || limit > 1000 {
-		return nil, comitia.Invalidf("limit must be between 1 and 1000")
+	if limit < 1 || limit > comitia.MaxListLimit {
+		return nil, comitia.Invalidf("limit must be between 1 and %d", comitia.MaxListLimit)
 	}
 	status := comitia.TaskStatus(a.Status)
 	if a.Status != "" && status != comitia.TaskPending && status != comitia.TaskLeased && status != comitia.TaskCompleted && status != comitia.TaskFailed && status != comitia.TaskCancelled {
@@ -234,8 +235,13 @@ func lease(n int64, open bool) (time.Duration, error) {
 		}
 		return comitia.OpenLease, nil
 	}
-	return seconds(n, 300)
+	return seconds(n)
 }
+
+// leaseSecondsDescription states the lease_seconds default and bounds.
+var leaseSecondsDescription = fmt.Sprintf("defaults to %d (%d–%d)", leaseSeconds(comitia.DefaultLease), leaseSeconds(comitia.MinLease), leaseSeconds(comitia.MaxLease))
+
+func leaseSeconds(d time.Duration) int64 { return int64(d / time.Second) }
 
 func taskOperationID() map[string]any {
 	return map[string]any{"type": "string", "maxLength": 256, "description": "Optional stable caller/session-scoped operation ID (at most 256 bytes). Persist before sending. Exact create retries recover the task; current-lease claim/renew retries return a fresh token with the same version, invalidating earlier tokens. Changed requests or stale leases conflict."}

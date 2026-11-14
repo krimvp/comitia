@@ -43,12 +43,15 @@ func required(values ...string) error {
 	}
 	return nil
 }
-func seconds(n int64, fallback int64) (time.Duration, error) {
+
+// seconds reads lease_seconds: zero is comitia.DefaultLease, otherwise whole
+// seconds between comitia.MinLease and comitia.MaxLease.
+func seconds(n int64) (time.Duration, error) {
 	if n == 0 {
-		n = fallback
+		n = leaseSeconds(comitia.DefaultLease)
 	}
-	if n < 1 || n > 86400 {
-		return 0, comitia.Invalidf("lease_seconds must be between 1 and 86400")
+	if n < leaseSeconds(comitia.MinLease) || n > leaseSeconds(comitia.MaxLease) {
+		return 0, comitia.Invalidf("lease_seconds must be between %d and %d", leaseSeconds(comitia.MinLease), leaseSeconds(comitia.MaxLease))
 	}
 	return time.Duration(n) * time.Second, nil
 }

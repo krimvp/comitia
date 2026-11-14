@@ -62,7 +62,7 @@ type HTTPConfig struct {
 // a handler receives a request only after its headers have already been read.
 func NewHTTPHandler(api comitia.API, cfg HTTPConfig) http.Handler {
 	if cfg.MaxBody <= 0 {
-		cfg.MaxBody = 1 << 20 // 1 MiB, matching the REST adapter's cap
+		cfg.MaxBody = defaultMaxBody
 	}
 	t := &httpTransport{api: api, cfg: cfg, waits: &waitLimiter{inFlight: make(map[string]int), max: maxHTTPWaitsPerCredential}}
 	if cfg.RatePerSecond > 0 && cfg.RateBurst > 0 {
@@ -72,6 +72,10 @@ func NewHTTPHandler(api comitia.API, cfg HTTPConfig) http.Handler {
 	}
 	return t
 }
+
+// defaultMaxBody is HTTPConfig.MaxBody when unset: 1 MiB, the same cap as the
+// REST adapter's.
+const defaultMaxBody = 1 << 20
 
 // maxHTTPWaitsPerCredential matches the stdio in-flight call cap.
 const maxHTTPWaitsPerCredential = maxStdioCalls

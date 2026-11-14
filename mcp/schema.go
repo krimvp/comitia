@@ -2,7 +2,11 @@
 
 package mcp
 
-import "fmt"
+import (
+	"fmt"
+
+	"github.com/krimvp/comitia"
+)
 
 func schema(props map[string]any, required ...string) map[string]any {
 	mandatory := make(map[string]bool, len(required))
@@ -45,4 +49,9 @@ func limited(desc string, bytes int) map[string]any {
 }
 func integer(desc string) map[string]any {
 	return map[string]any{"type": "integer", "description": desc}
+}
+
+// listLimitDescription is the limit description of a list tool.
+func listLimitDescription(items string) string {
+	return fmt.Sprintf("Maximum %s, 1-%d (default %d)", items, comitia.MaxListLimit, comitia.DefaultListLimit)
 }

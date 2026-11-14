@@ -113,6 +113,13 @@ func InvalidJSONFields(err error, field string, raw json.RawMessage, target any)
 	return model.InvalidJSONFields(err, field, raw, target)
 }
 
+// List limits: a limit must be between 1 and MaxListLimit, and adapters
+// default an omitted limit to DefaultListLimit.
+const (
+	DefaultListLimit = model.DefaultListLimit
+	MaxListLimit     = model.MaxListLimit
+)
+
 const (
 	ListPageBytes = model.ListPageBytes
 	MaxListBytes  = model.MaxListBytes

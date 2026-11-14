@@ -80,6 +80,15 @@ type TaskAttempt = model.TaskAttempt
 
 const MaxMessageWait = model.MaxMessageWait
 
+// DefaultMessageWait is the wait timeout adapters use when none is given.
+const DefaultMessageWait = model.DefaultMessageWait
+
+// Envelope bounds: the encoded envelope and the length of each recipient list.
+const (
+	MaxEnvelopeBytes      = model.MaxEnvelopeBytes
+	MaxEnvelopeRecipients = model.MaxEnvelopeRecipients
+)
+
 type ParticipantPage = model.ParticipantPage
 
 type ParticipantPageAPI = model.ParticipantPageAPI

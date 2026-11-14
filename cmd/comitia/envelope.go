@@ -14,12 +14,12 @@ func readEnvelope(path string) (*comitia.MessageEnvelope, error) {
 	if path == "" {
 		return nil, nil
 	}
-	raw, err := readInput(path, 65537)
+	raw, err := readInput(path, comitia.MaxEnvelopeBytes+1)
 	if err != nil {
 		return nil, err
 	}
-	if len(raw) > 65536 {
-		return nil, comitia.Invalidf("envelope must be at most 65536 bytes")
+	if len(raw) > comitia.MaxEnvelopeBytes {
+		return nil, comitia.Invalidf("envelope must be at most %d bytes", comitia.MaxEnvelopeBytes)
 	}
 	d := json.NewDecoder(bytes.NewReader(raw))
 	d.DisallowUnknownFields()

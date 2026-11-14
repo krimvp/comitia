@@ -19,8 +19,8 @@ func ListReferences(ctx context.Context, api model.ContextAPI, token, cid, after
 // ListReferences needs read on the context, including inherited parent read;
 // archived contexts stay readable. Pages stop early at ListPageBytes.
 func (s *Service) ListReferences(ctx context.Context, token, cid, after string, limit int) (model.ReferencePage, error) {
-	if limit < 1 || limit > 1000 {
-		return model.ReferencePage{}, model.Invalidf("limit must be between 1 and 1000")
+	if limit < 1 || limit > model.MaxListLimit {
+		return model.ReferencePage{}, model.Invalidf("limit must be between 1 and %d", model.MaxListLimit)
 	}
 	cursor, err := decodeCreatedCursor(after, "reference")
 	if err != nil {

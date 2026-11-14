@@ -6,7 +6,10 @@ const CriterionFailed CriterionOutcome
 const CriterionNotRun CriterionOutcome
 const CriterionPassed CriterionOutcome
 const DefaultInstanceListLimit untyped int
+const DefaultLease time.Duration
+const DefaultListLimit untyped int
 const DefaultMessageBytes untyped int
+const DefaultMessageWait time.Duration
 const EvaluationAccepted EvaluationOutcome
 const EvaluationInconclusive EvaluationOutcome
 const EvaluationRejected EvaluationOutcome
@@ -20,18 +23,24 @@ const InstanceRecentWindow time.Duration
 const InstanceRetention time.Duration
 const ListPageBytes untyped int
 const MaxDedupeKeyBytes untyped int
+const MaxEnvelopeBytes untyped int
+const MaxEnvelopeRecipients untyped int
 const MaxInstanceResumeBytes untyped int
 const MaxInstancesPerSession untyped int
+const MaxLease time.Duration
 const MaxListBytes untyped int
+const MaxListLimit untyped int
 const MaxMessageBodyBytes untyped int
 const MaxMessageBytes untyped int
 const MaxMessageWait time.Duration
 const MaxReferenceKindBytes untyped int
 const MaxReferenceURIBytes untyped int
 const MaxTaskBodyBytes untyped int
+const MaxTaskReasonBytes untyped int
 const MaxTaskTitleBytes untyped int
 const MergeCertificateSchema untyped string
 const MergeReceiptSchema untyped string
+const MinLease time.Duration
 const OpenLease time.Duration
 const PermissionAdmin Permission
 const PermissionAll Permission

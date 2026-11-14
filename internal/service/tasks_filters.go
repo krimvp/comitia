@@ -94,14 +94,14 @@ func (s *Service) listTasksPageFiltered(ctx context.Context, raw, cid string, st
 		for {
 			var tasks []model.Task
 			if narrowed {
-				tasks, err = filtered.TasksFilteredAfter(cid, status, f, cursor.CreatedAt, cursor.ID, 1000)
+				tasks, err = filtered.TasksFilteredAfter(cid, status, f, cursor.CreatedAt, cursor.ID, model.MaxListLimit)
 			} else if paged {
-				tasks, err = pages.TasksAfter(cid, status, cursor.CreatedAt, cursor.ID, 1000)
+				tasks, err = pages.TasksAfter(cid, status, cursor.CreatedAt, cursor.ID, model.MaxListLimit)
 			} else {
-				tasks, err = r.Tasks(cid, status, 1000)
+				tasks, err = r.Tasks(cid, status, model.MaxListLimit)
 				if err == nil {
 					var legacy model.TaskPage
-					legacy, err = legacyTaskPage(tasks, after, cursor, 1000, "store")
+					legacy, err = legacyTaskPage(tasks, after, cursor, model.MaxListLimit, "store")
 					tasks = legacy.Tasks
 				}
 			}
@@ -134,7 +134,7 @@ func (s *Service) listTasksPageFiltered(ctx context.Context, raw, cid string, st
 				page.Tasks = append(page.Tasks, task)
 				page.NextAfter = encodeTaskCursor(task)
 			}
-			if !paged && !narrowed || len(tasks) < 1000 {
+			if !paged && !narrowed || len(tasks) < model.MaxListLimit {
 				return nil
 			}
 			last := tasks[len(tasks)-1]

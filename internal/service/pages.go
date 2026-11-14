@@ -119,7 +119,7 @@ func (s *Service) ListTasksPage(ctx context.Context, token, cid string, status m
 		}
 		pages, ok := r.(model.TaskPageStore)
 		if !ok {
-			tasks, err := r.Tasks(cid, status, 1000)
+			tasks, err := r.Tasks(cid, status, model.MaxListLimit)
 			if err != nil {
 				return err
 			}
@@ -157,7 +157,7 @@ func (s *Service) ListParticipantsPage(ctx context.Context, token, cid, after st
 		}
 		pages, ok := r.(model.ParticipantPageStore)
 		if !ok {
-			participants, err := r.Participants(cid, s.now().UTC(), 1000)
+			participants, err := r.Participants(cid, s.now().UTC(), model.MaxListLimit)
 			if err != nil {
 				return err
 			}
@@ -182,8 +182,8 @@ func (s *Service) ListParticipantsPage(ctx context.Context, token, cid, after st
 }
 
 func taskPageCursor(status model.TaskStatus, after string, limit int) (taskCursor, error) {
-	if limit < 1 || limit > 1000 {
-		return taskCursor{}, model.Invalidf("limit must be between 1 and 1000")
+	if limit < 1 || limit > model.MaxListLimit {
+		return taskCursor{}, model.Invalidf("limit must be between 1 and %d", model.MaxListLimit)
 	}
 	if !schema.ValidTaskStatusFilter(status) {
 		return taskCursor{}, model.Invalidf("status must be pending, leased, completed, failed or cancelled")
@@ -192,8 +192,8 @@ func taskPageCursor(status model.TaskStatus, after string, limit int) (taskCurso
 }
 
 func validateParticipantPage(after string, limit int) error {
-	if limit < 1 || limit > 1000 {
-		return model.Invalidf("limit must be between 1 and 1000")
+	if limit < 1 || limit > model.MaxListLimit {
+		return model.Invalidf("limit must be between 1 and %d", model.MaxListLimit)
 	}
 	if len(after) > 128 {
 		return model.Invalidf("invalid participant cursor")
@@ -204,7 +204,7 @@ func validateParticipantPage(after string, limit int) error {
 // Legacy lists have no continuation. A short maximum-sized list proves the
 // directory is complete; at the ceiling, reject paging rather than hide a tail.
 func legacyTaskPage(tasks []model.Task, after string, cursor taskCursor, limit int, source string) (model.TaskPage, error) {
-	if len(tasks) >= 1000 {
+	if len(tasks) >= model.MaxListLimit {
 		return model.TaskPage{}, model.Invalidf("task pagination beyond the legacy limit is unsupported by this %s", source)
 	}
 	tasks = append([]model.Task{}, tasks...)
@@ -231,7 +231,7 @@ func legacyTaskPage(tasks []model.Task, after string, cursor taskCursor, limit i
 }
 
 func legacyParticipantPage(participants []model.Participant, after string, limit int, source string) (model.ParticipantPage, error) {
-	if len(participants) >= 1000 {
+	if len(participants) >= model.MaxListLimit {
 		return model.ParticipantPage{}, model.Invalidf("participant pagination beyond the legacy limit is unsupported by this %s", source)
 	}
 	participants = append([]model.Participant{}, participants...)
@@ -259,7 +259,7 @@ func ListTaskPage(ctx context.Context, api model.TaskAPI, token, cid string, sta
 	if err != nil {
 		return model.TaskPage{}, err
 	}
-	tasks, err := api.ListTasks(ctx, token, cid, status, 1000)
+	tasks, err := api.ListTasks(ctx, token, cid, status, model.MaxListLimit)
 	if err != nil {
 		return model.TaskPage{}, err
 	}
@@ -273,7 +273,7 @@ func ListParticipantPage(ctx context.Context, api model.MessageAPI, token, cid, 
 	if err := validateParticipantPage(after, limit); err != nil {
 		return model.ParticipantPage{}, err
 	}
-	participants, err := api.ListParticipants(ctx, token, cid, 1000)
+	participants, err := api.ListParticipants(ctx, token, cid, model.MaxListLimit)
 	if err != nil {
 		return model.ParticipantPage{}, err
 	}

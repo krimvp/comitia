@@ -3,7 +3,6 @@ package httpapi
 import (
 	"context"
 	"encoding/json"
-	"time"
 
 	"github.com/krimvp/comitia"
 )
@@ -81,7 +80,7 @@ func (h *handler) messageRoutes() map[string]endpoint {
 			return wireReadResult(v, q.MaxBytes)
 		}),
 		"messages/wait": typedEndpoint(func(ctx context.Context, token string, q waitRequest) (readMessagesResult, error) {
-			timeout := 30 * time.Second
+			timeout := comitia.DefaultMessageWait
 			if q.TimeoutSeconds != nil {
 				var err error
 				timeout, err = comitia.MessageWaitTimeout(*q.TimeoutSeconds)

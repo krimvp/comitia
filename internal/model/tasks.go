@@ -90,6 +90,17 @@ type TaskReceipt struct {
 	Result      Task
 }
 
+// Lease bounds: a lease is OpenLease or between MinLease and MaxLease, and
+// adapters default an omitted lease to DefaultLease.
+const (
+	MinLease     = time.Second
+	MaxLease     = 24 * time.Hour
+	DefaultLease = 5 * time.Minute
+)
+
+// MaxTaskReasonBytes bounds the reason of a failed or cancelled task.
+const MaxTaskReasonBytes = 4096
+
 // OpenLease asks for a lease that lasts until the task is completed or released.
 // Every lease is capped at the claiming session's expiry, so it is still bounded.
 const OpenLease = time.Duration(math.MaxInt64)

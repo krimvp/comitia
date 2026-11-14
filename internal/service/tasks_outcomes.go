@@ -40,8 +40,8 @@ func (s *Service) finishTaskOutcome(ctx context.Context, raw, tid string, in mod
 	if e := validOperationID(in.OperationID); e != nil {
 		return model.Task{}, e
 	}
-	if in.LeaseVersion < 0 || strings.TrimSpace(in.Reason) == "" || len(in.Reason) > 4096 || !utf8.ValidString(in.Reason) {
-		return model.Task{}, model.Invalidf("nonnegative lease_version and nonempty UTF-8 reason of at most 4096 bytes required")
+	if in.LeaseVersion < 0 || strings.TrimSpace(in.Reason) == "" || len(in.Reason) > model.MaxTaskReasonBytes || !utf8.ValidString(in.Reason) {
+		return model.Task{}, model.Invalidf("nonnegative lease_version and nonempty UTF-8 reason of at most %d bytes required", model.MaxTaskReasonBytes)
 	}
 	var result model.Task
 	eventContext := ""
