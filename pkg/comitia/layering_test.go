@@ -18,8 +18,8 @@ const module = "github.com/krimvp/comitia"
 const facade = module + "/pkg/comitia"
 
 // TestInternalLayering checks the packages that go list ./internal/... finds,
-// that is the module's internal/ tree (not pkg/httpapi/internal/legacy, which is
-// part of the httpapi adapter). It checks two things:
+// that is the module's internal/ tree (not pkg/httpapi/internal/legacy, which
+// is part of the httpapi adapter). It checks two things:
 //
 //   - production code (non-test files) of an internal package imports only the
 //     internal packages its line of the layering table names, and no other
@@ -163,14 +163,14 @@ func TestInternalLayering(t *testing.T) {
 // only through the public API package and pkg/sqlite: no package under them,
 // production code or tests, imports a package of the module's internal/ tree
 // directly. Only direct imports are checked; the public API package and
-// pkg/sqlite import internal packages,
-// so the adapters depend on them indirectly. The examples are held to the same
-// rule, since they show the public API.
+// pkg/sqlite import internal packages, so the adapters depend on them
+// indirectly. The examples are held to the same rule, since they show the
+// public API.
 var adapterPatterns = []string{"./cmd/...", "./pkg/mcp/...", "./pkg/httpapi/...", "./examples/..."}
 
 // adapterMayImport lists the internal packages the adapters may nevertheless
 // import directly, one per line: internal packages meant for the adapters.
-// internal/httpserve holds the HTTP listener code cmd/comitia and mcp share.
+// internal/httpserve holds the HTTP listener code cmd/comitia and pkg/mcp share.
 var adapterMayImport = map[string]bool{
 	"internal/httpserve": true,
 }
