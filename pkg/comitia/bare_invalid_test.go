@@ -14,22 +14,14 @@ import (
 	"testing"
 )
 
-// bareInvalidAreas are directories the scan must have parsed production
-// files from, whatever go list reports: the adapters, the service, the frozen
-// fixtures and the test programs under testdata, which go list leaves out.
+// bareInvalidAreas are the directories of production Go code that
+// go list ./... does not report, since it skips testdata: the frozen legacy
+// SQLite writer and the remote-import program. The scan must parse a file in
+// each; everything go list builds (the frozen pkg/httpapi/internal/legacy
+// included) is checked file by file below.
 var bareInvalidAreas = []string{
-	"cmd/comitia",
-	"examples/embedded",
-	"internal/model",
-	"internal/service",
 	"internal/service/testdata",
-	"pkg/comitia",
 	"pkg/comitia/testdata/remote-import",
-	"pkg/httpapi",
-	"pkg/httpapi/internal/legacy",
-	"pkg/mcp",
-	"pkg/sqlite",
-	"pkg/storetest",
 }
 
 // Explicit inventory of bare ErrInvalid returns that cannot yet be converted:
@@ -78,7 +70,7 @@ func TestBareInvalidReturns(t *testing.T) {
 	}
 
 	// The scan must not pass by parsing too little: it covers every file
-	// go build ./... compiles and the areas named above. go list descends
+	// go build ./... compiles and the testdata areas named above. go list descends
 	// into node_modules, which repositoryFiles leaves out as installed
 	// dependencies rather than this repository's code.
 	built := builtGoFiles(t, root)
@@ -92,7 +84,7 @@ func TestBareInvalidReturns(t *testing.T) {
 	}
 	for _, dir := range bareInvalidAreas {
 		if !parsed[dir] {
-			t.Errorf("the scan parsed no production Go file in %s", dir)
+			t.Errorf("the scan parsed no production Go file in %s; if the directory moved or holds no Go any more, update bareInvalidAreas", dir)
 		}
 	}
 
