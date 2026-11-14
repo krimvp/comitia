@@ -1,3 +1,5 @@
+// The watch loop: print arriving messages and acknowledge them.
+
 package main
 
 import (

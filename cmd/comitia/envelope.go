@@ -1,3 +1,5 @@
+// Reading --envelope-file and --body-file input for send.
+
 package main
 
 import (

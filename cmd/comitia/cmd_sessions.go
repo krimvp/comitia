@@ -1,3 +1,5 @@
+// The session commands: bootstrap, delegate and revoke.
+
 package main
 
 import (
