@@ -2,6 +2,8 @@
 
 The `github.com/krimvp/comitia/pkg/comitia` package is the application surface used by every adapter. Embedded callers also import `github.com/krimvp/comitia/pkg/sqlite` and call `sqlite.OpenSQLite` to supply the driver; remote clients importing `comitia`, `httpapi` or `mcp` do not build or register it. The deprecated `comitia.OpenSQLite` requires an explicitly registered driver and returns `ErrInvalid` with migration guidance when none is registered.
 
+The public packages are `github.com/krimvp/comitia/pkg/` followed by `comitia`, `httpapi`, `mcp`, `sqlite` or `storetest`. They used to be at the module root: replace `github.com/krimvp/comitia` with `github.com/krimvp/comitia/pkg/comitia`, and `github.com/krimvp/comitia/httpapi` with `github.com/krimvp/comitia/pkg/httpapi`, likewise for the others.
+
 This program, [`examples/embedded/main.go`](../examples/embedded/main.go), opens a store in a temporary directory, bootstraps its owner, creates a context, appends and reads a message, and creates and claims a task. `go run ./examples/embedded` runs it, and its test checks the output; change both files together.
 
 ```go
