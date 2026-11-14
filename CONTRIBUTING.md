@@ -40,8 +40,8 @@ stamp through `BuildVersion` and `BuildIdentity`, never in a package-level initi
 
 ## Test
 
-CI (`.github/workflows/ci.yml`) runs these in order; the durations are rough, on
-a four-core machine:
+CI (`.github/workflows/ci.yml`) runs these in order, the browser tests in jobs of
+their own; the durations are rough, on a four-core machine:
 
 | Step | Command | Time |
 |---|---|---|
@@ -52,7 +52,7 @@ a four-core machine:
 | Go tests | `go test -race -timeout 20m ./...` | 4 min |
 | Repeated checks | `go test -race -count=10 -run 'TestCrashRecovery\|TestSecurity\|TestSQLite' . ./internal/service ./internal/sqlstore` | 1.5 min |
 | Stress | `python3 scripts/stress_agents.py --binary "$PWD/dist/comitia" --workers 12 --messages 100`, three times | 10 s each |
-| Browser tests | `node --test httpapi/ui-tests/browser/*.test.mjs` and `node --test site/browser/*.test.mjs` | 1 min each |
+| Browser tests | `node --test httpapi/ui-tests/browser/*.test.mjs`; `node --test site/browser/*.test.mjs` | 1 min; 10 s |
 
 The repeated step fails if its pattern selects fewer than 30 tests; rename such
 tests with care. Before the browser tests, install their dependencies once:
