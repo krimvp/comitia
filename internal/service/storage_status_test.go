@@ -152,3 +152,159 @@ func TestStorageCountersConcurrentAndDomainRejection(t *testing.T) {
 		t.Fatalf("before=%+v after=%+v", before, after)
 	}
 }
+
+// slowCredentials makes the credential lookup outlast any deadline: under a
+// context with a deadline the lookup waits for that context to end and fails
+// with its error, as a store that honours cancellation but is slower than the
+// deadline does; without a deadline it completes. slowView applies this to the
+// lookup in View, slowWrite to the one inside Update; viewErr makes the lookup in
+// View fail with that error instead.
+type slowCredentials struct {
+	model.Store
+	slowView, slowWrite bool
+	viewErr             error
+	beforeUpdate        func()
+	updates             int
+}
+
+// slowLookup is the lookup slowCredentials gives a ReadStore or WriteStore.
+func slowLookup(ctx context.Context, err error, lookup func() (model.Session, error)) (model.Session, error) {
+	if err != nil {
+		return model.Session{}, err
+	}
+	if _, ok := ctx.Deadline(); ok {
+		<-ctx.Done()
+		return model.Session{}, ctx.Err()
+	}
+	return lookup()
+}
+
+type slowRead struct {
+	model.ReadStore
+	ctx context.Context
+	err error
+}
+
+func (r slowRead) SessionByTokenHash(h string) (model.Session, error) {
+	return slowLookup(r.ctx, r.err, func() (model.Session, error) { return r.ReadStore.SessionByTokenHash(h) })
+}
+
+type slowWrite struct {
+	model.WriteStore
+	ctx context.Context
+}
+
+func (w slowWrite) SessionByTokenHash(h string) (model.Session, error) {
+	return slowLookup(w.ctx, nil, func() (model.Session, error) { return w.WriteStore.SessionByTokenHash(h) })
+}
+
+func (s *slowCredentials) View(ctx context.Context, fn func(model.ReadStore) error) error {
+	return s.Store.View(ctx, func(r model.ReadStore) error {
+		if s.slowView || s.viewErr != nil {
+			return fn(slowRead{ReadStore: r, ctx: ctx, err: s.viewErr})
+		}
+		return fn(r)
+	})
+}
+
+func (s *slowCredentials) Update(ctx context.Context, fn func(model.WriteStore) error) error {
+	s.updates++
+	if s.beforeUpdate != nil {
+		s.beforeUpdate()
+	}
+	return s.Store.Update(ctx, func(w model.WriteStore) error {
+		if s.slowWrite {
+			return fn(slowWrite{WriteStore: w, ctx: ctx})
+		}
+		return fn(w)
+	})
+}
+
+type storageIOError struct{}
+
+func (storageIOError) Error() string { return "disk I/O error" }
+func (storageIOError) Code() int     { return 10 }
+
+// A valid administrator must not be told unauthenticated because the credential
+// lookup was slower than the probe's budget, while refused credentials stay
+// refused and learn nothing about storage.
+func TestStorageStatusSlowCredentialLookup(t *testing.T) {
+	f := setup(t, ":memory:")
+	defer f.store.Close()
+	ctx := context.Background()
+	slow := &slowCredentials{Store: f.store}
+	svc, err := New(model.Config{Store: slow, Clock: f.svc.now})
+	if err != nil {
+		t.Fatal(err)
+	}
+	p, err := f.svc.CreatePrincipal(ctx, f.admin.Token, "reader")
+	if err != nil {
+		t.Fatal(err)
+	}
+	reader, err := f.svc.MintSession(ctx, f.admin.Token, p.ID, time.Hour)
+	if err != nil {
+		t.Fatal(err)
+	}
+	revoked, err := f.svc.MintSession(ctx, f.admin.Token, f.admin.Session.PrincipalID, time.Hour)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := f.svc.RevokeSession(ctx, f.admin.Token, revoked.Session.ID); err != nil {
+		t.Fatal(err)
+	}
+
+	slow.slowView = true
+	status, err := svc.StorageStatus(ctx, f.admin.Token)
+	if err != nil || !status.WriteReady || slow.updates != 1 {
+		t.Fatalf("slow view lookup: status=%+v err=%v updates=%d", status, err, slow.updates)
+	}
+	for _, tc := range []struct {
+		name, token string
+		want        error
+	}{{"invalid", "invalid", model.ErrUnauthenticated}, {"revoked", revoked.Token, model.ErrUnauthenticated}, {"non-admin", reader.Token, model.ErrForbidden}} {
+		if status, err := svc.StorageStatus(ctx, tc.token); !errors.Is(err, tc.want) || status != (model.StorageStatus{}) {
+			t.Fatalf("%s: status=%+v err=%v", tc.name, status, err)
+		}
+	}
+	if slow.updates != 1 {
+		t.Fatalf("a refused caller reached the write probe: updates=%d", slow.updates)
+	}
+
+	slow.slowView, slow.slowWrite = false, true
+	status, err = svc.StorageStatus(ctx, f.admin.Token)
+	if err != nil || status.WriteReady || status.LastWriteErrorClass != "deadline_exceeded" {
+		t.Fatalf("slow write lookup: status=%+v err=%v", status, err)
+	}
+	slow.slowWrite = false
+
+	// The write re-checks the credential: one revoked after the View is refused.
+	second, err := f.svc.MintSession(ctx, f.admin.Token, f.admin.Session.PrincipalID, time.Hour)
+	if err != nil {
+		t.Fatal(err)
+	}
+	slow.beforeUpdate = func() {
+		if err := f.svc.RevokeSession(ctx, f.admin.Token, second.Session.ID); err != nil {
+			t.Error(err)
+		}
+	}
+	if status, err := svc.StorageStatus(ctx, second.Token); !errors.Is(err, model.ErrUnauthenticated) || status != (model.StorageStatus{}) {
+		t.Fatalf("revoked during probe: status=%+v err=%v", status, err)
+	}
+	slow.beforeUpdate = nil
+
+	// A storage failure in the lookup is not an authentication failure, and a
+	// caller not known to be an administrator learns no storage class from it.
+	slow.viewErr = storageIOError{}
+	before := slow.updates
+	status, err = svc.StorageStatus(ctx, f.admin.Token)
+	if err == nil || errors.Is(err, model.ErrUnauthenticated) || model.FailureClass(err) != "internal" || status != (model.StorageStatus{}) || slow.updates != before {
+		t.Fatalf("lookup failure: status=%+v err=%v class=%s", status, err, model.FailureClass(err))
+	}
+	slow.viewErr = nil
+
+	cancelled, cancel := context.WithCancel(ctx)
+	cancel()
+	if _, err := svc.StorageStatus(cancelled, f.admin.Token); !errors.Is(err, context.Canceled) {
+		t.Fatalf("cancelled caller: %v", err)
+	}
+}
