@@ -1,3 +1,5 @@
+// The server-info and storage-status commands.
+
 package main
 
 import (

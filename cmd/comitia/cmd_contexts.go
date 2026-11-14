@@ -1,3 +1,5 @@
+// The workspace, context and reference commands.
+
 package main
 
 import (
