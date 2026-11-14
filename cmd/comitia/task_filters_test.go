@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/krimvp/comitia"
+	"github.com/krimvp/comitia/pkg/comitia"
 )
 
 func TestCLITaskFilters(t *testing.T) {

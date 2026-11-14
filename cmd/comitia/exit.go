@@ -7,7 +7,7 @@ import (
 	"net"
 	"strings"
 
-	"github.com/krimvp/comitia"
+	"github.com/krimvp/comitia/pkg/comitia"
 )
 
 // Exit codes by error class; docs/USING-COMITIA.md lists them. Unclassified

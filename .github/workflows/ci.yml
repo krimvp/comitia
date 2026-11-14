@@ -43,25 +43,25 @@ jobs:
         with:
           node-version: 22
       - name: Inspector state and landing page tests
-        run: node --test httpapi/ui-tests/*.test.mjs site/*.test.mjs tools/world-viewer/*.test.mjs
+        run: node --test pkg/httpapi/ui-tests/*.test.mjs site/*.test.mjs tools/world-viewer/*.test.mjs
       - run: go vet ./...
       - name: Documentation structure, onboarding, evaluation and installer tests
         run: python3 -m unittest scripts/test_*.py
       - run: go test -race -timeout 20m ./...
 
       - name: Repeat race and crash recovery checks
-        # The pattern selected 30 tests when they all lived in the root package;
+        # The pattern selected 30 tests when they all lived in the public API package;
         # fail rather than repeat fewer if tests move or are renamed.
         run: |
           pattern='TestCrashRecovery|TestSecurity|TestSQLite'
-          packages='. ./internal/service ./internal/sqlstore'
+          packages='./pkg/comitia ./internal/service ./internal/sqlstore'
           count=$(go test -list "$pattern" $packages | grep -c '^Test' || true)
           if [ "$count" -lt 30 ]; then echo "only $count tests match $pattern in $packages; expected at least 30"; exit 1; fi
           go test -race -timeout 20m -count=10 -run "$pattern" $packages
       - name: Build Linux binary
         run: |
           CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath \
-            -ldflags "-X github.com/krimvp/comitia.Revision=$COMITIA_REVISION -X github.com/krimvp/comitia.Dirty=$COMITIA_DIRTY" \
+            -ldflags "-X github.com/krimvp/comitia/pkg/comitia.Revision=$COMITIA_REVISION -X github.com/krimvp/comitia/pkg/comitia.Dirty=$COMITIA_DIRTY" \
             -o dist/comitia ./cmd/comitia
           (cd dist && sha256sum comitia > comitia.sha256)
       - name: Multi-process stress (3 runs)
@@ -98,17 +98,17 @@ jobs:
         with:
           node-version: 22
           cache: npm
-          cache-dependency-path: httpapi/ui-tests/browser/package-lock.json
+          cache-dependency-path: pkg/httpapi/ui-tests/browser/package-lock.json
       - name: Install browser test dependencies
         run: |
-          npm ci --prefix httpapi/ui-tests/browser
-          httpapi/ui-tests/browser/node_modules/.bin/playwright install --with-deps chromium
+          npm ci --prefix pkg/httpapi/ui-tests/browser
+          pkg/httpapi/ui-tests/browser/node_modules/.bin/playwright install --with-deps chromium
       - name: Build inspector server
         run: go build -o "$RUNNER_TEMP/comitia-inspector" ./cmd/comitia
       - name: Inspector browser regressions
         env:
           COMITIA_BROWSER_REQUIRED: '1'
-        run: COMITIA_BINARY="$RUNNER_TEMP/comitia-inspector" node --test httpapi/ui-tests/browser/*.test.mjs
+        run: COMITIA_BINARY="$RUNNER_TEMP/comitia-inspector" node --test pkg/httpapi/ui-tests/browser/*.test.mjs
 
   # The landing page's browser tests, as pages.yml runs them before
   # publishing, so a broken page fails the pull request instead of the deploy.

@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"github.com/krimvp/comitia"
+	"github.com/krimvp/comitia/pkg/comitia"
 	"testing"
 	"time"
 )

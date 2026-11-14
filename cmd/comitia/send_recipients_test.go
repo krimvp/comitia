@@ -11,8 +11,8 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/krimvp/comitia"
-	"github.com/krimvp/comitia/httpapi"
+	"github.com/krimvp/comitia/pkg/comitia"
+	"github.com/krimvp/comitia/pkg/httpapi"
 )
 
 func TestSendRecipientsCLI(t *testing.T) {

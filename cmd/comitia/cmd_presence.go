@@ -9,7 +9,7 @@ import (
 	"io"
 	"os"
 
-	"github.com/krimvp/comitia"
+	"github.com/krimvp/comitia/pkg/comitia"
 )
 
 func runPresence(ctx context.Context, cfg config, api comitia.API, out *json.Encoder, cmd string, args []string) error {

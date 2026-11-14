@@ -12,7 +12,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/krimvp/comitia"
+	"github.com/krimvp/comitia/pkg/comitia"
 )
 
 func env(key, fallback string) string {

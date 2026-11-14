@@ -12,8 +12,8 @@ import (
 	"os"
 	"strings"
 
-	"github.com/krimvp/comitia"
-	"github.com/krimvp/comitia/mcp"
+	"github.com/krimvp/comitia/pkg/comitia"
+	"github.com/krimvp/comitia/pkg/mcp"
 )
 
 func runMCPStdio(ctx context.Context, cfg config, api comitia.API, out *json.Encoder, cmd string, args []string) error {

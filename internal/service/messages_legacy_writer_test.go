@@ -25,7 +25,7 @@ func legacyMessageCLI(t *testing.T) string {
 	dir := t.TempDir()
 	// The tree is copied from the module root, two levels up.
 	root := filepath.Join("..", "..")
-	for _, pattern := range []string{"*.go", "go.mod", "go.sum", "internal/*/*.go", "cmd/comitia/*.go", "httpapi/*.go", "httpapi/ui/*", "mcp/*.go", "sqlite/*.go"} {
+	for _, pattern := range []string{"go.mod", "go.sum", "internal/*/*.go", "cmd/comitia/*.go", "pkg/comitia/*.go", "pkg/httpapi/*.go", "pkg/httpapi/ui/*", "pkg/mcp/*.go", "pkg/sqlite/*.go"} {
 		paths, err := filepath.Glob(filepath.Join(root, pattern))
 		if err != nil {
 			t.Fatal(err)

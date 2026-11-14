@@ -3,7 +3,7 @@ package main
 import (
 	"testing"
 
-	"github.com/krimvp/comitia"
+	"github.com/krimvp/comitia/pkg/comitia"
 )
 
 // TestParsePermissionsPolicy pins what --permissions accepts and the error

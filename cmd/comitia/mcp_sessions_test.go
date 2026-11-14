@@ -14,8 +14,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/krimvp/comitia"
-	"github.com/krimvp/comitia/sqlite"
+	"github.com/krimvp/comitia/pkg/comitia"
+	"github.com/krimvp/comitia/pkg/sqlite"
 )
 
 func TestMCPSessionsDirectoryFlagsAndEnvironment(t *testing.T) {

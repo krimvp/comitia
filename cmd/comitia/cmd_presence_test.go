@@ -9,8 +9,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/krimvp/comitia"
-	"github.com/krimvp/comitia/httpapi"
+	"github.com/krimvp/comitia/pkg/comitia"
+	"github.com/krimvp/comitia/pkg/httpapi"
 )
 
 func TestInstancePresenceCommands(t *testing.T) {

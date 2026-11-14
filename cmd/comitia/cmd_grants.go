@@ -7,7 +7,7 @@ import (
 	"encoding/json"
 	"time"
 
-	"github.com/krimvp/comitia"
+	"github.com/krimvp/comitia/pkg/comitia"
 )
 
 func runGrants(ctx context.Context, cfg config, api comitia.API, out *json.Encoder, cmd string, args []string) error {

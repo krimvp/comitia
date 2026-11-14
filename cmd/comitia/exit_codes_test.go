@@ -13,7 +13,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/krimvp/comitia"
+	"github.com/krimvp/comitia/pkg/comitia"
 )
 
 // cli runs main in a subprocess and returns stdout, stderr and the exit code.

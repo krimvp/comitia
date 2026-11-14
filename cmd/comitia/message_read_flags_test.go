@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/krimvp/comitia"
+	"github.com/krimvp/comitia/pkg/comitia"
 )
 
 // replay, wait and watch share one flag set; a flag that one of them would

@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/krimvp/comitia"
+	"github.com/krimvp/comitia/pkg/comitia"
 )
 
 func withStdin(t *testing.T, data string) {

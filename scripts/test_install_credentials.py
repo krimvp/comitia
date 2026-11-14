@@ -366,8 +366,8 @@ class BuildProvenanceTest(unittest.TestCase):
                 build = next(command for command in commands if command[0] == 'go')
                 self.assertIn('-ldflags', build)
                 flags = build[build.index('-ldflags')+1]
-                self.assertIn('github.com/krimvp/comitia.Revision='+'a'*40, flags)
-                self.assertIn('github.com/krimvp/comitia.Dirty='+dirty, flags)
+                self.assertIn('github.com/krimvp/comitia/pkg/comitia.Revision='+'a'*40, flags)
+                self.assertIn('github.com/krimvp/comitia/pkg/comitia.Dirty='+dirty, flags)
 
     def test_git_unavailable_build_stamps_unknown(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -383,7 +383,7 @@ class BuildProvenanceTest(unittest.TestCase):
             with mock.patch.object(local.subprocess, 'run', side_effect=run):
                 local.install_binary(root)
             self.assertIn('-ldflags', commands[0])
-            self.assertIn('github.com/krimvp/comitia.Revision=unknown', commands[0][commands[0].index('-ldflags')+1])
+            self.assertIn('github.com/krimvp/comitia/pkg/comitia.Revision=unknown', commands[0][commands[0].index('-ldflags')+1])
 
     def test_clean_checkout_stays_clean_after_import(self):
         repo = Path(__file__).resolve().parent.parent
@@ -403,7 +403,7 @@ class BuildProvenanceTest(unittest.TestCase):
             flags = subprocess.run([sys.executable, '-c', 'import comitia_install; print(comitia_install.build_flags())'],
                                    cwd=root/'scripts', env=env, check=True, capture_output=True, text=True).stdout
             self.assertTrue((root/'scripts/__pycache__').is_dir())
-            self.assertIn('github.com/krimvp/comitia.Dirty=false', flags)
+            self.assertIn('github.com/krimvp/comitia/pkg/comitia.Dirty=false', flags)
 
 
 if __name__ == '__main__':

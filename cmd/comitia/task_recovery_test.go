@@ -10,7 +10,7 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/krimvp/comitia"
+	"github.com/krimvp/comitia/pkg/comitia"
 )
 
 func TestCLITaskRecoveryAndFence(t *testing.T) {

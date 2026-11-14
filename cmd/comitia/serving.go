@@ -17,8 +17,8 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/krimvp/comitia"
 	"github.com/krimvp/comitia/internal/httpserve"
+	"github.com/krimvp/comitia/pkg/comitia"
 )
 
 // serveTimeouts bound unauthenticated slow clients. Writes may outlast the

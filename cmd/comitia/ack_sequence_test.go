@@ -5,7 +5,7 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/krimvp/comitia"
+	"github.com/krimvp/comitia/pkg/comitia"
 )
 
 // Like MCP ack_messages, ack names the sequence instead of acking 0.

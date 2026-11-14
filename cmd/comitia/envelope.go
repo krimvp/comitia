@@ -5,7 +5,7 @@ package main
 import (
 	"bytes"
 	"encoding/json"
-	"github.com/krimvp/comitia"
+	"github.com/krimvp/comitia/pkg/comitia"
 	"io"
 	"os"
 )

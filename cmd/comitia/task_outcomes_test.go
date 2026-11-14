@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/krimvp/comitia"
+	"github.com/krimvp/comitia/pkg/comitia"
 )
 
 func TestTaskOutcomeCommands(t *testing.T) {

@@ -139,10 +139,10 @@ its read-only API fixtures are deterministic.
 To run the browser suite locally:
 
 ```sh
-npm ci --prefix httpapi/ui-tests/browser
-httpapi/ui-tests/browser/node_modules/.bin/playwright install chromium
+npm ci --prefix pkg/httpapi/ui-tests/browser
+pkg/httpapi/ui-tests/browser/node_modules/.bin/playwright install chromium
 GOTOOLCHAIN=go1.24.13 GOFLAGS=-buildvcs=false go build -o /tmp/comitia-inspector ./cmd/comitia
-COMITIA_BROWSER_REQUIRED=1 COMITIA_BINARY=/tmp/comitia-inspector node --test httpapi/ui-tests/browser/*.test.mjs
+COMITIA_BROWSER_REQUIRED=1 COMITIA_BINARY=/tmp/comitia-inspector node --test pkg/httpapi/ui-tests/browser/*.test.mjs
 ```
 
 Without Playwright/Chromium the browser suite skips cleanly; set
