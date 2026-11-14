@@ -14,7 +14,7 @@ var Version string
 // Revision and Dirty may be stamped by source installers even with buildvcs=false.
 var Revision, Dirty string
 
-// The root variables are the build stamp's single source of truth, set with
+// These variables are the build stamp's single source of truth, set with
 // -ldflags -X (in place before any init) or assigned at runtime. The
 // implementation reads them at call time through this reader.
 func init() {

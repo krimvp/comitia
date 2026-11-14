@@ -7,13 +7,14 @@ import (
 
 const ProtocolVersion = "2025-06-18"
 
-// BuildStamp returns the current build stamp: the root package's exported
-// variables Version, Revision and Dirty, which may be set with -ldflags -X or
-// assigned at runtime. The root's init installs a reader of those variables,
-// so every call sees their current values; model cannot import the root. Until
-// then, and for tests that replace it, the stamp is empty and the defaults
-// below apply. Read it only through BuildVersion and BuildIdentity, never from
-// a package-level initialiser, which may run before the root's init.
+// BuildStamp returns the current build stamp: the exported variables Version,
+// Revision and Dirty of pkg/comitia, which may be set with -ldflags -X or
+// assigned at runtime. The init of pkg/comitia installs a reader of those
+// variables, so every call sees their current values; model cannot import
+// pkg/comitia. Until then, and for tests that replace it, the stamp is empty
+// and the defaults below apply. Read it only through BuildVersion and
+// BuildIdentity, never from a package-level initialiser, which may run before
+// the init of pkg/comitia.
 var BuildStamp = func() (version, revision, dirty string) { return "", "", "" }
 
 type BuildInfo struct {

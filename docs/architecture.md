@@ -12,16 +12,16 @@ The application is library-first. One Go application API owns the domain rules a
 
 ```mermaid
 flowchart TD
-    CLI[cmd/comitia] --> ROOT[comitia: public API]
-    MCP[mcp] --> ROOT
-    HTTP[httpapi] --> ROOT
-    CLI --> DRIVER[sqlite: driver]
-    DRIVER --> ROOT
+    CLI[cmd/comitia] --> FACADE[pkg/comitia: public API]
+    MCP[pkg/mcp] --> FACADE
+    HTTP[pkg/httpapi] --> FACADE
+    CLI --> DRIVER[pkg/sqlite: driver]
+    DRIVER --> FACADE
     CLI --> SERVE[internal/httpserve]
     MCP --> SERVE
-    ROOT --> SERVICE[internal/service]
-    ROOT --> SQLSTORE[internal/sqlstore]
-    ROOT --> GATES[internal/mergegate, internal/evaluation]
+    FACADE --> SERVICE[internal/service]
+    FACADE --> SQLSTORE[internal/sqlstore]
+    FACADE --> GATES[internal/mergegate, internal/evaluation]
     SERVICE --> SCHEMA[internal/schema]
     GATES --> SCHEMA
     SCHEMA --> MODEL[internal/model]
@@ -79,7 +79,7 @@ After expiry, another worker may recover the task. Late completion from the old 
 
 ## Application boundaries
 
-The root package `github.com/krimvp/comitia` is the public API and nothing else: type aliases, forwarding functions, exported limits and the build stamp (`Version`, `Revision`, `Dirty`). Its `API` interface is the authoritative method inventory.
+The package `github.com/krimvp/comitia/pkg/comitia` is the public API and nothing else: type aliases, forwarding functions, exported limits and the build stamp (`Version`, `Revision`, `Dirty`). Its `API` interface is the authoritative method inventory.
 
 The implementation lives in internal packages, each importing only those listed:
 
@@ -91,13 +91,13 @@ The implementation lives in internal packages, each importing only those listed:
 | `internal/service` | `*Service`: authentication, authorization, grants, delivery, leases, presence | `model`, `schema` |
 | `internal/mergegate` | Merge certificate verification | `model`, `schema` |
 | `internal/evaluation` | Evaluation reports | `model`, `schema` |
-| `internal/httpserve` | Request logging and serve loop for `cmd/comitia` and `mcp` | none |
+| `internal/httpserve` | Request logging and serve loop for `cmd/comitia` and `pkg/mcp` | none |
 
-No internal package imports the root. The adapters `cmd/comitia`, `mcp` and `httpapi` reach the implementation only through the root and `sqlite`, except for `internal/httpserve`. Package `sqlite` links the driver and opens embedded stores (`sqlite.OpenSQLite`), so remote clients of the root, `httpapi` and `mcp` never link it; the deprecated root `OpenSQLite` needs a registered driver. Package `storetest` checks external `Store` implementations.
+The packages other modules import live under `pkg/`, the command under `cmd/comitia`. No internal package imports `pkg/comitia`. The adapters `cmd/comitia`, `pkg/mcp` and `pkg/httpapi` reach the implementation only through `pkg/comitia` and `pkg/sqlite`, except for `internal/httpserve`. Package `pkg/sqlite` links the driver and opens embedded stores (`sqlite.OpenSQLite`), so remote clients of `pkg/comitia`, `pkg/httpapi` and `pkg/mcp` never link it; the deprecated `comitia.OpenSQLite` needs a registered driver. Package `pkg/storetest` checks external `Store` implementations.
 
-Tests, not this text, are the source of truth: `TestPublicAPISurface` compares the exported API of every public package with `testdata/api_surface.golden`; `TestInternalLayering` and `TestAdapterImports` (`layering_test.go`) enforce the table and the adapter rule; `import_boundary_test.go` keeps the driver out of the root, `httpapi` and `mcp`.
+Tests in `pkg/comitia`, not this text, are the source of truth: `TestPublicAPISurface` compares the exported API of every public package with `testdata/api_surface.golden`; `TestInternalLayering` and `TestAdapterImports` (`layering_test.go`) enforce the table and the adapter rule, and `TestRepositoryRootHasNoGoFiles` keeps Go code out of the repository root; `import_boundary_test.go` keeps the driver out of `pkg/comitia`, `pkg/httpapi` and `pkg/mcp`.
 
-The root aliases the types of `internal/model`, so their exported methods and fields are public API. Nothing in `internal/model` may gain an exported method or field unless it is meant to become public API; a helper another internal package needs is an exported free function instead.
+`pkg/comitia` aliases the types of `internal/model`, so their exported methods and fields are public API. Nothing in `internal/model` may gain an exported method or field unless it is meant to become public API; a helper another internal package needs is an exported free function instead.
 
 `Bootstrap` is a one-time, local operation and must not be exposed through the HTTP adapter. Adapters map the stable errors into their own status or exit conventions without exposing SQLite errors as public contracts. The [code map](code-map.md) shows where each domain lives and follows a request through the code.
 

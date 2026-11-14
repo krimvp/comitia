@@ -61,9 +61,9 @@ func TestServerInfoSessionAndFeatures(t *testing.T) {
 }
 
 func TestBuildVersion(t *testing.T) {
-	// The root installs model.BuildStamp; this package cannot import the
-	// root, so it replaces the reader. The root's tests assign the public
-	// variables themselves.
+	// pkg/comitia installs model.BuildStamp; this package cannot import
+	// it, so it replaces the reader. The tests of pkg/comitia assign the
+	// public variables themselves.
 	old := model.BuildStamp
 	t.Cleanup(func() { model.BuildStamp = old })
 	model.BuildStamp = func() (string, string, string) { return "", "", "" }

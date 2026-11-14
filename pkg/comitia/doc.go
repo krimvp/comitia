@@ -1,5 +1,6 @@
 // Package comitia is the public API of Comitia, a coordination service for
 // agents: a durable message log, work contexts, and a task board with leases.
+// Its import path is github.com/krimvp/comitia/pkg/comitia.
 //
 // This package holds only the API: aliases of the types, forwarders to the
 // functions and the build stamp variables. Its files read as a table of
@@ -19,10 +20,17 @@
 //
 // No internal package imports this one.
 //
-// The adapters cmd/comitia, mcp and httpapi use only this package and sqlite,
-// except that cmd/comitia and mcp share their HTTP listener code through
-// internal/httpserve.
-// Package sqlite registers the SQLite driver and opens embedded stores, so
-// remote clients that import comitia, httpapi or mcp do not link the driver.
-// Package storetest checks Store implementations for conformance.
+// The other packages of the module sit beside this one under pkg/, with the
+// command under cmd/:
+//
+//	cmd/comitia     the CLI, the HTTP server and the MCP servers
+//	pkg/httpapi     the HTTP adapter: handler, client and the inspector UI
+//	pkg/mcp         the MCP adapter, over stdio and HTTP
+//	pkg/sqlite      registers the SQLite driver and opens embedded stores
+//	pkg/storetest   conformance checks for Store implementations
+//
+// The adapters cmd/comitia, pkg/mcp and pkg/httpapi use only this package and
+// pkg/sqlite, except that cmd/comitia and pkg/mcp share their HTTP listener
+// code through internal/httpserve. Remote clients that import this package,
+// pkg/httpapi or pkg/mcp do not link the SQLite driver; only pkg/sqlite does.
 package comitia
