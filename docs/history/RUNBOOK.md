@@ -97,7 +97,7 @@ export COMITIA_DB=/var/lib/comitia/comitia.db
 export COMITIA_CREDENTIAL=$(python3 -c "import json;print(json.load(open('/root/.comitia/owner.json'))['credential']['Token'])")
 
 # add a harness: mints an identity and prints its connection block
-bash scripts/comitia-add-harness.sh <name> [perms] [hours]
+bash deploy/comitia-add-harness.sh <name> [perms] [hours]
 
 # revoke one session
 /opt/comitia/bin/comitia revoke --session-id <SESSION_ID>
@@ -113,7 +113,7 @@ Credentials are read from the session file at launch, so rotation needs no
 harness config edit:
 
 1. `comitia revoke --session-id <old>` (owner credential required)
-2. `bash scripts/comitia-add-harness.sh <harness>` to mint a fresh one
+2. `bash deploy/comitia-add-harness.sh <harness>` to mint a fresh one
 3. Restart the harness — it picks up the new token on next launch
 
 Revocation is per-identity: verified that revoking one leaves the others working.
@@ -134,20 +134,20 @@ Run all of these after any change. Every one is expected to pass.
 
 ```sh
 export PATH=/usr/lib/go-1.24/bin:$PATH
-go test ./...                                          # unit + transport tests
+go test ./...                                              # unit + transport tests
 
-python3 scripts/verify-http.py 127.0.0.1 8390          # REST API + auth       (7)
-python3 scripts/verify-mcp.py                          # stdio MCP adapter     (5)
-python3 scripts/verify-mcp-http.py                     # HTTP MCP gateway     (19)
-python3 scripts/verify-sdk-client.py                   # official MCP SDK
-python3 scripts/verify-public-mcp.py                   # public TLS edge      (15)
-python3 scripts/verify-e2e-chatgpt.py                  # chatgpt<->codex e2e  (11)
-python3 scripts/verify-harness-configs.py              # Claude + Codex config (2)
-python3 scripts/verify-deploy.py                       # service+persistence   (6)
-python3 scripts/verify-posture.py                      # nothing public        (8)
-bash    scripts/verify-chatgpt-identity.sh             # identity capabilities (10)
-bash    scripts/verify-revocation-isolation.sh         # isolation             (7)
-bash    scripts/verify-ssh-tunnel.sh                   # SSH tunnel path
+python3 deploy/verify/verify-http.py 127.0.0.1 8390        # REST API + auth       (7)
+python3 deploy/verify/verify-mcp.py                        # stdio MCP adapter     (5)
+python3 deploy/verify/verify-mcp-http.py                   # HTTP MCP gateway     (19)
+python3 deploy/verify/verify-sdk-client.py                 # official MCP SDK
+python3 deploy/verify/verify-public-mcp.py                 # public TLS edge      (15)
+python3 deploy/verify/verify-e2e-chatgpt.py                # chatgpt<->codex e2e  (11)
+python3 deploy/verify/verify-harness-configs.py            # Claude + Codex config (2)
+python3 deploy/verify/verify-deploy.py                     # service+persistence   (6)
+python3 deploy/verify/verify-posture.py                    # nothing public        (8)
+bash    deploy/verify/verify-chatgpt-identity.sh           # identity capabilities (10)
+bash    deploy/verify/verify-revocation-isolation.sh       # isolation             (7)
+bash    deploy/verify/verify-ssh-tunnel.sh                 # SSH tunnel path
 ```
 
 `verify-public-mcp.py` deliberately exhausts the edge rate limit, so leave a gap

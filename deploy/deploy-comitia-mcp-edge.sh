@@ -5,7 +5,7 @@
 #
 # The deploy/*.nginx.conf files name the placeholder host comitia.example.com;
 # it is replaced with COMITIA_PUBLIC_HOST as they are installed. COMITIA_SRC
-# (default: the checkout holding this script) locates deploy/ and scripts/.
+# (default: the checkout holding this script's deploy/ directory) locates the configs
 #
 # Order matters: the ACME-only port-80 block must load before the TLS block,
 # because the TLS block references a certificate that does not exist until
@@ -76,4 +76,4 @@ fi
 
 echo
 echo "done. Verify with:"
-echo "  COMITIA_PUBLIC_HOST=$DOMAIN python3 $SRC/scripts/verify-public-mcp.py"
+echo "  COMITIA_PUBLIC_HOST=$DOMAIN python3 $SRC/deploy/verify/verify-public-mcp.py"
