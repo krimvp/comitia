@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"slices"
 	"time"
+
+	"github.com/krimvp/comitia/internal/schema"
 )
 
 // MergePolicy is launcher/gate-owned configuration, never supplied by a reviewer.
@@ -40,17 +42,17 @@ func VerifyMergeCertificateWithOptions(cert, request Message, approvals []Messag
 	if cert.Envelope == nil || cert.Envelope.Schema != MergeCertificateSchema || request.Envelope == nil || request.Envelope.Schema != RequestSchema {
 		return Invalidf("certificate and request schemas required")
 	}
-	if err := validMergeCertificate(cert.Envelope.Payload); err != nil {
+	if err := schema.ValidMergeCertificate(cert.Envelope.Payload); err != nil {
 		return err
 	}
-	if err := validRequest(request.Envelope.Payload); err != nil {
+	if err := schema.ValidRequest(request.Envelope.Payload); err != nil {
 		return err
 	}
 	var p MergeCertificatePayload
 	_ = json.Unmarshal(cert.Envelope.Payload, &p)
 	var req RequestPayload
 	_ = json.Unmarshal(request.Envelope.Payload, &req)
-	if policy.ID == "" || policy.IssuerSessionID == "" || policy.RequesterSessionID == "" || len(policy.Reviewers) == 0 || !nonempty(policy.Checks) {
+	if policy.ID == "" || policy.IssuerSessionID == "" || policy.RequesterSessionID == "" || len(policy.Reviewers) == 0 || !schema.NonEmpty(policy.Checks) {
 		return Invalidf("authenticated issuer, requester, reviewer roles and checks required")
 	}
 	if cert.SessionID != policy.IssuerSessionID || request.SessionID != policy.RequesterSessionID {
@@ -59,9 +61,9 @@ func VerifyMergeCertificateWithOptions(cert, request Message, approvals []Messag
 	if cert.ContextID != request.ContextID || cert.Envelope.ReplyTo != request.ID || cert.Envelope.TaskID != request.Envelope.TaskID || req.Operation != "review" || p.PolicyID != policy.ID || p.ArtifactRef != currentArtifact || !slices.Contains(req.ArtifactRefs, p.ArtifactRef) {
 		return Invalidf("certificate correlation, policy or current artifact mismatch")
 	}
-	issued, _ := protocolTime(p.IssuedAt)
-	expires, _ := protocolTime(p.ExpiresAt)
-	deadline, _ := protocolTime(req.Deadline)
+	issued, _ := schema.ProtocolTime(p.IssuedAt)
+	expires, _ := schema.ProtocolTime(p.ExpiresAt)
+	deadline, _ := schema.ProtocolTime(req.Deadline)
 	if issued.Before(request.CreatedAt) || issued.After(cert.CreatedAt) || cert.CreatedAt.After(now) || !expires.After(now) || !deadline.After(now) {
 		return Invalidf("certificate or request is stale or future-dated")
 	}
@@ -82,7 +84,7 @@ func VerifyMergeCertificateWithOptions(cert, request Message, approvals []Messag
 		if approval.ContextID != cert.ContextID || approval.Envelope == nil || approval.Envelope.Schema != ApprovalSchema || approval.Envelope.ReplyTo != request.ID || approval.Envelope.TaskID != request.Envelope.TaskID || approval.CreatedAt.Before(request.CreatedAt) || approval.CreatedAt.After(issued) || !slices.Contains(req.ExpectedResponders, approval.SessionID) {
 			return Invalidf("approval correlation or freshness mismatch")
 		}
-		if err := validApproval(approval.Envelope.Payload); err != nil {
+		if err := schema.ValidApproval(approval.Envelope.Payload); err != nil {
 			return err
 		}
 		var verdict ApprovalPayload
@@ -187,7 +189,7 @@ func AuthoritativeMergeReceipt(cert Message, receipts []Message, mergerSessionID
 	var first MergeReceiptPayload
 	found := false
 	for _, m := range receipts {
-		if m.SessionID != mergerSessionID || m.ContextID != cert.ContextID || m.Envelope == nil || m.Envelope.Schema != MergeReceiptSchema || m.Envelope.ReplyTo != cert.ID || m.Envelope.TaskID != cert.Envelope.TaskID || validMergeReceipt(m.Envelope.Payload) != nil {
+		if m.SessionID != mergerSessionID || m.ContextID != cert.ContextID || m.Envelope == nil || m.Envelope.Schema != MergeReceiptSchema || m.Envelope.ReplyTo != cert.ID || m.Envelope.TaskID != cert.Envelope.TaskID || schema.ValidMergeReceipt(m.Envelope.Payload) != nil {
 			continue
 		}
 		var r MergeReceiptPayload

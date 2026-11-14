@@ -1,9 +1,11 @@
-package comitia
+package schema
 
 import (
 	"encoding/json"
 	"strings"
 	"unicode"
+
+	"github.com/krimvp/comitia/internal/model"
 )
 
 type ApprovalVerdict string
@@ -23,30 +25,30 @@ type ApprovalPayload struct {
 	Summary       string          `json:"summary,omitempty"`
 }
 
-func validApproval(raw json.RawMessage) error {
+func ValidApproval(raw json.RawMessage) error {
 	var p ApprovalPayload
-	if err := strictPayload(raw, &p); err != nil {
+	if err := StrictPayload(raw, &p); err != nil {
 		return err
 	}
-	if len(p.ArtifactRefs) == 0 || !nonempty(p.Checks) || p.BlockingCount == nil || *p.BlockingCount < 0 {
-		return Invalidf("artifact_refs and checks required; blocking_count must be nonnegative")
+	if len(p.ArtifactRefs) == 0 || !NonEmpty(p.Checks) || p.BlockingCount == nil || *p.BlockingCount < 0 {
+		return model.Invalidf("artifact_refs and checks required; blocking_count must be nonnegative")
 	}
 	for _, ref := range p.ArtifactRefs {
-		if !exactArtifactRef(ref) {
-			return Invalidf("artifact_refs must identify exact artifacts")
+		if !ExactArtifactRef(ref) {
+			return model.Invalidf("artifact_refs must identify exact artifacts")
 		}
 	}
 	switch p.Verdict {
 	case ApprovalApproved:
 		if *p.BlockingCount != 0 {
-			return Invalidf("blocking_count must be zero for approved verdict")
+			return model.Invalidf("blocking_count must be zero for approved verdict")
 		}
 	case ApprovalChangesRequested:
 		if *p.BlockingCount == 0 {
-			return Invalidf("blocking_count must be positive for changes-requested verdict")
+			return model.Invalidf("blocking_count must be positive for changes-requested verdict")
 		}
 	default:
-		return Invalidf("verdict must be approved or changes-requested")
+		return model.Invalidf("verdict must be approved or changes-requested")
 	}
 	return nil
 }
@@ -55,7 +57,7 @@ func validApproval(raw json.RawMessage) error {
 // whitespace. The git and pr schemes must pin a full commit (git:<sha>,
 // pr:owner/repo#41@<sha>) so an approval never silently carries over to later
 // pushes or matches an abbreviated prefix.
-func exactArtifactRef(ref string) bool {
+func ExactArtifactRef(ref string) bool {
 	scheme, value, ok := strings.Cut(ref, ":")
 	if !ok || !lowerScheme(scheme) || value == "" || len(ref) > 512 || strings.IndexFunc(ref, func(c rune) bool { return unicode.IsSpace(c) || unicode.IsControl(c) }) >= 0 {
 		return false

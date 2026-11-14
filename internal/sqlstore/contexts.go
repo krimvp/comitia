@@ -1,4 +1,4 @@
-package comitia
+package sqlstore
 
 import (
 	"github.com/krimvp/comitia/internal/model"
@@ -19,21 +19,21 @@ CREATE INDEX IF NOT EXISTS context_parents_lookup ON context_parents(parent_cont
 
 const contextColumns = `c.id,c.workspace_id,c.name,c.created_at,COALESCE(p.parent_context_id,''),COALESCE(p.task_id,''),COALESCE(p.creator_session_id,''),COALESCE(p.parent_readable,0)`
 
-func scanContext(row interface{ Scan(...any) error }) (WorkContext, error) {
-	var c WorkContext
+func scanContext(row interface{ Scan(...any) error }) (model.WorkContext, error) {
+	var c model.WorkContext
 	var at string
 	e := row.Scan(&c.ID, &c.WorkspaceID, &c.Name, &at, &c.ParentContextID, &c.TaskID, &c.CreatorSessionID, &c.ParentReadable)
 	c.CreatedAt = model.ParseTime(at)
 	return c, dbErr(e)
 }
 
-func (x *sqlStore) contexts(query string, args ...any) ([]WorkContext, error) {
+func (x *sqlStore) contexts(query string, args ...any) ([]model.WorkContext, error) {
 	rows, err := x.q.Query(query, args...)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	out := []WorkContext{}
+	out := []model.WorkContext{}
 	for rows.Next() {
 		c, err := scanContext(rows)
 		if err != nil {
@@ -44,20 +44,20 @@ func (x *sqlStore) contexts(query string, args ...any) ([]WorkContext, error) {
 	return out, rows.Err()
 }
 
-func (x *sqlStore) PutWorkspace(w Workspace) error {
+func (x *sqlStore) PutWorkspace(w model.Workspace) error {
 	_, e := x.q.Exec("INSERT INTO workspaces VALUES(?,?,?)", w.ID, w.Name, model.TS(w.CreatedAt))
 	return e
 }
 
-func (x *sqlStore) Workspace(id string) (Workspace, error) {
-	var w Workspace
+func (x *sqlStore) Workspace(id string) (model.Workspace, error) {
+	var w model.Workspace
 	var c string
 	e := x.q.QueryRow("SELECT id,name,created_at FROM workspaces WHERE id=?", id).Scan(&w.ID, &w.Name, &c)
 	w.CreatedAt = model.ParseTime(c)
 	return w, dbErr(e)
 }
 
-func (x *sqlStore) PutContext(c WorkContext) error {
+func (x *sqlStore) PutContext(c model.WorkContext) error {
 	if _, e := x.q.Exec("INSERT INTO contexts VALUES(?,?,?,?)", c.ID, c.WorkspaceID, c.Name, model.TS(c.CreatedAt)); e != nil || c.ParentContextID == "" {
 		return e
 	}
@@ -65,11 +65,11 @@ func (x *sqlStore) PutContext(c WorkContext) error {
 	return e
 }
 
-func (x *sqlStore) Context(id string) (WorkContext, error) {
+func (x *sqlStore) Context(id string) (model.WorkContext, error) {
 	return scanContext(x.q.QueryRow("SELECT "+contextColumns+" FROM contexts c LEFT JOIN context_parents p ON p.context_id=c.id WHERE c.id=?", id))
 }
 
-func (x *sqlStore) PutReference(r Reference) error {
+func (x *sqlStore) PutReference(r model.Reference) error {
 	_, e := x.q.Exec("INSERT INTO refs VALUES(?,?,?,?,?)", r.ID, r.ContextID, r.Kind, r.URI, model.TS(r.CreatedAt))
 	return e
 }
@@ -85,16 +85,16 @@ func referencePageQuery(cid, created, afterID string, limit int) (string, []any)
 	return q + " ORDER BY " + sortableCreated + ",id LIMIT ?", append(args, limit)
 }
 
-func (x *sqlStore) ReferencesAfter(cid, created, afterID string, limit int) ([]Reference, error) {
+func (x *sqlStore) ReferencesAfter(cid, created, afterID string, limit int) ([]model.Reference, error) {
 	q, args := referencePageQuery(cid, created, afterID, limit)
 	rows, err := x.q.Query(q, args...)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	out := []Reference{}
+	out := []model.Reference{}
 	for rows.Next() {
-		var r Reference
+		var r model.Reference
 		var at string
 		if err := rows.Scan(&r.ID, &r.ContextID, &r.Kind, &r.URI, &at); err != nil {
 			return nil, err
@@ -107,13 +107,13 @@ func (x *sqlStore) ReferencesAfter(cid, created, afterID string, limit int) ([]R
 
 // ContextCandidates only narrows discovery; Service rechecks effective read
 // grants, including ancestry expiry and revocation, before returning any row.
-func (x *sqlStore) ContextCandidates(sessionID, afterID string, limit int) ([]WorkContext, error) {
+func (x *sqlStore) ContextCandidates(sessionID, afterID string, limit int) ([]model.WorkContext, error) {
 	return x.contexts(`SELECT DISTINCT `+contextColumns+`
 FROM contexts c JOIN grants g ON g.context_id=c.id LEFT JOIN context_parents p ON p.context_id=c.id
 WHERE g.session_id=? AND c.id>? ORDER BY c.id LIMIT ?`, sessionID, afterID, limit)
 }
 
-func (x *sqlStore) ChildContexts(parentID, afterID string, limit int) ([]WorkContext, error) {
+func (x *sqlStore) ChildContexts(parentID, afterID string, limit int) ([]model.WorkContext, error) {
 	return x.contexts(`SELECT `+contextColumns+`
 FROM context_parents p JOIN contexts c ON c.id=p.context_id
 WHERE p.parent_context_id=? AND c.id>? ORDER BY c.id LIMIT ?`, parentID, afterID, limit)

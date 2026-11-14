@@ -8,11 +8,13 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/krimvp/comitia/internal/sqlstore"
 )
 
 // participantScanQuery counts grant-holder rows read and records their plans.
 type participantScanQuery struct {
-	querier
+	sqlstore.Querier
 	rows  int
 	plans []string
 }
@@ -20,7 +22,7 @@ type participantScanQuery struct {
 func (q *participantScanQuery) Query(query string, args ...any) (*sql.Rows, error) {
 	if strings.Contains(query, "SELECT DISTINCT session_id FROM grants") {
 		for _, prefix := range []string{"EXPLAIN QUERY PLAN ", ""} {
-			rows, err := q.querier.Query(prefix+query, args...)
+			rows, err := q.Querier.Query(prefix+query, args...)
 			if err != nil {
 				return nil, err
 			}
@@ -44,7 +46,7 @@ func (q *participantScanQuery) Query(query string, args ...any) (*sql.Rows, erro
 			}
 		}
 	}
-	return q.querier.Query(query, args...)
+	return q.Querier.Query(query, args...)
 }
 
 func TestParticipantsPageReadsOnlyNeededGrantHolders(t *testing.T) {
@@ -64,10 +66,10 @@ func TestParticipantsPageReadsOnlyNeededGrantHolders(t *testing.T) {
 	var candidates []string
 	if err := f.store.View(ctx, func(r ReadStore) error {
 		var err error
-		if candidates, err = r.(*sqlStore).participantCandidates(f.context.ID, "", -1); err != nil {
+		if candidates, err = sqlstore.ParticipantCandidates(r.(*sqlstore.TxStore), f.context.ID, "", -1); err != nil {
 			return err
 		}
-		all, err = r.(*sqlStore).ParticipantsAfter(f.context.ID, *f.now, "", 0)
+		all, err = r.(*sqlstore.TxStore).ParticipantsAfter(f.context.ID, *f.now, "", 0)
 		return err
 	}); err != nil {
 		t.Fatal(err)
@@ -92,9 +94,9 @@ func TestParticipantsPageReadsOnlyNeededGrantHolders(t *testing.T) {
 			var page []Participant
 			var q *participantScanQuery
 			if err := f.store.View(ctx, func(r ReadStore) error {
-				q = &participantScanQuery{querier: r.(*sqlStore).q}
+				q = &participantScanQuery{Querier: sqlstore.TxQuerier(r.(*sqlstore.TxStore))}
 				var err error
-				page, err = (&sqlStore{q: q}).ParticipantsAfter(f.context.ID, *f.now, after, limit)
+				page, err = sqlstore.NewTxStore(q).ParticipantsAfter(f.context.ID, *f.now, after, limit)
 				return err
 			}); err != nil {
 				t.Fatal(err)

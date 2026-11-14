@@ -9,6 +9,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/krimvp/comitia/internal/sqlstore"
 )
 
 func TestTaskDiscoveryTieOrder(t *testing.T) {
@@ -34,7 +36,7 @@ func TestTaskDiscoveryTieOrder(t *testing.T) {
 func TestParticipantDiscoveryIndex(t *testing.T) {
 	f := setup(t, ":memory:")
 	defer f.store.Close()
-	rows, err := f.store.db.Query("EXPLAIN QUERY PLAN SELECT DISTINCT session_id FROM grants WHERE context_id=? AND session_id>? ORDER BY session_id", f.context.ID, "")
+	rows, err := sqlstore.DB(f.store).Query("EXPLAIN QUERY PLAN SELECT DISTINCT session_id FROM grants WHERE context_id=? AND session_id>? ORDER BY session_id", f.context.ID, "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -202,7 +204,7 @@ func TestDiscoveryCursorValidationAndDeletion(t *testing.T) {
 	if err != nil || !p.HasMore || p.Tasks[0].ID != a.ID {
 		t.Fatalf("first page: %+v %v", p, err)
 	}
-	if _, err = f.store.db.Exec("DELETE FROM tasks WHERE id=?", a.ID); err != nil {
+	if _, err = sqlstore.DB(f.store).Exec("DELETE FROM tasks WHERE id=?", a.ID); err != nil {
 		t.Fatal(err)
 	}
 	p, err = f.svc.ListTasksPage(ctx, f.admin.Token, f.context.ID, "", p.NextAfter, 1)
@@ -241,7 +243,7 @@ func TestDiscoveryIndexesMigrateExistingDatabase(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "discovery.db")
 	f := setup(t, path)
 	for _, index := range []string{"grants_context_sessions", "tasks_page", "tasks_status_page"} {
-		if _, err := f.store.db.Exec("DROP INDEX " + index); err != nil {
+		if _, err := sqlstore.DB(f.store).Exec("DROP INDEX " + index); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -255,7 +257,7 @@ func TestDiscoveryIndexesMigrateExistingDatabase(t *testing.T) {
 	defer st.Close()
 	for _, index := range []string{"grants_context_sessions", "tasks_page", "tasks_status_page"} {
 		var n int
-		if err := st.db.QueryRow("SELECT COUNT(*) FROM sqlite_master WHERE type='index' AND name=?", index).Scan(&n); err != nil || n != 1 {
+		if err := sqlstore.DB(st).QueryRow("SELECT COUNT(*) FROM sqlite_master WHERE type='index' AND name=?", index).Scan(&n); err != nil || n != 1 {
 			t.Fatalf("migration index=%s count=%d err=%v", index, n, err)
 		}
 	}

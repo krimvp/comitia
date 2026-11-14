@@ -8,6 +8,8 @@ import (
 	"fmt"
 	"strings"
 	"time"
+
+	"github.com/krimvp/comitia/internal/schema"
 )
 
 type Service struct {
@@ -38,7 +40,7 @@ func New(cfg Config) (*Service, error) {
 	if cfg.MaxChildContextsPerGrant == 0 {
 		cfg.MaxChildContextsPerGrant = 20
 	}
-	schemas := builtinMessageSchemas()
+	schemas := schema.BuiltinMessageSchemas()
 	for name, validator := range cfg.MessageSchemas {
 		if name == "" || strings.HasPrefix(name, "comitia.") || validator == nil {
 			return nil, fmt.Errorf("%w: invalid extension message schema", ErrInvalid)

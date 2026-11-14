@@ -7,6 +7,8 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/krimvp/comitia/internal/sqlstore"
 )
 
 func TestSQLiteWALIndependentReadersAndWriter(t *testing.T) {
@@ -117,8 +119,8 @@ func TestSQLiteMigrationProbeDoesNotReadHistoricalTables(t *testing.T) {
 			// A shared-cache table lock catches even a one-row historical scan,
 			// without a history-sized fixture. Unchanged schema generations and
 			// empty repair queues need no access to historical source tables.
-			f.store.db.SetMaxOpenConns(2)
-			tx, err := f.store.db.Begin()
+			sqlstore.DB(f.store).SetMaxOpenConns(2)
+			tx, err := sqlstore.DB(f.store).Begin()
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -135,7 +137,7 @@ func TestSQLiteMigrationProbeDoesNotReadHistoricalTables(t *testing.T) {
 				tx.Rollback()
 				close(released)
 			}()
-			pending := f.store.migrationPending(ctx)
+			pending := sqlstore.MigrationPending(f.store, ctx)
 			cancel()
 			<-released
 			if pending {
@@ -152,7 +154,7 @@ func TestSQLiteWALReadersAreQueryOnly(t *testing.T) {
 	}
 	defer st.Close()
 	if err := st.View(context.Background(), func(r ReadStore) error {
-		_, err := r.(*sqlStore).q.Exec("INSERT INTO workspaces VALUES('bad','bad','bad')")
+		_, err := sqlstore.TxQuerier(r.(*sqlstore.TxStore)).Exec("INSERT INTO workspaces VALUES('bad','bad','bad')")
 		if err == nil {
 			return errors.New("read connection accepted a write")
 		}
@@ -178,7 +180,7 @@ func TestSQLiteWALAuthorizationAndScanShareSnapshot(t *testing.T) {
 		if err != nil || len(grants) != 1 {
 			return errors.New("initial read grant missing")
 		}
-		x := r.(*sqlStore)
+		x := r.(*sqlstore.TxStore)
 		messages, err := x.Messages(f.context.ID, reader.Session.ID, 0, 10)
 		if err != nil || len(messages) != 0 {
 			return errors.New("initial scan not empty")

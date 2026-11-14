@@ -1,4 +1,4 @@
-package comitia
+package sqlstore
 
 import (
 	"database/sql"
@@ -10,7 +10,7 @@ import (
 
 func contextIDArgs(ids []string) (string, []any, error) {
 	if len(ids) > 1000 {
-		return "", nil, Invalidf("context batch exceeds 1000 IDs")
+		return "", nil, model.Invalidf("context batch exceeds 1000 IDs")
 	}
 	args := make([]any, len(ids))
 	for i, id := range ids {
@@ -19,8 +19,8 @@ func contextIDArgs(ids []string) (string, []any, error) {
 	return strings.TrimSuffix(strings.Repeat("?,", len(ids)), ","), args, nil
 }
 
-func (x *sqlStore) GrantsForContexts(sid string, ids []string, now time.Time) (map[string][]Grant, error) {
-	out := map[string][]Grant{}
+func (x *sqlStore) GrantsForContexts(sid string, ids []string, now time.Time) (map[string][]model.Grant, error) {
+	out := map[string][]model.Grant{}
 	for _, id := range ids {
 		out[id] = nil
 	}
@@ -112,7 +112,7 @@ WHERE c.id IN (`+marks+")", args...)
 	}
 	for _, id := range ids {
 		if _, ok := out[id]; !ok {
-			return nil, ErrNotFound
+			return nil, model.ErrNotFound
 		}
 	}
 	return out, nil

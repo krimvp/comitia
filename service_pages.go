@@ -7,6 +7,8 @@ import (
 	"sort"
 	"time"
 
+	"github.com/krimvp/comitia/internal/schema"
+
 	"github.com/krimvp/comitia/internal/model"
 )
 
@@ -184,7 +186,7 @@ func taskPageCursor(status TaskStatus, after string, limit int) (taskCursor, err
 	if limit < 1 || limit > 1000 {
 		return taskCursor{}, Invalidf("limit must be between 1 and 1000")
 	}
-	if !validTaskStatusFilter(status) {
+	if !schema.ValidTaskStatusFilter(status) {
 		return taskCursor{}, Invalidf("status must be pending, leased, completed, failed or cancelled")
 	}
 	return decodeTaskCursor(after)

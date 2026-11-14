@@ -8,6 +8,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/krimvp/comitia/internal/sqlstore"
 )
 
 func TestInstancePresenceHeartbeatsAndResume(t *testing.T) {
@@ -172,7 +174,7 @@ func TestInstancePresenceValidationAndLegacyCalls(t *testing.T) {
 	if err := f.svc.SetInstanceResume(ctx, raw, cid, instance, boundary); err != nil {
 		t.Fatalf("size boundary: %v", err)
 	}
-	if _, err := f.store.db.Exec("DELETE FROM instance_presence"); err != nil {
+	if _, err := sqlstore.DB(f.store).Exec("DELETE FROM instance_presence"); err != nil {
 		t.Fatal(err)
 	}
 	for _, filters := range [][]MessageFilters{{instanceFilter("bad space")}, {instanceFilter("one"), instanceFilter("two")}} {
@@ -249,7 +251,7 @@ func TestInstancePresenceMigrationAndPersistence(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "presence.db")
 	f := setup(t, path)
 	// Simulate the previous schema and reopen: migration only creates a side table.
-	if _, err := f.store.db.Exec("DROP TABLE instance_presence"); err != nil {
+	if _, err := sqlstore.DB(f.store).Exec("DROP TABLE instance_presence"); err != nil {
 		t.Fatal(err)
 	}
 	if err := f.store.Close(); err != nil {
@@ -363,7 +365,7 @@ func TestPresenceHeartbeatSavepointPreservesMessageAndAck(t *testing.T) {
 	defer f.store.Close()
 	ctx, raw, cid := context.Background(), f.admin.Token, f.context.ID
 	// FAIL preserves earlier trigger effects unless the heartbeat savepoint rolls back.
-	_, err := f.store.db.Exec(`CREATE TABLE presence_probe (value INTEGER);
+	_, err := sqlstore.DB(f.store).Exec(`CREATE TABLE presence_probe (value INTEGER);
  CREATE TRIGGER reject_presence BEFORE INSERT ON instance_presence BEGIN
  INSERT INTO presence_probe VALUES(1);
  SELECT RAISE(FAIL,'presence unavailable'); END;`)
@@ -386,7 +388,7 @@ func TestPresenceHeartbeatSavepointPreservesMessageAndAck(t *testing.T) {
 		t.Fatalf("message not committed: %v %v", rows, err)
 	}
 	var effects int
-	if err := f.store.db.QueryRow("SELECT COUNT(*) FROM presence_probe").Scan(&effects); err != nil {
+	if err := sqlstore.DB(f.store).QueryRow("SELECT COUNT(*) FROM presence_probe").Scan(&effects); err != nil {
 		t.Fatal(err)
 	}
 	if effects != 0 {

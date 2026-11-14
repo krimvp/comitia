@@ -1,4 +1,4 @@
-package comitia
+package sqlstore
 
 func (*sqlStore) SupportsMessageQueries() bool { return true }
 

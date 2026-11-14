@@ -7,6 +7,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/krimvp/comitia/internal/schema"
 )
 
 func TestTaskStatusPayloadValidation(t *testing.T) {
@@ -28,7 +30,7 @@ func TestTaskStatusPayloadValidation(t *testing.T) {
 		`{"state":"done","summary":"` + long + `"}`:                                     false,
 		`{"state":"done","summary":"s","child_context_id":"` + long[:129] + `"}`:        false,
 	} {
-		if err := validTaskStatus(json.RawMessage(raw)); (err == nil) != ok {
+		if err := schema.ValidTaskStatus(json.RawMessage(raw)); (err == nil) != ok {
 			t.Errorf("%.80s: %v", raw, err)
 		}
 	}
@@ -37,7 +39,7 @@ func TestTaskStatusPayloadValidation(t *testing.T) {
 		many[i] = "b"
 	}
 	raw, _ := json.Marshal(TaskStatusPayload{State: "blocked", Summary: "s", Blockers: many})
-	if validTaskStatus(raw) == nil {
+	if schema.ValidTaskStatus(raw) == nil {
 		t.Fatal("unbounded blockers accepted")
 	}
 }

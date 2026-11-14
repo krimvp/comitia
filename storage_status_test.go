@@ -9,6 +9,8 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/krimvp/comitia/internal/sqlstore"
 )
 
 type blockedWrites struct {
@@ -90,7 +92,7 @@ func TestStorageProbeDetectsReadOnlyDatabase(t *testing.T) {
 		t.Fatal(err)
 	}
 	db.SetMaxOpenConns(1)
-	ro := &SQLiteStore{db: db, readers: db, writers: make(chan struct{}, 1)}
+	ro := sqlstore.NewStoreFromDB(db, db, make(chan struct{}, 1))
 	defer ro.Close()
 	svc, err := New(Config{Store: ro, Clock: f.svc.now})
 	if err != nil {
@@ -111,7 +113,7 @@ func TestStorageProbeLeavesNoRows(t *testing.T) {
 	defer f.store.Close()
 	ctx := context.Background()
 	count := func() (n int) {
-		if err := f.store.db.QueryRow("SELECT count(*) FROM principals").Scan(&n); err != nil {
+		if err := sqlstore.DB(f.store).QueryRow("SELECT count(*) FROM principals").Scan(&n); err != nil {
 			t.Fatal(err)
 		}
 		return n

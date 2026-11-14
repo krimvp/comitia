@@ -8,6 +8,8 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/krimvp/comitia/internal/schema"
+
 	"github.com/krimvp/comitia/internal/model"
 )
 
@@ -134,7 +136,7 @@ func (s *Service) ListTasks(ctx context.Context, raw, cid string, status TaskSta
 	if limit < 1 || limit > 1000 {
 		return nil, Invalidf("limit must be between 1 and 1000")
 	}
-	if !validTaskStatusFilter(status) {
+	if !schema.ValidTaskStatusFilter(status) {
 		return nil, Invalidf("status must be pending, leased, completed, failed or cancelled")
 	}
 	e := s.store.View(ctx, func(r ReadStore) error {
@@ -207,7 +209,7 @@ func (s *Service) ClaimTaskWithOperation(ctx context.Context, raw, taskID string
 			return e
 		}
 		now := s.now().UTC()
-		if terminalTaskStatus(t.Status) {
+		if schema.TerminalTaskStatus(t.Status) {
 			return ErrConflict
 		}
 		if t.LeaseExpiresAt != nil && t.LeaseExpiresAt.After(now) {

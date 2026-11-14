@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"sort"
 
+	"github.com/krimvp/comitia/internal/schema"
+
 	"github.com/santhosh-tekuri/jsonschema/v6"
 )
 
@@ -21,7 +23,7 @@ func (s *Service) ListMessageSchemas(ctx context.Context, token string) ([]Messa
 	sort.Strings(ids)
 	out := make([]MessageSchemaDescriptor, 0, len(ids))
 	for _, id := range ids {
-		out = append(out, cloneMessageSchema(s.messageSchemaDescriptors[id]))
+		out = append(out, schema.CloneMessageSchema(s.messageSchemaDescriptors[id]))
 	}
 	return out, nil
 }
@@ -34,7 +36,7 @@ func (s *Service) GetMessageSchema(ctx context.Context, token, id string) (Messa
 	if !ok {
 		return MessageSchemaDescriptor{}, ErrNotFound
 	}
-	return cloneMessageSchema(descriptor), nil
+	return schema.CloneMessageSchema(descriptor), nil
 }
 
 func (s *Service) schemaDiscoveryAuth(ctx context.Context, token string) error {
@@ -42,7 +44,7 @@ func (s *Service) schemaDiscoveryAuth(ctx context.Context, token string) error {
 }
 
 func (s *Service) configureMessageSchemaDescriptors(configured map[string]MessageSchemaDescriptor) error {
-	s.messageSchemaDescriptors = builtinMessageSchemaDescriptors()
+	s.messageSchemaDescriptors = schema.BuiltinMessageSchemaDescriptors()
 	for id := range s.messageSchemas {
 		if _, ok := s.messageSchemaDescriptors[id]; !ok {
 			s.messageSchemaDescriptors[id] = MessageSchemaDescriptor{ID: id, PayloadSchema: json.RawMessage(`{"$schema":"https://json-schema.org/draft/2020-12/schema","type":"object"}`), Opaque: true, Requirements: []string{"Additional payload constraints are defined by the extension validator; supply Config.MessageSchemaDescriptors for a complete contract."}, Examples: []MessageSchemaExample{}}
@@ -52,15 +54,15 @@ func (s *Service) configureMessageSchemaDescriptors(configured map[string]Messag
 		if _, ok := s.messageSchemas[id]; !ok || d.ID != "" && d.ID != id || d.Opaque || d.ServerAuthored {
 			return Invalidf("invalid extension message schema descriptor")
 		}
-		if _, builtin := builtinMessageSchemas()[id]; builtin {
+		if _, builtin := schema.BuiltinMessageSchemas()[id]; builtin {
 			return Invalidf("built-in message schema descriptors cannot be replaced")
 		}
 		d.ID = id
-		schema, err := jsonschema.UnmarshalJSON(bytes.NewReader(d.PayloadSchema))
+		payloadSchema, err := jsonschema.UnmarshalJSON(bytes.NewReader(d.PayloadSchema))
 		if err != nil {
 			return Invalidf("invalid payload JSON Schema for %s", id)
 		}
-		object, ok := schema.(map[string]any)
+		object, ok := payloadSchema.(map[string]any)
 		if !ok || object["type"] != "object" {
 			return Invalidf("payload JSON Schema must describe an object for %s", id)
 		}
@@ -68,7 +70,7 @@ func (s *Service) configureMessageSchemaDescriptors(configured map[string]Messag
 		compiler.UseLoader(jsonschema.SchemeURLLoader{})
 		// A supplied descriptor must be self-contained; compilation never fetches URLs.
 		url := "urn:comitia:message-schema:" + id
-		if err := compiler.AddResource(url, schema); err != nil {
+		if err := compiler.AddResource(url, payloadSchema); err != nil {
 			return Invalidf("invalid payload JSON Schema for %s", id)
 		}
 		compiled, err := compiler.Compile(url)
@@ -81,7 +83,7 @@ func (s *Service) configureMessageSchemaDescriptors(configured map[string]Messag
 		if d.Requirements == nil {
 			d.Requirements = []string{}
 		}
-		s.messageSchemaDescriptors[id] = cloneMessageSchema(d)
+		s.messageSchemaDescriptors[id] = schema.CloneMessageSchema(d)
 		for _, example := range d.Examples {
 			payload, err := jsonschema.UnmarshalJSON(bytes.NewReader(example.Envelope.Payload))
 			if example.Envelope.Schema != id || err != nil {

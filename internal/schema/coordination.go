@@ -1,9 +1,11 @@
-package comitia
+package schema
 
 import (
 	"encoding/json"
 	"strings"
 	"time"
+
+	"github.com/krimvp/comitia/internal/model"
 )
 
 // RequestPayload persists a business deadline, independent of a wait timeout.
@@ -41,7 +43,7 @@ type MergeReceiptPayload struct {
 }
 
 func uniqueTexts(values []string) bool {
-	if !nonempty(values) || len(values) > 64 {
+	if !NonEmpty(values) || len(values) > 64 {
 		return false
 	}
 	seen := map[string]bool{}
@@ -54,103 +56,103 @@ func uniqueTexts(values []string) bool {
 	return true
 }
 
-func protocolTime(value string) (time.Time, error) {
+func ProtocolTime(value string) (time.Time, error) {
 	t, err := time.Parse(time.RFC3339Nano, value)
 	if err != nil {
-		return t, Invalidf("timestamp must be RFC3339")
+		return t, model.Invalidf("timestamp must be RFC3339")
 	}
 	return t, nil
 }
 
-func validRequest(raw json.RawMessage) error {
+func ValidRequest(raw json.RawMessage) error {
 	var p RequestPayload
-	if err := strictAppendPayload(raw, &p); err != nil {
+	if err := StrictAppendPayload(raw, &p); err != nil {
 		return err
 	}
 	if strings.TrimSpace(p.Operation) == "" || strings.TrimSpace(p.Instructions) == "" || !uniqueTexts(p.ExpectedResponders) {
-		return Invalidf("operation, instructions and unique expected_responders required (at most 64)")
+		return model.Invalidf("operation, instructions and unique expected_responders required (at most 64)")
 	}
 	if p.ArtifactRefs != nil {
 		for _, ref := range p.ArtifactRefs {
-			if !exactArtifactRef(ref) {
-				return Invalidf("artifact_refs must identify exact artifacts")
+			if !ExactArtifactRef(ref) {
+				return model.Invalidf("artifact_refs must identify exact artifacts")
 			}
 		}
 	}
-	_, err := protocolTime(p.Deadline)
+	_, err := ProtocolTime(p.Deadline)
 	return err
 }
 
 func validReceipt(raw json.RawMessage) error {
 	var p ReceiptPayload
-	if err := strictAppendPayload(raw, &p); err != nil {
+	if err := StrictAppendPayload(raw, &p); err != nil {
 		return err
 	}
 	switch p.Status {
 	case "accepted":
 	case "completed":
-		if !nonempty(p.ResultRefs) {
-			return Invalidf("completed receipt requires result_refs")
+		if !NonEmpty(p.ResultRefs) {
+			return model.Invalidf("completed receipt requires result_refs")
 		}
 	case "rejected":
 		if strings.TrimSpace(p.Reason) == "" {
-			return Invalidf("rejected receipt requires reason")
+			return model.Invalidf("rejected receipt requires reason")
 		}
 	default:
-		return Invalidf("receipt status must be accepted, completed or rejected")
+		return model.Invalidf("receipt status must be accepted, completed or rejected")
 	}
 	for _, ref := range p.ResultRefs {
-		if !exactArtifactRef(ref) {
-			return Invalidf("result_refs must identify exact artifacts")
+		if !ExactArtifactRef(ref) {
+			return model.Invalidf("result_refs must identify exact artifacts")
 		}
 	}
 	return nil
 }
 
-func validMergeCertificate(raw json.RawMessage) error {
+func ValidMergeCertificate(raw json.RawMessage) error {
 	var p MergeCertificatePayload
-	if err := strictAppendPayload(raw, &p); err != nil {
+	if err := StrictAppendPayload(raw, &p); err != nil {
 		return err
 	}
 	if strings.TrimSpace(p.PolicyID) == "" || strings.TrimSpace(p.ConsumptionKey) == "" || !uniqueTexts(p.ApprovalIDs) || !pullRequestArtifact(p.ArtifactRef, p.HeadSHA) {
-		return Invalidf("certificate requires policy_id, consumption_key, unique approval_ids and exact pr artifact matching head_sha")
+		return model.Invalidf("certificate requires policy_id, consumption_key, unique approval_ids and exact pr artifact matching head_sha")
 	}
-	issued, err := protocolTime(p.IssuedAt)
+	issued, err := ProtocolTime(p.IssuedAt)
 	if err != nil {
 		return err
 	}
-	expires, err := protocolTime(p.ExpiresAt)
+	expires, err := ProtocolTime(p.ExpiresAt)
 	if err != nil {
 		return err
 	}
 	if !expires.After(issued) {
-		return Invalidf("expires_at must follow issued_at")
+		return model.Invalidf("expires_at must follow issued_at")
 	}
 	return nil
 }
 
 func pullRequestArtifact(ref, sha string) bool {
-	return fullCommitSHA(sha) && strings.HasPrefix(ref, "pr:") && exactArtifactRef(ref) && strings.HasSuffix(ref, "@"+sha)
+	return fullCommitSHA(sha) && strings.HasPrefix(ref, "pr:") && ExactArtifactRef(ref) && strings.HasSuffix(ref, "@"+sha)
 }
 
-func validMergeReceipt(raw json.RawMessage) error {
+func ValidMergeReceipt(raw json.RawMessage) error {
 	var p MergeReceiptPayload
-	if err := strictAppendPayload(raw, &p); err != nil {
+	if err := StrictAppendPayload(raw, &p); err != nil {
 		return err
 	}
-	if strings.TrimSpace(p.OperationID) == "" || !fullCommitSHA(p.HeadSHA) || !nonempty(p.EvidenceRefs) {
-		return Invalidf("operation_id, exact head_sha and evidence_refs required")
+	if strings.TrimSpace(p.OperationID) == "" || !fullCommitSHA(p.HeadSHA) || !NonEmpty(p.EvidenceRefs) {
+		return model.Invalidf("operation_id, exact head_sha and evidence_refs required")
 	}
 	if p.Status == "merged" {
 		if !fullCommitSHA(p.MergeSHA) {
-			return Invalidf("merged receipt requires exact merge_sha")
+			return model.Invalidf("merged receipt requires exact merge_sha")
 		}
 	} else if p.Status != "not_merged" || p.MergeSHA != "" {
-		return Invalidf("merge receipt status must be merged or not_merged")
+		return model.Invalidf("merge receipt status must be merged or not_merged")
 	}
 	for _, ref := range p.EvidenceRefs {
-		if !exactArtifactRef(ref) {
-			return Invalidf("evidence_refs must identify exact artifacts")
+		if !ExactArtifactRef(ref) {
+			return model.Invalidf("evidence_refs must identify exact artifacts")
 		}
 	}
 	return nil

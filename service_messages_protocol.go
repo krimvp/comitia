@@ -3,6 +3,8 @@ package comitia
 import (
 	"encoding/json"
 	"slices"
+
+	"github.com/krimvp/comitia/internal/schema"
 )
 
 // Validate durable references in the same transaction as the append. Identical
@@ -15,7 +17,7 @@ func (s *Service) validateProtocolReferences(r ReadStore, cid, sid string, env *
 	case RequestSchema:
 		var p RequestPayload
 		_ = json.Unmarshal(env.Payload, &p)
-		deadline, _ := protocolTime(p.Deadline)
+		deadline, _ := schema.ProtocolTime(p.Deadline)
 		if !deadline.After(s.now()) {
 			return Invalidf("request deadline must be in the future")
 		}
@@ -56,7 +58,7 @@ func (s *Service) validateProtocolReferences(r ReadStore, cid, sid string, env *
 			if !slices.Contains(p.ExpectedResponders, sid) {
 				return ErrForbidden
 			}
-			deadline, _ := protocolTime(p.Deadline)
+			deadline, _ := schema.ProtocolTime(p.Deadline)
 			if !deadline.After(s.now()) {
 				return Invalidf("request deadline expired")
 			}

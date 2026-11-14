@@ -8,6 +8,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/krimvp/comitia/internal/sqlstore"
+
 	"github.com/krimvp/comitia/internal/model"
 )
 
@@ -50,7 +52,7 @@ func TestSQLiteConcurrentOpenAndWritesOnFreshFile(t *testing.T) {
 	}
 	defer st.Close()
 	var n int
-	if err = st.db.QueryRow("SELECT COUNT(*) FROM workspaces").Scan(&n); err != nil || n != stores*writes {
+	if err = sqlstore.DB(st).QueryRow("SELECT COUNT(*) FROM workspaces").Scan(&n); err != nil || n != stores*writes {
 		t.Fatalf("workspaces=%d err=%v", n, err)
 	}
 }
@@ -67,17 +69,17 @@ func TestSQLiteMigrationPendingOnlyWhenWorkRemains(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if f.store.migrationPending(ctx) {
+	if sqlstore.MigrationPending(f.store, ctx) {
 		t.Fatal("migrated store reports pending work")
 	}
 	// An older binary appends without a dedupe scope; the next open backfills it.
-	if _, err = f.store.db.Exec("INSERT INTO messages VALUES(?,?,?,?,?,?,?)", "old", m.ContextID, m.SessionID, 2, "old-key", "old", model.TS(*f.now)); err != nil {
+	if _, err = sqlstore.DB(f.store).Exec("INSERT INTO messages VALUES(?,?,?,?,?,?,?)", "old", m.ContextID, m.SessionID, 2, "old-key", "old", model.TS(*f.now)); err != nil {
 		t.Fatal(err)
 	}
-	if !f.store.migrationPending(ctx) {
+	if !sqlstore.MigrationPending(f.store, ctx) {
 		t.Fatal("unscoped message not detected")
 	}
-	if err = f.store.migrate(ctx); err != nil || f.store.migrationPending(ctx) {
+	if err = sqlstore.Migrate(f.store, ctx); err != nil || sqlstore.MigrationPending(f.store, ctx) {
 		t.Fatalf("backfill: %v", err)
 	}
 }

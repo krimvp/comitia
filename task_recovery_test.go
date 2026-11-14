@@ -11,6 +11,8 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/krimvp/comitia/internal/sqlstore"
 )
 
 func TestTaskMutationRecovery(t *testing.T) {
@@ -409,7 +411,7 @@ func TestTaskReceiptsRollbackWithMutation(t *testing.T) {
 			if enabled {
 				query = "CREATE TRIGGER fail_receipt BEFORE INSERT ON task_mutation_receipts BEGIN SELECT RAISE(ABORT,'receipt failure'); END"
 			}
-			_, err := w.(*sqlStore).q.Exec(query)
+			_, err := sqlstore.TxQuerier(w.(*sqlstore.TxStore)).Exec(query)
 			return err
 		})
 		if err != nil {
@@ -563,7 +565,7 @@ func TestTaskReceiptsStoreNoTaskTextAndRetriesRereadIt(t *testing.T) {
 		t.Fatal(err)
 	}
 	var stored int
-	if err = f.store.db.QueryRow("SELECT COUNT(*) FROM task_mutation_receipts WHERE result LIKE '%receipt title%' OR result LIKE '%large body%' OR LENGTH(result)>1024").Scan(&stored); err != nil || stored != 0 {
+	if err = sqlstore.DB(f.store).QueryRow("SELECT COUNT(*) FROM task_mutation_receipts WHERE result LIKE '%receipt title%' OR result LIKE '%large body%' OR LENGTH(result)>1024").Scan(&stored); err != nil || stored != 0 {
 		t.Fatalf("receipts persist task text: %d %v", stored, err)
 	}
 	again, err := f.svc.CreateTask(ctx, f.admin.Token, f.context.ID, in)
@@ -581,7 +583,7 @@ func TestTaskReceiptsStoreNoTaskTextAndRetriesRereadIt(t *testing.T) {
 		t.Fatal(err)
 	}
 	fingerprint := taskFingerprint("create", f.context.ID, legacy.Title, legacy.Body)
-	if _, err = f.store.db.Exec("INSERT INTO task_mutation_receipts VALUES(?,?,?,?)", f.admin.Session.ID, "legacy", fingerprint, string(raw)); err != nil {
+	if _, err = sqlstore.DB(f.store).Exec("INSERT INTO task_mutation_receipts VALUES(?,?,?,?)", f.admin.Session.ID, "legacy", fingerprint, string(raw)); err != nil {
 		t.Fatal(err)
 	}
 	again, err = f.svc.CreateTask(ctx, f.admin.Token, f.context.ID, TaskInput{Title: legacy.Title, Body: legacy.Body, OperationID: "legacy"})

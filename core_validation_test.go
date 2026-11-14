@@ -7,6 +7,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/krimvp/comitia/internal/schema"
+
 	"github.com/krimvp/comitia/internal/model"
 )
 
@@ -86,7 +88,7 @@ func TestClaimOnlyHolderMutationsRedactTaskContent(t *testing.T) {
 }
 
 func TestValidationErrorsNameAcceptedValueAndField(t *testing.T) {
-	err := validApproval([]byte(`{"artifact_refs":["git:` + sha + `"],"verdict":"changes_requested","checks":["review"],"blocking_count":1}`))
+	err := schema.ValidApproval([]byte(`{"artifact_refs":["git:` + sha + `"],"verdict":"changes_requested","checks":["review"],"blocking_count":1}`))
 	if !errors.Is(err, ErrInvalid) || !strings.Contains(err.Error(), "changes-requested") || strings.Contains(err.Error(), "changes_requested") {
 		t.Fatalf("verdict error: %v", err)
 	}

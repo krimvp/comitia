@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"errors"
 	"testing"
+
+	"github.com/krimvp/comitia/internal/schema"
 )
 
 func evaluationMessage(t *testing.T, taskID, payload string) Message {
@@ -24,7 +26,7 @@ func TestEvaluationResultValidation(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			if err := validEvaluationResult(json.RawMessage(tc.payload)); err != nil {
+			if err := schema.ValidEvaluationResult(json.RawMessage(tc.payload)); err != nil {
 				t.Fatalf("valid result rejected: %v", err)
 			}
 		})
@@ -41,7 +43,7 @@ func TestEvaluationResultValidation(t *testing.T) {
 		`{"evaluation_id":"eval","outcome":"accepted","grader":{"kind":"automated","id":"ci"},"criteria":[{"name":"tests","outcome":"passed","evidence_refs":["log"]}],"extra":true}`,
 	}
 	for i, payload := range invalid {
-		if err := validEvaluationResult(json.RawMessage(payload)); !errors.Is(err, ErrInvalid) {
+		if err := schema.ValidEvaluationResult(json.RawMessage(payload)); !errors.Is(err, ErrInvalid) {
 			t.Errorf("invalid payload %d accepted: %v", i, err)
 		}
 	}

@@ -11,6 +11,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/krimvp/comitia/internal/schema"
+
 	"github.com/krimvp/comitia/internal/model"
 )
 
@@ -148,15 +150,15 @@ func TestAppendPayloadScansDictionaryValues(t *testing.T) {
 		`{"values":{"MixedCase":{"Name":"a"}}}`,
 		`{"values":{"MixedCase":{"name":"a"},"MixedCase":{"name":"b"}}}`,
 	} {
-		if err := strictAppendPayload(json.RawMessage(raw), &payload{}); !errors.Is(err, ErrInvalid) {
+		if err := schema.StrictAppendPayload(json.RawMessage(raw), &payload{}); !errors.Is(err, ErrInvalid) {
 			t.Fatalf("invalid dictionary accepted: %s %v", raw, err)
 		}
 	}
-	if err := strictAppendPayload(json.RawMessage(`{"values":{"MixedCase":{"name":"a"}}}`), &payload{}); err != nil {
+	if err := schema.StrictAppendPayload(json.RawMessage(`{"values":{"MixedCase":{"name":"a"}}}`), &payload{}); err != nil {
 		t.Fatal(err)
 	}
 	// Scan even object values that will subsequently fail typed decoding.
-	if err := exactPayloadFields(json.RawMessage(`{"values":{"key":[{"id":1,"id":2}]}}`), reflect.TypeOf(&payload{})); !errors.Is(err, ErrInvalid) || !strings.Contains(err.Error(), "duplicate key") {
+	if err := schema.ExactPayloadFields(json.RawMessage(`{"values":{"key":[{"id":1,"id":2}]}}`), reflect.TypeOf(&payload{})); !errors.Is(err, ErrInvalid) || !strings.Contains(err.Error(), "duplicate key") {
 		t.Fatalf("untyped nested duplicate: %v", err)
 	}
 }

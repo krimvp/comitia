@@ -1,4 +1,4 @@
-package comitia
+package sqlstore
 
 import (
 	"database/sql"
@@ -19,34 +19,34 @@ INSERT INTO message_dedupe_scopes SELECT m.context_id,m.session_id,COALESCE(i.in
 CREATE TABLE IF NOT EXISTS acks (session_id TEXT NOT NULL REFERENCES sessions(id), context_id TEXT NOT NULL REFERENCES contexts(id), seq INTEGER NOT NULL, updated_at TEXT NOT NULL, PRIMARY KEY(session_id,context_id));
 `
 
-func (x *sqlStore) MessageByDedupe(cid, sid, key string, instances ...string) (Message, error) {
+func (x *sqlStore) MessageByDedupe(cid, sid, key string, instances ...string) (model.Message, error) {
 	instance, err := model.CursorInstance(instances)
 	if err != nil {
-		return Message{}, err
+		return model.Message{}, err
 	}
 	return scanMessage(x.q.QueryRow(messageSelect+" WHERE d.context_id=? AND d.session_id=? AND d.instance_id=? AND d.dedupe_key=?", cid, sid, instance, key))
 }
 
 const messageSelect = "SELECT m.id,m.context_id,m.session_id,m.seq,COALESCE(d.dedupe_key,m.dedupe_key),m.body,m.created_at,COALESCE(e.envelope,''),COALESCE(i.instance_id,''),COALESCE(i.label,'') FROM messages m LEFT JOIN message_envelopes e ON e.message_id=m.id LEFT JOIN message_instances i ON i.message_id=m.id LEFT JOIN message_dedupe_scopes d ON d.message_id=m.id"
 
-func (x *sqlStore) Message(id string) (Message, error) {
+func (x *sqlStore) Message(id string) (model.Message, error) {
 	return scanMessage(x.q.QueryRow(messageSelect+" WHERE m.id=?", id))
 }
-func scanMessage(row interface{ Scan(...any) error }) (Message, error) {
-	var m Message
+func scanMessage(row interface{ Scan(...any) error }) (model.Message, error) {
+	var m model.Message
 	var c, envelope, instance, label string
 	e := row.Scan(&m.ID, &m.ContextID, &m.SessionID, &m.Sequence, &m.DedupeKey, &m.Body, &c, &envelope, &instance, &label)
 	if e == nil && envelope != "" {
 		e = json.Unmarshal([]byte(envelope), &m.Envelope)
 	}
 	if instance != "" {
-		m.AgentInstance = &AgentInstance{ID: instance, Label: label}
+		m.AgentInstance = &model.AgentInstance{ID: instance, Label: label}
 		m.AgentInstanceSelfReported = true
 	}
 	m.CreatedAt = model.ParseTime(c)
 	return m, dbErr(e)
 }
-func (x *sqlStore) PutMessage(m Message) (Message, error) {
+func (x *sqlStore) PutMessage(m model.Message) (model.Message, error) {
 	e := x.q.QueryRow("SELECT COALESCE(MAX(seq),0)+1 FROM messages WHERE context_id=?", m.ContextID).Scan(&m.Sequence)
 	if e != nil {
 		return m, e
@@ -88,7 +88,7 @@ func (x *sqlStore) PutMessage(m Message) (Message, error) {
 	}
 	return m, e
 }
-func (x *sqlStore) Messages(cid, callerSessionID string, after int64, limit int, filters ...MessageFilters) ([]Message, error) {
+func (x *sqlStore) Messages(cid, callerSessionID string, after int64, limit int, filters ...model.MessageFilters) ([]model.Message, error) {
 	f, err := model.CombineMessageFilters(filters)
 	if err != nil {
 		return nil, err
@@ -117,7 +117,7 @@ func (x *sqlStore) Messages(cid, callerSessionID string, after int64, limit int,
 		return nil, e
 	}
 	defer rows.Close()
-	var out []Message
+	var out []model.Message
 	budget := model.MessageByteBudget(f.MaxBytes)
 	used := 2 // Array brackets.
 	for rows.Next() {
@@ -144,7 +144,7 @@ func (x *sqlStore) Messages(cid, callerSessionID string, after int64, limit int,
 
 // The empty scan and high-water mark share the caller's read transaction, so
 // an append committed by another process cannot be skipped between them.
-func (x *sqlStore) messagesScanned(cid, sid string, after int64, limit int, f MessageFilters) ([]Message, int64, error) {
+func (x *sqlStore) messagesScanned(cid, sid string, after int64, limit int, f model.MessageFilters) ([]model.Message, int64, error) {
 	messages, err := x.Messages(cid, sid, after, limit, f)
 	if err != nil || len(messages) != 0 {
 		return messages, after, err
@@ -160,7 +160,7 @@ func (x *sqlStore) Ack(sid, cid string, seq int64, at time.Time, instance string
 		return e
 	}
 	if seq > max {
-		return Invalidf("sequence must not exceed the latest message sequence")
+		return model.Invalidf("sequence must not exceed the latest message sequence")
 	}
 	if instance != "" {
 		_, e := x.q.Exec(`INSERT INTO instance_acks VALUES(?,?,?,?,?) ON CONFLICT(session_id,context_id,instance_id) DO UPDATE SET seq=MAX(seq,excluded.seq),updated_at=excluded.updated_at`, sid, cid, instance, seq, model.TS(at))
@@ -183,7 +183,7 @@ func (x *sqlStore) AckCursor(sid, cid, instance string) (int64, error) {
 	return seq, e
 }
 
-func (x *sqlStore) Participants(cid string, now time.Time, limit int) ([]Participant, error) {
+func (x *sqlStore) Participants(cid string, now time.Time, limit int) ([]model.Participant, error) {
 	rows, err := x.q.Query("SELECT DISTINCT session_id FROM grants WHERE context_id=? ORDER BY session_id", cid)
 	if err != nil {
 		return nil, err
@@ -202,7 +202,7 @@ func (x *sqlStore) Participants(cid string, now time.Time, limit int) ([]Partici
 	if err != nil {
 		return nil, err
 	}
-	out := []Participant{}
+	out := []model.Participant{}
 	for _, sid := range ids {
 		session, err := x.Session(sid)
 		if err != nil {
@@ -217,7 +217,7 @@ func (x *sqlStore) Participants(cid string, now time.Time, limit int) ([]Partici
 		}
 		readable := false
 		for _, g := range grants {
-			if g.Permissions&PermissionRead != 0 {
+			if g.Permissions&model.PermissionRead != 0 {
 				readable = true
 				break
 			}
@@ -229,7 +229,7 @@ func (x *sqlStore) Participants(cid string, now time.Time, limit int) ([]Partici
 		if err != nil {
 			return nil, err
 		}
-		out = append(out, Participant{SessionID: sid, PrincipalID: principal.ID, Name: principal.Name, ExpiresAt: session.ExpiresAt})
+		out = append(out, model.Participant{SessionID: sid, PrincipalID: principal.ID, Name: principal.Name, ExpiresAt: session.ExpiresAt})
 		if len(out) == limit {
 			break
 		}

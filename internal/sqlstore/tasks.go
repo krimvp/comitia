@@ -1,4 +1,4 @@
-package comitia
+package sqlstore
 
 import (
 	"database/sql"
@@ -23,7 +23,7 @@ CREATE TABLE IF NOT EXISTS task_outcomes (task_id TEXT PRIMARY KEY REFERENCES ta
 CREATE TABLE IF NOT EXISTS task_instances (task_id TEXT PRIMARY KEY REFERENCES tasks(id), instance_id TEXT NOT NULL, label TEXT NOT NULL);
 `
 
-func (x *sqlStore) PutTask(t Task) error {
+func (x *sqlStore) PutTask(t model.Task) error {
 	_, e := x.q.Exec(`INSERT INTO tasks VALUES(?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET status=excluded.status,lease_owner_session_id=excluded.lease_owner_session_id,lease_version=excluded.lease_version,lease_expires_at=excluded.lease_expires_at,lease_token_hash=excluded.lease_token_hash,updated_at=excluded.updated_at`, t.ID, t.ContextID, t.Title, t.Body, t.Status, nullString(t.LeaseOwnerSessionID), t.LeaseVersion, timeString(t.LeaseExpiresAt), t.LeaseTokenHash, model.TS(t.CreatedAt), model.TS(t.UpdatedAt))
 	if e != nil {
 		return e
@@ -44,14 +44,14 @@ func (x *sqlStore) PutTask(t Task) error {
 	return e
 }
 
-func scanTask(row interface{ Scan(...any) error }) (Task, error) {
-	var t Task
+func scanTask(row interface{ Scan(...any) error }) (model.Task, error) {
+	var t model.Task
 	var owner, exp sql.NullString
 	var c, u, instance, label string
 	e := row.Scan(&t.ID, &t.ContextID, &t.Title, &t.Body, &t.Status, &owner, &t.LeaseVersion, &exp, &t.LeaseTokenHash, &c, &u, &instance, &label, &t.OutcomeReason)
 	t.LeaseOwnerSessionID = owner.String
 	if instance != "" {
-		t.LeaseOwnerInstance = &AgentInstance{ID: instance, Label: label}
+		t.LeaseOwnerInstance = &model.AgentInstance{ID: instance, Label: label}
 	}
 	t.LeaseExpiresAt = nullTime(exp)
 	t.CreatedAt = model.ParseTime(c)
@@ -61,26 +61,26 @@ func scanTask(row interface{ Scan(...any) error }) (Task, error) {
 
 const taskSelect = "SELECT t.id,t.context_id,t.title,t.body,t.status,t.lease_owner_session_id,t.lease_version,t.lease_expires_at,t.lease_token_hash,t.created_at,t.updated_at,COALESCE(i.instance_id,''),COALESCE(i.label,''),COALESCE(o.reason,'') FROM tasks t LEFT JOIN task_instances i ON i.task_id=t.id LEFT JOIN task_outcomes o ON o.task_id=t.id"
 
-func (x *sqlStore) Task(id string) (Task, error) {
+func (x *sqlStore) Task(id string) (model.Task, error) {
 	return scanTask(x.q.QueryRow(taskSelect+" WHERE t.id=?", id))
 }
 
-func (x *sqlStore) Tasks(cid string, status TaskStatus, limit int) ([]Task, error) {
+func (x *sqlStore) Tasks(cid string, status model.TaskStatus, limit int) ([]model.Task, error) {
 	return x.TasksAfter(cid, status, "", "", limit)
 }
 
-func (x *sqlStore) TasksAfter(cid string, status TaskStatus, created, afterID string, limit int) ([]Task, error) {
-	return x.TasksFilteredAfter(cid, status, TaskFilters{}, created, afterID, limit)
+func (x *sqlStore) TasksAfter(cid string, status model.TaskStatus, created, afterID string, limit int) ([]model.Task, error) {
+	return x.TasksFilteredAfter(cid, status, model.TaskFilters{}, created, afterID, limit)
 }
 
-func (x *sqlStore) TasksFilteredAfter(cid string, status TaskStatus, f TaskFilters, created, afterID string, limit int) ([]Task, error) {
+func (x *sqlStore) TasksFilteredAfter(cid string, status model.TaskStatus, f model.TaskFilters, created, afterID string, limit int) ([]model.Task, error) {
 	q, args := taskPageQuery(cid, status, f, created, afterID, limit)
 	rows, e := x.q.Query(q, args...)
 	if e != nil {
 		return nil, e
 	}
 	defer rows.Close()
-	var out []Task
+	var out []model.Task
 	for rows.Next() {
 		t, e := scanTask(rows)
 		if e != nil {
@@ -93,7 +93,7 @@ func (x *sqlStore) TasksFilteredAfter(cid string, status TaskStatus, f TaskFilte
 }
 
 // taskPageQuery seeks tasks_created_page or tasks_status_created_page.
-func taskPageQuery(cid string, status TaskStatus, f TaskFilters, created, afterID string, limit int) (string, []any) {
+func taskPageQuery(cid string, status model.TaskStatus, f model.TaskFilters, created, afterID string, limit int) (string, []any) {
 	q := taskSelect + " WHERE t.context_id=?"
 	args := []any{cid}
 	if status != "" {
@@ -124,8 +124,8 @@ func taskPageQuery(cid string, status TaskStatus, f TaskFilters, created, afterI
 	return q, append(args, limit)
 }
 
-func (x *sqlStore) TaskReceipt(sid, operationID string) (TaskReceipt, error) {
-	var receipt TaskReceipt
+func (x *sqlStore) TaskReceipt(sid, operationID string) (model.TaskReceipt, error) {
+	var receipt model.TaskReceipt
 	var raw string
 	e := x.q.QueryRow("SELECT fingerprint,result FROM task_mutation_receipts WHERE session_id=? AND operation_id=?", sid, operationID).Scan(&receipt.Fingerprint, &raw)
 	if e != nil {
@@ -135,7 +135,7 @@ func (x *sqlStore) TaskReceipt(sid, operationID string) (TaskReceipt, error) {
 	return receipt, e
 }
 
-func (x *sqlStore) PutTaskReceipt(sid, operationID string, receipt TaskReceipt) error {
+func (x *sqlStore) PutTaskReceipt(sid, operationID string, receipt model.TaskReceipt) error {
 	raw, e := json.Marshal(receipt.Result)
 	if e != nil {
 		return e

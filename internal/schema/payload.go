@@ -1,4 +1,4 @@
-package comitia
+package schema
 
 import (
 	"bytes"
@@ -7,46 +7,48 @@ import (
 	"reflect"
 	"slices"
 	"strings"
+
+	"github.com/krimvp/comitia/internal/model"
 )
 
-func strictPayload(raw json.RawMessage, target any) error {
+func StrictPayload(raw json.RawMessage, target any) error {
 	d := json.NewDecoder(bytes.NewReader(raw))
 	d.DisallowUnknownFields()
 	if err := d.Decode(target); err != nil {
-		return InvalidJSONFields(err, "payload", raw, target)
+		return model.InvalidJSONFields(err, "payload", raw, target)
 	}
 	if err := d.Decode(new(any)); err != io.EOF {
-		return Invalidf("payload must contain one JSON value")
+		return model.Invalidf("payload must contain one JSON value")
 	}
 	return nil
 }
 
 // Append validation inspects every member before encoding/json can merge duplicate
 // objects or accept case-insensitive field aliases. Historical readers use strictPayload.
-func strictAppendPayload(raw json.RawMessage, target any) error {
-	if err := exactPayloadFields(raw, reflect.TypeOf(target)); err != nil {
+func StrictAppendPayload(raw json.RawMessage, target any) error {
+	if err := ExactPayloadFields(raw, reflect.TypeOf(target)); err != nil {
 		return err
 	}
-	return strictPayload(raw, target)
+	return StrictPayload(raw, target)
 }
 
-func appendPayloadValidator(target any, validator PayloadValidator) PayloadValidator {
+func appendPayloadValidator(target any, validator model.PayloadValidator) model.PayloadValidator {
 	return func(raw json.RawMessage) error {
-		if err := exactPayloadFields(raw, reflect.TypeOf(target)); err != nil {
+		if err := ExactPayloadFields(raw, reflect.TypeOf(target)); err != nil {
 			return err
 		}
 		return validator(raw)
 	}
 }
 
-func exactPayloadFields(raw json.RawMessage, target reflect.Type) error {
+func ExactPayloadFields(raw json.RawMessage, target reflect.Type) error {
 	d := json.NewDecoder(bytes.NewReader(raw))
 	d.UseNumber()
 	if err := scanPayloadValue(d, target); err != nil {
 		return err
 	}
 	if _, err := d.Token(); err != io.EOF {
-		return Invalidf("payload must contain one JSON value")
+		return model.Invalidf("payload must contain one JSON value")
 	}
 	return nil
 }
@@ -57,7 +59,7 @@ func scanPayloadValue(d *json.Decoder, target reflect.Type) error {
 	}
 	token, err := d.Token()
 	if err != nil {
-		return InvalidJSON(err, "payload")
+		return model.InvalidJSON(err, "payload")
 	}
 	switch token {
 	case json.Delim('{'):
@@ -83,14 +85,14 @@ func scanPayloadValue(d *json.Decoder, target reflect.Type) error {
 		for d.More() {
 			token, err := d.Token()
 			if err != nil {
-				return InvalidJSON(err, "payload")
+				return model.InvalidJSON(err, "payload")
 			}
 			key, ok := token.(string)
 			if !ok {
-				return Invalidf("payload object key must be a string")
+				return model.Invalidf("payload object key must be a string")
 			}
 			if seen[key] {
-				return Invalidf("payload: duplicate key %q", key)
+				return model.Invalidf("payload: duplicate key %q", key)
 			}
 			seen[key] = true
 			var child reflect.Type
@@ -101,8 +103,8 @@ func scanPayloadValue(d *json.Decoder, target reflect.Type) error {
 					for name := range fields {
 						keys = append(keys, name)
 					}
-					detail := strings.TrimPrefix(UnknownField(key, keys).Error(), ErrInvalid.Error()+": ")
-					return Invalidf("payload: %s; keys are case-sensitive", detail)
+					detail := strings.TrimPrefix(model.UnknownField(key, keys).Error(), model.ErrInvalid.Error()+": ")
+					return model.Invalidf("payload: %s; keys are case-sensitive", detail)
 				}
 			} else if target != nil && target.Kind() == reflect.Map {
 				child = target.Elem()
@@ -112,7 +114,7 @@ func scanPayloadValue(d *json.Decoder, target reflect.Type) error {
 			}
 		}
 		if _, err := d.Token(); err != nil {
-			return InvalidJSON(err, "payload")
+			return model.InvalidJSON(err, "payload")
 		}
 	case json.Delim('['):
 		var child reflect.Type
@@ -125,13 +127,13 @@ func scanPayloadValue(d *json.Decoder, target reflect.Type) error {
 			}
 		}
 		if _, err := d.Token(); err != nil {
-			return InvalidJSON(err, "payload")
+			return model.InvalidJSON(err, "payload")
 		}
 	}
 	return nil
 }
 
-func nonempty(values []string) bool {
+func NonEmpty(values []string) bool {
 	if len(values) == 0 {
 		return false
 	}
@@ -149,18 +151,18 @@ var (
 	stances           = []string{"agree", "refine", "disagree"}
 )
 
-func validDiscussion(raw json.RawMessage) error { return strictAppendPayload(raw, &struct{}{}) }
+func validDiscussion(raw json.RawMessage) error { return StrictAppendPayload(raw, &struct{}{}) }
 
 func validAssignment(raw json.RawMessage) error {
 	var p struct {
 		Instructions       string   `json:"instructions"`
 		AcceptanceCriteria []string `json:"acceptance_criteria"`
 	}
-	if err := strictAppendPayload(raw, &p); err != nil {
+	if err := StrictAppendPayload(raw, &p); err != nil {
 		return err
 	}
-	if strings.TrimSpace(p.Instructions) == "" || !nonempty(p.AcceptanceCriteria) {
-		return Invalidf("instructions and acceptance_criteria required")
+	if strings.TrimSpace(p.Instructions) == "" || !NonEmpty(p.AcceptanceCriteria) {
+		return model.Invalidf("instructions and acceptance_criteria required")
 	}
 	return nil
 }
@@ -170,11 +172,11 @@ func validReviewRequest(raw json.RawMessage) error {
 		ArtifactRefs []string `json:"artifact_refs"`
 		Checks       []string `json:"checks"`
 	}
-	if err := strictAppendPayload(raw, &p); err != nil {
+	if err := StrictAppendPayload(raw, &p); err != nil {
 		return err
 	}
-	if !nonempty(p.ArtifactRefs) || !nonempty(p.Checks) {
-		return Invalidf("artifact_refs and checks required")
+	if !NonEmpty(p.ArtifactRefs) || !NonEmpty(p.Checks) {
+		return model.Invalidf("artifact_refs and checks required")
 	}
 	return nil
 }
@@ -187,20 +189,20 @@ func validFinding(raw json.RawMessage) error {
 		Priority     *string  `json:"priority,omitempty"`
 		Size         *string  `json:"size,omitempty"`
 	}
-	if err := strictAppendPayload(raw, &p); err != nil {
+	if err := StrictAppendPayload(raw, &p); err != nil {
 		return err
 	}
 	if strings.TrimSpace(p.Summary) == "" {
-		return Invalidf("summary required")
+		return model.Invalidf("summary required")
 	}
 	if p.Severity != "info" && p.Severity != "warning" && p.Severity != "error" {
-		return Invalidf("severity must be info, warning or error")
+		return model.Invalidf("severity must be info, warning or error")
 	}
 	if p.Priority != nil && !slices.Contains(findingPriorities, *p.Priority) {
-		return Invalidf("priority must be P0, P1, P2 or P3 when present")
+		return model.Invalidf("priority must be P0, P1, P2 or P3 when present")
 	}
 	if p.Size != nil && !slices.Contains(findingSizes, *p.Size) {
-		return Invalidf("size must be S, M or L when present")
+		return model.Invalidf("size must be S, M or L when present")
 	}
 	return nil
 }
@@ -210,14 +212,14 @@ func validStance(raw json.RawMessage) error {
 		Stance string  `json:"stance"`
 		Note   *string `json:"note,omitempty"`
 	}
-	if err := strictAppendPayload(raw, &p); err != nil {
+	if err := StrictAppendPayload(raw, &p); err != nil {
 		return err
 	}
 	if !slices.Contains(stances, p.Stance) {
-		return Invalidf("stance must be agree, refine or disagree")
+		return model.Invalidf("stance must be agree, refine or disagree")
 	}
 	if p.Note != nil && strings.TrimSpace(*p.Note) == "" {
-		return Invalidf("note must be nonblank when present")
+		return model.Invalidf("note must be nonblank when present")
 	}
 	return nil
 }
@@ -227,11 +229,11 @@ func validBlocker(raw json.RawMessage) error {
 		Reason string   `json:"reason"`
 		Needs  []string `json:"needs"`
 	}
-	if err := strictAppendPayload(raw, &p); err != nil {
+	if err := StrictAppendPayload(raw, &p); err != nil {
 		return err
 	}
-	if strings.TrimSpace(p.Reason) == "" || !nonempty(p.Needs) {
-		return Invalidf("reason and needs required")
+	if strings.TrimSpace(p.Reason) == "" || !NonEmpty(p.Needs) {
+		return model.Invalidf("reason and needs required")
 	}
 	return nil
 }
@@ -241,11 +243,11 @@ func validWorkSubmitted(raw json.RawMessage) error {
 		ArtifactRefs []string `json:"artifact_refs"`
 		Summary      string   `json:"summary"`
 	}
-	if err := strictAppendPayload(raw, &p); err != nil {
+	if err := StrictAppendPayload(raw, &p); err != nil {
 		return err
 	}
-	if !nonempty(p.ArtifactRefs) || strings.TrimSpace(p.Summary) == "" {
-		return Invalidf("artifact_refs and summary required")
+	if !NonEmpty(p.ArtifactRefs) || strings.TrimSpace(p.Summary) == "" {
+		return model.Invalidf("artifact_refs and summary required")
 	}
 	return nil
 }
@@ -258,23 +260,23 @@ func validVerificationResult(raw json.RawMessage) error {
 		ArtifactRefs []string `json:"artifact_refs,omitempty"`
 		Reason       string   `json:"reason,omitempty"`
 	}
-	if err := strictAppendPayload(raw, &p); err != nil {
+	if err := StrictAppendPayload(raw, &p); err != nil {
 		return err
 	}
-	if !nonempty(p.Checks) || p.ArtifactRefs != nil && !nonempty(p.ArtifactRefs) {
-		return Invalidf("checks required and artifact_refs must contain nonempty entries")
+	if !NonEmpty(p.Checks) || p.ArtifactRefs != nil && !NonEmpty(p.ArtifactRefs) {
+		return model.Invalidf("checks required and artifact_refs must contain nonempty entries")
 	}
 	switch p.Status {
 	case "passed", "failed":
-		if !nonempty(p.EvidenceRefs) {
-			return Invalidf("evidence_refs required for passed or failed status")
+		if !NonEmpty(p.EvidenceRefs) {
+			return model.Invalidf("evidence_refs required for passed or failed status")
 		}
 	case "not_run":
 		if strings.TrimSpace(p.Reason) == "" {
-			return Invalidf("reason required for not_run status")
+			return model.Invalidf("reason required for not_run status")
 		}
 	default:
-		return Invalidf("status must be passed, failed or not_run")
+		return model.Invalidf("status must be passed, failed or not_run")
 	}
 	return nil
 }

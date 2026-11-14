@@ -1,4 +1,4 @@
-package comitia
+package sqlstore
 
 import (
 	"database/sql"

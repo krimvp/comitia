@@ -8,12 +8,14 @@ import (
 	"testing"
 	"time"
 
+	"github.com/krimvp/comitia/internal/sqlstore"
+
 	"github.com/krimvp/comitia/internal/model"
 )
 
 type grantQueryCounts struct{ auth, sessions, grants, archives int }
 type grantCountingQuery struct {
-	querier
+	sqlstore.Querier
 	counts *grantQueryCounts
 }
 
@@ -31,11 +33,11 @@ func (q grantCountingQuery) count(query string) {
 }
 func (q grantCountingQuery) Query(query string, args ...any) (*sql.Rows, error) {
 	q.count(query)
-	return q.querier.Query(query, args...)
+	return q.Querier.Query(query, args...)
 }
 func (q grantCountingQuery) QueryRow(query string, args ...any) *sql.Row {
 	q.count(query)
-	return q.querier.QueryRow(query, args...)
+	return q.Querier.QueryRow(query, args...)
 }
 
 type grantCountingStore struct {
@@ -44,7 +46,9 @@ type grantCountingStore struct {
 }
 
 func (s grantCountingStore) View(ctx context.Context, fn func(ReadStore) error) error {
-	return s.Store.View(ctx, func(r ReadStore) error { x := r.(*sqlStore); x.q = grantCountingQuery{x.q, s.counts}; return fn(x) })
+	return s.Store.View(ctx, func(r ReadStore) error {
+		return fn(sqlstore.NewTxStore(grantCountingQuery{sqlstore.TxQuerier(r.(*sqlstore.TxStore)), s.counts}))
+	})
 }
 
 func TestGrantAndArchiveShareTransactionEvaluation(t *testing.T) {

@@ -1,9 +1,11 @@
-package comitia
+package sqlstore
 
 import (
 	"errors"
 	"fmt"
 	"os"
+
+	"github.com/krimvp/comitia/internal/model"
 )
 
 // SQLite derives newly created WAL/SHM permissions from the database file.
@@ -34,7 +36,7 @@ func privateSQLiteFiles(path string) error {
 			return err
 		}
 		if !info.Mode().IsRegular() || info.Mode().Perm()&0077 != 0 {
-			return fmt.Errorf("%w: sqlite file must be regular and private (0600): %s", ErrInvalid, name)
+			return fmt.Errorf("%w: sqlite file must be regular and private (0600): %s", model.ErrInvalid, name)
 		}
 	}
 	return nil

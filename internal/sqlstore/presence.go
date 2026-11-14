@@ -1,4 +1,4 @@
-package comitia
+package sqlstore
 
 import (
 	"database/sql"
@@ -21,13 +21,13 @@ CREATE TABLE IF NOT EXISTS instance_presence (
 CREATE INDEX IF NOT EXISTS instance_presence_context ON instance_presence(context_id);
 `
 
-func (x *sqlStore) PutInstancePresence(p InstancePresence) error {
+func (x *sqlStore) PutInstancePresence(p model.InstancePresence) error {
 	return x.putInstancePresence(p, false)
 }
 
 // A heartbeat that only refreshes an existing row skips eviction and pruning:
 // it cannot exceed the cap, and read heartbeats run under a small time budget.
-func (x *sqlStore) putInstancePresence(p InstancePresence, heartbeat bool) error {
+func (x *sqlStore) putInstancePresence(p model.InstancePresence, heartbeat bool) error {
 	var resume any
 	if p.Resume != nil {
 		resume = string(p.Resume)
@@ -50,11 +50,11 @@ func (x *sqlStore) putInstancePresence(p InstancePresence, heartbeat bool) error
 	if _, err = x.q.Exec(`DELETE FROM instance_presence WHERE session_id=? AND context_id=? AND instance_id IN (
  SELECT instance_id FROM instance_presence WHERE session_id=? AND context_id=? AND instance_id<>?
  ORDER BY julianday(last_seen) DESC, instance_id DESC LIMIT -1 OFFSET ?)`,
-		p.SessionID, p.ContextID, p.SessionID, p.ContextID, p.ID, MaxInstancesPerSession-1); err != nil {
+		p.SessionID, p.ContextID, p.SessionID, p.ContextID, p.ID, model.MaxInstancesPerSession-1); err != nil {
 		return err
 	}
 	// Prune this context's rows of sessions that ended before the retention window.
-	cutoff := model.TS(p.LastSeen.Add(-InstanceRetention))
+	cutoff := model.TS(p.LastSeen.Add(-model.InstanceRetention))
 	_, err = x.q.Exec(`DELETE FROM instance_presence WHERE context_id=? AND session_id IN (
  SELECT s.id FROM sessions s WHERE s.id IN (SELECT session_id FROM instance_presence WHERE context_id=?)
  AND (julianday(s.expires_at)<=julianday(?) OR julianday(s.revoked_at)<=julianday(?)))`, p.ContextID, p.ContextID, cutoff, cutoff)
@@ -73,7 +73,7 @@ func (x *sqlStore) InstanceLabel(sid, cid, instance string) (string, error) {
 	return label, dbErr(err)
 }
 
-func (x *sqlStore) TouchInstancePresence(p InstancePresence) error {
+func (x *sqlStore) TouchInstancePresence(p model.InstancePresence) error {
 	if _, err := x.q.Exec("SAVEPOINT presence_heartbeat"); err != nil {
 		return err
 	}
@@ -88,13 +88,13 @@ func (x *sqlStore) TouchInstancePresence(p InstancePresence) error {
 	return releaseErr
 }
 
-func (x *sqlStore) Instances(cid string, now time.Time) ([]InstancePresence, error) {
-	return x.InstancesAfter(cid, now, "", "", DefaultInstanceListLimit)
+func (x *sqlStore) Instances(cid string, now time.Time) ([]model.InstancePresence, error) {
+	return x.InstancesAfter(cid, now, "", "", model.DefaultInstanceListLimit)
 }
 
 // Rows of sessions that ended before the retention window are hidden.
-func (x *sqlStore) InstancesAfter(cid string, now time.Time, afterSession, afterInstance string, limit int) ([]InstancePresence, error) {
-	cutoff := model.TS(now.Add(-InstanceRetention))
+func (x *sqlStore) InstancesAfter(cid string, now time.Time, afterSession, afterInstance string, limit int) ([]model.InstancePresence, error) {
+	cutoff := model.TS(now.Add(-model.InstanceRetention))
 	rows, err := x.q.Query(`SELECT p.session_id,p.context_id,p.instance_id,p.label,p.last_seen,COALESCE(p.resume,''),s.expires_at,s.revoked_at
  FROM instance_presence p JOIN sessions s ON s.id=p.session_id
  WHERE p.context_id=? AND (p.session_id,p.instance_id)>(?,?)
@@ -104,9 +104,9 @@ func (x *sqlStore) InstancesAfter(cid string, now time.Time, afterSession, after
 		return nil, err
 	}
 	defer rows.Close()
-	out := []InstancePresence{}
+	out := []model.InstancePresence{}
 	for rows.Next() {
-		var p InstancePresence
+		var p model.InstancePresence
 		var seen, resume, expires string
 		var revoked sql.NullString
 		if err := rows.Scan(&p.SessionID, &p.ContextID, &p.ID, &p.Label, &seen, &resume, &expires, &revoked); err != nil {

@@ -8,6 +8,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/krimvp/comitia/internal/sqlstore"
 )
 
 func TestAgentInstancesPersistenceAndCursorIsolation(t *testing.T) {
@@ -22,7 +24,7 @@ func TestAgentInstancesPersistenceAndCursorIsolation(t *testing.T) {
 		t.Fatal(err)
 	}
 	// Emulate an existing database with messages and acknowledgements but no instance tables.
-	if _, err = f.store.db.Exec("DROP TABLE message_instances; DROP TABLE instance_acks"); err != nil {
+	if _, err = sqlstore.DB(f.store).Exec("DROP TABLE message_instances; DROP TABLE instance_acks"); err != nil {
 		t.Fatal(err)
 	}
 	if err = f.store.Close(); err != nil {

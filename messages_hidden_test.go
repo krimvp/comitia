@@ -7,6 +7,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/krimvp/comitia/internal/sqlstore"
+
 	"github.com/krimvp/comitia/internal/model"
 )
 
@@ -62,8 +64,8 @@ func TestDefaultReadsSkipRenewalsByProjectionWithoutDecodingEnvelopes(t *testing
 			t.Fatalf("default read %+v: %s", filters, got)
 		}
 		err := f.store.View(context.Background(), func(r ReadStore) error {
-			q := &filterPlanQuery{querier: r.(*sqlStore).q}
-			query, args := messageQuery(f.context.ID, f.admin.Session.ID, 0, 100, filters)
+			q := &filterPlanQuery{Querier: sqlstore.TxQuerier(r.(*sqlstore.TxStore))}
+			query, args := sqlstore.MessageQuery(f.context.ID, f.admin.Session.ID, 0, 100, filters)
 			if strings.Contains(query, "json_extract") {
 				t.Fatalf("default read decodes envelopes: %s", query)
 			}
@@ -93,15 +95,15 @@ func TestHiddenProjectionBackfillsOldDatabaseIncrementally(t *testing.T) {
 	task := renewalHistory(t, f, 3)
 	// Model a database last written by a binary without the hidden projection.
 	for _, query := range []string{"DROP TRIGGER comitia_message_hidden_insert", "DROP TABLE message_hidden"} {
-		if _, err := f.store.db.Exec(query); err != nil {
+		if _, err := sqlstore.DB(f.store).Exec(query); err != nil {
 			t.Fatal(err)
 		}
 	}
-	if _, err := f.store.db.Exec("DELETE FROM comitia_generations WHERE generation=?", schemaGeneration(messageHiddenSchema)); err != nil {
+	if _, err := sqlstore.DB(f.store).Exec("DELETE FROM comitia_generations WHERE generation=?", sqlstore.SchemaGeneration(sqlstore.MessageHiddenSchemaSQL)); err != nil {
 		t.Fatal(err)
 	}
 	// messageSchema rebuilds recipients; a surviving marker proves it did not rerun.
-	if _, err := f.store.db.Exec("INSERT INTO message_recipients SELECT id,context_id,seq,'marker','' FROM messages LIMIT 1"); err != nil {
+	if _, err := sqlstore.DB(f.store).Exec("INSERT INTO message_recipients SELECT id,context_id,seq,'marker','' FROM messages LIMIT 1"); err != nil {
 		t.Fatal(err)
 	}
 	if err := f.store.Close(); err != nil {
@@ -112,14 +114,14 @@ func TestHiddenProjectionBackfillsOldDatabaseIncrementally(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer func() { st.Close() }()
-	if st.migrationPending(ctx) {
+	if sqlstore.MigrationPending(st, ctx) {
 		t.Fatal("hidden projection backfill still pending")
 	}
 	if got := strings.Join(storeMessageKinds(t, st, f, MessageFilters{}), ","); got != "visible-event,visible-event" {
 		t.Fatalf("backfilled default read: %s", got)
 	}
 	var marker int
-	if err = st.db.QueryRow("SELECT COUNT(*) FROM message_recipients WHERE kind='marker'").Scan(&marker); err != nil || marker != 1 {
+	if err = sqlstore.DB(st).QueryRow("SELECT COUNT(*) FROM message_recipients WHERE kind='marker'").Scan(&marker); err != nil || marker != 1 {
 		t.Fatalf("hidden backfill reran the message projection rebuild: %d %v", marker, err)
 	}
 	// Rows inserted directly, as an older binary would, are still classified.
@@ -131,7 +133,7 @@ func TestHiddenProjectionBackfillsOldDatabaseIncrementally(t *testing.T) {
 		{"INSERT INTO messages VALUES('legacy-renewal',?,?,100,'legacy-renewal','',?)", []any{f.context.ID, f.admin.Session.ID, model.TS(*f.now)}},
 		{"INSERT INTO message_envelopes VALUES('legacy-renewal',?)", []any{envelope}},
 	} {
-		if _, err = st.db.Exec(query.sql, query.args...); err != nil {
+		if _, err = sqlstore.DB(st).Exec(query.sql, query.args...); err != nil {
 			t.Fatal(err)
 		}
 	}

@@ -10,6 +10,8 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/krimvp/comitia/internal/sqlstore"
 )
 
 func childContext(t *testing.T, f fixture, raw, parent string) WorkContext {
@@ -449,7 +451,7 @@ func TestContextLifecycleMigrationAndPersistence(t *testing.T) {
 	f := setup(t, path)
 	ctx := context.Background()
 	c := childContext(t, f, f.admin.Token, f.context.ID)
-	if _, err := f.store.db.Exec("DROP TABLE context_creators; DROP TABLE context_archives"); err != nil {
+	if _, err := sqlstore.DB(f.store).Exec("DROP TABLE context_creators; DROP TABLE context_archives"); err != nil {
 		t.Fatal(err)
 	}
 	f.store.Close()

@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"errors"
 	"testing"
+
+	"github.com/krimvp/comitia/internal/schema"
 )
 
 const sha = "0123456789abcdef0123456789abcdef01234567"
@@ -38,7 +40,7 @@ func TestApprovalPayloadValidation(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			if err := validApproval(json.RawMessage(tc.payload)); (err == nil) != tc.ok {
+			if err := schema.ValidApproval(json.RawMessage(tc.payload)); (err == nil) != tc.ok {
 				t.Fatalf("got %v want ok=%v", err, tc.ok)
 			}
 		})
@@ -121,7 +123,7 @@ func TestExactArtifactRef(t *testing.T) {
 		":x":                          false,
 		"git:":                        false,
 	} {
-		if exactArtifactRef(ref) != ok {
+		if schema.ExactArtifactRef(ref) != ok {
 			t.Errorf("%q: want %v", ref, ok)
 		}
 	}

@@ -7,6 +7,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/krimvp/comitia/internal/sqlstore"
+
 	"github.com/krimvp/comitia/internal/model"
 )
 
@@ -36,7 +38,7 @@ func TestTasksAndReferencesListChronologicallyWithinASecond(t *testing.T) {
 	// Rows in a fixed-width format and in the trimmed format older binaries
 	// write must interleave with them by time.
 	for _, row := range []struct{ id, created string }{{"fixed", "2026-01-02T03:04:05.100000000Z"}, {"trimmed", "2026-01-02T03:04:05.3Z"}} {
-		if _, err := f.store.db.Exec("INSERT INTO tasks VALUES(?,?,?,?,'pending',NULL,0,NULL,'',?,?)", row.id, f.context.ID, row.id, "", row.created, row.created); err != nil {
+		if _, err := sqlstore.DB(f.store).Exec("INSERT INTO tasks VALUES(?,?,?,?,'pending',NULL,0,NULL,'',?,?)", row.id, f.context.ID, row.id, "", row.created, row.created); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -90,9 +92,9 @@ func TestCreatedOrderPagesSeekIndexes(t *testing.T) {
 	}
 	defer st.Close()
 	at := model.TS(time.Date(2026, 1, 2, 3, 4, 5, 0, time.UTC))
-	tasks, taskArgs := taskPageQuery("c", "", TaskFilters{}, at, "id", 10)
-	status, statusArgs := taskPageQuery("c", TaskPending, TaskFilters{}, at, "id", 10)
-	refs, refArgs := referencePageQuery("c", at, "id", 10)
+	tasks, taskArgs := sqlstore.TaskPageQuery("c", "", TaskFilters{}, at, "id", 10)
+	status, statusArgs := sqlstore.TaskPageQuery("c", TaskPending, TaskFilters{}, at, "id", 10)
+	refs, refArgs := sqlstore.ReferencePageQuery("c", at, "id", 10)
 	for index, query := range map[string]struct {
 		sql  string
 		args []any

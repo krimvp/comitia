@@ -8,6 +8,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/krimvp/comitia/internal/sqlstore"
+
 	"github.com/krimvp/comitia/internal/model"
 )
 
@@ -83,13 +85,13 @@ func TestInstanceDedupeScopesAndLegacyMigration(t *testing.T) {
 		t.Fatal(err)
 	}
 	// Restore pre-change physical keys and remove only the new side table.
-	if _, err := f.store.db.Exec("UPDATE messages SET dedupe_key=? WHERE id=?", legacy.DedupeKey, legacy.ID); err != nil {
+	if _, err := sqlstore.DB(f.store).Exec("UPDATE messages SET dedupe_key=? WHERE id=?", legacy.DedupeKey, legacy.ID); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := f.store.db.Exec("UPDATE messages SET dedupe_key=? WHERE id=?", worker.DedupeKey, worker.ID); err != nil {
+	if _, err := sqlstore.DB(f.store).Exec("UPDATE messages SET dedupe_key=? WHERE id=?", worker.DedupeKey, worker.ID); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := f.store.db.Exec("DROP TABLE message_dedupe_scopes"); err != nil {
+	if _, err := sqlstore.DB(f.store).Exec("DROP TABLE message_dedupe_scopes"); err != nil {
 		t.Fatal(err)
 	}
 	if err := f.store.Close(); err != nil {
@@ -179,20 +181,20 @@ func TestInstanceDedupeDowngradeAndReupgrade(t *testing.T) {
 		t.Fatal(err)
 	}
 	var physicalKey string
-	if err := f.store.db.QueryRow("SELECT dedupe_key FROM messages WHERE id=?", original.ID).Scan(&physicalKey); err != nil || physicalKey != in.DedupeKey {
+	if err := sqlstore.DB(f.store).QueryRow("SELECT dedupe_key FROM messages WHERE id=?", original.ID).Scan(&physicalKey); err != nil || physicalKey != in.DedupeKey {
 		t.Fatalf("old binary sees %q: %v", physicalKey, err)
 	}
 	// A pre-instance-dedupe binary finds the original through its unchanged
 	// (context, session, key) query, so a retry does not append a new message.
 	var oldID string
-	if err := f.store.db.QueryRow("SELECT id FROM messages WHERE context_id=? AND session_id=? AND dedupe_key=?", cid, original.SessionID, in.DedupeKey).Scan(&oldID); err != nil || oldID != original.ID {
+	if err := sqlstore.DB(f.store).QueryRow("SELECT id FROM messages WHERE context_id=? AND session_id=? AND dedupe_key=?", cid, original.SessionID, in.DedupeKey).Scan(&oldID); err != nil || oldID != original.ID {
 		t.Fatalf("downgraded retry: %q %v", oldID, err)
 	}
 	// The old binary can append new messages, but knows nothing about scopes.
-	if _, err := f.store.db.Exec("INSERT INTO messages VALUES(?,?,?,?,?,?,?)", "old-binary-message", cid, original.SessionID, 2, "old-binary-key", "from old binary", model.TS(*f.now)); err != nil {
+	if _, err := sqlstore.DB(f.store).Exec("INSERT INTO messages VALUES(?,?,?,?,?,?,?)", "old-binary-message", cid, original.SessionID, 2, "old-binary-key", "from old binary", model.TS(*f.now)); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := f.store.db.Exec("INSERT INTO message_instances VALUES(?,?,?)", "old-binary-message", "worker", ""); err != nil {
+	if _, err := sqlstore.DB(f.store).Exec("INSERT INTO message_instances VALUES(?,?,?)", "old-binary-message", "worker", ""); err != nil {
 		t.Fatal(err)
 	}
 	if err := f.store.Close(); err != nil {
@@ -221,14 +223,14 @@ func TestInstanceDedupeDowngradeAndReupgrade(t *testing.T) {
 		if err != nil || collision.ID == original.ID || collision.DedupeKey != "started" {
 			t.Fatalf("colliding instance: %v %v", collision, err)
 		}
-		if err := st.db.QueryRow("SELECT dedupe_key FROM messages WHERE id=?", collision.ID).Scan(&physicalKey); err != nil || physicalKey == "started" {
+		if err := sqlstore.DB(st).QueryRow("SELECT dedupe_key FROM messages WHERE id=?", collision.ID).Scan(&physicalKey); err != nil || physicalKey == "started" {
 			t.Fatalf("collision storage key: %q %v", physicalKey, err)
 		}
 		var missing, count int
-		if err := st.db.QueryRow("SELECT COUNT(*) FROM messages m WHERE NOT EXISTS (SELECT 1 FROM message_dedupe_scopes d WHERE d.message_id=m.id)").Scan(&missing); err != nil || missing != 0 {
+		if err := sqlstore.DB(st).QueryRow("SELECT COUNT(*) FROM messages m WHERE NOT EXISTS (SELECT 1 FROM message_dedupe_scopes d WHERE d.message_id=m.id)").Scan(&missing); err != nil || missing != 0 {
 			t.Fatalf("messages without scopes: %d %v", missing, err)
 		}
-		if err := st.db.QueryRow("SELECT COUNT(*) FROM messages").Scan(&count); err != nil || count != 3 {
+		if err := sqlstore.DB(st).QueryRow("SELECT COUNT(*) FROM messages").Scan(&count); err != nil || count != 3 {
 			t.Fatalf("duplicate rows after rollback: %d %v", count, err)
 		}
 		if err := st.Close(); err != nil {
@@ -247,13 +249,13 @@ func TestInstanceDedupeBackfillRejectsConflictingRows(t *testing.T) {
 	}
 	// Reproduce a duplicate left by the earlier opaque-key implementation
 	// followed by an old-binary retry. Migration must not silently skip it.
-	if _, err := f.store.db.Exec("UPDATE messages SET dedupe_key=? WHERE id=?", m.ID, m.ID); err != nil {
+	if _, err := sqlstore.DB(f.store).Exec("UPDATE messages SET dedupe_key=? WHERE id=?", m.ID, m.ID); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := f.store.db.Exec("INSERT INTO messages VALUES(?,?,?,?,?,?,?)", "duplicate", cid, m.SessionID, 2, "started", "ready", model.TS(*f.now)); err != nil {
+	if _, err := sqlstore.DB(f.store).Exec("INSERT INTO messages VALUES(?,?,?,?,?,?,?)", "duplicate", cid, m.SessionID, 2, "started", "ready", model.TS(*f.now)); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := f.store.db.Exec("INSERT INTO message_instances VALUES(?,?,?)", "duplicate", "worker", ""); err != nil {
+	if _, err := sqlstore.DB(f.store).Exec("INSERT INTO message_instances VALUES(?,?,?)", "duplicate", "worker", ""); err != nil {
 		t.Fatal(err)
 	}
 	if err := f.store.Close(); err != nil {

@@ -1,4 +1,4 @@
-package comitia
+package sqlstore
 
 import (
 	"context"
@@ -32,10 +32,10 @@ const sqliteReaderLimit = 4
 // the driver. Remote clients importing comitia do not register a driver.
 func OpenSQLite(path string) (*SQLiteStore, error) {
 	if path == "" {
-		return nil, fmt.Errorf("%w: sqlite path", ErrInvalid)
+		return nil, fmt.Errorf("%w: sqlite path", model.ErrInvalid)
 	}
 	if !slices.Contains(sql.Drivers(), "sqlite") {
-		return nil, fmt.Errorf("%w: SQLite driver unavailable; use github.com/krimvp/comitia/sqlite.OpenSQLite", ErrInvalid)
+		return nil, fmt.Errorf("%w: SQLite driver unavailable; use github.com/krimvp/comitia/sqlite.OpenSQLite", model.ErrInvalid)
 	}
 	absPath, e := filepath.Abs(path)
 	if e != nil {
@@ -110,7 +110,7 @@ func (s *SQLiteStore) Close() error {
 	return errors.Join(errs...)
 }
 
-func (s *SQLiteStore) View(ctx context.Context, fn func(ReadStore) error) error {
+func (s *SQLiteStore) View(ctx context.Context, fn func(model.ReadStore) error) error {
 	tx, e := s.begin(ctx, &sql.TxOptions{ReadOnly: true})
 	if e != nil {
 		return e
@@ -123,7 +123,7 @@ func (s *SQLiteStore) View(ctx context.Context, fn func(ReadStore) error) error 
 	return tx.Commit()
 }
 
-func (s *SQLiteStore) Update(ctx context.Context, fn func(WriteStore) error) error {
+func (s *SQLiteStore) Update(ctx context.Context, fn func(model.WriteStore) error) error {
 	select {
 	case s.writers <- struct{}{}:
 		defer func() { <-s.writers }()
@@ -212,7 +212,7 @@ type querier interface {
 
 type sqlStore struct {
 	q              querier
-	grantEvaluator *GrantEvaluator
+	grantEvaluator *model.GrantEvaluator
 }
 
 func sortableTime(column string) string {
@@ -229,7 +229,7 @@ func nullTime(n sql.NullString) *time.Time {
 
 func dbErr(e error) error {
 	if errors.Is(e, sql.ErrNoRows) {
-		return ErrNotFound
+		return model.ErrNotFound
 	}
 	return e
 }

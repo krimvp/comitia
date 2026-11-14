@@ -1,8 +1,10 @@
-package comitia
+package schema
 
 import (
 	"encoding/json"
 	"strings"
+
+	"github.com/krimvp/comitia/internal/model"
 )
 
 type EvaluationOutcome string
@@ -59,75 +61,75 @@ type EvaluationCost struct {
 	Currency     string `json:"currency"`
 }
 
-func validEvaluationResult(raw json.RawMessage) error {
+func ValidEvaluationResult(raw json.RawMessage) error {
 	var p EvaluationResultPayload
-	if err := strictPayload(raw, &p); err != nil {
+	if err := StrictPayload(raw, &p); err != nil {
 		return err
 	}
 	if strings.TrimSpace(p.EvaluationID) == "" {
-		return Invalidf("evaluation_id required")
+		return model.Invalidf("evaluation_id required")
 	}
 	if strings.TrimSpace(p.Grader.ID) == "" {
-		return Invalidf("grader.id required")
+		return model.Invalidf("grader.id required")
 	}
 	switch p.Grader.Kind {
 	case GraderHuman, GraderAgent, GraderAutomated:
 	default:
-		return Invalidf("grader.kind must be human, agent or automated")
+		return model.Invalidf("grader.kind must be human, agent or automated")
 	}
 	if len(p.Criteria) == 0 {
-		return Invalidf("criteria required")
+		return model.Invalidf("criteria required")
 	}
 	allPassed, hasFailed, hasNotRun := true, false, false
 	names := make(map[string]struct{}, len(p.Criteria))
 	for _, criterion := range p.Criteria {
 		name := strings.TrimSpace(criterion.Name)
 		if name == "" {
-			return Invalidf("criteria.name required")
+			return model.Invalidf("criteria.name required")
 		}
 		if _, duplicate := names[name]; duplicate {
-			return Invalidf("criteria.name must be unique")
+			return model.Invalidf("criteria.name must be unique")
 		}
 		names[name] = struct{}{}
 		switch criterion.Outcome {
 		case CriterionPassed:
-			if !nonempty(criterion.EvidenceRefs) {
-				return Invalidf("criteria.evidence_refs required for passed outcome")
+			if !NonEmpty(criterion.EvidenceRefs) {
+				return model.Invalidf("criteria.evidence_refs required for passed outcome")
 			}
 		case CriterionFailed:
 			allPassed = false
 			hasFailed = true
-			if !nonempty(criterion.EvidenceRefs) {
-				return Invalidf("criteria.evidence_refs required for failed outcome")
+			if !NonEmpty(criterion.EvidenceRefs) {
+				return model.Invalidf("criteria.evidence_refs required for failed outcome")
 			}
 		case CriterionNotRun:
 			allPassed = false
 			hasNotRun = true
 			if strings.TrimSpace(criterion.Reason) == "" {
-				return Invalidf("criteria.reason required for not_run outcome")
+				return model.Invalidf("criteria.reason required for not_run outcome")
 			}
 		default:
-			return Invalidf("criteria.outcome must be passed, failed or not_run")
+			return model.Invalidf("criteria.outcome must be passed, failed or not_run")
 		}
 	}
 	switch p.Outcome {
 	case EvaluationAccepted:
 		if !allPassed {
-			return Invalidf("outcome accepted requires all criteria passed")
+			return model.Invalidf("outcome accepted requires all criteria passed")
 		}
 	case EvaluationRejected:
 		if !hasFailed {
-			return Invalidf("outcome rejected requires a failed criterion")
+			return model.Invalidf("outcome rejected requires a failed criterion")
 		}
 	case EvaluationInconclusive:
 		if hasFailed || !hasNotRun {
-			return Invalidf("outcome inconclusive requires not_run criteria and no failed criteria")
+			return model.Invalidf("outcome inconclusive requires not_run criteria and no failed criteria")
 		}
 	default:
-		return Invalidf("outcome must be accepted, rejected or inconclusive")
+		return model.Invalidf("outcome must be accepted, rejected or inconclusive")
 	}
 	if p.Cost != nil && (p.Cost.AmountMicros < 0 || !currencyCode(p.Cost.Currency)) {
-		return Invalidf("cost.amount_micros must be nonnegative and cost.currency an uppercase three-letter code")
+		return model.Invalidf("cost.amount_micros must be nonnegative and cost.currency an uppercase three-letter code")
 	}
 	return nil
 }

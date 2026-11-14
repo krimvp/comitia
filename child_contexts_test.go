@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"testing"
 	"time"
+
+	"github.com/krimvp/comitia/internal/sqlstore"
 )
 
 // delegate mints a child session of parent holding perms on cid.
@@ -271,7 +273,7 @@ func TestChildContextGrantExpiresWithParentGrant(t *testing.T) {
 func TestContextParentsMigration(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "c.db")
 	f := setup(t, path)
-	if _, err := f.store.db.Exec("DROP TABLE context_parents"); err != nil {
+	if _, err := sqlstore.DB(f.store).Exec("DROP TABLE context_parents"); err != nil {
 		t.Fatal(err)
 	}
 	f.store.Close()

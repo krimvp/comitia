@@ -5,6 +5,8 @@ import (
 	"errors"
 	"testing"
 	"time"
+
+	"github.com/krimvp/comitia/internal/sqlstore"
 )
 
 func TestPresenceRecency(t *testing.T) {
@@ -135,7 +137,7 @@ func TestTaskPresenceAnonymousAndFailures(t *testing.T) {
 				f.svc.store = &failingPresenceStore{Store: f.store}
 			}
 			if mode == "sqlite-savepoint" {
-				if _, err := f.store.db.Exec(`CREATE TRIGGER reject_presence AFTER INSERT ON instance_presence BEGIN SELECT RAISE(FAIL,'presence failed'); END;`); err != nil {
+				if _, err := sqlstore.DB(f.store).Exec(`CREATE TRIGGER reject_presence AFTER INSERT ON instance_presence BEGIN SELECT RAISE(FAIL,'presence failed'); END;`); err != nil {
 					t.Fatal(err)
 				}
 			}

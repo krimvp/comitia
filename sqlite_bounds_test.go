@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"testing"
 	"time"
+
+	"github.com/krimvp/comitia/internal/sqlstore"
 )
 
 func holdSQLiteWriter(t *testing.T, st *SQLiteStore) func() {
@@ -359,7 +361,7 @@ func TestSQLiteStatementCancellation(t *testing.T) {
 	started := time.Now()
 	err = st.View(ctx, func(r ReadStore) error {
 		var n int
-		return r.(*sqlStore).q.QueryRow(`WITH RECURSIVE n(x) AS (SELECT 1 UNION ALL SELECT x+1 FROM n WHERE x<2000000) SELECT sum(x) FROM n`).Scan(&n)
+		return sqlstore.TxQuerier(r.(*sqlstore.TxStore)).QueryRow(`WITH RECURSIVE n(x) AS (SELECT 1 UNION ALL SELECT x+1 FROM n WHERE x<2000000) SELECT sum(x) FROM n`).Scan(&n)
 	})
 	if err == nil || ctx.Err() == nil || time.Since(started) > 250*time.Millisecond {
 		t.Fatalf("statement ignored context: elapsed=%v err=%v ctx=%v", time.Since(started), err, ctx.Err())

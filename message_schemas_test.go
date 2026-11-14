@@ -10,6 +10,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/krimvp/comitia/internal/schema"
+
 	"github.com/santhosh-tekuri/jsonschema/v6"
 )
 
@@ -18,7 +20,7 @@ func TestMessageSchemaDiscoveryContracts(t *testing.T) {
 	defer f.store.Close()
 	ctx := context.Background()
 	descriptors, err := f.svc.ListMessageSchemas(ctx, f.admin.Token)
-	if err != nil || len(descriptors) != len(builtinMessageSchemas()) {
+	if err != nil || len(descriptors) != len(schema.BuiltinMessageSchemas()) {
 		t.Fatalf("list: %v %v", descriptors, err)
 	}
 	var ids []string
@@ -122,7 +124,7 @@ func TestExtensionMessageSchemaDescriptors(t *testing.T) {
 		var p struct {
 			Value int `json:"value"`
 		}
-		if err := strictPayload(raw, &p); err != nil {
+		if err := schema.StrictPayload(raw, &p); err != nil {
 			return err
 		}
 		if p.Value < 1 {
@@ -141,7 +143,7 @@ func TestExtensionMessageSchemaDescriptors(t *testing.T) {
 		t.Fatalf("extension descriptor: %+v %v", got, err)
 	}
 	list, err := svc.ListMessageSchemas(ctx, f.admin.Token)
-	if err != nil || len(list) != len(builtinMessageSchemas())+2 {
+	if err != nil || len(list) != len(schema.BuiltinMessageSchemas())+2 {
 		t.Fatalf("extension list: %v %v", list, err)
 	}
 	opaque, err := svc.GetMessageSchema(ctx, f.admin.Token, "project.opaque.v1")
@@ -190,7 +192,7 @@ func TestExtensionMessageSchemaDescriptors(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			d := cloneMessageSchema(got)
+			d := schema.CloneMessageSchema(got)
 			tc.edit(&d)
 			cfg.MessageSchemaDescriptors = map[string]MessageSchemaDescriptor{id: d}
 			if _, err := New(cfg); !errors.Is(err, ErrInvalid) {

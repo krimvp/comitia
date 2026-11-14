@@ -9,11 +9,13 @@ import (
 	"testing"
 	"time"
 
+	"github.com/krimvp/comitia/internal/sqlstore"
+
 	"github.com/krimvp/comitia/internal/model"
 )
 
 var _ MessageReadOptionsAPI = (*Service)(nil)
-var _ MessageReadOptionsStore = (*sqlStore)(nil)
+var _ MessageReadOptionsStore = (*sqlstore.TxStore)(nil)
 
 func TestExcludeSelfUsesSessionAndInstanceBeforeLimit(t *testing.T) {
 	f := setup(t, ":memory:")

@@ -1,4 +1,4 @@
-package comitia
+package sqlstore
 
 import (
 	"database/sql"
@@ -33,13 +33,13 @@ func (x *sqlStore) MarkBootstrapDone() error {
 	return e
 }
 
-func (x *sqlStore) PutPrincipal(p Principal) error {
+func (x *sqlStore) PutPrincipal(p model.Principal) error {
 	_, e := x.q.Exec("INSERT INTO principals VALUES(?,?,?,?)", p.ID, p.Name, p.Admin, model.TS(p.CreatedAt))
 	return e
 }
 
-func (x *sqlStore) Principal(id string) (Principal, error) {
-	var p Principal
+func (x *sqlStore) Principal(id string) (model.Principal, error) {
+	var p model.Principal
 	var a int
 	var c string
 	e := x.q.QueryRow("SELECT id,name,admin,created_at FROM principals WHERE id=?", id).Scan(&p.ID, &p.Name, &a, &c)
@@ -48,14 +48,14 @@ func (x *sqlStore) Principal(id string) (Principal, error) {
 	return p, dbErr(e)
 }
 
-func (x *sqlStore) PutSession(s Session, h string) error {
+func (x *sqlStore) PutSession(s model.Session, h string) error {
 	x.invalidateGrantPolicy()
 	_, e := x.q.Exec("INSERT INTO sessions VALUES(?,?,?,?,?,?,?)", s.ID, s.PrincipalID, nullString(s.ParentID), h, model.TS(s.ExpiresAt), timeString(s.RevokedAt), model.TS(s.CreatedAt))
 	return e
 }
 
-func scanSession(row interface{ Scan(...any) error }) (Session, error) {
-	var s Session
+func scanSession(row interface{ Scan(...any) error }) (model.Session, error) {
+	var s model.Session
 	var parent, rev sql.NullString
 	var exp, created string
 	e := row.Scan(&s.ID, &s.PrincipalID, &parent, &exp, &rev, &created)
@@ -66,11 +66,11 @@ func scanSession(row interface{ Scan(...any) error }) (Session, error) {
 	return s, dbErr(e)
 }
 
-func (x *sqlStore) Session(id string) (Session, error) {
+func (x *sqlStore) Session(id string) (model.Session, error) {
 	return scanSession(x.q.QueryRow("SELECT id,principal_id,parent_id,expires_at,revoked_at,created_at FROM sessions WHERE id=?", id))
 }
 
-func (x *sqlStore) SessionByTokenHash(h string) (Session, error) {
+func (x *sqlStore) SessionByTokenHash(h string) (model.Session, error) {
 	return scanSession(x.q.QueryRow("SELECT id,principal_id,parent_id,expires_at,revoked_at,created_at FROM sessions WHERE token_hash=?", h))
 }
 

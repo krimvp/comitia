@@ -8,12 +8,14 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/krimvp/comitia/internal/sqlstore"
 )
 
 var _ TaskAPI = oldTaskAPI{}
 var _ TaskReadStore = oldTaskReader{}
 var _ TaskPageAPI = (*Service)(nil)
-var _ TaskFilterStore = (*sqlStore)(nil)
+var _ TaskFilterStore = (*sqlstore.TxStore)(nil)
 
 type pageOnlyTaskStore struct{ Store }
 

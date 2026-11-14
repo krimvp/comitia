@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"math"
 	"sort"
+
+	"github.com/krimvp/comitia/internal/schema"
 )
 
 type EvaluationOutcomeCounts struct {
@@ -41,10 +43,10 @@ func ParseEvaluationResult(message Message) (EvaluationResultPayload, error) {
 	if message.Envelope == nil || message.Envelope.Schema != EvaluationResultSchema || message.Envelope.TaskID == "" {
 		return result, fmt.Errorf("%w: evaluation-result envelope required", ErrInvalid)
 	}
-	if err := validEvaluationResult(message.Envelope.Payload); err != nil {
+	if err := schema.ValidEvaluationResult(message.Envelope.Payload); err != nil {
 		return EvaluationResultPayload{}, err
 	}
-	if err := strictPayload(message.Envelope.Payload, &result); err != nil {
+	if err := schema.StrictPayload(message.Envelope.Payload, &result); err != nil {
 		return EvaluationResultPayload{}, err
 	}
 	return result, nil

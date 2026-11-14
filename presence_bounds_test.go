@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"testing"
 	"time"
+
+	"github.com/krimvp/comitia/internal/sqlstore"
 )
 
 func presenceBoundsFixture(t *testing.T) (*Service, *SQLiteStore, Credential, Credential, string, *time.Time) {
@@ -124,7 +126,7 @@ func TestInstancePresenceDropsEndedSessionsAfterRetention(t *testing.T) {
 		t.Fatalf("revoked rows listed after retention: %v", rows)
 	}
 	count := func() (n int) {
-		if err := st.db.QueryRow("SELECT COUNT(*) FROM instance_presence WHERE session_id=?", reader.Session.ID).Scan(&n); err != nil {
+		if err := sqlstore.DB(st).QueryRow("SELECT COUNT(*) FROM instance_presence WHERE session_id=?", reader.Session.ID).Scan(&n); err != nil {
 			t.Fatal(err)
 		}
 		return n

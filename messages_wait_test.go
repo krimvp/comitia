@@ -13,6 +13,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/krimvp/comitia/internal/sqlstore"
 )
 
 func TestReplayFiltersAndPaging(t *testing.T) {
@@ -177,7 +179,7 @@ type scanProbeStore struct {
 }
 
 type scanProbeQuerier struct {
-	querier
+	sqlstore.Querier
 	after int64
 }
 
@@ -185,14 +187,14 @@ func (q *scanProbeQuerier) Query(query string, args ...any) (*sql.Rows, error) {
 	if strings.HasPrefix(query, "SELECT m.id,") {
 		q.after = args[1].(int64)
 	}
-	return q.querier.Query(query, args...)
+	return q.Querier.Query(query, args...)
 }
 
 func (s scanProbeStore) View(ctx context.Context, fn func(ReadStore) error) error {
 	var after int64
 	err := s.Store.View(ctx, func(r ReadStore) error {
-		q := &scanProbeQuerier{querier: r.(*sqlStore).q}
-		err := fn(&sqlStore{q: q})
+		q := &scanProbeQuerier{Querier: sqlstore.TxQuerier(r.(*sqlstore.TxStore))}
+		err := fn(sqlstore.NewTxStore(q))
 		after = q.after
 		return err
 	})

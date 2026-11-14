@@ -5,6 +5,8 @@ import (
 	"errors"
 	"testing"
 	"time"
+
+	"github.com/krimvp/comitia/internal/sqlstore"
 )
 
 // These method sets are the task contracts from before recovery was added.
@@ -30,8 +32,8 @@ var _ TaskAPI = oldTaskAPI{}
 var _ TaskReadStore = oldTaskReader{}
 var _ TaskWriteStore = oldTaskWriter{}
 var _ TaskMutationAPI = (*Service)(nil)
-var _ TaskReceiptReadStore = (*sqlStore)(nil)
-var _ TaskReceiptWriteStore = (*sqlStore)(nil)
+var _ TaskReceiptReadStore = (*sqlstore.TxStore)(nil)
+var _ TaskReceiptWriteStore = (*sqlstore.TxStore)(nil)
 
 type noReceiptStore struct{ Store }
 

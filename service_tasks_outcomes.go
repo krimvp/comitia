@@ -5,6 +5,8 @@ import (
 	"crypto/subtle"
 	"strings"
 	"unicode/utf8"
+
+	"github.com/krimvp/comitia/internal/schema"
 )
 
 func FailTask(ctx context.Context, api TaskAPI, raw, tid string, in TaskOutcomeInput) (Task, error) {
@@ -66,7 +68,7 @@ func (s *Service) finishTaskOutcome(ctx context.Context, raw, tid string, in Tas
 			result, e = s.holderTaskView(w, a, receipt)
 			return e
 		}
-		if terminalTaskStatus(t.Status) {
+		if schema.TerminalTaskStatus(t.Status) {
 			return ErrConflict
 		}
 		if t.LeaseVersion != in.LeaseVersion {

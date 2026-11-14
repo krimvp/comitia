@@ -9,12 +9,14 @@ import (
 	"testing"
 	"time"
 
+	"github.com/krimvp/comitia/internal/sqlstore"
+
 	"github.com/krimvp/comitia/internal/model"
 )
 
 func queryPlan(t *testing.T, st *SQLiteStore, query string, args ...any) string {
 	t.Helper()
-	rows, err := st.db.Query("EXPLAIN QUERY PLAN "+query, args...)
+	rows, err := sqlstore.DB(st).Query("EXPLAIN QUERY PLAN "+query, args...)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -40,8 +42,8 @@ func TestRevokeCascadesSeekParentIndexes(t *testing.T) {
 	coord, g := delegate(t, f, f.admin.Token, "coord", f.context.ID, PermissionRead|PermissionGrant, time.Hour)
 	delegate(t, f, coord.Token, "worker", f.context.ID, PermissionRead, time.Hour)
 	for _, tc := range []struct{ query, root, index string }{
-		{revokeSessionTreeSQL, coord.Session.ID, "sessions_parent"},
-		{revokeGrantTreeSQL, g.ID, "grants_parent"},
+		{sqlstore.RevokeSessionTreeSQL, coord.Session.ID, "sessions_parent"},
+		{sqlstore.RevokeGrantTreeSQL, g.ID, "grants_parent"},
 	} {
 		plan := queryPlan(t, f.store, tc.query, tc.root, model.TS(*f.now))
 		if !strings.Contains(plan, tc.index) || strings.Contains(plan, "AUTOMATIC") {
@@ -58,26 +60,26 @@ func TestParentIndexesAddedToPopulatedDatabase(t *testing.T) {
 	coord, g := delegate(t, f, f.admin.Token, "coord", f.context.ID, PermissionRead|PermissionGrant, time.Hour)
 	worker, _ := delegate(t, f, coord.Token, "worker", f.context.ID, PermissionRead, time.Hour)
 	old := map[int]string{
-		0: strings.Replace(sessionSchema, "CREATE INDEX IF NOT EXISTS sessions_parent ON sessions(parent_id);\n", "", 1),
-		2: strings.Replace(grantSchema, "CREATE INDEX IF NOT EXISTS grants_parent ON grants(parent_grant_id);\n", "", 1),
+		0: strings.Replace(sqlstore.SessionSchemaSQL, "CREATE INDEX IF NOT EXISTS sessions_parent ON sessions(parent_id);\n", "", 1),
+		2: strings.Replace(sqlstore.GrantSchemaSQL, "CREATE INDEX IF NOT EXISTS grants_parent ON grants(parent_grant_id);\n", "", 1),
 	}
 	for i, schema := range old {
-		if schema == schemas[i] {
+		if schema == sqlstore.Schemas[i] {
 			t.Fatalf("schema %d has no parent index", i)
 		}
-		if _, err := f.store.db.Exec("DELETE FROM comitia_generations WHERE generation=?", schemaGeneration(schemas[i])); err != nil {
+		if _, err := sqlstore.DB(f.store).Exec("DELETE FROM comitia_generations WHERE generation=?", sqlstore.SchemaGeneration(sqlstore.Schemas[i])); err != nil {
 			t.Fatal(err)
 		}
-		if _, err := f.store.db.Exec("INSERT INTO comitia_generations VALUES(?)", schemaGeneration(schema)); err != nil {
+		if _, err := sqlstore.DB(f.store).Exec("INSERT INTO comitia_generations VALUES(?)", sqlstore.SchemaGeneration(schema)); err != nil {
 			t.Fatal(err)
 		}
 	}
 	for _, stmt := range []string{"DROP INDEX sessions_parent", "DROP INDEX grants_parent"} {
-		if _, err := f.store.db.Exec(stmt); err != nil {
+		if _, err := sqlstore.DB(f.store).Exec(stmt); err != nil {
 			t.Fatal(err)
 		}
 	}
-	if !f.store.migrationPending(context.Background()) {
+	if !sqlstore.MigrationPending(f.store, context.Background()) {
 		t.Fatal("missing parent indexes not detected")
 	}
 	f.store.Close()
@@ -106,14 +108,14 @@ func TestParentIndexesAddedToPopulatedDatabase(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer st.Close()
-	if st.migrationPending(context.Background()) {
+	if sqlstore.MigrationPending(st, context.Background()) {
 		t.Fatal("migration still pending")
 	}
 	var n int
-	if err = st.db.QueryRow("SELECT COUNT(*) FROM sqlite_master WHERE type='index' AND name IN ('sessions_parent','grants_parent')").Scan(&n); err != nil || n != 2 {
+	if err = sqlstore.DB(st).QueryRow("SELECT COUNT(*) FROM sqlite_master WHERE type='index' AND name IN ('sessions_parent','grants_parent')").Scan(&n); err != nil || n != 2 {
 		t.Fatalf("parent indexes=%d err=%v", n, err)
 	}
-	if !strings.Contains(queryPlan(t, st, revokeGrantTreeSQL, g.ID, model.TS(*f.now)), "grants_parent") {
+	if !strings.Contains(queryPlan(t, st, sqlstore.RevokeGrantTreeSQL, g.ID, model.TS(*f.now)), "grants_parent") {
 		t.Fatal("upgraded database does not seek grants_parent")
 	}
 	if err = st.Update(context.Background(), func(w WriteStore) error { return w.RevokeSessionTree(coord.Session.ID, *f.now) }); err != nil {

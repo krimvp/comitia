@@ -9,6 +9,8 @@ import (
 	"reflect"
 	"testing"
 	"time"
+
+	"github.com/krimvp/comitia/internal/sqlstore"
 )
 
 func assertNoTaskTokensAtRest(t *testing.T, path string, tokens []string) {
@@ -202,7 +204,7 @@ func TestTaskReceiptRecoveryRollback(t *testing.T) {
 				t.Fatal(err)
 			}
 			if err = f.store.Update(ctx, func(w WriteStore) error {
-				_, err := w.(*sqlStore).q.Exec("CREATE TRIGGER fail_recovery BEFORE UPDATE OF lease_token_hash ON tasks BEGIN SELECT RAISE(ABORT,'recovery failure'); END")
+				_, err := sqlstore.TxQuerier(w.(*sqlstore.TxStore)).Exec("CREATE TRIGGER fail_recovery BEFORE UPDATE OF lease_token_hash ON tasks BEGIN SELECT RAISE(ABORT,'recovery failure'); END")
 				return err
 			}); err != nil {
 				t.Fatal(err)
@@ -211,7 +213,10 @@ func TestTaskReceiptRecoveryRollback(t *testing.T) {
 			if err == nil || recovered.Token != "" || recovered.Task.ID != "" {
 				t.Fatal("failed recovery exposed a token/result")
 			}
-			if err = f.store.Update(ctx, func(w WriteStore) error { _, err := w.(*sqlStore).q.Exec("DROP TRIGGER fail_recovery"); return err }); err != nil {
+			if err = f.store.Update(ctx, func(w WriteStore) error {
+				_, err := sqlstore.TxQuerier(w.(*sqlstore.TxStore)).Exec("DROP TRIGGER fail_recovery")
+				return err
+			}); err != nil {
 				t.Fatal(err)
 			}
 			if _, err = f.svc.CompleteTask(ctx, f.admin.Token, task.ID, original.Token, original.Task.LeaseVersion); err != nil {

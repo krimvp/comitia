@@ -1,4 +1,4 @@
-package comitia
+package sqlstore
 
 import (
 	"context"
@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
+
+	"github.com/krimvp/comitia/internal/model"
 )
 
 var (
@@ -42,7 +44,7 @@ END;
 // written by older binaries.
 const messageHiddenSchema = `
 CREATE TABLE IF NOT EXISTS message_hidden (message_id TEXT PRIMARY KEY REFERENCES messages(id)) WITHOUT ROWID;
-CREATE TRIGGER IF NOT EXISTS comitia_message_hidden_insert AFTER INSERT ON message_envelopes WHEN json_extract(NEW.envelope,'$.schema')='` + TaskEventSchema + `' AND json_extract(NEW.envelope,'$.payload.kind')='renewed' BEGIN
+CREATE TRIGGER IF NOT EXISTS comitia_message_hidden_insert AFTER INSERT ON message_envelopes WHEN json_extract(NEW.envelope,'$.schema')='` + model.TaskEventSchema + `' AND json_extract(NEW.envelope,'$.payload.kind')='renewed' BEGIN
  INSERT OR IGNORE INTO message_hidden VALUES(NEW.message_id);
 END;
 `
@@ -75,7 +77,7 @@ INSERT OR REPLACE INTO message_replies SELECT m.id,m.context_id,m.seq,json_extra
 	legacy:  []string{"5ec98994f50ff38965b9c72bfd246d6ce82d7ef983848af2ff4333939a79b7ff"},
 }, {
 	// Reads the schema projection, so it follows the projection backfill.
-	sql:     `INSERT OR IGNORE INTO message_hidden SELECT e.message_id FROM message_filters p CROSS JOIN message_envelopes e ON e.message_id=p.message_id WHERE p.schema='` + TaskEventSchema + `' AND json_extract(e.envelope,'$.payload.kind')='renewed';`,
+	sql:     `INSERT OR IGNORE INTO message_hidden SELECT e.message_id FROM message_filters p CROSS JOIN message_envelopes e ON e.message_id=p.message_id WHERE p.schema='` + model.TaskEventSchema + `' AND json_extract(e.envelope,'$.payload.kind')='renewed';`,
 	objects: []string{"message_hidden", "comitia_message_hidden_insert"},
 	legacy:  []string{"6e32fdc0a8a0d937e058f0083ce1dfcec923285191f618f4c2a0833cc7db16d0"},
 }, {

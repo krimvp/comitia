@@ -10,6 +10,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/krimvp/comitia/internal/schema"
 )
 
 func TestUnknownFieldGuidance(t *testing.T) {
@@ -41,7 +43,7 @@ func TestUnknownFieldGuidance(t *testing.T) {
 		} `json:"items"`
 	}
 	raw := json.RawMessage(`{"items":[{"summry":"private-value"}]}`)
-	err := strictAppendPayload(raw, &payload)
+	err := schema.StrictAppendPayload(raw, &payload)
 	if !errors.Is(err, ErrInvalid) || !strings.Contains(err.Error(), `accepted fields: summary; did you mean "summary"?`) || strings.Contains(err.Error(), "private-value") {
 		t.Fatalf("nested payload: %v", err)
 	}

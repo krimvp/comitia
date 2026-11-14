@@ -10,6 +10,8 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/krimvp/comitia/internal/schema"
+
 	"github.com/krimvp/comitia/internal/model"
 )
 
@@ -71,7 +73,7 @@ func (s *Service) normalizeEnvelope(in *MessageEnvelope, body string) (*MessageE
 			return nil, fmt.Errorf("%w: task_id or artifact_refs required", ErrInvalid)
 		}
 		for _, ref := range p.ArtifactRefs {
-			if !exactArtifactRef(ref) {
+			if !schema.ExactArtifactRef(ref) {
 				return nil, fmt.Errorf("%w: artifact_refs must be exact without task_id", ErrInvalid)
 			}
 		}
@@ -113,7 +115,7 @@ func (s *Service) validateEnvelopeReferences(r ReadStore, cid string, env *Messa
 			return model.ReferenceError{Field: "reply_to"}
 		}
 	}
-	if err := validateTaskStatusReferences(r, cid, env); err != nil {
+	if err := schema.ValidateTaskStatusReferences(r, cid, env); err != nil {
 		return err
 	}
 	return s.validateReaders(r, cid, "recipient_session_ids", env.RecipientSessionIDs)

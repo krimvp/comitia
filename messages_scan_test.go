@@ -12,16 +12,18 @@ import (
 	"testing"
 	"time"
 
+	"github.com/krimvp/comitia/internal/sqlstore"
+
 	"github.com/krimvp/comitia/internal/model"
 )
 
 type filterPlanQuery struct {
-	querier
+	sqlstore.Querier
 	plans []string
 }
 
 func (q *filterPlanQuery) Query(query string, args ...any) (*sql.Rows, error) {
-	rows, err := q.querier.Query("EXPLAIN QUERY PLAN "+query, args...)
+	rows, err := q.Querier.Query("EXPLAIN QUERY PLAN "+query, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -39,7 +41,7 @@ func (q *filterPlanQuery) Query(query string, args ...any) (*sql.Rows, error) {
 	if err != nil {
 		return nil, err
 	}
-	return q.querier.Query(query, args...)
+	return q.Querier.Query(query, args...)
 }
 func TestFilteredMessagesSeekIndexes(t *testing.T) {
 	f := setup(t, ":memory:")
@@ -64,8 +66,8 @@ func TestFilteredMessagesSeekIndexes(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			err := f.store.View(ctx, func(r ReadStore) error {
-				q := &filterPlanQuery{querier: r.(*sqlStore).q}
-				messages, err := (&sqlStore{q: q}).Messages(f.context.ID, f.admin.Session.ID, 0, 100, tc.f)
+				q := &filterPlanQuery{Querier: sqlstore.TxQuerier(r.(*sqlstore.TxStore))}
+				messages, err := sqlstore.NewTxStore(q).Messages(f.context.ID, f.admin.Session.ID, 0, 100, tc.f)
 				if err != nil {
 					return err
 				}
@@ -191,8 +193,8 @@ func TestThreadFilterSeeksRepliesByParent(t *testing.T) {
 	reply("child", reply("parent", root.ID).ID)
 	for _, filter := range []MessageFilters{{ThreadID: root.ID}, {ThreadID: root.ID, Schema: "comitia.discussion.v1"}, {ThreadID: root.ID, ForInstance: "reader"}} {
 		err := f.store.View(ctx, func(r ReadStore) error {
-			q := &filterPlanQuery{querier: r.(*sqlStore).q}
-			messages, err := (&sqlStore{q: q}).Messages(f.context.ID, f.admin.Session.ID, 0, 100, filter)
+			q := &filterPlanQuery{Querier: sqlstore.TxQuerier(r.(*sqlstore.TxStore))}
+			messages, err := sqlstore.NewTxStore(q).Messages(f.context.ID, f.admin.Session.ID, 0, 100, filter)
 			if err != nil {
 				return err
 			}
@@ -223,14 +225,14 @@ func TestThreadFilterScalesWithThreadShape(t *testing.T) {
 			}
 			// Bulk-load replies; the insert triggers maintain message_replies.
 			series := "WITH RECURSIVE n(i) AS (SELECT 1 UNION ALL SELECT i+1 FROM n WHERE i<?) "
-			if _, err = f.store.db.Exec(series+"INSERT INTO messages SELECT ?||i,?,?,?+i,?||i,'reply',? FROM n", replies, shape, f.context.ID, f.admin.Session.ID, root.Sequence, shape, model.TS(*f.now)); err != nil {
+			if _, err = sqlstore.DB(f.store).Exec(series+"INSERT INTO messages SELECT ?||i,?,?,?+i,?||i,'reply',? FROM n", replies, shape, f.context.ID, f.admin.Session.ID, root.Sequence, shape, model.TS(*f.now)); err != nil {
 				t.Fatal(err)
 			}
 			parent := "?2" // Star: every reply answers the root.
 			if shape == "chain" {
 				parent = "CASE i WHEN 1 THEN ?2 ELSE ?3||(i-1) END"
 			}
-			if _, err = f.store.db.Exec(series+"INSERT INTO message_envelopes SELECT ?3||i,json_object('schema','comitia.discussion.v1','reply_to',"+parent+",'payload',json_object()) FROM n", replies, root.ID, shape); err != nil {
+			if _, err = sqlstore.DB(f.store).Exec(series+"INSERT INTO message_envelopes SELECT ?3||i,json_object('schema','comitia.discussion.v1','reply_to',"+parent+",'payload',json_object()) FROM n", replies, root.ID, shape); err != nil {
 				t.Fatal(err)
 			}
 			tail := root.Sequence + replies
@@ -239,8 +241,8 @@ func TestThreadFilterScalesWithThreadShape(t *testing.T) {
 				t.Fatalf("tail page: %+v %v", page, err)
 			}
 			err = f.store.View(ctx, func(r ReadStore) error {
-				q := &filterPlanQuery{querier: r.(*sqlStore).q}
-				messages, err := (&sqlStore{q: q}).Messages(f.context.ID, f.admin.Session.ID, tail-1, 10, MessageFilters{ThreadID: root.ID})
+				q := &filterPlanQuery{Querier: sqlstore.TxQuerier(r.(*sqlstore.TxStore))}
+				messages, err := sqlstore.NewTxStore(q).Messages(f.context.ID, f.admin.Session.ID, tail-1, 10, MessageFilters{ThreadID: root.ID})
 				if err != nil || len(messages) != 1 {
 					t.Fatalf("tail scan: %v %v", messages, err)
 				}
@@ -341,10 +343,10 @@ func TestMessageFilterBackfillAndLegacyRepair(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	if _, err := f.store.db.Exec("DROP TABLE message_recipients; DROP TABLE message_filters"); err != nil {
+	if _, err := sqlstore.DB(f.store).Exec("DROP TABLE message_recipients; DROP TABLE message_filters"); err != nil {
 		t.Fatal(err)
 	}
-	if !f.store.migrationPending(ctx) {
+	if !sqlstore.MigrationPending(f.store, ctx) {
 		t.Fatal("missing filter tables not detected")
 	}
 	if err := f.store.Close(); err != nil {
@@ -357,7 +359,7 @@ func TestMessageFilterBackfillAndLegacyRepair(t *testing.T) {
 	defer func() { st.Close() }()
 	assertReads := func() {
 		t.Helper()
-		if st.migrationPending(ctx) {
+		if sqlstore.MigrationPending(st, ctx) {
 			t.Fatal("complete projection backfill still pending")
 		}
 		if err := st.View(ctx, func(r ReadStore) error {
@@ -393,15 +395,15 @@ func TestMessageFilterBackfillAndLegacyRepair(t *testing.T) {
 	for _, query := range []string{
 		"DELETE FROM message_filters", "DELETE FROM message_recipients WHERE kind='broadcast'", "DELETE FROM message_recipients WHERE kind='session'", "DELETE FROM message_recipients WHERE kind='instance'",
 	} {
-		if _, err := st.db.Exec(query); err != nil {
+		if _, err := sqlstore.DB(st).Exec(query); err != nil {
 			t.Fatal(err)
 		}
-		for _, generation := range backfills[0].generations() {
-			if _, err := st.db.Exec("DELETE FROM comitia_generations WHERE generation=?", generation); err != nil {
+		for _, generation := range sqlstore.BackfillGenerations(sqlstore.Backfills[0]) {
+			if _, err := sqlstore.DB(st).Exec("DELETE FROM comitia_generations WHERE generation=?", generation); err != nil {
 				t.Fatal(err)
 			}
 		}
-		if !st.migrationPending(ctx) {
+		if !sqlstore.MigrationPending(st, ctx) {
 			t.Fatalf("new projection generation not detected: %s", query)
 		}
 		if err := st.Close(); err != nil {
@@ -415,14 +417,14 @@ func TestMessageFilterBackfillAndLegacyRepair(t *testing.T) {
 	}
 	// Model an older database generation before projection triggers existed.
 	for _, trigger := range []string{"comitia_message_filter_insert", "comitia_message_envelope_filter_insert", "comitia_message_instance_filter_insert"} {
-		if _, err := st.db.Exec("DROP TRIGGER " + trigger); err != nil {
+		if _, err := sqlstore.DB(st).Exec("DROP TRIGGER " + trigger); err != nil {
 			t.Fatal(err)
 		}
 	}
-	if _, err := st.db.Exec("INSERT INTO messages VALUES(?,?,?,?,?,?,?)", "legacy", f.context.ID, f.admin.Session.ID, 5, "legacy", "legacy", model.TS(*f.now)); err != nil {
+	if _, err := sqlstore.DB(st).Exec("INSERT INTO messages VALUES(?,?,?,?,?,?,?)", "legacy", f.context.ID, f.admin.Session.ID, 5, "legacy", "legacy", model.TS(*f.now)); err != nil {
 		t.Fatal(err)
 	}
-	if !st.migrationPending(ctx) {
+	if !sqlstore.MigrationPending(st, ctx) {
 		t.Fatal("older writer was not detected")
 	}
 	if err := st.Close(); err != nil {
@@ -432,7 +434,7 @@ func TestMessageFilterBackfillAndLegacyRepair(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if st.migrationPending(ctx) {
+	if sqlstore.MigrationPending(st, ctx) {
 		t.Fatal("legacy repair incomplete")
 	}
 	if err := st.View(ctx, func(r ReadStore) error {
@@ -454,7 +456,7 @@ func TestMessageFilterBackfillAndLegacyRepair(t *testing.T) {
 }
 
 type interleavedScanQuery struct {
-	querier
+	sqlstore.Querier
 	append func()
 }
 
@@ -462,7 +464,7 @@ func (q interleavedScanQuery) QueryRow(query string, args ...any) *sql.Row {
 	if strings.Contains(query, "MAX(seq)") {
 		q.append()
 	}
-	return q.querier.QueryRow(query, args...)
+	return q.Querier.QueryRow(query, args...)
 }
 func TestMessageScanWatermarkUsesReadSnapshot(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "messages.db")
@@ -486,14 +488,14 @@ func TestMessageScanWatermarkUsesReadSnapshot(t *testing.T) {
 	}
 	defer tx.Rollback()
 	var appended Message
-	q := interleavedScanQuery{transactionQuery{tx, ctx}, func() {
+	q := interleavedScanQuery{sqlstore.TransactionQuerier(tx, ctx), func() {
 		var err error
 		appended, err = f.svc.AppendMessage(ctx, f.admin.Token, f.context.ID, MessageInput{DedupeKey: "match", Body: "ready", AgentInstance: &AgentInstance{ID: "sender"}})
 		if err != nil {
 			t.Fatal(err)
 		}
 	}}
-	messages, scanned, err := (&sqlStore{q: q}).MessagesScanned(f.context.ID, f.admin.Session.ID, 0, 100, MessageFilters{FromInstance: "sender"})
+	messages, scanned, err := sqlstore.NewTxStore(q).MessagesScanned(f.context.ID, f.admin.Session.ID, 0, 100, MessageFilters{FromInstance: "sender"})
 	if err != nil || len(messages) != 0 || scanned != 1 {
 		t.Fatalf("mixed snapshots: %v %d %v", messages, scanned, err)
 	}

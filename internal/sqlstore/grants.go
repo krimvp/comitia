@@ -1,4 +1,4 @@
-package comitia
+package sqlstore
 
 import (
 	"database/sql"
@@ -17,14 +17,14 @@ CREATE INDEX IF NOT EXISTS grants_parent ON grants(parent_grant_id);
 // Revocation cascades seek grants_parent; see revokeSessionTreeSQL.
 const revokeGrantTreeSQL = `WITH RECURSIVE d(id) AS (SELECT id FROM grants WHERE id=? UNION ALL SELECT g.id FROM grants g JOIN d ON g.parent_grant_id=d.id) UPDATE grants SET revoked_at=? WHERE id IN (SELECT id FROM d) AND revoked_at IS NULL`
 
-func (x *sqlStore) PutGrant(g Grant) error {
+func (x *sqlStore) PutGrant(g model.Grant) error {
 	x.invalidateGrantPolicy()
 	_, e := x.q.Exec("INSERT INTO grants VALUES(?,?,?,?,?,?,?,?,?)", g.ID, g.SessionID, g.ContextID, nullString(g.ParentGrantID), g.IssuerSessionID, g.Permissions, model.TS(g.ExpiresAt), timeString(g.RevokedAt), model.TS(g.CreatedAt))
 	return e
 }
 
-func scanGrant(row interface{ Scan(...any) error }) (Grant, error) {
-	var g Grant
+func scanGrant(row interface{ Scan(...any) error }) (model.Grant, error) {
+	var g model.Grant
 	var par, rev sql.NullString
 	var exp, created string
 	e := row.Scan(&g.ID, &g.SessionID, &g.ContextID, &par, &g.IssuerSessionID, &g.Permissions, &exp, &rev, &created)
@@ -35,13 +35,13 @@ func scanGrant(row interface{ Scan(...any) error }) (Grant, error) {
 	return g, dbErr(e)
 }
 
-func (x *sqlStore) grant(id string) (Grant, error) {
+func (x *sqlStore) grant(id string) (model.Grant, error) {
 	return scanGrant(x.q.QueryRow("SELECT id,session_id,context_id,parent_grant_id,issuer_session_id,permissions,expires_at,revoked_at,created_at FROM grants WHERE id=?", id))
 }
 
-func (x *sqlStore) Grant(id string) (Grant, error) { return x.grant(id) }
+func (x *sqlStore) Grant(id string) (model.Grant, error) { return x.grant(id) }
 
-func (x *sqlStore) Grants(sid, cid string, now time.Time) ([]Grant, error) {
+func (x *sqlStore) Grants(sid, cid string, now time.Time) ([]model.Grant, error) {
 	candidates, err := x.rawGrants("SELECT id,session_id,context_id,parent_grant_id,issuer_session_id,permissions,expires_at,revoked_at,created_at FROM grants WHERE session_id=? AND context_id=?", sid, cid)
 	if err != nil {
 		return nil, err
@@ -49,13 +49,13 @@ func (x *sqlStore) Grants(sid, cid string, now time.Time) ([]Grant, error) {
 	return x.effectiveGrants(candidates, now)
 }
 
-func (x *sqlStore) rawGrants(query string, args ...any) ([]Grant, error) {
+func (x *sqlStore) rawGrants(query string, args ...any) ([]model.Grant, error) {
 	rows, err := x.q.Query(query, args...)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var grants []Grant
+	var grants []model.Grant
 	for rows.Next() {
 		g, err := scanGrant(rows)
 		if err != nil {
@@ -66,12 +66,12 @@ func (x *sqlStore) rawGrants(query string, args ...any) ([]Grant, error) {
 	return grants, rows.Err()
 }
 
-func (x *sqlStore) effectiveGrants(candidates []Grant, now time.Time) ([]Grant, error) {
+func (x *sqlStore) effectiveGrants(candidates []model.Grant, now time.Time) ([]model.Grant, error) {
 	policy := x.grantPolicy()
 	for _, g := range candidates {
 		model.RememberGrant(policy, g)
 	}
-	var out []Grant
+	var out []model.Grant
 	for _, g := range candidates {
 		ok, err := policy.Effective(g, now)
 		if err != nil {

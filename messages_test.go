@@ -7,6 +7,10 @@ import (
 	"path/filepath"
 	"testing"
 	"time"
+
+	"github.com/krimvp/comitia/internal/sqlstore"
+
+	"github.com/krimvp/comitia/internal/schema"
 )
 
 func messageWorker(t *testing.T, f fixture, name, cid string) Credential {
@@ -155,7 +159,7 @@ func TestLegacyMessageDatabaseAndExtension(t *testing.T) {
 		t.Fatal(err)
 	}
 	// Model the pre-envelope schema without rewriting existing message rows.
-	if _, err := f.store.db.Exec("DROP TABLE message_envelopes"); err != nil {
+	if _, err := sqlstore.DB(f.store).Exec("DROP TABLE message_envelopes"); err != nil {
 		t.Fatal(err)
 	}
 	f.store.Close()
@@ -168,7 +172,7 @@ func TestLegacyMessageDatabaseAndExtension(t *testing.T) {
 		var p struct {
 			Count int `json:"count"`
 		}
-		return strictPayload(raw, &p)
+		return schema.StrictPayload(raw, &p)
 	}}})
 	if err != nil {
 		t.Fatal(err)

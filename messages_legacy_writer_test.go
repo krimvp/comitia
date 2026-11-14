@@ -10,6 +10,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/krimvp/comitia/internal/sqlstore"
+
 	"github.com/krimvp/comitia/internal/model"
 )
 
@@ -32,7 +34,9 @@ func legacyMessageCLI(t *testing.T) string {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if info.IsDir() || strings.HasSuffix(path, "_test.go") {
+			// Test access reaches helpers of the current messages file that
+			// the historical one does not have.
+			if info.IsDir() || strings.HasSuffix(path, "_test.go") || path == filepath.Join("internal", "sqlstore", "testaccess.go") {
 				continue
 			}
 			raw, err := os.ReadFile(path)
@@ -52,7 +56,7 @@ func legacyMessageCLI(t *testing.T) string {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(dir, "sqlite_messages.go"), raw, 0600); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, "internal", "sqlstore", "messages.go"), raw, 0600); err != nil {
 		t.Fatal(err)
 	}
 	binary := filepath.Join(dir, "comitia")
@@ -76,7 +80,7 @@ func TestRunningReaderSeesOlderCLIWriter(t *testing.T) {
 	// Isolate real CLI wall-clock credentials to this temporary database.
 	*f.now = time.Now().UTC()
 	for _, table := range []string{"sessions", "grants"} {
-		if _, err := f.store.db.Exec("UPDATE "+table+" SET expires_at=?", model.TS(f.now.Add(time.Hour))); err != nil {
+		if _, err := sqlstore.DB(f.store).Exec("UPDATE "+table+" SET expires_at=?", model.TS(f.now.Add(time.Hour))); err != nil {
 			t.Fatal(err)
 		}
 	}

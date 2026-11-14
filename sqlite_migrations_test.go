@@ -8,6 +8,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/krimvp/comitia/internal/sqlstore"
+
 	"github.com/krimvp/comitia/internal/model"
 )
 
@@ -39,7 +41,7 @@ func TestSQLiteLegacyCreatorRepairIncludingLateGrant(t *testing.T) {
 				if err := w.PutGrant(g); err != nil {
 					return err
 				}
-				_, err := w.(*sqlStore).q.Exec("INSERT INTO context_parents VALUES(?,?,?,?,?)", c.ID, c.ParentContextID, nil, c.CreatorSessionID, false)
+				_, err := sqlstore.TxQuerier(w.(*sqlstore.TxStore)).Exec("INSERT INTO context_parents VALUES(?,?,?,?,?)", c.ID, c.ParentContextID, nil, c.CreatorSessionID, false)
 				return err
 			}); err != nil {
 				t.Fatal(err)
@@ -59,7 +61,7 @@ func TestSQLiteLegacyCreatorRepairIncludingLateGrant(t *testing.T) {
 			if order == "late-grant" {
 				// No matching grant is a completed repair attempt, not work to
 				// repeat on every open. A later legacy grant must requeue it.
-				if f.store.migrationPending(ctx) {
+				if sqlstore.MigrationPending(f.store, ctx) {
 					t.Fatal("unrepairable child causes repeated migration")
 				}
 				if err := f.store.Update(ctx, func(w WriteStore) error { return w.PutGrant(g) }); err != nil {
@@ -68,10 +70,10 @@ func TestSQLiteLegacyCreatorRepairIncludingLateGrant(t *testing.T) {
 				reopen()
 			}
 			var creator, creating string
-			if err := f.store.db.QueryRow("SELECT creator_grant_id,creating_grant_id FROM context_creators WHERE context_id=?", c.ID).Scan(&creator, &creating); err != nil || creator != g.ID || creating != source.ID {
+			if err := sqlstore.DB(f.store).QueryRow("SELECT creator_grant_id,creating_grant_id FROM context_creators WHERE context_id=?", c.ID).Scan(&creator, &creating); err != nil || creator != g.ID || creating != source.ID {
 				t.Fatalf("legacy creator: %q %q %v", creator, creating, err)
 			}
-			if f.store.migrationPending(ctx) {
+			if sqlstore.MigrationPending(f.store, ctx) {
 				t.Fatal("completed legacy repair repeats")
 			}
 		})
@@ -84,10 +86,10 @@ func TestSQLiteRepairQueueSchemaRecovery(t *testing.T) {
 	defer func() { f.store.Close() }()
 	ctx := context.Background()
 	// A missing trigger must not hide writes that happened while it was gone.
-	if _, err := f.store.db.Exec("DROP TRIGGER comitia_message_repair_enqueue"); err != nil {
+	if _, err := sqlstore.DB(f.store).Exec("DROP TRIGGER comitia_message_repair_enqueue"); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := f.store.db.Exec("INSERT INTO messages VALUES(?,?,?,?,?,?,?)", "legacy", f.context.ID, f.admin.Session.ID, 1, "legacy", "legacy", model.TS(*f.now)); err != nil {
+	if _, err := sqlstore.DB(f.store).Exec("INSERT INTO messages VALUES(?,?,?,?,?,?,?)", "legacy", f.context.ID, f.admin.Session.ID, 1, "legacy", "legacy", model.TS(*f.now)); err != nil {
 		t.Fatal(err)
 	}
 	if err := f.store.Close(); err != nil {
@@ -104,7 +106,7 @@ func TestSQLiteRepairQueueSchemaRecovery(t *testing.T) {
 	}); err != nil {
 		t.Fatalf("missing-trigger legacy repair: %v", err)
 	}
-	if f.store.migrationPending(ctx) {
+	if sqlstore.MigrationPending(f.store, ctx) {
 		t.Fatal("recovered schema reports pending work")
 	}
 }
@@ -115,23 +117,23 @@ func TestSQLiteMigrationGenerationDetectsAddedIndex(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer st.Close()
-	old := schemas[2]
-	defer func() { schemas[2] = old }()
-	schemas[2] += "\nCREATE INDEX IF NOT EXISTS generation_test_index ON grants(context_id,session_id);"
+	old := sqlstore.Schemas[2]
+	defer func() { sqlstore.Schemas[2] = old }()
+	sqlstore.Schemas[2] += "\nCREATE INDEX IF NOT EXISTS generation_test_index ON grants(context_id,session_id);"
 	ctx := context.Background()
-	if !st.migrationPending(ctx) {
+	if !sqlstore.MigrationPending(st, ctx) {
 		t.Fatal("schema change not detected")
 	}
-	if err := st.migrate(ctx); err != nil || st.migrationPending(ctx) {
+	if err := sqlstore.Migrate(st, ctx); err != nil || sqlstore.MigrationPending(st, ctx) {
 		t.Fatalf("new generation: %v", err)
 	}
-	if _, err := st.db.Exec("DROP INDEX generation_test_index"); err != nil {
+	if _, err := sqlstore.DB(st).Exec("DROP INDEX generation_test_index"); err != nil {
 		t.Fatal(err)
 	}
-	if !st.migrationPending(ctx) {
+	if !sqlstore.MigrationPending(st, ctx) {
 		t.Fatal("generation hid missing index")
 	}
-	if err := st.migrate(ctx); err != nil || st.migrationPending(ctx) {
+	if err := sqlstore.Migrate(st, ctx); err != nil || sqlstore.MigrationPending(st, ctx) {
 		t.Fatalf("repair missing index: %v", err)
 	}
 }
@@ -144,8 +146,8 @@ func TestSQLiteIncrementalRepairUsesQueuedKeys(t *testing.T) {
 	defer st.Close()
 	// Lock the join order to the queue. Cost must depend on newly queued keys,
 	// even if ANALYZE makes SQLite prefer a historical table as the outer loop.
-	for _, repair := range []string{messageRepair, creatorRepair} {
-		rows, err := st.db.Query("EXPLAIN QUERY PLAN " + repair)
+	for _, repair := range []string{sqlstore.MessageRepairSQL, sqlstore.CreatorRepairSQL} {
+		rows, err := sqlstore.DB(st).Query("EXPLAIN QUERY PLAN " + repair)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -182,7 +184,7 @@ func TestSQLiteLegacyRepairBatchIsAtomicAndResumable(t *testing.T) {
 	// A failed repair must leave the entire batch pending, not just the last row.
 	const batch = 50
 	if err := f.store.Update(ctx, func(w WriteStore) error {
-		q := w.(*sqlStore).q
+		q := sqlstore.TxQuerier(w.(*sqlstore.TxStore))
 		for i := 0; i <= batch; i++ {
 			mid := fmt.Sprintf("legacy-%d", i)
 			key := mid
@@ -206,19 +208,19 @@ func TestSQLiteLegacyRepairBatchIsAtomicAndResumable(t *testing.T) {
 	}); err != nil {
 		t.Fatal(err)
 	}
-	if err := f.store.migrate(ctx); err == nil {
+	if err := sqlstore.Migrate(f.store, ctx); err == nil {
 		t.Fatal("conflicting legacy scope was silently discarded")
 	}
 	var scopes, queued int
-	if err := f.store.db.QueryRow("SELECT COUNT(*) FROM message_dedupe_scopes").Scan(&scopes); err != nil || scopes != 1 {
+	if err := sqlstore.DB(f.store).QueryRow("SELECT COUNT(*) FROM message_dedupe_scopes").Scan(&scopes); err != nil || scopes != 1 {
 		t.Fatalf("failed repair partially committed scopes: %d %v", scopes, err)
 	}
-	if err := f.store.db.QueryRow("SELECT COUNT(*) FROM comitia_message_repairs").Scan(&queued); err != nil || queued != batch+1 {
+	if err := sqlstore.DB(f.store).QueryRow("SELECT COUNT(*) FROM comitia_message_repairs").Scan(&queued); err != nil || queued != batch+1 {
 		t.Fatalf("failed repair consumed queue: %d %v", queued, err)
 	}
 	// Removing the conflicting duplicate permits a retry of all remaining rows.
 	if err := f.store.Update(ctx, func(w WriteStore) error {
-		q := w.(*sqlStore).q
+		q := sqlstore.TxQuerier(w.(*sqlstore.TxStore))
 		mid := fmt.Sprintf("legacy-%d", batch)
 		for _, table := range []string{"message_filters", "message_recipients", "message_instances"} {
 			if _, err := q.Exec("DELETE FROM "+table+" WHERE message_id=?", mid); err != nil {
@@ -230,10 +232,10 @@ func TestSQLiteLegacyRepairBatchIsAtomicAndResumable(t *testing.T) {
 	}); err != nil {
 		t.Fatal(err)
 	}
-	if err := f.store.migrate(ctx); err != nil || f.store.migrationPending(ctx) {
+	if err := sqlstore.Migrate(f.store, ctx); err != nil || sqlstore.MigrationPending(f.store, ctx) {
 		t.Fatalf("repair retry: %v", err)
 	}
-	if err := f.store.db.QueryRow("SELECT COUNT(*) FROM message_dedupe_scopes").Scan(&scopes); err != nil || scopes != batch+1 {
+	if err := sqlstore.DB(f.store).QueryRow("SELECT COUNT(*) FROM message_dedupe_scopes").Scan(&scopes); err != nil || scopes != batch+1 {
 		t.Fatalf("batch repair skipped rows: %d %v", scopes, err)
 	}
 }

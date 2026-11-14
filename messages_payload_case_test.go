@@ -12,6 +12,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/krimvp/comitia/internal/schema"
+
 	"github.com/krimvp/comitia/internal/model"
 )
 
@@ -127,7 +129,7 @@ func TestStrictPayloadExactFields(t *testing.T) {
 		`{"item":{"name":"a"},"items":[{"name":"b"}],"dictionary":{"MixedCase":"value"}}`,
 		`{"item":null,"items":null,"dictionary":null,"optional":null}`,
 	} {
-		if err := strictAppendPayload(json.RawMessage(raw), &payload{}); err != nil {
+		if err := schema.StrictAppendPayload(json.RawMessage(raw), &payload{}); err != nil {
 			t.Fatalf("canonical/null payload: %s: %v", raw, err)
 		}
 	}
@@ -136,7 +138,7 @@ func TestStrictPayloadExactFields(t *testing.T) {
 		`{"OPTIONAL":null}`, `{"optional":"canonical","Optional":"alias"}`,
 		`{"item":{"name":"canonical","Name":"alias"}}`,
 	} {
-		if err := strictAppendPayload(json.RawMessage(raw), &payload{}); !errors.Is(err, ErrInvalid) {
+		if err := schema.StrictAppendPayload(json.RawMessage(raw), &payload{}); !errors.Is(err, ErrInvalid) {
 			t.Fatalf("mis-cased payload: %s: %v", raw, err)
 		}
 	}
@@ -181,7 +183,7 @@ func TestExtensionPayloadCaseRules(t *testing.T) {
 	}
 	svc, err := New(Config{Store: f.store, Clock: func() time.Time { return *f.now }, MessageSchemas: map[string]PayloadValidator{
 		"project.custom.v1": func(raw json.RawMessage) error { var p metric; return json.Unmarshal(raw, &p) },
-		"project.strict.v1": func(raw json.RawMessage) error { var p metric; return strictPayload(raw, &p) },
+		"project.strict.v1": func(raw json.RawMessage) error { var p metric; return schema.StrictPayload(raw, &p) },
 	}})
 	if err != nil {
 		t.Fatal(err)

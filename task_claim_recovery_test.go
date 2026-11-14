@@ -8,6 +8,8 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/krimvp/comitia/internal/sqlstore"
 )
 
 var _ TaskClaimRecoveryAPI = (*Service)(nil)
@@ -201,7 +203,7 @@ func TestRecoverClaimRollback(t *testing.T) {
 		t.Fatal(err)
 	}
 	if err = f.store.Update(ctx, func(w WriteStore) error {
-		_, e := w.(*sqlStore).q.Exec("CREATE TRIGGER fail_recovery BEFORE UPDATE OF lease_token_hash ON tasks BEGIN SELECT RAISE(ABORT,'recovery failure'); END")
+		_, e := sqlstore.TxQuerier(w.(*sqlstore.TxStore)).Exec("CREATE TRIGGER fail_recovery BEFORE UPDATE OF lease_token_hash ON tasks BEGIN SELECT RAISE(ABORT,'recovery failure'); END")
 		return e
 	}); err != nil {
 		t.Fatal(err)
@@ -210,7 +212,10 @@ func TestRecoverClaimRollback(t *testing.T) {
 	if err == nil || got.Token != "" || got.Task.ID != "" {
 		t.Fatal("failed recovery exposed result")
 	}
-	if err = f.store.Update(ctx, func(w WriteStore) error { _, e := w.(*sqlStore).q.Exec("DROP TRIGGER fail_recovery"); return e }); err != nil {
+	if err = f.store.Update(ctx, func(w WriteStore) error {
+		_, e := sqlstore.TxQuerier(w.(*sqlstore.TxStore)).Exec("DROP TRIGGER fail_recovery")
+		return e
+	}); err != nil {
 		t.Fatal(err)
 	}
 	if _, err = f.svc.CompleteTask(ctx, f.admin.Token, task.ID, claim.Token, claim.Task.LeaseVersion); err != nil {

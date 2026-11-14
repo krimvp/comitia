@@ -14,6 +14,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/krimvp/comitia/internal/schema"
+
 	"github.com/krimvp/comitia/internal/model"
 )
 
@@ -40,10 +42,10 @@ func TestValidationDetails(t *testing.T) {
 			return err
 		}},
 		{"unknown payload field", `unknown field "token"`, func() error {
-			return validTaskStatus(json.RawMessage(`{"state":"done","summary":"ready","token":"secret value"}`))
+			return schema.ValidTaskStatus(json.RawMessage(`{"state":"done","summary":"ready","token":"secret value"}`))
 		}},
-		{"payload field", "summary", func() error { return validTaskStatus(json.RawMessage(`{"state":"done"}`)) }},
-		{"payload type", "state", func() error { return validTaskStatus(json.RawMessage(`{"state":42,"summary":"ready"}`)) }},
+		{"payload field", "summary", func() error { return schema.ValidTaskStatus(json.RawMessage(`{"state":"done"}`)) }},
+		{"payload type", "state", func() error { return schema.ValidTaskStatus(json.RawMessage(`{"state":42,"summary":"ready"}`)) }},
 		{"task rule", "task_id required", func() error {
 			_, err := f.svc.normalizeEnvelope(&MessageEnvelope{Schema: TaskStatusSchema, Payload: json.RawMessage(`{"state":"done","summary":"ready"}`)}, "")
 			return err

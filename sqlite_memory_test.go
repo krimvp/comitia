@@ -5,6 +5,8 @@ import (
 	"database/sql/driver"
 	"testing"
 	"time"
+
+	"github.com/krimvp/comitia/internal/sqlstore"
 )
 
 // database/sql replaces the working connection after a cancelled statement.
@@ -18,7 +20,7 @@ func TestMemoryStoreSurvivesConnectionReplacement(t *testing.T) {
 			return err
 		})
 	}
-	conn, err := f.store.db.Conn(ctx)
+	conn, err := sqlstore.DB(f.store).Conn(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -10,6 +10,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/krimvp/comitia/internal/sqlstore"
 )
 
 // Original exported method sets compile without implementing the optional API.
@@ -29,7 +31,7 @@ var _ MessageAPI = oldMessageAPI{}
 var _ MessageReadStore = oldMessageReadStore{}
 var _ MessageWriteStore = oldMessageWriteStore{}
 var _ MessageQueryAPI = (*Service)(nil)
-var _ MessageQueryStore = (*sqlStore)(nil)
+var _ MessageQueryStore = (*sqlstore.TxStore)(nil)
 
 func TestScopedMessageQueries(t *testing.T) {
 	f := setup(t, ":memory:")
@@ -150,14 +152,14 @@ func TestReplyProjectionRecoveryAndIndexedSeek(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := f.store.db.Exec("DROP TRIGGER comitia_message_reply_insert"); err != nil {
+	if _, err := sqlstore.DB(f.store).Exec("DROP TRIGGER comitia_message_reply_insert"); err != nil {
 		t.Fatal(err)
 	}
 	reply, err := f.svc.AppendMessage(ctx, f.admin.Token, f.context.ID, MessageInput{DedupeKey: "reply", Body: "reply", Envelope: &MessageEnvelope{Schema: "comitia.discussion.v1", ReplyTo: root.ID, Payload: json.RawMessage(`{}`)}})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !f.store.migrationPending(ctx) {
+	if !sqlstore.MigrationPending(f.store, ctx) {
 		t.Fatal("missing reply trigger not detected")
 	}
 	f.store.Close()
@@ -165,7 +167,7 @@ func TestReplyProjectionRecoveryAndIndexedSeek(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if f.store.migrationPending(ctx) {
+	if sqlstore.MigrationPending(f.store, ctx) {
 		t.Fatal("schema still pending")
 	}
 	if err := f.store.View(ctx, func(r ReadStore) error {
@@ -178,8 +180,8 @@ func TestReplyProjectionRecoveryAndIndexedSeek(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, filter := range []MessageFilters{{ReplyTo: root.ID}, {ThreadID: root.ID}, {FromSession: f.admin.Session.ID}} {
-		query, args := messageQuery(f.context.ID, f.admin.Session.ID, 0, 10, filter)
-		rows, err := f.store.db.Query("EXPLAIN QUERY PLAN "+query, args...)
+		query, args := sqlstore.MessageQuery(f.context.ID, f.admin.Session.ID, 0, 10, filter)
+		rows, err := sqlstore.DB(f.store).Query("EXPLAIN QUERY PLAN "+query, args...)
 		if err != nil {
 			t.Fatal(err)
 		}
