@@ -10,9 +10,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/krimvp/comitia/internal/sqlstore"
-
 	"github.com/krimvp/comitia/internal/model"
+	"github.com/krimvp/comitia/internal/sqlstore"
 )
 
 // Preserve the pre-projection SQLite writer from 2df3561 in a public CLI

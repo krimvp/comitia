@@ -7,9 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/krimvp/comitia/internal/sqlstore"
-
 	"github.com/krimvp/comitia/internal/model"
+	"github.com/krimvp/comitia/internal/sqlstore"
 )
 
 // Renewal-heavy fixture: one visible claim and several hidden renewals.

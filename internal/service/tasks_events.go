@@ -3,9 +3,8 @@ package service
 import (
 	"encoding/json"
 
-	"github.com/krimvp/comitia/internal/schema"
-
 	"github.com/krimvp/comitia/internal/model"
+	"github.com/krimvp/comitia/internal/schema"
 )
 
 // putTaskEvent attributes the event to the acting session and, when that

@@ -1,0 +1,498 @@
+## github.com/krimvp/comitia
+const ApprovalApproved ApprovalVerdict
+const ApprovalChangesRequested ApprovalVerdict
+const ApprovalSchema untyped string
+const CriterionFailed CriterionOutcome
+const CriterionNotRun CriterionOutcome
+const CriterionPassed CriterionOutcome
+const DefaultInstanceListLimit untyped int
+const DefaultMessageBytes untyped int
+const EvaluationAccepted EvaluationOutcome
+const EvaluationInconclusive EvaluationOutcome
+const EvaluationRejected EvaluationOutcome
+const EvaluationResultSchema untyped string
+const ExecutionEventSchema untyped string
+const GraderAgent GraderKind
+const GraderAutomated GraderKind
+const GraderHuman GraderKind
+const InstanceHeartbeatInterval time.Duration
+const InstanceRecentWindow time.Duration
+const InstanceRetention time.Duration
+const ListPageBytes untyped int
+const MaxDedupeKeyBytes untyped int
+const MaxInstanceResumeBytes untyped int
+const MaxInstancesPerSession untyped int
+const MaxListBytes untyped int
+const MaxMessageBodyBytes untyped int
+const MaxMessageBytes untyped int
+const MaxMessageWait time.Duration
+const MaxReferenceKindBytes untyped int
+const MaxReferenceURIBytes untyped int
+const MaxTaskBodyBytes untyped int
+const MaxTaskTitleBytes untyped int
+const MergeCertificateSchema untyped string
+const MergeReceiptSchema untyped string
+const OpenLease time.Duration
+const PermissionAdmin Permission
+const PermissionAll Permission
+const PermissionClaim Permission
+const PermissionCreate Permission
+const PermissionGrant Permission
+const PermissionRead Permission
+const PermissionWrite Permission
+const ProtocolVersion untyped string
+const ReceiptSchema untyped string
+const RequestSchema untyped string
+const StanceSchema untyped string
+const StorageProbeTimeout time.Duration
+const TaskCancelled TaskStatus
+const TaskCompleted TaskStatus
+const TaskEventSchema untyped string
+const TaskFailed TaskStatus
+const TaskLeased TaskStatus
+const TaskPending TaskStatus
+const TaskStatusSchema untyped string
+func AuthoritativeMergeReceipt(cert Message, receipts []Message, mergerSessionID string) (Message, error)
+func BuildEvaluationReport(messages []Message) (EvaluationReport, error)
+func BuildIdentity() BuildInfo
+func BuildVersion() string
+func CancelTask(ctx context.Context, api TaskAPI, raw string, tid string, in TaskOutcomeInput) (Task, error)
+func CheckMessageQueryAPI(api MessageAPI, f MessageFilters) error
+func ClaimTaskOperation(ctx context.Context, api TaskAPI, raw string, taskID string, lease time.Duration, operationID string, instance ...AgentInstance) (TaskClaim, error)
+func CreateTaskOperation(ctx context.Context, api TaskAPI, raw string, cid string, in TaskInput) (Task, error)
+func ErrorClass(err error) string
+func FailTask(ctx context.Context, api TaskAPI, raw string, tid string, in TaskOutcomeInput) (Task, error)
+func FailureClass(err error) string
+func Features() []string
+func InstanceDefaultsFromEnv() (InstanceDefaults, error)
+func InvalidJSON(err error, field string) error
+func InvalidJSONFields(err error, field string, raw json.RawMessage, target any) error
+func Invalidf(format string, args ...any) error
+func ListInstancePage(ctx context.Context, api PresenceAPI, token string, cid string, after string, limit int) (InstancePage, error)
+func ListParticipantPage(ctx context.Context, api MessageAPI, token string, cid string, after string, limit int) (ParticipantPage, error)
+func ListReferences(ctx context.Context, api ContextAPI, token string, cid string, after string, limit int) (ReferencePage, error)
+func ListTaskPage(ctx context.Context, api TaskAPI, token string, cid string, status TaskStatus, after string, limit int) (TaskPage, error)
+func ListTaskPageFiltered(ctx context.Context, api TaskAPI, raw string, cid string, status TaskStatus, f TaskFilters, after string, limit int) (TaskPage, error)
+func ListTasksFiltered(ctx context.Context, api TaskAPI, raw string, cid string, status TaskStatus, f TaskFilters, limit int) ([]Task, error)
+func LogDiagnostic(d Diagnostic)
+func LookupMessage(ctx context.Context, api MessageAPI, token string, cid string, mid string) (Message, error)
+func MessageWaitTimeout(seconds float64) (time.Duration, error)
+func New(cfg Config) (*Service, error)
+func NewGrantEvaluator(lookup GrantLookup) *GrantEvaluator
+func NewInstanceDefaults(instance *AgentInstance) (InstanceDefaults, error)
+func NewRequestID() string
+func OpenSQLite(path string) (*SQLiteStore, error)
+func ParseEvaluationResult(message Message) (EvaluationResultPayload, error)
+func RecoverClaim(ctx context.Context, api TaskAPI, raw string, taskID string, version int64, instance ...AgentInstance) (TaskClaim, error)
+func RenewClaimOperation(ctx context.Context, api TaskAPI, raw string, taskID string, claimToken string, version int64, lease time.Duration, operationID string) (TaskClaim, error)
+func ReplayMessagePage(ctx context.Context, api MessageAPI, token string, cid string, after int64, limit int, filters ...MessageFilters) (MessagePage, error)
+func ReportFailure(hook DiagnosticHook, operation string, err error, requestID string, duration time.Duration)
+func SafeError(operation string, err error, requestID string) ErrorInfo
+func SafeOperation(name string) string
+func UnknownField(name string, fields []string) error
+func VerifyMergeCertificate(cert Message, request Message, approvals []Message, policy MergePolicy, currentArtifact string, now time.Time) error
+func VerifyMergeCertificateWithOptions(cert Message, request Message, approvals []Message, policy MergePolicy, currentArtifact string, now time.Time, opts MergeVerifyOptions) error
+func WaitMessagePage(ctx context.Context, api MessageAPI, token string, cid string, after int64, timeout time.Duration, filters ...MessageFilters) (MessagePage, error)
+method API value.AckMessages func(context.Context, string, string, int64, ...string) error
+method API value.AddReference func(context.Context, string, AddReferenceInput) (Reference, error)
+method API value.AppendMessage func(context.Context, string, string, MessageInput) (Message, error)
+method API value.ArchiveContext func(context.Context, string, string) error
+method API value.Bootstrap func(context.Context, BootstrapInput) (Principal, Credential, error)
+method API value.ClaimTask func(context.Context, string, string, time.Duration, ...AgentInstance) (TaskClaim, error)
+method API value.CompleteTask func(context.Context, string, string, string, int64) (Task, error)
+method API value.CreateChildContext func(context.Context, string, CreateChildContextInput) (WorkContext, error)
+method API value.CreateContext func(context.Context, string, CreateContextInput) (WorkContext, error)
+method API value.CreatePrincipal func(context.Context, string, string) (Principal, error)
+method API value.CreateTask func(context.Context, string, string, TaskInput) (Task, error)
+method API value.CreateWorkspace func(context.Context, string, string) (Workspace, error)
+method API value.DelegateSession func(context.Context, string, DelegateInput) (Principal, Credential, []Grant, error)
+method API value.GetContext func(context.Context, string, string) (WorkContext, error)
+method API value.GetTask func(context.Context, string, string) (Task, error)
+method API value.GrantContext func(context.Context, string, GrantInput) (Grant, error)
+method API value.ListChildContexts func(context.Context, string, string, string, int) ([]WorkContext, error)
+method API value.ListContexts func(context.Context, string, string, int) ([]WorkContext, error)
+method API value.ListInstances func(context.Context, string, string) ([]InstancePresence, error)
+method API value.ListParticipants func(context.Context, string, string, int) ([]Participant, error)
+method API value.ListTasks func(context.Context, string, string, TaskStatus, int) ([]Task, error)
+method API value.MessageCursor func(context.Context, string, string, ...string) (int64, error)
+method API value.MintSession func(context.Context, string, string, time.Duration) (Credential, error)
+method API value.ReleaseTask func(context.Context, string, string, string, int64) (Task, error)
+method API value.RenewClaim func(context.Context, string, string, string, int64, time.Duration) (TaskClaim, error)
+method API value.ReplayMessages func(context.Context, string, string, int64, int, ...MessageFilters) ([]Message, error)
+method API value.RevokeGrant func(context.Context, string, string) error
+method API value.RevokeSession func(context.Context, string, string) error
+method API value.ServerInfo func(context.Context, string) (ServerInfo, error)
+method API value.SetInstanceResume func(context.Context, string, string, *AgentInstance, json.RawMessage) error
+method API value.WaitMessages func(context.Context, string, string, int64, time.Duration, ...MessageFilters) ([]Message, error)
+method BatchContextReadStore value.ContextArchiveTimes func([]string, time.Time) (map[string]*time.Time, error)
+method BatchContextReadStore value.GrantsForContexts func(string, []string, time.Time) (map[string][]Grant, error)
+method ChangeVersionStore value.ChangeVersion func(context.Context) (uint64, error)
+method ContextAPI value.AddReference func(context.Context, string, AddReferenceInput) (Reference, error)
+method ContextAPI value.ArchiveContext func(context.Context, string, string) error
+method ContextAPI value.CreateChildContext func(context.Context, string, CreateChildContextInput) (WorkContext, error)
+method ContextAPI value.CreateContext func(context.Context, string, CreateContextInput) (WorkContext, error)
+method ContextAPI value.CreateWorkspace func(context.Context, string, string) (Workspace, error)
+method ContextAPI value.GetContext func(context.Context, string, string) (WorkContext, error)
+method ContextAPI value.ListChildContexts func(context.Context, string, string, string, int) ([]WorkContext, error)
+method ContextAPI value.ListContexts func(context.Context, string, string, int) ([]WorkContext, error)
+method ContextReadStore value.ChildContextCount func(string) (int, error)
+method ContextReadStore value.ChildContexts func(string, string, int) ([]WorkContext, error)
+method ContextReadStore value.Context func(string) (WorkContext, error)
+method ContextReadStore value.ContextArchivedAt func(string, time.Time) (*time.Time, error)
+method ContextReadStore value.ContextCandidates func(string, string, int) ([]WorkContext, error)
+method ContextReadStore value.Workspace func(string) (Workspace, error)
+method ContextWriteStore value.PutContext func(WorkContext) error
+method ContextWriteStore value.PutContextArchive func(string, time.Time) error
+method ContextWriteStore value.PutContextCreator func(string, string, string) error
+method ContextWriteStore value.PutReference func(Reference) error
+method ContextWriteStore value.PutWorkspace func(Workspace) error
+method DedupeConflictError pointer.Error func() string
+method DedupeConflictError pointer.Unwrap func() error
+method ErrorInfo pointer.String func() string
+method ErrorInfo value.String func() string
+method GrantAPI value.GrantContext func(context.Context, string, GrantInput) (Grant, error)
+method GrantAPI value.RevokeGrant func(context.Context, string, string) error
+method GrantEvaluator pointer.Effective func(g Grant, now time.Time) (bool, error)
+method GrantEvaluator pointer.End func(grantID string) (time.Time, error)
+method GrantLookup value.Grant func(string) (Grant, error)
+method GrantLookup value.Session func(string) (Session, error)
+method GrantReadStore value.Grant func(string) (Grant, error)
+method GrantReadStore value.Grants func(string, string, time.Time) ([]Grant, error)
+method GrantWriteStore value.PutGrant func(Grant) error
+method GrantWriteStore value.RevokeGrantTree func(string, time.Time) error
+method InstanceDefaults pointer.ID func(explicit ...string) (string, error)
+method InstanceDefaults pointer.Message func(explicit *AgentInstance) *AgentInstance
+method InstanceDefaults value.ID func(explicit ...string) (string, error)
+method InstanceDefaults value.Message func(explicit *AgentInstance) *AgentInstance
+method InstancePageAPI value.ListInstancesPage func(context.Context, string, string, string, int) (InstancePage, error)
+method InstancePageStore value.InstancesAfter func(contextID string, now time.Time, afterSession string, afterInstance string, limit int) ([]InstancePresence, error)
+method MessageAPI value.AckMessages func(context.Context, string, string, int64, ...string) error
+method MessageAPI value.AppendMessage func(context.Context, string, string, MessageInput) (Message, error)
+method MessageAPI value.ListParticipants func(context.Context, string, string, int) ([]Participant, error)
+method MessageAPI value.MessageCursor func(context.Context, string, string, ...string) (int64, error)
+method MessageAPI value.ReplayMessages func(context.Context, string, string, int64, int, ...MessageFilters) ([]Message, error)
+method MessageAPI value.WaitMessages func(context.Context, string, string, int64, time.Duration, ...MessageFilters) ([]Message, error)
+method MessagePageAPI value.ReplayMessagesPage func(context.Context, string, string, int64, int, ...MessageFilters) (MessagePage, error)
+method MessagePageAPI value.WaitMessagesPage func(context.Context, string, string, int64, time.Duration, ...MessageFilters) (MessagePage, error)
+method MessageQueryAPI value.GetMessage func(context.Context, string, string, string) (Message, error)
+method MessageQueryStore value.SupportsMessageQueries func() bool
+method MessageReadOptionsAPI value.SupportsMessageReadOptions func() bool
+method MessageReadOptionsStore value.SupportsMessageReadOptions func() bool
+method MessageReadStore value.AckCursor func(string, string, string) (int64, error)
+method MessageReadStore value.Message func(string) (Message, error)
+method MessageReadStore value.MessageByDedupe func(string, string, string, ...string) (Message, error)
+method MessageReadStore value.Messages func(string, string, int64, int, ...MessageFilters) ([]Message, error)
+method MessageReadStore value.Participants func(string, time.Time, int) ([]Participant, error)
+method MessageScanStore value.MessagesScanned func(string, string, int64, int, MessageFilters) ([]Message, int64, error)
+method MessageSchemaAPI value.GetMessageSchema func(context.Context, string, string) (MessageSchemaDescriptor, error)
+method MessageSchemaAPI value.ListMessageSchemas func(context.Context, string) ([]MessageSchemaDescriptor, error)
+method MessageWriteStore value.Ack func(string, string, int64, time.Time, string) error
+method MessageWriteStore value.PutMessage func(Message) (Message, error)
+method OperationalError pointer.Error func() string
+method OperationalError pointer.Unwrap func() error
+method ParticipantPageAPI value.ListParticipantsPage func(context.Context, string, string, string, int) (ParticipantPage, error)
+method ParticipantPageStore value.ParticipantsAfter func(string, time.Time, string, int) ([]Participant, error)
+method PresenceAPI value.ListInstances func(context.Context, string, string) ([]InstancePresence, error)
+method PresenceAPI value.SetInstanceResume func(context.Context, string, string, *AgentInstance, json.RawMessage) error
+method PresenceReadStore value.InstanceLastSeen func(string, string, string) (time.Time, error)
+method PresenceReadStore value.Instances func(string, time.Time) ([]InstancePresence, error)
+method PresenceWriteStore value.PutInstancePresence func(InstancePresence) error
+method PresenceWriteStore value.TouchInstancePresence func(InstancePresence) error
+method ReadStore value.AckCursor func(string, string, string) (int64, error)
+method ReadStore value.BootstrapDone func() (bool, error)
+method ReadStore value.ChildContextCount func(string) (int, error)
+method ReadStore value.ChildContexts func(string, string, int) ([]WorkContext, error)
+method ReadStore value.Context func(string) (WorkContext, error)
+method ReadStore value.ContextArchivedAt func(string, time.Time) (*time.Time, error)
+method ReadStore value.ContextCandidates func(string, string, int) ([]WorkContext, error)
+method ReadStore value.Grant func(string) (Grant, error)
+method ReadStore value.Grants func(string, string, time.Time) ([]Grant, error)
+method ReadStore value.InstanceLastSeen func(string, string, string) (time.Time, error)
+method ReadStore value.Instances func(string, time.Time) ([]InstancePresence, error)
+method ReadStore value.Message func(string) (Message, error)
+method ReadStore value.MessageByDedupe func(string, string, string, ...string) (Message, error)
+method ReadStore value.Messages func(string, string, int64, int, ...MessageFilters) ([]Message, error)
+method ReadStore value.Participants func(string, time.Time, int) ([]Participant, error)
+method ReadStore value.Principal func(string) (Principal, error)
+method ReadStore value.Session func(string) (Session, error)
+method ReadStore value.SessionByTokenHash func(string) (Session, error)
+method ReadStore value.Task func(string) (Task, error)
+method ReadStore value.Tasks func(string, TaskStatus, int) ([]Task, error)
+method ReadStore value.Workspace func(string) (Workspace, error)
+method ReferenceListAPI value.ListReferences func(ctx context.Context, token string, contextID string, after string, limit int) (ReferencePage, error)
+method ReferenceListStore value.ReferencesAfter func(contextID string, created string, afterID string, limit int) ([]Reference, error)
+method SQLiteStore pointer.ChangeVersion func(ctx context.Context) (uint64, error)
+method SQLiteStore pointer.Close func() error
+method SQLiteStore pointer.Update func(ctx context.Context, fn func(WriteStore) error) error
+method SQLiteStore pointer.View func(ctx context.Context, fn func(ReadStore) error) error
+method ServerInfo pointer.WithClient func(client BuildInfo) ServerInfo
+method ServerInfo value.WithClient func(client BuildInfo) ServerInfo
+method ServerInfoAPI value.ServerInfo func(context.Context, string) (ServerInfo, error)
+method Service pointer.AckMessages func(ctx context.Context, raw string, cid string, seq int64, instances ...string) error
+method Service pointer.AddReference func(ctx context.Context, raw string, in AddReferenceInput) (Reference, error)
+method Service pointer.AppendMessage func(ctx context.Context, raw string, cid string, in MessageInput) (Message, error)
+method Service pointer.ArchiveContext func(ctx context.Context, raw string, contextID string) error
+method Service pointer.Bootstrap func(ctx context.Context, in BootstrapInput) (Principal, Credential, error)
+method Service pointer.CancelTask func(ctx context.Context, raw string, tid string, in TaskOutcomeInput) (Task, error)
+method Service pointer.CheckPermissions func(ctx context.Context, raw string, contextID string, permissions Permission) error
+method Service pointer.ClaimTask func(ctx context.Context, raw string, taskID string, lease time.Duration, instance ...AgentInstance) (TaskClaim, error)
+method Service pointer.ClaimTaskWithOperation func(ctx context.Context, raw string, taskID string, lease time.Duration, operationID string, instance ...AgentInstance) (TaskClaim, error)
+method Service pointer.CompleteTask func(ctx context.Context, raw string, taskID string, claimToken string, version int64) (Task, error)
+method Service pointer.CreateChildContext func(ctx context.Context, raw string, in CreateChildContextInput) (WorkContext, error)
+method Service pointer.CreateContext func(ctx context.Context, raw string, in CreateContextInput) (WorkContext, error)
+method Service pointer.CreatePrincipal func(ctx context.Context, raw string, name string) (Principal, error)
+method Service pointer.CreateTask func(ctx context.Context, raw string, cid string, in TaskInput) (Task, error)
+method Service pointer.CreateWorkspace func(ctx context.Context, raw string, name string) (Workspace, error)
+method Service pointer.DelegateSession func(ctx context.Context, raw string, in DelegateInput) (Principal, Credential, []Grant, error)
+method Service pointer.EndWaits func()
+method Service pointer.FailTask func(ctx context.Context, raw string, tid string, in TaskOutcomeInput) (Task, error)
+method Service pointer.GetContext func(ctx context.Context, raw string, cid string) (WorkContext, error)
+method Service pointer.GetMessage func(ctx context.Context, token string, cid string, mid string) (Message, error)
+method Service pointer.GetMessageSchema func(ctx context.Context, token string, id string) (MessageSchemaDescriptor, error)
+method Service pointer.GetTask func(ctx context.Context, raw string, id string) (Task, error)
+method Service pointer.GrantContext func(ctx context.Context, raw string, in GrantInput) (Grant, error)
+method Service pointer.ListChildContexts func(ctx context.Context, raw string, parentID string, afterID string, limit int) ([]WorkContext, error)
+method Service pointer.ListContexts func(ctx context.Context, raw string, afterID string, limit int) ([]WorkContext, error)
+method Service pointer.ListInstances func(ctx context.Context, raw string, cid string) ([]InstancePresence, error)
+method Service pointer.ListInstancesPage func(ctx context.Context, raw string, cid string, after string, limit int) (InstancePage, error)
+method Service pointer.ListMessageSchemas func(ctx context.Context, token string) ([]MessageSchemaDescriptor, error)
+method Service pointer.ListParticipants func(ctx context.Context, token string, cid string, limit int) ([]Participant, error)
+method Service pointer.ListParticipantsPage func(ctx context.Context, token string, cid string, after string, limit int) (ParticipantPage, error)
+method Service pointer.ListReferences func(ctx context.Context, token string, cid string, after string, limit int) (ReferencePage, error)
+method Service pointer.ListTasks func(ctx context.Context, raw string, cid string, status TaskStatus, limit int) ([]Task, error)
+method Service pointer.ListTasksFiltered func(ctx context.Context, raw string, cid string, status TaskStatus, f TaskFilters, limit int) ([]Task, error)
+method Service pointer.ListTasksPage func(ctx context.Context, token string, cid string, status TaskStatus, after string, limit int) (TaskPage, error)
+method Service pointer.ListTasksPageFiltered func(ctx context.Context, raw string, cid string, status TaskStatus, f TaskFilters, after string, limit int) (TaskPage, error)
+method Service pointer.MessageCursor func(ctx context.Context, raw string, cid string, instances ...string) (int64, error)
+method Service pointer.MintSession func(ctx context.Context, raw string, principalID string, ttl time.Duration) (Credential, error)
+method Service pointer.RecoverClaim func(ctx context.Context, raw string, taskID string, version int64, instance ...AgentInstance) (TaskClaim, error)
+method Service pointer.ReleaseTask func(ctx context.Context, raw string, taskID string, claimToken string, version int64) (Task, error)
+method Service pointer.RenewClaim func(ctx context.Context, raw string, taskID string, claimToken string, version int64, lease time.Duration) (TaskClaim, error)
+method Service pointer.RenewClaimWithOperation func(ctx context.Context, raw string, taskID string, claimToken string, version int64, lease time.Duration, operationID string) (TaskClaim, error)
+method Service pointer.ReplayMessages func(ctx context.Context, raw string, cid string, after int64, limit int, filters ...MessageFilters) ([]Message, error)
+method Service pointer.ReplayMessagesPage func(ctx context.Context, token string, cid string, after int64, limit int, filters ...MessageFilters) (MessagePage, error)
+method Service pointer.RevokeGrant func(ctx context.Context, raw string, grantID string) error
+method Service pointer.RevokeSession func(ctx context.Context, raw string, target string) error
+method Service pointer.ServerInfo func(ctx context.Context, raw string) (ServerInfo, error)
+method Service pointer.SetInstanceResume func(ctx context.Context, raw string, cid string, in *AgentInstance, resume json.RawMessage) error
+method Service pointer.StorageStatus func(ctx context.Context, raw string) (StorageStatus, error)
+method Service pointer.SupportsMessageReadOptions func() bool
+method Service pointer.WaitMessages func(ctx context.Context, raw string, cid string, after int64, timeout time.Duration, filters ...MessageFilters) ([]Message, error)
+method Service pointer.WaitMessagesPage func(ctx context.Context, token string, cid string, after int64, timeout time.Duration, filters ...MessageFilters) (MessagePage, error)
+method SessionAPI value.Bootstrap func(context.Context, BootstrapInput) (Principal, Credential, error)
+method SessionAPI value.CreatePrincipal func(context.Context, string, string) (Principal, error)
+method SessionAPI value.DelegateSession func(context.Context, string, DelegateInput) (Principal, Credential, []Grant, error)
+method SessionAPI value.MintSession func(context.Context, string, string, time.Duration) (Credential, error)
+method SessionAPI value.RevokeSession func(context.Context, string, string) error
+method SessionReadStore value.BootstrapDone func() (bool, error)
+method SessionReadStore value.Principal func(string) (Principal, error)
+method SessionReadStore value.Session func(string) (Session, error)
+method SessionReadStore value.SessionByTokenHash func(string) (Session, error)
+method SessionWriteStore value.MarkBootstrapDone func() error
+method SessionWriteStore value.PutPrincipal func(Principal) error
+method SessionWriteStore value.PutSession func(Session, string) error
+method SessionWriteStore value.RevokeSessionTree func(string, time.Time) error
+method StorageStatusAPI value.StorageStatus func(context.Context, string) (StorageStatus, error)
+method Store value.Close func() error
+method Store value.Update func(context.Context, func(WriteStore) error) error
+method Store value.View func(context.Context, func(ReadStore) error) error
+method TaskAPI value.ClaimTask func(context.Context, string, string, time.Duration, ...AgentInstance) (TaskClaim, error)
+method TaskAPI value.CompleteTask func(context.Context, string, string, string, int64) (Task, error)
+method TaskAPI value.CreateTask func(context.Context, string, string, TaskInput) (Task, error)
+method TaskAPI value.GetTask func(context.Context, string, string) (Task, error)
+method TaskAPI value.ListTasks func(context.Context, string, string, TaskStatus, int) ([]Task, error)
+method TaskAPI value.ReleaseTask func(context.Context, string, string, string, int64) (Task, error)
+method TaskAPI value.RenewClaim func(context.Context, string, string, string, int64, time.Duration) (TaskClaim, error)
+method TaskClaimRecoveryAPI value.RecoverClaim func(context.Context, string, string, int64, ...AgentInstance) (TaskClaim, error)
+method TaskFilterAPI value.ListTasksFiltered func(context.Context, string, string, TaskStatus, TaskFilters, int) ([]Task, error)
+method TaskFilterAPI value.ListTasksPageFiltered func(context.Context, string, string, TaskStatus, TaskFilters, string, int) (TaskPage, error)
+method TaskFilterStore value.TasksFilteredAfter func(string, TaskStatus, TaskFilters, string, string, int) ([]Task, error)
+method TaskFilters pointer.WithInstance func(d InstanceDefaults) TaskFilters
+method TaskFilters value.WithInstance func(d InstanceDefaults) TaskFilters
+method TaskMutationAPI value.ClaimTaskWithOperation func(context.Context, string, string, time.Duration, string, ...AgentInstance) (TaskClaim, error)
+method TaskMutationAPI value.CreateTask func(context.Context, string, string, TaskInput) (Task, error)
+method TaskMutationAPI value.RenewClaimWithOperation func(context.Context, string, string, string, int64, time.Duration, string) (TaskClaim, error)
+method TaskOutcomeAPI value.CancelTask func(context.Context, string, string, TaskOutcomeInput) (Task, error)
+method TaskOutcomeAPI value.FailTask func(context.Context, string, string, TaskOutcomeInput) (Task, error)
+method TaskPageAPI value.ListTasksPage func(context.Context, string, string, TaskStatus, string, int) (TaskPage, error)
+method TaskPageStore value.TasksAfter func(string, TaskStatus, string, string, int) ([]Task, error)
+method TaskReadStore value.Task func(string) (Task, error)
+method TaskReadStore value.Tasks func(string, TaskStatus, int) ([]Task, error)
+method TaskReceiptReadStore value.TaskReceipt func(string, string) (TaskReceipt, error)
+method TaskReceiptWriteStore value.PutTaskReceipt func(string, string, TaskReceipt) error
+method TaskWriteStore value.PutTask func(Task) error
+method WriteStore value.Ack func(string, string, int64, time.Time, string) error
+method WriteStore value.AckCursor func(string, string, string) (int64, error)
+method WriteStore value.BootstrapDone func() (bool, error)
+method WriteStore value.ChildContextCount func(string) (int, error)
+method WriteStore value.ChildContexts func(string, string, int) ([]WorkContext, error)
+method WriteStore value.Context func(string) (WorkContext, error)
+method WriteStore value.ContextArchivedAt func(string, time.Time) (*time.Time, error)
+method WriteStore value.ContextCandidates func(string, string, int) ([]WorkContext, error)
+method WriteStore value.Grant func(string) (Grant, error)
+method WriteStore value.Grants func(string, string, time.Time) ([]Grant, error)
+method WriteStore value.InstanceLastSeen func(string, string, string) (time.Time, error)
+method WriteStore value.Instances func(string, time.Time) ([]InstancePresence, error)
+method WriteStore value.MarkBootstrapDone func() error
+method WriteStore value.Message func(string) (Message, error)
+method WriteStore value.MessageByDedupe func(string, string, string, ...string) (Message, error)
+method WriteStore value.Messages func(string, string, int64, int, ...MessageFilters) ([]Message, error)
+method WriteStore value.Participants func(string, time.Time, int) ([]Participant, error)
+method WriteStore value.Principal func(string) (Principal, error)
+method WriteStore value.PutContext func(WorkContext) error
+method WriteStore value.PutContextArchive func(string, time.Time) error
+method WriteStore value.PutContextCreator func(string, string, string) error
+method WriteStore value.PutGrant func(Grant) error
+method WriteStore value.PutInstancePresence func(InstancePresence) error
+method WriteStore value.PutMessage func(Message) (Message, error)
+method WriteStore value.PutPrincipal func(Principal) error
+method WriteStore value.PutReference func(Reference) error
+method WriteStore value.PutSession func(Session, string) error
+method WriteStore value.PutTask func(Task) error
+method WriteStore value.PutWorkspace func(Workspace) error
+method WriteStore value.RevokeGrantTree func(string, time.Time) error
+method WriteStore value.RevokeSessionTree func(string, time.Time) error
+method WriteStore value.Session func(string) (Session, error)
+method WriteStore value.SessionByTokenHash func(string) (Session, error)
+method WriteStore value.Task func(string) (Task, error)
+method WriteStore value.Tasks func(string, TaskStatus, int) ([]Task, error)
+method WriteStore value.TouchInstancePresence func(InstancePresence) error
+method WriteStore value.Workspace func(string) (Workspace, error)
+type API interface{ServerInfoAPI; SessionAPI; ContextAPI; GrantAPI; MessageAPI; TaskAPI; PresenceAPI}
+type AddReferenceInput struct{ContextID string; Kind string; URI string}
+type AgentInstance struct{ID string "json:\"id\""; Label string "json:\"label,omitempty\""}
+type ApprovalPayload struct{ArtifactRefs []string "json:\"artifact_refs\""; Verdict ApprovalVerdict "json:\"verdict\""; Checks []string "json:\"checks\""; BlockingCount *int "json:\"blocking_count\""; Summary string "json:\"summary,omitempty\""}
+type ApprovalVerdict string
+type BatchContextReadStore interface{ContextArchiveTimes([]string, time.Time) (map[string]*time.Time, error); GrantsForContexts(string, []string, time.Time) (map[string][]Grant, error)}
+type BootstrapInput struct{Credential string; AdminName string; SessionTTL time.Duration}
+type BuildInfo struct{Version string "json:\"version\""; Revision string "json:\"revision\""; Dirty string "json:\"dirty\""}
+type ChangeVersionStore interface{ChangeVersion(context.Context) (uint64, error)}
+type Clock func() time.Time
+type Config struct{Store Store; Clock Clock; BootstrapCredential string; MessageSchemas map[string]PayloadValidator; MessageSchemaDescriptors map[string]MessageSchemaDescriptor; MaxContextDepth int; MaxChildContextsPerGrant int}
+type ContentLimits struct{MessageBodyBytes int "json:\"message_body_bytes\""; TaskTitleBytes int "json:\"task_title_bytes\""; TaskBodyBytes int "json:\"task_body_bytes\""; ReferenceKindBytes int "json:\"reference_kind_bytes\""; ReferenceURIBytes int "json:\"reference_uri_bytes\""}
+type ContextAPI interface{AddReference(context.Context, string, AddReferenceInput) (Reference, error); ArchiveContext(context.Context, string, string) error; CreateChildContext(context.Context, string, CreateChildContextInput) (WorkContext, error); CreateContext(context.Context, string, CreateContextInput) (WorkContext, error); CreateWorkspace(context.Context, string, string) (Workspace, error); GetContext(context.Context, string, string) (WorkContext, error); ListChildContexts(context.Context, string, string, string, int) ([]WorkContext, error); ListContexts(context.Context, string, string, int) ([]WorkContext, error)}
+type ContextReadStore interface{ChildContextCount(string) (int, error); ChildContexts(string, string, int) ([]WorkContext, error); Context(string) (WorkContext, error); ContextArchivedAt(string, time.Time) (*time.Time, error); ContextCandidates(string, string, int) ([]WorkContext, error); Workspace(string) (Workspace, error)}
+type ContextWriteStore interface{PutContext(WorkContext) error; PutContextArchive(string, time.Time) error; PutContextCreator(string, string, string) error; PutReference(Reference) error; PutWorkspace(Workspace) error}
+type CreateChildContextInput struct{ParentContextID string; Name string; TaskID string; ParentReadable bool}
+type CreateContextInput struct{WorkspaceID string; Name string}
+type Credential struct{Session Session; Token string}
+type CriterionOutcome string
+type DedupeConflictError struct{MessageID string; Sequence int64; Differs []string}
+type DelegateInput struct{PrincipalName string; TTL time.Duration; Grants []DelegatedGrant}
+type DelegatedGrant struct{ContextID string; Permissions Permission; ExpiresAt time.Time}
+type Diagnostic struct{Operation string; ErrorClass string; RequestID string; Duration time.Duration; Build BuildInfo}
+type DiagnosticHook func(Diagnostic)
+type ErrorDetails struct{MessageID string "json:\"message_id,omitempty\""; Sequence int64 "json:\"sequence,omitempty\""; Differs []string "json:\"differs,omitempty\""}
+type ErrorInfo struct{Code string "json:\"code\""; Message string "json:\"message\""; Hint string "json:\"hint,omitempty\""; RequestID string "json:\"request_id,omitempty\""; Details *ErrorDetails "json:\"details,omitempty\""}
+type EvaluationCost struct{AmountMicros int64 "json:\"amount_micros\""; Currency string "json:\"currency\""}
+type EvaluationCostMetric struct{Currency string "json:\"currency\""; TotalAmountMicros int64 "json:\"total_amount_micros\""; CostPerAcceptedResultMicros *float64 "json:\"cost_per_accepted_result_micros,omitempty\""}
+type EvaluationCriterion struct{Name string "json:\"name\""; Outcome CriterionOutcome "json:\"outcome\""; EvidenceRefs []string "json:\"evidence_refs,omitempty\""; Reason string "json:\"reason,omitempty\""}
+type EvaluationGrader struct{Kind GraderKind "json:\"kind\""; ID string "json:\"id\""}
+type EvaluationOutcome string
+type EvaluationOutcomeCounts struct{Accepted int "json:\"accepted\""; Rejected int "json:\"rejected\""; Inconclusive int "json:\"inconclusive\""}
+type EvaluationReport struct{Schema string "json:\"schema\""; TotalResults int "json:\"total_results\""; Outcomes EvaluationOutcomeCounts "json:\"outcomes\""; AcceptanceRate *float64 "json:\"acceptance_rate,omitempty\""; TotalCriteria int "json:\"total_criteria\""; EvidenceBackedCriteria int "json:\"evidence_backed_criteria\""; NotRunCriteria int "json:\"not_run_criteria\""; CostedResults int "json:\"costed_results\""; UncostedResults int "json:\"uncosted_results\""; Costs []EvaluationCostMetric "json:\"costs\""}
+type EvaluationResultPayload struct{EvaluationID string "json:\"evaluation_id\""; Outcome EvaluationOutcome "json:\"outcome\""; Grader EvaluationGrader "json:\"grader\""; Criteria []EvaluationCriterion "json:\"criteria\""; Cost *EvaluationCost "json:\"cost,omitempty\""}
+type GraderKind string
+type Grant struct{ID string; SessionID string; ContextID string; ParentGrantID string; IssuerSessionID string; Permissions Permission; ExpiresAt time.Time; RevokedAt *time.Time; CreatedAt time.Time}
+type GrantAPI interface{GrantContext(context.Context, string, GrantInput) (Grant, error); RevokeGrant(context.Context, string, string) error}
+type GrantEvaluator struct{lookup GrantLookup; grants map[string]Grant; sessions map[string]grantLifetime; ends map[string]grantLifetime}
+type GrantInput struct{SessionID string; ContextID string; Permissions Permission; ExpiresAt time.Time}
+type GrantLookup interface{Grant(string) (Grant, error); Session(string) (Session, error)}
+type GrantReadStore interface{Grant(string) (Grant, error); Grants(string, string, time.Time) ([]Grant, error)}
+type GrantWriteStore interface{PutGrant(Grant) error; RevokeGrantTree(string, time.Time) error}
+type InstanceDefaults struct{instance *AgentInstance}
+type InstancePage struct{Instances []InstancePresence "json:\"instances\""; NextAfter string "json:\"next_after\""; HasMore bool "json:\"has_more\""}
+type InstancePageAPI interface{ListInstancesPage(context.Context, string, string, string, int) (InstancePage, error)}
+type InstancePageStore interface{InstancesAfter(contextID string, now time.Time, afterSession string, afterInstance string, limit int) ([]InstancePresence, error)}
+type InstancePresence struct{ID string "json:\"id\""; Label string "json:\"label,omitempty\""; SessionID string "json:\"session_id\""; ContextID string "json:\"context_id\""; LastSeen time.Time "json:\"last_seen\""; Resume json.RawMessage "json:\"resume,omitempty\""; Active bool "json:\"active\""; SeenSecondsAgo *int64 "json:\"seen_seconds_ago,omitempty\""; Recent *bool "json:\"recent,omitempty\""}
+type MergeCertificatePayload struct{PolicyID string "json:\"policy_id\""; ArtifactRef string "json:\"artifact_ref\""; HeadSHA string "json:\"head_sha\""; ApprovalIDs []string "json:\"approval_ids\""; IssuedAt string "json:\"issued_at\""; ExpiresAt string "json:\"expires_at\""; ConsumptionKey string "json:\"consumption_key\""}
+type MergePolicy struct{ID string; IssuerSessionID string; RequesterSessionID string; Reviewers map[string]string; Checks []string}
+type MergeReceiptPayload struct{OperationID string "json:\"operation_id\""; Status string "json:\"status\""; HeadSHA string "json:\"head_sha\""; MergeSHA string "json:\"merge_sha,omitempty\""; EvidenceRefs []string "json:\"evidence_refs\""}
+type MergeVerifyOptions struct{DistinctReviewers bool; ForbidRequesterReview bool; ForbidIssuerReview bool; Replies []Message}
+type Message struct{TaskAttempt *TaskAttempt "json:\"task_attempt,omitempty\""; ID string; ContextID string; SessionID string; DedupeKey string; Body string; Sequence int64; CreatedAt time.Time; Envelope *MessageEnvelope "json:\"envelope,omitempty\""; AgentInstance *AgentInstance "json:\"agent_instance,omitempty\""; AgentInstanceSelfReported bool "json:\"agent_instance_self_reported,omitempty\""}
+type MessageAPI interface{AckMessages(context.Context, string, string, int64, ...string) error; AppendMessage(context.Context, string, string, MessageInput) (Message, error); ListParticipants(context.Context, string, string, int) ([]Participant, error); MessageCursor(context.Context, string, string, ...string) (int64, error); ReplayMessages(context.Context, string, string, int64, int, ...MessageFilters) ([]Message, error); WaitMessages(context.Context, string, string, int64, time.Duration, ...MessageFilters) ([]Message, error)}
+type MessageEnvelope struct{Schema string "json:\"schema\""; RecipientSessionIDs []string "json:\"recipient_session_ids,omitempty\""; RecipientInstances []string "json:\"recipient_instances,omitempty\""; TaskID string "json:\"task_id,omitempty\""; ReplyTo string "json:\"reply_to,omitempty\""; Payload json.RawMessage "json:\"payload\""}
+type MessageFilters struct{ExcludeSelf bool "json:\"exclude_self,omitempty\""; FromCursor bool "json:\"from_cursor,omitempty\""; Schemas []string "json:\"schemas,omitempty\""; ReplyTo string "json:\"reply_to,omitempty\""; ThreadID string "json:\"thread_id,omitempty\""; FromSession string "json:\"from_session,omitempty\""; MaxBytes int "json:\"max_bytes,omitempty\""; ForInstance string "json:\"for_instance,omitempty\""; FromInstance string "json:\"from_instance,omitempty\""; TaskID string "json:\"task_id,omitempty\""; Schema string "json:\"schema,omitempty\""; StrictRecipients bool "json:\"strict_recipients,omitempty\""; AgentInstance *string "json:\"agent_instance,omitempty\""}
+type MessageInput struct{RecipientSessionIDs []string "json:\"recipient_session_ids,omitempty\""; RecipientInstances []string "json:\"recipient_instances,omitempty\""; TaskFence *TaskFence "json:\"task_fence,omitempty\""; DedupeKey string; Body string; Envelope *MessageEnvelope "json:\"envelope,omitempty\""; AgentInstance *AgentInstance "json:\"agent_instance,omitempty\""}
+type MessagePage struct{Messages []Message "json:\"messages\""; NextAfter int64 "json:\"next_after\""; ScannedThrough int64 "json:\"scanned_through\""; HasMore bool "json:\"has_more\""}
+type MessagePageAPI interface{ReplayMessagesPage(context.Context, string, string, int64, int, ...MessageFilters) (MessagePage, error); WaitMessagesPage(context.Context, string, string, int64, time.Duration, ...MessageFilters) (MessagePage, error)}
+type MessageQueryAPI interface{GetMessage(context.Context, string, string, string) (Message, error)}
+type MessageQueryStore interface{SupportsMessageQueries() bool}
+type MessageReadOptionsAPI interface{SupportsMessageReadOptions() bool}
+type MessageReadOptionsStore interface{SupportsMessageReadOptions() bool}
+type MessageReadStore interface{AckCursor(string, string, string) (int64, error); Message(string) (Message, error); MessageByDedupe(string, string, string, ...string) (Message, error); Messages(string, string, int64, int, ...MessageFilters) ([]Message, error); Participants(string, time.Time, int) ([]Participant, error)}
+type MessageScanStore interface{MessagesScanned(string, string, int64, int, MessageFilters) ([]Message, int64, error)}
+type MessageSchemaAPI interface{GetMessageSchema(context.Context, string, string) (MessageSchemaDescriptor, error); ListMessageSchemas(context.Context, string) ([]MessageSchemaDescriptor, error)}
+type MessageSchemaDescriptor struct{ID string "json:\"id\""; PayloadSchema json.RawMessage "json:\"payload_schema\""; BodyRequired bool "json:\"body_required\""; TaskRequired bool "json:\"task_required\""; TaskOrArtifactRefs bool "json:\"task_or_artifact_refs\""; Requirements []string "json:\"requirements\""; Examples []MessageSchemaExample "json:\"examples\""; Opaque bool "json:\"opaque,omitempty\""; ServerAuthored bool "json:\"server_authored,omitempty\""}
+type MessageSchemaExample struct{Body string "json:\"body,omitempty\""; Envelope MessageEnvelope "json:\"envelope\""}
+type MessageWriteStore interface{Ack(string, string, int64, time.Time, string) error; PutMessage(Message) (Message, error)}
+type OperationalError struct{Info ErrorInfo; Cause error}
+type Participant struct{SessionID string; PrincipalID string; Name string; ExpiresAt time.Time}
+type ParticipantPage struct{Participants []Participant "json:\"participants\""; NextAfter string "json:\"next_after\""; HasMore bool "json:\"has_more\""}
+type ParticipantPageAPI interface{ListParticipantsPage(context.Context, string, string, string, int) (ParticipantPage, error)}
+type ParticipantPageStore interface{ParticipantsAfter(string, time.Time, string, int) ([]Participant, error)}
+type PayloadValidator func(json.RawMessage) error
+type Permission uint32
+type PresenceAPI interface{ListInstances(context.Context, string, string) ([]InstancePresence, error); SetInstanceResume(context.Context, string, string, *AgentInstance, json.RawMessage) error}
+type PresenceReadStore interface{InstanceLastSeen(string, string, string) (time.Time, error); Instances(string, time.Time) ([]InstancePresence, error)}
+type PresenceWriteStore interface{PutInstancePresence(InstancePresence) error; TouchInstancePresence(InstancePresence) error}
+type Principal struct{ID string; Name string; Admin bool; CreatedAt time.Time}
+type ReadStore interface{SessionReadStore; ContextReadStore; GrantReadStore; MessageReadStore; TaskReadStore; PresenceReadStore}
+type ReceiptPayload struct{Status string "json:\"status\""; ResultRefs []string "json:\"result_refs,omitempty\""; Reason string "json:\"reason,omitempty\""}
+type Reference struct{ID string; ContextID string; Kind string; URI string; CreatedAt time.Time}
+type ReferenceListAPI interface{ListReferences(ctx context.Context, token string, contextID string, after string, limit int) (ReferencePage, error)}
+type ReferenceListStore interface{ReferencesAfter(contextID string, created string, afterID string, limit int) ([]Reference, error)}
+type ReferencePage struct{References []Reference "json:\"references\""; NextAfter string "json:\"next_after\""; HasMore bool "json:\"has_more\""}
+type RequestPayload struct{Operation string "json:\"operation\""; Instructions string "json:\"instructions\""; ExpectedResponders []string "json:\"expected_responders\""; Deadline string "json:\"deadline\""; ArtifactRefs []string "json:\"artifact_refs,omitempty\""}
+type SQLiteStore struct{db *sql.DB; readers *sql.DB; writers chan struct{}; changes sqliteChanges; anchor *sql.DB}
+type ServerInfo struct{Version string "json:\"version\""; ProtocolVersion string "json:\"protocol_version\""; Features []string "json:\"features\""; Build BuildInfo "json:\"build\""; Limits *ContentLimits "json:\"limits,omitempty\""; Client *BuildInfo "json:\"client,omitempty\""; ClientStale *bool "json:\"client_stale,omitempty\""; ClientMissingFeatures []string "json:\"client_missing_features,omitempty\""; ClientHint string "json:\"client_hint,omitempty\""}
+type ServerInfoAPI interface{ServerInfo(context.Context, string) (ServerInfo, error)}
+type Service struct{store Store; now Clock; bootstrapCredential string; messageSchemas map[string]PayloadValidator; messageSchemaDescriptors map[string]MessageSchemaDescriptor; maxContextDepth int; maxChildContextsPerGrant int; messageNotifications messageNotifications; waitTicker func() (<-chan time.Time, func())}
+type Session struct{ID string; PrincipalID string; ParentID string; ExpiresAt time.Time; RevokedAt *time.Time; CreatedAt time.Time}
+type SessionAPI interface{Bootstrap(context.Context, BootstrapInput) (Principal, Credential, error); CreatePrincipal(context.Context, string, string) (Principal, error); DelegateSession(context.Context, string, DelegateInput) (Principal, Credential, []Grant, error); MintSession(context.Context, string, string, time.Duration) (Credential, error); RevokeSession(context.Context, string, string) error}
+type SessionReadStore interface{BootstrapDone() (bool, error); Principal(string) (Principal, error); Session(string) (Session, error); SessionByTokenHash(string) (Session, error)}
+type SessionWriteStore interface{MarkBootstrapDone() error; PutPrincipal(Principal) error; PutSession(Session, string) error; RevokeSessionTree(string, time.Time) error}
+type StorageStatus struct{WriteReady bool "json:\"write_ready\""; ProbeDurationMS int64 "json:\"probe_duration_ms\""; WriteAttempts uint64 "json:\"write_attempts\""; WriteFailures uint64 "json:\"write_failures\""; LastWriteFailureDurationMS int64 "json:\"last_write_failure_duration_ms\""; LastWriteDurationMS int64 "json:\"last_write_duration_ms\""; MaxWriteDurationMS int64 "json:\"max_write_duration_ms\""; LastWriteErrorClass string "json:\"last_write_error_class,omitempty\""}
+type StorageStatusAPI interface{StorageStatus(context.Context, string) (StorageStatus, error)}
+type Store interface{Close() error; Update(context.Context, func(WriteStore) error) error; View(context.Context, func(ReadStore) error) error}
+type Task struct{ID string; ContextID string; Title string; Body string; OutcomeReason string "json:\"outcome_reason,omitempty\""; Status TaskStatus; LeaseOwnerSessionID string; LeaseVersion int64; LeaseExpiresAt *time.Time; LeaseTokenHash string "json:\"-\""; CreatedAt time.Time; UpdatedAt time.Time; LeaseOwnerInstance *AgentInstance "json:\"lease_owner_instance,omitempty\""; LeaseExpired bool "json:\"lease_expired,omitempty\""}
+type TaskAPI interface{ClaimTask(context.Context, string, string, time.Duration, ...AgentInstance) (TaskClaim, error); CompleteTask(context.Context, string, string, string, int64) (Task, error); CreateTask(context.Context, string, string, TaskInput) (Task, error); GetTask(context.Context, string, string) (Task, error); ListTasks(context.Context, string, string, TaskStatus, int) ([]Task, error); ReleaseTask(context.Context, string, string, string, int64) (Task, error); RenewClaim(context.Context, string, string, string, int64, time.Duration) (TaskClaim, error)}
+type TaskAttempt struct{TaskID string "json:\"task_id\""; LeaseVersion int64 "json:\"lease_version\""; ClaimTokenHash string "json:\"-\""}
+type TaskClaim struct{Task Task; Token string}
+type TaskClaimRecoveryAPI interface{RecoverClaim(context.Context, string, string, int64, ...AgentInstance) (TaskClaim, error)}
+type TaskEventPayload struct{Kind string "json:\"kind\""; PreviousStatus TaskStatus "json:\"previous_status,omitempty\""; Status TaskStatus "json:\"status\""; LeaseVersion int64 "json:\"lease_version\""; LeaseOwnerSessionID string "json:\"lease_owner_session_id,omitempty\""; LeaseOwnerInstance *AgentInstance "json:\"lease_owner_instance,omitempty\""; Reason string "json:\"reason,omitempty\""}
+type TaskFence struct{TaskID string "json:\"task_id\""; ClaimToken string "json:\"claim_token\""; LeaseVersion int64 "json:\"lease_version\""}
+type TaskFilterAPI interface{ListTasksFiltered(context.Context, string, string, TaskStatus, TaskFilters, int) ([]Task, error); ListTasksPageFiltered(context.Context, string, string, TaskStatus, TaskFilters, string, int) (TaskPage, error)}
+type TaskFilterStore interface{TasksFilteredAfter(string, TaskStatus, TaskFilters, string, string, int) ([]Task, error)}
+type TaskFilters struct{Claimable bool "json:\"claimable,omitempty\""; OwnerSession string "json:\"owner_session,omitempty\""; OwnerInstance string "json:\"owner_instance,omitempty\""; Mine bool "json:\"mine,omitempty\""}
+type TaskInput struct{Title string; Body string; OperationID string "json:\"operation_id,omitempty\""}
+type TaskMutationAPI interface{ClaimTaskWithOperation(context.Context, string, string, time.Duration, string, ...AgentInstance) (TaskClaim, error); CreateTask(context.Context, string, string, TaskInput) (Task, error); RenewClaimWithOperation(context.Context, string, string, string, int64, time.Duration, string) (TaskClaim, error)}
+type TaskOutcomeAPI interface{CancelTask(context.Context, string, string, TaskOutcomeInput) (Task, error); FailTask(context.Context, string, string, TaskOutcomeInput) (Task, error)}
+type TaskOutcomeInput struct{ClaimToken string "json:\"claim_token,omitempty\""; LeaseVersion int64 "json:\"lease_version\""; Reason string "json:\"reason\""; OperationID string "json:\"operation_id,omitempty\""}
+type TaskPage struct{Tasks []Task "json:\"tasks\""; NextAfter string "json:\"next_after\""; HasMore bool "json:\"has_more\""}
+type TaskPageAPI interface{ListTasksPage(context.Context, string, string, TaskStatus, string, int) (TaskPage, error)}
+type TaskPageStore interface{TasksAfter(string, TaskStatus, string, string, int) ([]Task, error)}
+type TaskReadStore interface{Task(string) (Task, error); Tasks(string, TaskStatus, int) ([]Task, error)}
+type TaskReceipt struct{Fingerprint string; Result Task}
+type TaskReceiptReadStore interface{TaskReceipt(string, string) (TaskReceipt, error)}
+type TaskReceiptWriteStore interface{PutTaskReceipt(string, string, TaskReceipt) error}
+type TaskStatus string
+type TaskStatusPayload struct{State string "json:\"state\""; Summary string "json:\"summary\""; ChildContextID string "json:\"child_context_id,omitempty\""; Blockers []string "json:\"blockers,omitempty\""; Links []string "json:\"links,omitempty\""}
+type TaskWriteStore interface{PutTask(Task) error}
+type WorkContext struct{ID string; WorkspaceID string; Name string; ParentContextID string; TaskID string; CreatorSessionID string; ParentReadable bool; CreatedAt time.Time; Archived bool; ArchivedAt *time.Time}
+type Workspace struct{ID string; Name string; CreatedAt time.Time}
+type WriteStore interface{ReadStore; SessionWriteStore; ContextWriteStore; GrantWriteStore; MessageWriteStore; TaskWriteStore; PresenceWriteStore}
+var Dirty string
+var ErrBootstrapUsed error
+var ErrConflict error
+var ErrForbidden error
+var ErrInvalid error
+var ErrNotFound error
+var ErrStaleClaim error
+var ErrUnauthenticated error
+var Revision string
+var Version string
+## github.com/krimvp/comitia/sqlite
+func OpenSQLite(path string) (*SQLiteStore, error)
+## github.com/krimvp/comitia/storetest
+func Grants(t *testing.T, open func(*testing.T) Store)

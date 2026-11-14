@@ -33,7 +33,7 @@ func populateProjections(t *testing.T, f fixture) {
 		t.Fatal(err)
 	}
 	// A rebuild deletes every recipient row; a surviving marker proves none ran.
-	if _, err := DB(f.store).Exec("INSERT INTO message_recipients SELECT id,context_id,seq,'marker','' FROM messages LIMIT 1"); err != nil {
+	if _, err := f.store.db.Exec("INSERT INTO message_recipients SELECT id,context_id,seq,'marker','' FROM messages LIMIT 1"); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -41,17 +41,17 @@ func populateProjections(t *testing.T, f fixture) {
 func assertProjectionsKept(t *testing.T, st *SQLiteStore) {
 	t.Helper()
 	var marker, filters, routed, replies int
-	if err := DB(st).QueryRow("SELECT (SELECT COUNT(*) FROM message_recipients WHERE kind='marker'),(SELECT COUNT(*) FROM message_filters),(SELECT COUNT(*) FROM message_recipients WHERE kind='instance' AND recipient='reader'),(SELECT COUNT(*) FROM message_replies)").Scan(&marker, &filters, &routed, &replies); err != nil {
+	if err := st.db.QueryRow("SELECT (SELECT COUNT(*) FROM message_recipients WHERE kind='marker'),(SELECT COUNT(*) FROM message_filters),(SELECT COUNT(*) FROM message_recipients WHERE kind='instance' AND recipient='reader'),(SELECT COUNT(*) FROM message_replies)").Scan(&marker, &filters, &routed, &replies); err != nil {
 		t.Fatal(err)
 	}
 	var messages int
-	if err := DB(st).QueryRow("SELECT COUNT(*) FROM messages").Scan(&messages); err != nil {
+	if err := st.db.QueryRow("SELECT COUNT(*) FROM messages").Scan(&messages); err != nil {
 		t.Fatal(err)
 	}
 	if marker != 1 || filters != messages || routed != 1 || replies != 1 {
 		t.Fatalf("projections rebuilt or lost: marker=%d filters=%d/%d routed=%d replies=%d", marker, filters, messages, routed, replies)
 	}
-	if MigrationPending(st, context.Background()) {
+	if st.migrationPending(context.Background()) {
 		t.Fatal("migration still pending")
 	}
 }
@@ -60,25 +60,25 @@ func TestSQLiteDDLEditDoesNotRerunBackfills(t *testing.T) {
 	f := setup(t, filepath.Join(t.TempDir(), "state.db"))
 	defer f.store.Close()
 	populateProjections(t, f)
-	if Schemas[3] != MessageSchemaSQL {
+	if schemas[3] != messageSchema {
 		t.Fatal("schemas[3] is not messageSchema")
 	}
-	old := Schemas[3]
-	defer func() { Schemas[3] = old }()
-	Schemas[3] += "\nCREATE INDEX IF NOT EXISTS generation_test_index ON messages(created_at);"
+	old := schemas[3]
+	defer func() { schemas[3] = old }()
+	schemas[3] += "\nCREATE INDEX IF NOT EXISTS generation_test_index ON messages(created_at);"
 	ctx := context.Background()
-	if !MigrationPending(f.store, ctx) {
+	if !f.store.migrationPending(ctx) {
 		t.Fatal("schema change not detected")
 	}
-	if err := Migrate(f.store, ctx); err != nil {
+	if err := f.store.migrate(ctx); err != nil {
 		t.Fatal(err)
 	}
 	assertProjectionsKept(t, f.store)
 	// Binaries from before the split find their combined generations and skip.
-	for _, b := range Backfills {
-		for _, generation := range BackfillLegacy(b) {
+	for _, b := range backfills {
+		for _, generation := range b.legacy {
 			var exists bool
-			if err := DB(f.store).QueryRow("SELECT EXISTS(SELECT 1 FROM comitia_generations WHERE generation=?)", generation).Scan(&exists); err != nil || !exists {
+			if err := f.store.db.QueryRow("SELECT EXISTS(SELECT 1 FROM comitia_generations WHERE generation=?)", generation).Scan(&exists); err != nil || !exists {
 				t.Fatalf("legacy generation %s not recorded: %v", generation, err)
 			}
 		}
@@ -91,11 +91,11 @@ func TestSQLiteUpgradeFromCombinedGenerationsKeepsProjections(t *testing.T) {
 			path := filepath.Join(t.TempDir(), "state.db")
 			f := setup(t, path)
 			populateProjections(t, f)
-			if _, err := DB(f.store).Exec("DELETE FROM comitia_generations; PRAGMA user_version=0"); err != nil {
+			if _, err := f.store.db.Exec("DELETE FROM comitia_generations; PRAGMA user_version=0"); err != nil {
 				t.Fatal(err)
 			}
 			for _, generation := range generations {
-				if _, err := DB(f.store).Exec("INSERT INTO comitia_generations VALUES(?)", generation); err != nil {
+				if _, err := f.store.db.Exec("INSERT INTO comitia_generations VALUES(?)", generation); err != nil {
 					t.Fatal(err)
 				}
 			}
@@ -109,7 +109,7 @@ func TestSQLiteUpgradeFromCombinedGenerationsKeepsProjections(t *testing.T) {
 			defer st.Close()
 			assertProjectionsKept(t, st)
 			var version int
-			if err := DB(st).QueryRow("PRAGMA user_version").Scan(&version); err != nil || version != SchemaVersion {
+			if err := st.db.QueryRow("PRAGMA user_version").Scan(&version); err != nil || version != sqliteSchemaVersion {
 				t.Fatalf("schema version %d: %v", version, err)
 			}
 		})
@@ -124,14 +124,14 @@ func TestSQLiteRefusesNewerSchemaVersion(t *testing.T) {
 	}
 	defer st.Close()
 	var version int
-	if err := DB(st).QueryRow("PRAGMA user_version").Scan(&version); err != nil || version != SchemaVersion {
+	if err := st.db.QueryRow("PRAGMA user_version").Scan(&version); err != nil || version != sqliteSchemaVersion {
 		t.Fatalf("new database version %d: %v", version, err)
 	}
-	newer := SchemaVersion + 1
-	if _, err := DB(st).Exec(fmt.Sprintf("PRAGMA user_version=%d", newer)); err != nil {
+	newer := sqliteSchemaVersion + 1
+	if _, err := st.db.Exec(fmt.Sprintf("PRAGMA user_version=%d", newer)); err != nil {
 		t.Fatal(err)
 	}
-	want := fmt.Sprintf("schema version %d is newer than this binary supports (version %d)", newer, SchemaVersion)
+	want := fmt.Sprintf("schema version %d is newer than this binary supports (version %d)", newer, sqliteSchemaVersion)
 	// A process that opened the file before the upgrade stops writing too.
 	if err := st.Update(context.Background(), func(model.WriteStore) error { return nil }); err == nil || !strings.Contains(err.Error(), want) {
 		t.Fatalf("open store wrote to newer database: %v", err)

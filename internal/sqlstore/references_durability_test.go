@@ -40,7 +40,7 @@ func TestReferenceFieldsSurviveReopen(t *testing.T) {
 	defer reopened.Close()
 	var got model.Reference
 	var created string
-	if err := DB(reopened).QueryRow("SELECT id,context_id,kind,uri,created_at FROM refs WHERE id=?", reference.ID).Scan(&got.ID, &got.ContextID, &got.Kind, &got.URI, &created); err != nil {
+	if err := reopened.db.QueryRow("SELECT id,context_id,kind,uri,created_at FROM refs WHERE id=?", reference.ID).Scan(&got.ID, &got.ContextID, &got.Kind, &got.URI, &created); err != nil {
 		t.Fatal(err)
 	}
 	got.CreatedAt = model.ParseTime(created)
@@ -48,7 +48,7 @@ func TestReferenceFieldsSurviveReopen(t *testing.T) {
 		t.Fatalf("persisted: %+v want %+v", got, reference)
 	}
 	var count int
-	if err := DB(reopened).QueryRow("SELECT COUNT(*) FROM refs").Scan(&count); err != nil || count != 1 {
+	if err := reopened.db.QueryRow("SELECT COUNT(*) FROM refs").Scan(&count); err != nil || count != 1 {
 		t.Fatalf("invalid writes persisted: %d %v", count, err)
 	}
 }

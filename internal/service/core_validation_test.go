@@ -7,9 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/krimvp/comitia/internal/schema"
-
 	"github.com/krimvp/comitia/internal/model"
+	"github.com/krimvp/comitia/internal/schema"
 )
 
 func TestGrantsRejectUndefinedPermissionBits(t *testing.T) {

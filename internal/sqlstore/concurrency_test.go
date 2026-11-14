@@ -50,7 +50,7 @@ func TestSQLiteConcurrentOpenAndWritesOnFreshFile(t *testing.T) {
 	}
 	defer st.Close()
 	var n int
-	if err = DB(st).QueryRow("SELECT COUNT(*) FROM workspaces").Scan(&n); err != nil || n != stores*writes {
+	if err = st.db.QueryRow("SELECT COUNT(*) FROM workspaces").Scan(&n); err != nil || n != stores*writes {
 		t.Fatalf("workspaces=%d err=%v", n, err)
 	}
 }
@@ -67,17 +67,17 @@ func TestSQLiteMigrationPendingOnlyWhenWorkRemains(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if MigrationPending(f.store, ctx) {
+	if f.store.migrationPending(ctx) {
 		t.Fatal("migrated store reports pending work")
 	}
 	// An older binary appends without a dedupe scope; the next open backfills it.
-	if _, err = DB(f.store).Exec("INSERT INTO messages VALUES(?,?,?,?,?,?,?)", "old", m.ContextID, m.SessionID, 2, "old-key", "old", model.TS(*f.now)); err != nil {
+	if _, err = f.store.db.Exec("INSERT INTO messages VALUES(?,?,?,?,?,?,?)", "old", m.ContextID, m.SessionID, 2, "old-key", "old", model.TS(*f.now)); err != nil {
 		t.Fatal(err)
 	}
-	if !MigrationPending(f.store, ctx) {
+	if !f.store.migrationPending(ctx) {
 		t.Fatal("unscoped message not detected")
 	}
-	if err = Migrate(f.store, ctx); err != nil || MigrationPending(f.store, ctx) {
+	if err = f.store.migrate(ctx); err != nil || f.store.migrationPending(ctx) {
 		t.Fatalf("backfill: %v", err)
 	}
 }

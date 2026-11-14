@@ -47,12 +47,6 @@ func TxQuerier(s *TxStore) Querier { return s.q }
 // does. It exists for tests.
 func TransactionQuerier(tx *sql.Tx, ctx context.Context) Querier { return transactionQuery{tx, ctx} }
 
-// ParticipantCandidates lists the sessions holding grants on a context, after
-// afterID. It exists for tests.
-func ParticipantCandidates(s *TxStore, cid, afterID string, limit int) ([]string, error) {
-	return s.participantCandidates(cid, afterID, limit)
-}
-
 // MessageQuery returns the statement and arguments of a message page. It
 // exists for tests.
 func MessageQuery(cid, sid string, after int64, limit int, f model.MessageFilters) (string, []any) {
@@ -82,10 +76,6 @@ type Backfill = backfill
 // tests.
 func BackfillGenerations(b Backfill) []string { return b.generations() }
 
-// BackfillLegacy lists the older schema strings that embedded b. It exists for
-// tests.
-func BackfillLegacy(b Backfill) []string { return b.legacy }
-
 // Migration steps and statements, for tests. Schemas shares its elements with
 // the list the store migrates, so a test that changes one changes the next
 // migration.
@@ -95,12 +85,10 @@ var (
 	CreatorRepairSQL = creatorRepair
 )
 
-// Migration statements and the schema version, for tests.
+// Migration statements, for tests.
 const (
-	SchemaVersion          = sqliteSchemaVersion
 	SessionSchemaSQL       = sessionSchema
 	GrantSchemaSQL         = grantSchema
-	MessageSchemaSQL       = messageSchema
 	MessageHiddenSchemaSQL = messageHiddenSchema
 	MessageRepairSQL       = messageRepair
 	RevokeGrantTreeSQL     = revokeGrantTreeSQL

@@ -119,8 +119,8 @@ func TestSQLiteMigrationProbeDoesNotReadHistoricalTables(t *testing.T) {
 			// A shared-cache table lock catches even a one-row historical scan,
 			// without a history-sized fixture. Unchanged schema generations and
 			// empty repair queues need no access to historical source tables.
-			DB(f.store).SetMaxOpenConns(2)
-			tx, err := DB(f.store).Begin()
+			f.store.db.SetMaxOpenConns(2)
+			tx, err := f.store.db.Begin()
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -137,7 +137,7 @@ func TestSQLiteMigrationProbeDoesNotReadHistoricalTables(t *testing.T) {
 				tx.Rollback()
 				close(released)
 			}()
-			pending := MigrationPending(f.store, ctx)
+			pending := f.store.migrationPending(ctx)
 			cancel()
 			<-released
 			if pending {
@@ -154,7 +154,7 @@ func TestSQLiteWALReadersAreQueryOnly(t *testing.T) {
 	}
 	defer st.Close()
 	if err := st.View(context.Background(), func(r model.ReadStore) error {
-		_, err := TxQuerier(r.(*TxStore)).Exec("INSERT INTO workspaces VALUES('bad','bad','bad')")
+		_, err := r.(*sqlStore).q.Exec("INSERT INTO workspaces VALUES('bad','bad','bad')")
 		if err == nil {
 			return errors.New("read connection accepted a write")
 		}
@@ -180,7 +180,7 @@ func TestSQLiteWALAuthorizationAndScanShareSnapshot(t *testing.T) {
 		if err != nil || len(grants) != 1 {
 			return errors.New("initial read grant missing")
 		}
-		x := r.(*TxStore)
+		x := r.(*sqlStore)
 		messages, err := x.Messages(f.context.ID, reader.Session.ID, 0, 10)
 		if err != nil || len(messages) != 0 {
 			return errors.New("initial scan not empty")

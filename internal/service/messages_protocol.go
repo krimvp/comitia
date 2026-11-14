@@ -5,7 +5,6 @@ import (
 	"slices"
 
 	"github.com/krimvp/comitia/internal/model"
-
 	"github.com/krimvp/comitia/internal/schema"
 )
 

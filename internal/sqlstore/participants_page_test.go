@@ -14,7 +14,7 @@ import (
 
 // participantScanQuery counts grant-holder rows read and records their plans.
 type participantScanQuery struct {
-	Querier
+	querier
 	rows  int
 	plans []string
 }
@@ -22,7 +22,7 @@ type participantScanQuery struct {
 func (q *participantScanQuery) Query(query string, args ...any) (*sql.Rows, error) {
 	if strings.Contains(query, "SELECT DISTINCT session_id FROM grants") {
 		for _, prefix := range []string{"EXPLAIN QUERY PLAN ", ""} {
-			rows, err := q.Querier.Query(prefix+query, args...)
+			rows, err := q.querier.Query(prefix+query, args...)
 			if err != nil {
 				return nil, err
 			}
@@ -46,7 +46,7 @@ func (q *participantScanQuery) Query(query string, args ...any) (*sql.Rows, erro
 			}
 		}
 	}
-	return q.Querier.Query(query, args...)
+	return q.querier.Query(query, args...)
 }
 
 func TestParticipantsPageReadsOnlyNeededGrantHolders(t *testing.T) {
@@ -66,10 +66,10 @@ func TestParticipantsPageReadsOnlyNeededGrantHolders(t *testing.T) {
 	var candidates []string
 	if err := f.store.View(ctx, func(r model.ReadStore) error {
 		var err error
-		if candidates, err = ParticipantCandidates(r.(*TxStore), f.context.ID, "", -1); err != nil {
+		if candidates, err = r.(*sqlStore).participantCandidates(f.context.ID, "", -1); err != nil {
 			return err
 		}
-		all, err = r.(*TxStore).ParticipantsAfter(f.context.ID, *f.now, "", 0)
+		all, err = r.(*sqlStore).ParticipantsAfter(f.context.ID, *f.now, "", 0)
 		return err
 	}); err != nil {
 		t.Fatal(err)
@@ -94,9 +94,9 @@ func TestParticipantsPageReadsOnlyNeededGrantHolders(t *testing.T) {
 			var page []model.Participant
 			var q *participantScanQuery
 			if err := f.store.View(ctx, func(r model.ReadStore) error {
-				q = &participantScanQuery{Querier: TxQuerier(r.(*TxStore))}
+				q = &participantScanQuery{querier: r.(*sqlStore).q}
 				var err error
-				page, err = NewTxStore(q).ParticipantsAfter(f.context.ID, *f.now, after, limit)
+				page, err = (&sqlStore{q: q}).ParticipantsAfter(f.context.ID, *f.now, after, limit)
 				return err
 			}); err != nil {
 				t.Fatal(err)

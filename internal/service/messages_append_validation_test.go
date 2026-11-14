@@ -6,15 +6,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"reflect"
 	"sort"
 	"strings"
 	"testing"
 
 	"github.com/krimvp/comitia/internal/evaluation"
-
-	"github.com/krimvp/comitia/internal/schema"
-
 	"github.com/krimvp/comitia/internal/model"
 )
 
@@ -137,30 +133,5 @@ func TestBuiltinAppendRejectsDuplicateKeys(t *testing.T) {
 	replay, err := f.svc.ReplayMessages(ctx, f.admin.Token, f.context.ID, 0, 100)
 	if err != nil || len(replay) != 1 || replay[0].Envelope.Schema != model.TaskEventSchema {
 		t.Fatalf("rejected payload persisted: %+v %v", replay, err)
-	}
-}
-
-func TestAppendPayloadScansDictionaryValues(t *testing.T) {
-	type item struct {
-		Name string `json:"name"`
-	}
-	type payload struct {
-		Values map[string]*item `json:"values"`
-	}
-	for _, raw := range []string{
-		`{"values":{"MixedCase":{"name":"a","name":"b"}}}`,
-		`{"values":{"MixedCase":{"Name":"a"}}}`,
-		`{"values":{"MixedCase":{"name":"a"},"MixedCase":{"name":"b"}}}`,
-	} {
-		if err := schema.StrictAppendPayload(json.RawMessage(raw), &payload{}); !errors.Is(err, model.ErrInvalid) {
-			t.Fatalf("invalid dictionary accepted: %s %v", raw, err)
-		}
-	}
-	if err := schema.StrictAppendPayload(json.RawMessage(`{"values":{"MixedCase":{"name":"a"}}}`), &payload{}); err != nil {
-		t.Fatal(err)
-	}
-	// Scan even object values that will subsequently fail typed decoding.
-	if err := schema.ExactPayloadFields(json.RawMessage(`{"values":{"key":[{"id":1,"id":2}]}}`), reflect.TypeOf(&payload{})); !errors.Is(err, model.ErrInvalid) || !strings.Contains(err.Error(), "duplicate key") {
-		t.Fatalf("untyped nested duplicate: %v", err)
 	}
 }

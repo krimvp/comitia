@@ -5,9 +5,8 @@ import (
 	"encoding/json"
 	"errors"
 
-	"github.com/krimvp/comitia/internal/schema"
-
 	"github.com/krimvp/comitia/internal/model"
+	"github.com/krimvp/comitia/internal/schema"
 )
 
 func contextMessage(r model.MessageReadStore, cid, mid string) (model.Message, error) {

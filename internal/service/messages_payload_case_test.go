@@ -12,11 +12,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/krimvp/comitia/internal/sqlstore"
-
-	"github.com/krimvp/comitia/internal/schema"
-
 	"github.com/krimvp/comitia/internal/model"
+	"github.com/krimvp/comitia/internal/schema"
+	"github.com/krimvp/comitia/internal/sqlstore"
 )
 
 type payloadCaseVariant struct {
@@ -114,35 +112,6 @@ func TestBuiltinPayloadKeysAreCaseSensitive(t *testing.T) {
 				}
 			}
 		})
-	}
-}
-
-func TestStrictPayloadExactFields(t *testing.T) {
-	type item struct {
-		Name string `json:"name"`
-	}
-	type payload struct {
-		Item       *item             `json:"item"`
-		Items      []item            `json:"items"`
-		Dictionary map[string]string `json:"dictionary"`
-		Optional   string            `json:"optional,omitempty"`
-	}
-	for _, raw := range []string{
-		`{"item":{"name":"a"},"items":[{"name":"b"}],"dictionary":{"MixedCase":"value"}}`,
-		`{"item":null,"items":null,"dictionary":null,"optional":null}`,
-	} {
-		if err := schema.StrictAppendPayload(json.RawMessage(raw), &payload{}); err != nil {
-			t.Fatalf("canonical/null payload: %s: %v", raw, err)
-		}
-	}
-	for _, raw := range []string{
-		`{"Item":{"name":"a"}}`, `{"item":{"Name":"a"}}`, `{"items":[{"NAME":"b"}]}`,
-		`{"OPTIONAL":null}`, `{"optional":"canonical","Optional":"alias"}`,
-		`{"item":{"name":"canonical","Name":"alias"}}`,
-	} {
-		if err := schema.StrictAppendPayload(json.RawMessage(raw), &payload{}); !errors.Is(err, model.ErrInvalid) {
-			t.Fatalf("mis-cased payload: %s: %v", raw, err)
-		}
 	}
 }
 

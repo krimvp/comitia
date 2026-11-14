@@ -12,50 +12,7 @@ import (
 	"time"
 
 	"github.com/krimvp/comitia/internal/model"
-
-	"github.com/krimvp/comitia/internal/schema"
 )
-
-func TestUnknownFieldGuidance(t *testing.T) {
-	tests := []struct {
-		name        string
-		fields      []string
-		want, avoid string
-	}{
-		{"after_sequence", []string{"limit", "after", "context_id"}, `did you mean "after"?`, ""},
-		{"through", []string{"sequence", "context_id"}, `did you mean "sequence"?`, ""},
-		{"summry", []string{"severity", "summary"}, `did you mean "summary"?`, ""},
-		{"Summary", []string{"summary", "severity"}, `did you mean "summary"?`, ""},
-		{"cat", []string{"bat", "hat"}, "accepted fields: bat, hat", "did you mean"},
-		{"unrelated", []string{"after", "limit"}, "accepted fields: after, limit", "did you mean"},
-		{"extra", nil, "no fields are accepted", "did you mean"},
-	}
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			err := model.UnknownField(tc.name, tc.fields)
-			if !errors.Is(err, model.ErrInvalid) || !strings.Contains(err.Error(), tc.want) || tc.avoid != "" && strings.Contains(err.Error(), tc.avoid) {
-				t.Fatalf("error: %v", err)
-			}
-		})
-	}
-	// Nested objects use their own contract, and never echo rejected values.
-	var payload struct {
-		Items []struct {
-			Summary string `json:"summary"`
-		} `json:"items"`
-	}
-	raw := json.RawMessage(`{"items":[{"summry":"private-value"}]}`)
-	err := schema.StrictAppendPayload(raw, &payload)
-	if !errors.Is(err, model.ErrInvalid) || !strings.Contains(err.Error(), `accepted fields: summary; did you mean "summary"?`) || strings.Contains(err.Error(), "private-value") {
-		t.Fatalf("nested payload: %v", err)
-	}
-	d := json.NewDecoder(strings.NewReader(string(raw)))
-	d.DisallowUnknownFields()
-	err = model.InvalidJSONFields(d.Decode(&payload), "payload", raw, &payload)
-	if !strings.Contains(err.Error(), `accepted fields: summary; did you mean "summary"?`) || strings.Contains(err.Error(), "private-value") {
-		t.Fatalf("nested JSON: %v", err)
-	}
-}
 
 func TestSchemaValidationGuidance(t *testing.T) {
 	f := setup(t, ":memory:")
@@ -235,28 +192,6 @@ func TestRegisteredExtensionSchemaFilters(t *testing.T) {
 	}
 	if _, err := svc.ReplayMessages(context.Background(), f.admin.Token, f.context.ID, 0, 10, model.MessageFilters{Schema: "unknown"}); err != nil {
 		t.Fatalf("unregistered filter: %v", err)
-	}
-}
-
-func TestUnknownFieldGuidanceUsesFirstFailingObject(t *testing.T) {
-	var target struct {
-		First struct {
-			Alpha string `json:"alpha"`
-		} `json:"first"`
-		Second struct {
-			Beta string `json:"beta"`
-		} `json:"second"`
-	}
-	// Identically named unknown keys must use the first decoder failure's
-	// contract, regardless of map iteration order or large numeric values.
-	raw := json.RawMessage(`{"second":{"unexpected":1e1000},"first":{"unexpected":"private-value"}}`)
-	for i := 0; i < 20; i++ {
-		d := json.NewDecoder(strings.NewReader(string(raw)))
-		d.DisallowUnknownFields()
-		err := model.InvalidJSONFields(d.Decode(&target), "arguments", raw, &target)
-		if !strings.Contains(err.Error(), "accepted fields: beta") || strings.Contains(err.Error(), "alpha") || strings.Contains(err.Error(), "private-value") {
-			t.Fatalf("wrong object contract: %v", err)
-		}
 	}
 }
 

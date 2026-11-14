@@ -7,9 +7,8 @@ import (
 	"sort"
 	"time"
 
-	"github.com/krimvp/comitia/internal/schema"
-
 	"github.com/krimvp/comitia/internal/model"
+	"github.com/krimvp/comitia/internal/schema"
 )
 
 // boundedCount returns how many leading items fit budget encoded bytes.

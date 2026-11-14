@@ -127,7 +127,7 @@ func TestInstancePresenceDropsEndedSessionsAfterRetention(t *testing.T) {
 		t.Fatalf("revoked rows listed after retention: %v", rows)
 	}
 	count := func() (n int) {
-		if err := DB(st).QueryRow("SELECT COUNT(*) FROM instance_presence WHERE session_id=?", reader.Session.ID).Scan(&n); err != nil {
+		if err := st.db.QueryRow("SELECT COUNT(*) FROM instance_presence WHERE session_id=?", reader.Session.ID).Scan(&n); err != nil {
 			t.Fatal(err)
 		}
 		return n

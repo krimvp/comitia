@@ -21,14 +21,14 @@ func TestMessageProjectionMissingTriggerRecovery(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if _, err := DB(f.store).Exec("DROP TRIGGER " + trigger); err != nil {
+			if _, err := f.store.db.Exec("DROP TRIGGER " + trigger); err != nil {
 				t.Fatal(err)
 			}
 			m, err := f.svc.AppendMessage(ctx, f.admin.Token, f.context.ID, model.MessageInput{DedupeKey: "missing-trigger", Body: "ready", AgentInstance: &model.AgentInstance{ID: "worker"}, Envelope: &model.MessageEnvelope{Schema: "comitia.discussion.v1", TaskID: task.ID, RecipientInstances: []string{"other"}, RecipientSessionIDs: []string{f.admin.Session.ID}, Payload: json.RawMessage(`{}`)}})
 			if err != nil {
 				t.Fatal(err)
 			}
-			if !MigrationPending(f.store, ctx) {
+			if !f.store.migrationPending(ctx) {
 				t.Fatal("missing projection trigger not detected")
 			}
 			if err := f.store.Close(); err != nil {
@@ -38,7 +38,7 @@ func TestMessageProjectionMissingTriggerRecovery(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if MigrationPending(f.store, ctx) {
+			if f.store.migrationPending(ctx) {
 				t.Fatal("recovered projection schema remains pending")
 			}
 			if err := f.store.View(ctx, func(r model.ReadStore) error {
@@ -75,7 +75,7 @@ func TestMessageProjectionTriggersCommitAtomically(t *testing.T) {
 	ctx := context.Background()
 	rollback := errors.New("rollback")
 	err := f.store.Update(ctx, func(w model.WriteStore) error {
-		q := TxQuerier(w.(*TxStore))
+		q := w.(*sqlStore).q
 		if _, err := q.Exec("INSERT INTO messages VALUES(?,?,?,?,?,?,?)", "pending", f.context.ID, f.admin.Session.ID, 1, "pending", "ready", model.TS(*f.now)); err != nil {
 			return err
 		}
@@ -113,11 +113,11 @@ func TestMessageProjectionTriggersCommitAtomically(t *testing.T) {
 	}
 	for _, table := range []string{"messages", "message_envelopes", "message_instances", "message_filters", "message_recipients", "comitia_message_repairs"} {
 		var count int
-		if err := DB(f.store).QueryRow("SELECT COUNT(*) FROM " + table).Scan(&count); err != nil || count != 0 {
+		if err := f.store.db.QueryRow("SELECT COUNT(*) FROM " + table).Scan(&count); err != nil || count != 0 {
 			t.Fatalf("rollback left %s rows=%d: %v", table, count, err)
 		}
 	}
-	if MigrationPending(f.store, ctx) {
+	if f.store.migrationPending(ctx) {
 		t.Fatal("rolled-back projections left migration work")
 	}
 }

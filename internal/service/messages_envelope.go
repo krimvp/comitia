@@ -10,9 +10,8 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/krimvp/comitia/internal/schema"
-
 	"github.com/krimvp/comitia/internal/model"
+	"github.com/krimvp/comitia/internal/schema"
 )
 
 // Normalization owns its slices and payload and makes retries independent of
