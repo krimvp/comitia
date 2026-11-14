@@ -3,6 +3,7 @@ package httpapi
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"math"
@@ -32,6 +33,18 @@ func decodeRequest(body io.Reader, target any) error {
 		return comitia.InvalidJSON(err, "request")
 	}
 	return nil
+}
+
+func ensureEOF(d *json.Decoder) error {
+	var x any
+	err := d.Decode(&x)
+	if err == io.EOF {
+		return nil
+	}
+	if err == nil {
+		return errors.New("additional JSON value")
+	}
+	return err
 }
 
 func normalizeFields(raw json.RawMessage, typ reflect.Type, legacy, strict bool) (json.RawMessage, error) {

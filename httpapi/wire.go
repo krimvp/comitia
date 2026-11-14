@@ -307,6 +307,14 @@ type finishTaskRequest struct {
 	LeaseVersion *int64 `json:"lease_version"`
 }
 
+type taskOutcomeRequest struct {
+	TaskID       string `json:"task_id"`
+	ClaimToken   string `json:"claim_token,omitempty"`
+	LeaseVersion *int64 `json:"lease_version"`
+	Reason       string `json:"reason,omitempty"`
+	OperationID  string `json:"operation_id,omitempty"`
+}
+
 type participantsRequest struct {
 	ContextID string `json:"context_id"`
 	AfterID   string `json:"after_id,omitempty"`
