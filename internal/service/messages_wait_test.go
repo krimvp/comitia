@@ -174,6 +174,9 @@ func TestWaitMessagesCancellationDuringRead(t *testing.T) {
 	}
 }
 
+// scanProbeStore sends on after the after argument of each message scan query
+// a View ran. A View that ran none, such as one cut by cancellation before its
+// callback or before the scan, sends nothing: it read no messages.
 type scanProbeStore struct {
 	model.Store
 	after chan int64
@@ -181,25 +184,26 @@ type scanProbeStore struct {
 
 type scanProbeQuerier struct {
 	sqlstore.Querier
-	after int64
+	after   int64
+	scanned bool
 }
 
 func (q *scanProbeQuerier) Query(query string, args ...any) (*sql.Rows, error) {
 	if strings.HasPrefix(query, "SELECT m.id,") {
-		q.after = args[1].(int64)
+		q.after, q.scanned = args[1].(int64), true
 	}
 	return q.Querier.Query(query, args...)
 }
 
 func (s scanProbeStore) View(ctx context.Context, fn func(model.ReadStore) error) error {
-	var after int64
+	var probe *scanProbeQuerier
 	err := s.Store.View(ctx, func(r model.ReadStore) error {
-		q := &scanProbeQuerier{Querier: sqlstore.TxQuerier(r.(*sqlstore.TxStore))}
-		err := fn(sqlstore.NewTxStore(q))
-		after = q.after
-		return err
+		probe = &scanProbeQuerier{Querier: sqlstore.TxQuerier(r.(*sqlstore.TxStore))}
+		return fn(sqlstore.NewTxStore(probe))
 	})
-	s.after <- after
+	if probe != nil && probe.scanned {
+		s.after <- probe.after
+	}
 	return err
 }
 
@@ -303,8 +307,10 @@ func TestWaitMessagesScanCursorAhead(t *testing.T) {
 		t.Fatal(err)
 	}
 	result := make(chan waitResult, 1)
+	resumeAt := make(chan int64, 1)
 	go func() {
-		messages, err := reader.WaitMessages(ctx, f.admin.Token, f.context.ID, 100, 30*time.Second)
+		messages, scanned, err := reader.waitMessagesScanned(ctx, f.admin.Token, f.context.ID, 100, 30*time.Second)
+		resumeAt <- scanned
 		result <- waitResult{messages, err}
 	}()
 	deadline := time.NewTimer(10 * time.Second)
@@ -322,6 +328,10 @@ func TestWaitMessagesScanCursorAhead(t *testing.T) {
 	cancel()
 	if got := receiveWait(t, result); !errors.Is(got.err, context.Canceled) || len(got.messages) != 0 {
 		t.Fatalf("cursor ahead: %+v", got)
+	}
+	// The wait's own cursor did not move back either.
+	if scanned := <-resumeAt; scanned != 100 {
+		t.Fatalf("wait cursor moved backwards: %d", scanned)
 	}
 	for len(after) != 0 {
 		if cursor := <-after; cursor != 100 {
