@@ -1,7 +1,9 @@
 package comitia_test
 
 import (
+	"bytes"
 	"encoding/json"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -28,20 +30,64 @@ func ciStampFlags(stampPackage string) []string {
 	return []string{"-X " + stampPackage + ".Revision=$COMITIA_REVISION", "-X " + stampPackage + ".Dirty=$COMITIA_DIRTY"}
 }
 
+// ciStampViolations checks that ci.yml passes ciStampFlags on the line of
+// its build command that sets -ldflags, not merely somewhere in the file: a
+// comment line, which YAML and the shell both skip, does not count.
+func ciStampViolations(ci, stampPackage string) []string {
+	var out []string
+	builds := 0
+	for i, line := range strings.Split(ci, "\n") {
+		code := strings.TrimSpace(line)
+		if strings.HasPrefix(code, "#") || !strings.Contains(code, "-ldflags") {
+			continue
+		}
+		builds++
+		for _, flag := range ciStampFlags(stampPackage) {
+			if !strings.Contains(code, flag) {
+				out = append(out, fmt.Sprintf("ci.yml:%d sets -ldflags without %q; write the flag out in full on that line", i+1, flag))
+			}
+		}
+	}
+	if builds == 0 {
+		out = append(out, "ci.yml has no build command that sets -ldflags; its release build must pass the build stamp")
+	}
+	return out
+}
+
+func TestCIStampFlagsRejectViolations(t *testing.T) {
+	ci := `      - name: Build Linux binary
+        # -ldflags "-X ` + facade + `.Revision=$COMITIA_REVISION -X ` + facade + `.Dirty=$COMITIA_DIRTY"
+        run: |
+          go build -trimpath \
+            -ldflags "-X $stamp.Revision=$COMITIA_REVISION -X ` + facade + `.Dirty=$COMITIA_DIRTY" \
+            -o dist/comitia ./cmd/comitia
+`
+	got := ciStampViolations(ci, facade)
+	want := []string{`ci.yml:5 sets -ldflags without "-X ` + facade + `.Revision=$COMITIA_REVISION"; write the flag out in full on that line`}
+	if strings.Join(got, "\n") != strings.Join(want, "\n") {
+		t.Fatalf("violations:\n%s\nwant:\n%s", strings.Join(got, "\n"), strings.Join(want, "\n"))
+	}
+	if got := ciStampViolations("# -ldflags \"-X "+facade+".Revision=$COMITIA_REVISION\"\n", facade); len(got) != 1 || !strings.Contains(got[0], "no build command") {
+		t.Fatalf("a commented-out build passed: %q", got)
+	}
+}
+
 // A -X flag naming the wrong package is ignored by the linker without an
 // error, so a stale path only shows as a binary without a version (in a git
 // checkout the revision still comes from the VCS stamp, hiding it further).
 // Every place in the repository that passes or documents the flag must name
 // this package, and a binary built with that path must report the stamp.
 //
-// The scan reads the files of repositoryFiles (so ignored files such as
+// The scan reads the text files of repositoryFiles (so ignored files such as
 // dist/ are not read), at any size, except the dated records under
 // docs/history and docs/validation, which keep the commands of their time.
+// Binary files are skipped: a Go binary records the -ldflags it was built
+// with, and one built before the move names the old path.
 // It finds a flag written out as one string, github.com/krimvp/comitia...
 // .Version=, .Revision= or .Dirty=. It does not see a path held in a
 // variable, joined from parts or split across quotes; it parses no shell or
 // Python. The build paths of this repository are pinned beyond the scan:
-// ci.yml must hold ciStampFlags verbatim, and scripts/test_install_credentials.py
+// ci.yml must pass ciStampFlags verbatim on its -ldflags line, and scripts/test_install_credentials.py
 // checks the whole flag string scripts/comitia_install.py builds.
 func TestBuildStampFlagsNameThisPackage(t *testing.T) {
 	out, err := exec.Command("go", "list", "-f", "{{.ImportPath}}", ".").Output()
@@ -71,6 +117,9 @@ func TestBuildStampFlagsNameThisPackage(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
+		if !isText(raw) {
+			continue
+		}
 		for _, m := range stampFlag.FindAllStringSubmatch(string(raw), -1) {
 			found[rel]++
 			if m[1] != stampPackage {
@@ -87,10 +136,8 @@ func TestBuildStampFlagsNameThisPackage(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, flag := range ciStampFlags(stampPackage) {
-		if !strings.Contains(string(ci), flag) {
-			t.Errorf("ci.yml does not pass %q to its release build; write the flag out in full", flag)
-		}
+	for _, v := range ciStampViolations(string(ci), stampPackage) {
+		t.Error(v)
 	}
 
 	if testing.Short() {
@@ -116,4 +163,10 @@ func TestBuildStampFlagsNameThisPackage(t *testing.T) {
 	if got != want {
 		t.Fatalf("comitia version = %+v, want %+v from -ldflags %q", got, want, ldflags)
 	}
+}
+
+// isText reports whether a file looks like text, as git decides it: no NUL
+// byte in its first 8000 bytes.
+func isText(raw []byte) bool {
+	return bytes.IndexByte(raw[:min(len(raw), 8000)], 0) < 0
 }
