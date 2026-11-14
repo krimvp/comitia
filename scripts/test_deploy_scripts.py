@@ -14,6 +14,9 @@ import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPTS = ROOT/'scripts'
+# The deployment scripts live beside the nginx configs they install; deploy/verify
+# holds the live-deployment checks from docs/history/RUNBOOK.md.
+DEPLOY = ROOT/'deploy'
 
 FAKE = '''#!/usr/bin/env python3
 import json, os, sys
@@ -69,7 +72,7 @@ class DeployScriptsTest(unittest.TestCase):
         for script in ('deploy-delegate.sh', 'comitia-add-harness.sh'):
             for name in ('../owner', '..', '.hidden', 'a/b', '/tmp/x', 'owner\n'):
                 with self.subTest(script=script, name=name):
-                    result = self.run_script('bash', str(SCRIPTS/script), name)
+                    result = self.run_script('bash', str(DEPLOY/script), name)
                     self.assertNotEqual(result.returncode, 0, result.stdout)
                     self.assertIn('invalid harness name', result.stderr)
         self.assertEqual(self.calls(), [], 'nothing may be minted for a rejected name')
@@ -77,7 +80,7 @@ class DeployScriptsTest(unittest.TestCase):
         self.assertFalse((self.home/'sessions').exists() and any((self.home/'sessions').iterdir()))
 
     def test_add_harness_refuses_owner(self):
-        result = self.run_script('bash', str(SCRIPTS/'comitia-add-harness.sh'), 'owner')
+        result = self.run_script('bash', str(DEPLOY/'comitia-add-harness.sh'), 'owner')
         self.assertNotEqual(result.returncode, 0)
         self.assertEqual(self.calls(), [])
 
@@ -87,7 +90,7 @@ class DeployScriptsTest(unittest.TestCase):
         stale = self.home/'sessions/codex.json'
         stale.write_text('{}')
         stale.chmod(0o644)
-        result = self.run_script('bash', str(SCRIPTS/'comitia-add-harness.sh'), 'codex.v2_x-1', 'read', '1')
+        result = self.run_script('bash', str(DEPLOY/'comitia-add-harness.sh'), 'codex.v2_x-1', 'read', '1')
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn('https://comitia.example.com:8443/mcp', result.stdout)
         self.assertEqual(self.calls()[0][:3], ['delegate', '--name', 'codex.v2_x-1'])
@@ -95,7 +98,7 @@ class DeployScriptsTest(unittest.TestCase):
         self.assertEqual(json.loads(session.read_text())['credential']['Token'], 'token-0123456789')
         self.assertPrivate(session)
         self.assertEqual(mode(self.home), 0o700)
-        result = self.run_script('bash', str(SCRIPTS/'deploy-delegate.sh'), 'codex')
+        result = self.run_script('bash', str(DEPLOY/'deploy-delegate.sh'), 'codex')
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertPrivate(stale)
         self.assertEqual([p.name for p in (self.home/'sessions').iterdir() if p.name.startswith('.')], [])
@@ -104,10 +107,10 @@ class DeployScriptsTest(unittest.TestCase):
         (self.home/'owner.json').unlink()
         (self.home/'ids.env').unlink()
         (self.home/'bootstrap.secret').write_text('bootstrap')
-        result = self.run_script('bash', str(SCRIPTS/'deploy-bootstrap.sh'))
+        result = self.run_script('bash', str(DEPLOY/'deploy-bootstrap.sh'))
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertPrivate(self.home/'owner.json')
-        result = self.run_script('bash', str(SCRIPTS/'deploy-workspace.sh'))
+        result = self.run_script('bash', str(DEPLOY/'deploy-workspace.sh'))
         self.assertEqual(result.returncode, 0, result.stderr)
         for name in ('workspace.json', 'context.json', 'ids.env'):
             self.assertEqual(mode(self.home/name), 0o600, name)
@@ -117,7 +120,7 @@ class DeployScriptsTest(unittest.TestCase):
     def test_show_credentials_writes_handout_privately(self):
         self.home.chmod(0o700)
         (self.home/'sessions').mkdir(mode=0o700)
-        result = self.run_script(sys.executable, str(SCRIPTS/'show-credentials.py'))
+        result = self.run_script(sys.executable, str(DEPLOY/'show-credentials.py'))
         self.assertEqual(result.returncode, 0, result.stderr)
         handout = self.home/'credentials.txt'
         self.assertPrivate(handout)
@@ -126,12 +129,14 @@ class DeployScriptsTest(unittest.TestCase):
 
     def test_deploy_files_name_only_documentation_hosts(self):
         allowed = re.compile(r'^(127\.|0\.0\.0\.0$|192\.0\.2\.|198\.51\.100\.|203\.0\.113\.)')
-        paths = [*SCRIPTS.glob('*.sh'), *SCRIPTS.glob('*.py'), *(ROOT/'deploy').iterdir(), *(ROOT/'docs/history').glob('*.md')]
+        deploy = [p for p in DEPLOY.rglob('*') if p.is_file() and '__pycache__' not in p.parts]
+        self.assertTrue(any(p.parent == DEPLOY/'verify' for p in deploy), 'deploy/verify scripts are covered')
+        paths = [*SCRIPTS.glob('*.sh'), *SCRIPTS.glob('*.py'), *deploy, *(ROOT/'docs/history').glob('*.md')]
         for path in paths:
             text = path.read_text()
             for address in re.findall(r'\b\d{1,3}(?:\.\d{1,3}){3}\b', text):
                 self.assertRegex(address, allowed, f'{path.name} names a real address')
-        for conf in (ROOT/'deploy').glob('*.nginx.conf'):
+        for conf in DEPLOY.glob('*.nginx.conf'):
             names = set(re.findall(r'^\s*server_name\s+([^;]+);', conf.read_text(), re.M))
             self.assertEqual(names, {'comitia.example.com'}, conf.name)
 

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {takeLauncherKey,viewerSession} from '../ui/world-prototype/viewer-session.mjs';
+import {takeLauncherKey,viewerSession} from './viewer-session.mjs';
 
 function storage(){const map=new Map();return {getItem:k=>map.get(k),setItem:(k,v)=>map.set(k,v),removeItem:k=>map.delete(k)};}
 
