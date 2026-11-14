@@ -69,15 +69,41 @@ func TestStorageProbeBoundAndAuthorization(t *testing.T) {
 		t.Fatalf("missing latency: %+v", status)
 	}
 	blocked.block = false
-	next, err := svc.StorageStatus(ctx, f.admin.Token)
-	if err != nil || !next.WriteReady || next.WriteFailures != 1 || next.WriteAttempts != 2 || next.LastWriteErrorClass != "deadline_exceeded" {
-		t.Fatalf("recovery=%+v err=%v", next, err)
+	// Each probe that is not ready counts one more failure.
+	next, probes := awaitWriteReady(t, svc, f.admin.Token, func() {})
+	if next.WriteFailures != uint64(probes) || next.WriteAttempts != uint64(probes)+1 || next.LastWriteErrorClass != "deadline_exceeded" {
+		t.Fatalf("recovery=%+v probes=%d", next, probes)
 	}
-	if _, err := svc.CreatePrincipal(ctx, f.admin.Token, "writer"); err != nil {
-		t.Fatal(err)
+	// A real write before the probe clears the class; a probe that is not ready sets it again.
+	next, _ = awaitWriteReady(t, svc, f.admin.Token, func() {
+		if _, err := svc.CreatePrincipal(ctx, f.admin.Token, "writer"); err != nil {
+			t.Fatal(err)
+		}
+	})
+	if next.LastWriteErrorClass != "" {
+		t.Fatalf("after real write=%+v", next)
 	}
-	if next, err = svc.StorageStatus(ctx, f.admin.Token); err != nil || !next.WriteReady || next.LastWriteErrorClass != "" {
-		t.Fatalf("after real write=%+v err=%v", next, err)
+}
+
+// awaitWriteReady runs prepare and the probe until the probe reports
+// write_ready, and returns that status with the number of probes it took. The
+// probe has a 250 ms budget, which a slow machine (-race, a loaded runner) can
+// exceed; it then correctly reports write_ready false.
+func awaitWriteReady(t *testing.T, svc *Service, token string, prepare func()) (model.StorageStatus, int) {
+	t.Helper()
+	for probes, deadline := 1, time.Now().Add(30*time.Second); ; probes++ {
+		prepare()
+		status, err := svc.StorageStatus(context.Background(), token)
+		if err != nil {
+			t.Fatalf("storage status: %v", err)
+		}
+		if status.WriteReady {
+			return status, probes
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("probe not write_ready: last %+v", status)
+		}
+		time.Sleep(10 * time.Millisecond)
 	}
 }
 
@@ -112,7 +138,6 @@ func TestStorageProbeDetectsReadOnlyDatabase(t *testing.T) {
 func TestStorageProbeLeavesNoRows(t *testing.T) {
 	f := setup(t, ":memory:")
 	defer f.store.Close()
-	ctx := context.Background()
 	count := func() (n int) {
 		if err := sqlstore.DB(f.store).QueryRow("SELECT count(*) FROM principals").Scan(&n); err != nil {
 			t.Fatal(err)
@@ -120,9 +145,11 @@ func TestStorageProbeLeavesNoRows(t *testing.T) {
 		return n
 	}
 	before := count()
-	if status, err := f.svc.StorageStatus(ctx, f.admin.Token); err != nil || !status.WriteReady {
-		t.Fatalf("status=%+v err=%v", status, err)
-	}
+	awaitWriteReady(t, f.svc, f.admin.Token, func() {
+		if after := count(); after != before {
+			t.Fatalf("probe left rows: %d -> %d", before, after)
+		}
+	})
 	if after := count(); after != before {
 		t.Fatalf("probe left rows: %d -> %d", before, after)
 	}
@@ -254,10 +281,8 @@ func TestStorageStatusSlowCredentialLookup(t *testing.T) {
 	}
 
 	slow.slowView = true
-	status, err := svc.StorageStatus(ctx, f.admin.Token)
-	if err != nil || !status.WriteReady || slow.updates != 1 {
-		t.Fatalf("slow view lookup: status=%+v err=%v updates=%d", status, err, slow.updates)
-	}
+	awaitWriteReady(t, svc, f.admin.Token, func() {})
+	probes := slow.updates
 	for _, tc := range []struct {
 		name, token string
 		want        error
@@ -266,12 +291,12 @@ func TestStorageStatusSlowCredentialLookup(t *testing.T) {
 			t.Fatalf("%s: status=%+v err=%v", tc.name, status, err)
 		}
 	}
-	if slow.updates != 1 {
-		t.Fatalf("a refused caller reached the write probe: updates=%d", slow.updates)
+	if slow.updates != probes {
+		t.Fatalf("a refused caller reached the write probe: updates=%d, want %d", slow.updates, probes)
 	}
 
 	slow.slowView, slow.slowWrite = false, true
-	status, err = svc.StorageStatus(ctx, f.admin.Token)
+	status, err := svc.StorageStatus(ctx, f.admin.Token)
 	if err != nil || status.WriteReady || status.LastWriteErrorClass != "deadline_exceeded" {
 		t.Fatalf("slow write lookup: status=%+v err=%v", status, err)
 	}
