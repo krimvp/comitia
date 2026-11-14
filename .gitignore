@@ -1,4 +1,7 @@
 # Build output
+# A comitia binary built into the root by a bare `go build ./cmd/comitia`;
+# the leading slash keeps cmd/comitia and skills/comitia tracked.
+/comitia
 /bin/
 /dist/
 *.test
