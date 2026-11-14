@@ -22,6 +22,7 @@ func scanContext(row interface{ Scan(...any) error }) (WorkContext, error) {
 	c.CreatedAt = parse(at)
 	return c, dbErr(e)
 }
+
 func (x *sqlStore) contexts(query string, args ...any) ([]WorkContext, error) {
 	rows, err := x.q.Query(query, args...)
 	if err != nil {
@@ -43,6 +44,7 @@ func (x *sqlStore) PutWorkspace(w Workspace) error {
 	_, e := x.q.Exec("INSERT INTO workspaces VALUES(?,?,?)", w.ID, w.Name, ts(w.CreatedAt))
 	return e
 }
+
 func (x *sqlStore) Workspace(id string) (Workspace, error) {
 	var w Workspace
 	var c string
@@ -50,6 +52,7 @@ func (x *sqlStore) Workspace(id string) (Workspace, error) {
 	w.CreatedAt = parse(c)
 	return w, dbErr(e)
 }
+
 func (x *sqlStore) PutContext(c WorkContext) error {
 	if _, e := x.q.Exec("INSERT INTO contexts VALUES(?,?,?,?)", c.ID, c.WorkspaceID, c.Name, ts(c.CreatedAt)); e != nil || c.ParentContextID == "" {
 		return e
@@ -57,9 +60,11 @@ func (x *sqlStore) PutContext(c WorkContext) error {
 	_, e := x.q.Exec("INSERT INTO context_parents VALUES(?,?,?,?,?)", c.ID, c.ParentContextID, nullString(c.TaskID), c.CreatorSessionID, c.ParentReadable)
 	return e
 }
+
 func (x *sqlStore) Context(id string) (WorkContext, error) {
 	return scanContext(x.q.QueryRow("SELECT "+contextColumns+" FROM contexts c LEFT JOIN context_parents p ON p.context_id=c.id WHERE c.id=?", id))
 }
+
 func (x *sqlStore) PutReference(r Reference) error {
 	_, e := x.q.Exec("INSERT INTO refs VALUES(?,?,?,?,?)", r.ID, r.ContextID, r.Kind, r.URI, ts(r.CreatedAt))
 	return e
@@ -103,6 +108,7 @@ func (x *sqlStore) ContextCandidates(sessionID, afterID string, limit int) ([]Wo
 FROM contexts c JOIN grants g ON g.context_id=c.id LEFT JOIN context_parents p ON p.context_id=c.id
 WHERE g.session_id=? AND c.id>? ORDER BY c.id LIMIT ?`, sessionID, afterID, limit)
 }
+
 func (x *sqlStore) ChildContexts(parentID, afterID string, limit int) ([]WorkContext, error) {
 	return x.contexts(`SELECT `+contextColumns+`
 FROM context_parents p JOIN contexts c ON c.id=p.context_id

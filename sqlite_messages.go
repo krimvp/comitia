@@ -57,6 +57,7 @@ const messageSelect = "SELECT m.id,m.context_id,m.session_id,m.seq,COALESCE(d.de
 func (x *sqlStore) Message(id string) (Message, error) {
 	return scanMessage(x.q.QueryRow(messageSelect+" WHERE m.id=?", id))
 }
+
 func scanMessage(row interface{ Scan(...any) error }) (Message, error) {
 	var m Message
 	var c, envelope, instance, label string
@@ -75,6 +76,7 @@ func scanMessage(row interface{ Scan(...any) error }) (Message, error) {
 	m.CreatedAt = parse(c)
 	return m, dbErr(e)
 }
+
 func (x *sqlStore) PutMessage(m Message) (Message, error) {
 	e := x.q.QueryRow("SELECT COALESCE(MAX(seq),0)+1 FROM messages WHERE context_id=?", m.ContextID).Scan(&m.Sequence)
 	if e != nil {
@@ -192,7 +194,7 @@ UNION ALL SELECT message_id,seq FROM (SELECT message_id,seq FROM message_recipie
 	}
 	if f.ExcludeSelf {
 		where += " AND NOT (m.session_id=? AND COALESCE(i.instance_id,'')=?)"
-		args = append(args, sid, f.agentInstance())
+		args = append(args, sid, filterAgentInstance(f))
 	}
 	if len(f.Schemas) != 0 {
 		// Any schema list selects the projection seek above.
@@ -201,7 +203,7 @@ UNION ALL SELECT message_id,seq FROM (SELECT message_id,seq FROM message_recipie
 			args = append(args, schema)
 		}
 	}
-	if !f.includesRenewals() {
+	if !filterIncludesRenewals(f) {
 		where += " AND NOT EXISTS (SELECT 1 FROM message_hidden h WHERE h.message_id=m.id)"
 	}
 	if f.FromSession != "" {
@@ -294,6 +296,7 @@ func (x *sqlStore) Ack(sid, cid string, seq int64, at time.Time, instance string
 	_, e := x.q.Exec(`INSERT INTO acks VALUES(?,?,?,?) ON CONFLICT(session_id,context_id) DO UPDATE SET seq=MAX(seq,excluded.seq),updated_at=excluded.updated_at`, sid, cid, seq, ts(at))
 	return e
 }
+
 func (x *sqlStore) AckCursor(sid, cid, instance string) (int64, error) {
 	var seq int64
 	var e error
@@ -311,6 +314,7 @@ func (x *sqlStore) AckCursor(sid, cid, instance string) (int64, error) {
 func (x *sqlStore) Participants(cid string, now time.Time, limit int) ([]Participant, error) {
 	return x.ParticipantsAfter(cid, now, "", limit)
 }
+
 func (x *sqlStore) ParticipantsAfter(cid string, now time.Time, afterID string, limit int) ([]Participant, error) {
 	// Effective access is decided per session, so holders are read in
 	// limit-sized chunks until the page is full instead of all at once.
@@ -346,6 +350,7 @@ func (x *sqlStore) ParticipantsAfter(cid string, now time.Time, afterID string, 
 		}
 	}
 }
+
 func (x *sqlStore) participantCandidates(cid, afterID string, limit int) ([]string, error) {
 	rows, err := x.q.Query("SELECT DISTINCT session_id FROM grants WHERE context_id=? AND session_id>? ORDER BY session_id LIMIT ?", cid, afterID, limit)
 	if err != nil {
@@ -362,6 +367,7 @@ func (x *sqlStore) participantCandidates(cid, afterID string, limit int) ([]stri
 	}
 	return ids, rows.Err()
 }
+
 func (x *sqlStore) participant(cid, sid string, now time.Time) (Participant, bool, error) {
 	session, err := x.Session(sid)
 	if err != nil || session.RevokedAt != nil || !session.ExpiresAt.After(now) {
@@ -389,7 +395,7 @@ func messageReadPredicate(sid string, f MessageFilters, mid string) (string, []a
 	var args []any
 	if f.ExcludeSelf {
 		predicates = append(predicates, "NOT EXISTS (SELECT 1 FROM messages m LEFT JOIN message_instances i ON i.message_id=m.id WHERE m.id="+mid+" AND m.session_id=? AND COALESCE(i.instance_id,'')=?)")
-		args = append(args, sid, f.agentInstance())
+		args = append(args, sid, filterAgentInstance(f))
 	}
 	if len(f.Schemas) != 0 {
 		predicates = append(predicates, "EXISTS (SELECT 1 FROM message_filters f WHERE f.message_id="+mid+" AND f.schema IN ("+strings.TrimSuffix(strings.Repeat("?,", len(f.Schemas)), ",")+"))")
@@ -397,7 +403,7 @@ func messageReadPredicate(sid string, f MessageFilters, mid string) (string, []a
 			args = append(args, schema)
 		}
 	}
-	if !f.includesRenewals() {
+	if !filterIncludesRenewals(f) {
 		predicates = append(predicates, "NOT EXISTS (SELECT 1 FROM message_hidden h WHERE h.message_id="+mid+")")
 	}
 	return strings.Join(predicates, " AND "), args

@@ -25,14 +25,17 @@ func (x *sqlStore) BootstrapDone() (bool, error) {
 	}
 	return v == "done", e
 }
+
 func (x *sqlStore) MarkBootstrapDone() error {
 	_, e := x.q.Exec("INSERT INTO meta(key,value) VALUES('bootstrap','done')")
 	return e
 }
+
 func (x *sqlStore) PutPrincipal(p Principal) error {
 	_, e := x.q.Exec("INSERT INTO principals VALUES(?,?,?,?)", p.ID, p.Name, p.Admin, ts(p.CreatedAt))
 	return e
 }
+
 func (x *sqlStore) Principal(id string) (Principal, error) {
 	var p Principal
 	var a int
@@ -42,11 +45,13 @@ func (x *sqlStore) Principal(id string) (Principal, error) {
 	p.CreatedAt = parse(c)
 	return p, dbErr(e)
 }
+
 func (x *sqlStore) PutSession(s Session, h string) error {
 	x.invalidateGrantPolicy()
 	_, e := x.q.Exec("INSERT INTO sessions VALUES(?,?,?,?,?,?,?)", s.ID, s.PrincipalID, nullString(s.ParentID), h, ts(s.ExpiresAt), timeString(s.RevokedAt), ts(s.CreatedAt))
 	return e
 }
+
 func scanSession(row interface{ Scan(...any) error }) (Session, error) {
 	var s Session
 	var parent, rev sql.NullString
@@ -58,12 +63,15 @@ func scanSession(row interface{ Scan(...any) error }) (Session, error) {
 	s.CreatedAt = parse(created)
 	return s, dbErr(e)
 }
+
 func (x *sqlStore) Session(id string) (Session, error) {
 	return scanSession(x.q.QueryRow("SELECT id,principal_id,parent_id,expires_at,revoked_at,created_at FROM sessions WHERE id=?", id))
 }
+
 func (x *sqlStore) SessionByTokenHash(h string) (Session, error) {
 	return scanSession(x.q.QueryRow("SELECT id,principal_id,parent_id,expires_at,revoked_at,created_at FROM sessions WHERE token_hash=?", h))
 }
+
 func (x *sqlStore) RevokeSessionTree(root string, at time.Time) error {
 	x.invalidateGrantPolicy()
 	r, e := x.q.Exec(revokeSessionTreeSQL, root, ts(at))

@@ -41,6 +41,7 @@ func (x *sqlStore) PutTask(t Task) error {
 	_, e = x.q.Exec("INSERT INTO task_instances VALUES(?,?,?) ON CONFLICT(task_id) DO UPDATE SET instance_id=excluded.instance_id,label=excluded.label", t.ID, t.LeaseOwnerInstance.ID, t.LeaseOwnerInstance.Label)
 	return e
 }
+
 func scanTask(row interface{ Scan(...any) error }) (Task, error) {
 	var t Task
 	var owner, exp sql.NullString
@@ -61,12 +62,15 @@ const taskSelect = "SELECT t.id,t.context_id,t.title,t.body,t.status,t.lease_own
 func (x *sqlStore) Task(id string) (Task, error) {
 	return scanTask(x.q.QueryRow(taskSelect+" WHERE t.id=?", id))
 }
+
 func (x *sqlStore) Tasks(cid string, status TaskStatus, limit int) ([]Task, error) {
 	return x.TasksAfter(cid, status, "", "", limit)
 }
+
 func (x *sqlStore) TasksAfter(cid string, status TaskStatus, created, afterID string, limit int) ([]Task, error) {
 	return x.TasksFilteredAfter(cid, status, TaskFilters{}, created, afterID, limit)
 }
+
 func (x *sqlStore) TasksFilteredAfter(cid string, status TaskStatus, f TaskFilters, created, afterID string, limit int) ([]Task, error) {
 	q, args := taskPageQuery(cid, status, f, created, afterID, limit)
 	rows, e := x.q.Query(q, args...)
@@ -128,6 +132,7 @@ func (x *sqlStore) TaskReceipt(sid, operationID string) (TaskReceipt, error) {
 	e = json.Unmarshal([]byte(raw), &receipt.Result)
 	return receipt, e
 }
+
 func (x *sqlStore) PutTaskReceipt(sid, operationID string, receipt TaskReceipt) error {
 	raw, e := json.Marshal(receipt.Result)
 	if e != nil {

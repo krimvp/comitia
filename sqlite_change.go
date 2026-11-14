@@ -8,16 +8,6 @@ import (
 	"sync/atomic"
 )
 
-// ChangeVersionStore is an optional Store capability that lets idle message
-// waits skip unchanged polls. ChangeVersion runs outside any transaction. Its
-// result must differ from every earlier result of the same store once any
-// commit by this handle, another handle or another process has become visible
-// to View; spurious changes are allowed. Errors make waits scan as before.
-// Stores without this capability scan on every poll.
-type ChangeVersionStore interface {
-	ChangeVersion(context.Context) (uint64, error)
-}
-
 // sqliteChanges reads PRAGMA data_version on one held connection of its own
 // pool, which changes after commits by any other connection to the file. A
 // replaced connection bumps the version so old values are never repeated.

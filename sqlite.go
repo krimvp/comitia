@@ -95,6 +95,7 @@ func OpenSQLite(path string) (*SQLiteStore, error) {
 	}
 	return s, nil
 }
+
 func (s *SQLiteStore) Close() error {
 	var errs []error
 	if s.readers != nil && s.readers != s.db {
@@ -106,6 +107,7 @@ func (s *SQLiteStore) Close() error {
 	}
 	return errors.Join(errs...)
 }
+
 func (s *SQLiteStore) View(ctx context.Context, fn func(ReadStore) error) error {
 	tx, e := s.begin(ctx, &sql.TxOptions{ReadOnly: true})
 	if e != nil {
@@ -118,6 +120,7 @@ func (s *SQLiteStore) View(ctx context.Context, fn func(ReadStore) error) error 
 	}
 	return tx.Commit()
 }
+
 func (s *SQLiteStore) Update(ctx context.Context, fn func(WriteStore) error) error {
 	select {
 	case s.writers <- struct{}{}:
@@ -190,9 +193,11 @@ type transactionQuery struct {
 func (q transactionQuery) Exec(query string, args ...any) (sql.Result, error) {
 	return q.tx.ExecContext(q.ctx, query, args...)
 }
+
 func (q transactionQuery) Query(query string, args ...any) (*sql.Rows, error) {
 	return q.tx.QueryContext(q.ctx, query, args...)
 }
+
 func (q transactionQuery) QueryRow(query string, args ...any) *sql.Row {
 	return q.tx.QueryRowContext(q.ctx, query, args...)
 }
@@ -202,24 +207,16 @@ type querier interface {
 	Query(string, ...any) (*sql.Rows, error)
 	QueryRow(string, ...any) *sql.Row
 }
+
 type sqlStore struct {
 	q              querier
 	grantEvaluator *GrantEvaluator
 }
 
-func ts(t time.Time) string { return t.UTC().Format(time.RFC3339Nano) }
-
-// ts trims trailing fractional zeros, so its strings do not sort by time:
-// "05Z" follows "05.25Z". sortableTS is the fixed-width form; sortableTime
-// renders SQL mapping a stored ts() column, including rows written by older
-// binaries, to it. Indexes must repeat the expression exactly.
-const sortableLayout = "2006-01-02T15:04:05.000000000Z"
-
-func sortableTS(t time.Time) string { return t.UTC().Format(sortableLayout) }
 func sortableTime(column string) string {
 	return "(CASE WHEN length(" + column + ")=20 THEN substr(" + column + ",1,19)||'.000000000Z' ELSE substr(" + column + ",1,length(" + column + ")-1)||substr('000000000Z',length(" + column + ")-20) END)"
 }
-func parse(s string) time.Time { t, _ := time.Parse(time.RFC3339Nano, s); return t }
+
 func nullTime(n sql.NullString) *time.Time {
 	if !n.Valid {
 		return nil
@@ -227,6 +224,7 @@ func nullTime(n sql.NullString) *time.Time {
 	t := parse(n.String)
 	return &t
 }
+
 func dbErr(e error) error {
 	if errors.Is(e, sql.ErrNoRows) {
 		return ErrNotFound
@@ -240,6 +238,7 @@ func nullString(s string) any {
 	}
 	return s
 }
+
 func timeString(t *time.Time) any {
 	if t == nil {
 		return nil

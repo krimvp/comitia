@@ -37,6 +37,7 @@ WHERE c.id=?`, contextID).Scan(&explicit, &creator)
 	}
 	return x.contextArchiveTime(explicit, creator, now)
 }
+
 func (x *sqlStore) contextArchiveTime(explicit, creator sql.NullString, now time.Time) (*time.Time, error) {
 	at := nullTime(explicit)
 	if creator.Valid {

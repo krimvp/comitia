@@ -20,6 +20,7 @@ func (x *sqlStore) PutGrant(g Grant) error {
 	_, e := x.q.Exec("INSERT INTO grants VALUES(?,?,?,?,?,?,?,?,?)", g.ID, g.SessionID, g.ContextID, nullString(g.ParentGrantID), g.IssuerSessionID, g.Permissions, ts(g.ExpiresAt), timeString(g.RevokedAt), ts(g.CreatedAt))
 	return e
 }
+
 func scanGrant(row interface{ Scan(...any) error }) (Grant, error) {
 	var g Grant
 	var par, rev sql.NullString
@@ -31,10 +32,13 @@ func scanGrant(row interface{ Scan(...any) error }) (Grant, error) {
 	g.CreatedAt = parse(created)
 	return g, dbErr(e)
 }
+
 func (x *sqlStore) grant(id string) (Grant, error) {
 	return scanGrant(x.q.QueryRow("SELECT id,session_id,context_id,parent_grant_id,issuer_session_id,permissions,expires_at,revoked_at,created_at FROM grants WHERE id=?", id))
 }
+
 func (x *sqlStore) Grant(id string) (Grant, error) { return x.grant(id) }
+
 func (x *sqlStore) Grants(sid, cid string, now time.Time) ([]Grant, error) {
 	candidates, err := x.rawGrants("SELECT id,session_id,context_id,parent_grant_id,issuer_session_id,permissions,expires_at,revoked_at,created_at FROM grants WHERE session_id=? AND context_id=?", sid, cid)
 	if err != nil {
@@ -42,6 +46,7 @@ func (x *sqlStore) Grants(sid, cid string, now time.Time) ([]Grant, error) {
 	}
 	return x.effectiveGrants(candidates, now)
 }
+
 func (x *sqlStore) rawGrants(query string, args ...any) ([]Grant, error) {
 	rows, err := x.q.Query(query, args...)
 	if err != nil {
@@ -62,7 +67,7 @@ func (x *sqlStore) rawGrants(query string, args ...any) ([]Grant, error) {
 func (x *sqlStore) effectiveGrants(candidates []Grant, now time.Time) ([]Grant, error) {
 	policy := x.grantPolicy()
 	for _, g := range candidates {
-		policy.grants[g.ID] = g
+		rememberGrant(policy, g)
 	}
 	var out []Grant
 	for _, g := range candidates {

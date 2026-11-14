@@ -16,6 +16,7 @@ func contextIDArgs(ids []string) (string, []any, error) {
 	}
 	return strings.TrimSuffix(strings.Repeat("?,", len(ids)), ","), args, nil
 }
+
 func (x *sqlStore) GrantsForContexts(sid string, ids []string, now time.Time) (map[string][]Grant, error) {
 	out := map[string][]Grant{}
 	for _, id := range ids {
@@ -42,6 +43,7 @@ func (x *sqlStore) GrantsForContexts(sid string, ids []string, now time.Time) (m
 	}
 	return out, nil
 }
+
 func (x *sqlStore) ContextArchiveTimes(ids []string, now time.Time) (map[string]*time.Time, error) {
 	out := map[string]*time.Time{}
 	if len(ids) == 0 {
@@ -80,7 +82,7 @@ WHERE c.id IN (`+marks+")", args...)
 	seen := map[string]bool{}
 	for _, m := range records {
 		if m.creator.Valid {
-			if _, ok := policy.grants[m.creator.String]; !ok && !seen[m.creator.String] {
+			if _, ok := knownGrant(policy, m.creator.String); !ok && !seen[m.creator.String] {
 				missing = append(missing, m.creator.String)
 				seen[m.creator.String] = true
 			}
@@ -96,7 +98,7 @@ WHERE c.id IN (`+marks+")", args...)
 			return nil, err
 		}
 		for _, g := range grants {
-			policy.grants[g.ID] = g
+			rememberGrant(policy, g)
 		}
 	}
 	for _, m := range records {
