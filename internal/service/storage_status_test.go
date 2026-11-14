@@ -348,6 +348,31 @@ func TestStorageStatusSlowCredentialLookup(t *testing.T) {
 	}
 }
 
+// unhurried lets every transaction finish whatever its context's deadline, so a
+// healthy store is never too slow for the probe's budget.
+type unhurried struct{ model.Store }
+
+func (s unhurried) View(ctx context.Context, fn func(model.ReadStore) error) error {
+	return s.Store.View(context.WithoutCancel(ctx), fn)
+}
+
+func (s unhurried) Update(ctx context.Context, fn func(model.WriteStore) error) error {
+	return s.Store.Update(context.WithoutCancel(ctx), fn)
+}
+
+func TestFirstStorageProbeOnHealthyStoreIsReady(t *testing.T) {
+	f := setup(t, ":memory:")
+	defer f.store.Close()
+	svc, err := New(model.Config{Store: unhurried{f.store}, Clock: f.svc.now})
+	if err != nil {
+		t.Fatal(err)
+	}
+	status, err := svc.StorageStatus(context.Background(), f.admin.Token)
+	if err != nil || !status.WriteReady || status.WriteAttempts != 1 || status.WriteFailures != 0 || status.LastWriteErrorClass != "" || status.LastWriteFailureDurationMS != 0 || status.MaxWriteDurationMS < status.LastWriteDurationMS {
+		t.Fatalf("first probe: status=%+v err=%v", status, err)
+	}
+}
+
 // failingView fails View before calling its callback.
 type failingView struct {
 	model.Store
