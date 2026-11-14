@@ -1,3 +1,5 @@
+// LoggingHandler: credential-safe access logging for the HTTP transport.
+
 package mcp
 
 import (

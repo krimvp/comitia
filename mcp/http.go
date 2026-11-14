@@ -1,3 +1,6 @@
+// The Streamable HTTP transport: NewHTTPHandler, origin and protocol-version
+// checks, credential extraction, delegation gating and ServeHTTP.
+
 package mcp
 
 import (

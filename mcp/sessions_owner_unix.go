@@ -1,5 +1,7 @@
 //go:build unix
 
+// Sessions directory ownership check on Unix.
+
 package mcp
 
 import (

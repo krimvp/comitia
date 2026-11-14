@@ -1,3 +1,6 @@
+// How a tool result is presented to the client: the compact option, text
+// summaries and empty collections.
+
 package mcp
 
 import (
@@ -8,6 +11,11 @@ import (
 
 	"github.com/krimvp/comitia"
 )
+
+type compactResult struct {
+	value any
+	text  string
+}
 
 // Compact is an MCP presentation option, never forwarded to the backing API.
 func resultArguments(raw json.RawMessage) (json.RawMessage, bool, error) {
@@ -70,4 +78,16 @@ func resultSummary(name string, value any, arguments json.RawMessage, size int) 
 		return name + " succeeded" + suffix
 	}
 	return ""
+}
+
+func collectionResult(v any) any {
+	if compact, ok := v.(compactResult); ok {
+		compact.value = collectionResult(compact.value)
+		return compact
+	}
+	value := reflect.ValueOf(v)
+	if value.IsValid() && value.Kind() == reflect.Slice && value.IsNil() {
+		return reflect.MakeSlice(value.Type(), 0, 0).Interface()
+	}
+	return v
 }
