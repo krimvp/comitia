@@ -31,7 +31,9 @@ Elsewhere:
 - **Errors and limits:** the sentinel errors are in `internal/model/api.go`;
   error classes, operation names and `SafeError` in `internal/model/operations.go`;
   each limit beside its domain (`messages.go`, `tasks.go`, `pages.go`). The root
-  `errors.go` exports them.
+  exports them: errors, content and list limits in `errors.go`; leases and
+  `MaxTaskReasonBytes` in `tasks.go`; envelope, dedupe-key and wait limits in
+  `messages.go`.
 - **Merge gates and evaluation reports:** `internal/mergegate`,
   `internal/evaluation`.
 - **Adapters:** `httpapi/server_<domain>.go` and `httpapi/client_<domain>.go`

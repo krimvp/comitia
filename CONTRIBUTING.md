@@ -100,8 +100,9 @@ example side by side: the one named in each heading.
    alias in the root facade if it is new public API (see the last recipe).
 2. In `mcp/tools_<domain>.go`: a `tool(name, description, schema)` entry in the
    group's list, a case in its `call<Domain>` switch and a handler that decodes
-   the arguments (`mcp/args.go`) and calls the API. Derive limits in descriptions
-   from the exported constants.
+   the arguments (`mcp/args.go`) and calls the API (a shared handler may get
+   its own file, as `mcp/task_outcomes.go`). Derive limits in descriptions from
+   the exported constants. Its behaviour tests go in `mcp`.
 3. Its operation name in `operationNames` (`internal/model/operations.go`), keyed
    by its HTTP route; `mcp/operation_names_test.go` fails without it.
 4. An input for it in `seedSchemaConformance` (`mcp/schema_conformance_test.go`);
@@ -141,7 +142,8 @@ example side by side: the one named in each heading.
 3. A line in `commandUsage` (`cmd/comitia/usage.go`). `scripts/test_docs_structure.py`
    reads it to check the commands and flags the skill names, and
    `positional_args_test.go` and `required_flags_test.go` walk it (classify the
-   command's required flags there). Add the command to the list in `help_test.go`.
+   command's required flags there). Add the command to the list in `help_test.go`;
+   its behaviour tests go beside it (`task_outcomes_test.go`).
 4. Errors map to exit codes in `exitCode` (`exit.go`); return the root's error
    classes rather than new ones.
 5. Document it in `docs/USING-COMITIA.md` or the reference document of its domain.
@@ -154,22 +156,28 @@ example side by side: the one named in each heading.
    `add` call with the validator, the payload JSON Schema, the body, task and
    artifact rules, requirements and examples. The validator and payload type
    live in `internal/schema`.
-3. Tests: `TestMessageSchemaPayloadConformance`
+3. If the schema requires `reply_to`: the check in `normalizeEnvelope`
+   (`internal/service/messages_envelope.go`), a `ReplyTo` case for its examples
+   in the `switch id` of `builtinSchemas`, and, so a test can append its
+   example, a case in `materializeProtocolExample`
+   (`internal/service/coordination_protocol_test.go`) creating what it refers to.
+4. Tests: `TestMessageSchemaPayloadConformance`
    (`internal/service/message_schemas_conformance_test.go`) checks the published
    schema against the validator on the examples and on samples you add to
    `messagePayloadSemanticCorpus`; every rule JSON Schema cannot express must be
    stated in the requirements. Behaviour goes in `message_schemas_test.go`.
-4. If older servers reject the schema, add it to the fallback in
-   `(*Client).AppendMessage` (`httpapi/client_messages.go`) and its test in
-   `httpapi/compatibility_test.go`. The inspector previews known fields through
-   `previewFields` in `httpapi/ui/model.mjs`.
-5. The schema table in `docs/message-protocol.md`, the only place schemas are
+5. If older servers reject the schema, add it to the fallback in
+   `(*Client).AppendMessage` (`httpapi/client_messages.go`) and its tests in
+   `httpapi/compatibility_test.go` and `messages_test.go`. The inspector previews
+   known fields through `previewFields` in `httpapi/ui/model.mjs`, tested in
+   `httpapi/ui-tests`.
+6. The schema table in `docs/message-protocol.md`, the only place schemas are
    tabulated (the docs test enforces it), and the skill references if agents send it.
 
 ### Add a store capability or migration (like `TaskFilterStore`)
 
 1. A capability is an optional interface in `internal/model`, aliased in the root
-   `store.go`, implemented by `*sqlStore` in `internal/sqlstore`. The service
+   `store.go` (update the golden), implemented by `*sqlStore` in `internal/sqlstore`. The service
    type-asserts it and keeps a fallback for stores without it
    (`internal/service/tasks_filters.go`); assert the implementation in a test.
 2. Schema changes are idempotent DDL in the domain's constant in

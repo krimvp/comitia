@@ -19,7 +19,7 @@ const (
 	exitForbidden       = 4
 	exitNotFound        = 5
 	exitConflict        = 6 // includes stale claims and a used bootstrap
-	exitUnavailable     = 7 // transport failure, timeout or busy storage
+	exitUnavailable     = 7 // transport failure, timeout or storage failure (busy, read-only, I/O or full)
 )
 
 func exitCode(err error) int {
