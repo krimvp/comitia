@@ -26,7 +26,8 @@ func TestValidationDetailOverMCP(t *testing.T) {
 		t.Run(tc.raw, func(t *testing.T) {
 			s := &Server{API: &fakeAPI{}, Credential: "fixed-secret"}
 			_, err := s.call(context.Background(), "get_task", json.RawMessage(tc.raw))
-			if !errors.Is(err, comitia.ErrInvalid) || !strings.Contains(publicError(err).Error(), tc.detail) {
+			// {} {} cannot arrive through tools/call: it is not one JSON value.
+			if !errors.Is(err, comitia.ErrInvalid) || tc.raw != `{} {}` && !strings.Contains(toolErrorText(t, s, "get_task", tc.raw), tc.detail) {
 				t.Fatalf("error=%v", err)
 			}
 			if strings.Contains(tc.detail, "unknown field") && !strings.Contains(err.Error(), "this client is comitia "+comitia.BuildVersion()) {
@@ -57,12 +58,35 @@ func TestValidationDetailOverMCP(t *testing.T) {
 		})
 	}
 	wrapped := comitia.Invalidf("task_id required")
-	if publicError(wrapped) != wrapped {
+	if got := toolErrorText(t, &Server{API: &fakeAPI{err: wrapped}, Credential: "fixed-secret"}, "get_task", `{"task_id":"t"}`); got != wrapped.Error() {
 		t.Fatal("validation detail lost")
 	}
-	if got := publicError(errors.New("secret-value")); got.Error() != "internal error" {
+	if got := toolErrorText(t, &Server{API: &fakeAPI{err: errors.New("secret-value")}, Credential: "fixed-secret"}, "get_task", `{"task_id":"t"}`); !strings.HasPrefix(got, "internal error. ") || strings.Contains(got, "secret-value") {
 		t.Fatalf("internal error=%v", got)
 	}
+}
+
+// toolErrorText returns the text a client receives for a failed tool call.
+func toolErrorText(t *testing.T, s *Server, name, raw string) string {
+	t.Helper()
+	params, err := json.Marshal(map[string]any{"name": name, "arguments": json.RawMessage(raw)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	res := s.handle(context.Background(), request{JSONRPC: "2.0", ID: json.RawMessage(`1`), Method: "tools/call", Params: params})
+	b, _ := json.Marshal(res)
+	var wire struct {
+		Result struct {
+			Content []struct {
+				Text string `json:"text"`
+			} `json:"content"`
+			IsError bool `json:"isError"`
+		} `json:"result"`
+	}
+	if json.Unmarshal(b, &wire) != nil || !wire.Result.IsError || len(wire.Result.Content) != 1 {
+		t.Fatalf("not a tool error: %s", b)
+	}
+	return wire.Result.Content[0].Text
 }
 
 func TestToolValidationDetails(t *testing.T) {
@@ -92,7 +116,7 @@ func TestToolValidationDetails(t *testing.T) {
 		t.Run(tc.tool+" "+tc.raw, func(t *testing.T) {
 			s := &Server{API: &fakeAPI{}, Credential: "fixed-secret"}
 			_, err := s.call(context.Background(), tc.tool, json.RawMessage(tc.raw))
-			if !errors.Is(err, comitia.ErrInvalid) || !strings.Contains(publicError(err).Error(), tc.detail) {
+			if !errors.Is(err, comitia.ErrInvalid) || !strings.Contains(toolErrorText(t, s, tc.tool, tc.raw), tc.detail) {
 				t.Fatalf("error=%v", err)
 			}
 		})
@@ -182,7 +206,7 @@ func TestStaleClientMCP(t *testing.T) {
 				}
 			}
 			_, err := s.call(context.Background(), "get_task", json.RawMessage(`{"task_id":"t","after_sequence":1}`))
-			text := publicError(err).Error()
+			text := toolErrorText(t, s, "get_task", `{"task_id":"t","after_sequence":1}`)
 			if !errors.Is(err, comitia.ErrInvalid) || !strings.HasPrefix(text, `invalid input: unknown field "after_sequence";`) || !strings.Contains(text, `(this client is comitia `+client.Version) || !strings.Contains(text, tc.want) || strings.Contains(text, tc.avoid) || strings.Contains(text, "fixed-secret") {
 				t.Fatalf("error=%v", text)
 			}

@@ -1,3 +1,6 @@
+// Message tools: send, read, replay, wait, acknowledge, cursors, participants
+// and message schema discovery.
+
 package mcp
 
 import (
@@ -47,215 +50,242 @@ func messageReadProperties(wait bool) map[string]any {
 func (s *Server) callMessages(ctx context.Context, name string, raw json.RawMessage) (any, error) {
 	switch name {
 	case "get_message":
-		var a struct {
-			ContextID string `json:"context_id"`
-			MessageID string `json:"message_id"`
-		}
-		if err := decode(raw, &a); err != nil {
-			return nil, err
-		}
-		if err := required("context_id", a.ContextID, "message_id", a.MessageID); err != nil {
-			return nil, err
-		}
-		return comitia.LookupMessage(ctx, s.API, s.Credential, a.ContextID, a.MessageID)
+		return s.callGetMessage(ctx, raw)
 	case "list_message_schemas", "get_message_schema":
-		var a struct {
-			Schema string `json:"schema"`
-		}
-		if name == "list_message_schemas" {
-			if err := decode(raw, &struct{}{}); err != nil {
-				return nil, err
-			}
-		} else {
-			if err := decode(raw, &a); err != nil {
-				return nil, err
-			}
-			if err := required("schema", a.Schema); err != nil {
-				return nil, err
-			}
-		}
-		api, ok := s.API.(comitia.MessageSchemaAPI)
-		if !ok {
-			return nil, comitia.Invalidf("message schema discovery unsupported by API")
-		}
-		if name == "list_message_schemas" {
-			return api.ListMessageSchemas(ctx, s.Credential)
-		}
-		return api.GetMessageSchema(ctx, s.Credential, a.Schema)
+		return s.callMessageSchemas(ctx, name, raw)
 	case "send_message":
-		var a struct {
-			RecipientSessionIDs []string                 `json:"recipient_session_ids"`
-			RecipientInstances  []string                 `json:"recipient_instances"`
-			TaskFence           *comitia.TaskFence       `json:"task_fence"`
-			ContextID           string                   `json:"context_id"`
-			DedupeKey           string                   `json:"dedupe_key"`
-			Body                string                   `json:"body"`
-			Envelope            *comitia.MessageEnvelope `json:"envelope"`
-			AgentInstance       *comitia.AgentInstance   `json:"agent_instance"`
-		}
-		if err := decode(raw, &a); err != nil {
-			return nil, err
-		}
-		if err := required("context_id", a.ContextID, "dedupe_key", a.DedupeKey); err != nil {
-			return nil, err
-		}
-		return s.API.AppendMessage(ctx, s.Credential, a.ContextID, comitia.MessageInput{RecipientSessionIDs: a.RecipientSessionIDs, RecipientInstances: a.RecipientInstances, TaskFence: a.TaskFence, DedupeKey: a.DedupeKey, Body: a.Body, Envelope: a.Envelope, AgentInstance: s.InstanceDefaults.Message(a.AgentInstance)})
+		return s.callSendMessage(ctx, raw)
 	case "list_participants":
-		var a struct {
-			Page      bool   `json:"page"`
-			AfterID   string `json:"after_id"`
-			ContextID string `json:"context_id"`
-			Limit     *int   `json:"limit"`
-		}
-		if err := decode(raw, &a); err != nil {
-			return nil, err
-		}
-		if err := required("context_id", a.ContextID); err != nil {
-			return nil, err
-		}
-		limit := 100
-		if a.Limit != nil {
-			limit = *a.Limit
-		}
-		if limit < 1 || limit > 1000 {
-			return nil, comitia.Invalidf("limit must be between 1 and 1000")
-		}
-		if a.Page || a.AfterID != "" {
-			return comitia.ListParticipantPage(ctx, s.API, s.Credential, a.ContextID, a.AfterID, limit)
-		}
-		return s.API.ListParticipants(ctx, s.Credential, a.ContextID, limit)
+		return s.callListParticipants(ctx, raw)
 	case "replay_messages":
-		var a struct {
-			comitia.MessageFilters
-			Page      bool   `json:"page"`
-			Compact   bool   `json:"compact"`
-			ContextID string `json:"context_id"`
-			After     *int64 `json:"after"`
-			Limit     int    `json:"limit"`
-		}
-		if err := decode(raw, &a); err != nil {
-			return nil, err
-		}
-		if err := required("context_id", a.ContextID); err != nil {
-			return nil, err
-		}
-		if a.Limit == 0 {
-			a.Limit = 100
-		}
-		filters, err := presenceFilters(s.InstanceDefaults, a.MessageFilters)
-		if err != nil {
-			return nil, err
-		}
-		if err := comitia.CheckMessageQueryAPI(s.API, filters); err != nil {
-			return nil, err
-		}
-		after, err := messageAfter(a.After, filters)
-		if err != nil {
-			return nil, err
-		}
-		if a.Page || filters.FromCursor {
-			page, err := comitia.ReplayMessagePage(ctx, s.API, s.Credential, a.ContextID, after, a.Limit, filters)
-			if !a.Page {
-				return cursorMessageResult(page), err
-			}
-			return messageResult(page, a.Compact), err
-		}
-		value, err := s.API.ReplayMessages(ctx, s.Credential, a.ContextID, after, a.Limit, filters)
-		return messageResult(value, a.Compact), err
+		return s.callReplayMessages(ctx, raw)
 	case "wait_messages":
-		var a struct {
-			comitia.MessageFilters
-			Page           bool     `json:"page"`
-			Compact        bool     `json:"compact"`
-			ContextID      string   `json:"context_id"`
-			After          *int64   `json:"after"`
-			TimeoutSeconds *float64 `json:"timeout_seconds"`
-		}
-		if err := decode(raw, &a); err != nil {
-			return nil, err
-		}
-		if err := required("context_id", a.ContextID); err != nil {
-			return nil, err
-		}
-		timeout := 30 * time.Second
-		if a.TimeoutSeconds != nil {
-			var err error
-			timeout, err = comitia.MessageWaitTimeout(*a.TimeoutSeconds)
-			if err != nil {
-				return nil, err
-			}
-		}
-		filters, err := presenceFilters(s.InstanceDefaults, a.MessageFilters)
-		if err != nil {
-			return nil, err
-		}
-		if err := comitia.CheckMessageQueryAPI(s.API, filters); err != nil {
-			return nil, err
-		}
-		after, err := messageAfter(a.After, filters)
-		if err != nil {
-			return nil, err
-		}
-		if a.Page || filters.FromCursor {
-			page, err := comitia.WaitMessagePage(ctx, s.API, s.Credential, a.ContextID, after, timeout, filters)
-			if !a.Page {
-				return cursorMessageResult(page), err
-			}
-			return messageResult(page, a.Compact), err
-		}
-		value, err := s.API.WaitMessages(ctx, s.Credential, a.ContextID, after, timeout, filters)
-		return messageResult(value, a.Compact), err
+		return s.callWaitMessages(ctx, raw)
 	case "ack_messages":
-		var a struct {
-			ContextID     string  `json:"context_id"`
-			Sequence      *int64  `json:"sequence"`
-			AgentInstance *string `json:"agent_instance"`
-		}
-		if err := decode(raw, &a); err != nil {
-			return nil, err
-		}
-		if err := required("context_id", a.ContextID); err != nil {
-			return nil, err
-		}
-		if a.Sequence == nil {
-			return nil, comitia.Invalidf("sequence required")
-		}
-		instance, err := instanceID(s.InstanceDefaults, a.AgentInstance)
-		if err != nil {
-			return nil, err
-		}
-		if err := s.API.AckMessages(ctx, s.Credential, a.ContextID, *a.Sequence, instance); err != nil {
-			return nil, err
-		}
-		return map[string]any{"ok": true}, nil
+		return s.callAckMessages(ctx, raw)
 	case "message_cursor":
-		var a struct {
-			AgentInstance *string `json:"agent_instance"`
-			ContextID     string  `json:"context_id"`
-		}
-		if err := decode(raw, &a); err != nil {
-			return nil, err
-		}
-		if err := required("context_id", a.ContextID); err != nil {
-			return nil, err
-		}
-		instance, err := instanceID(s.InstanceDefaults, a.AgentInstance)
-		if err != nil {
-			return nil, err
-		}
-		v, err := s.API.MessageCursor(ctx, s.Credential, a.ContextID, instance)
-		if err != nil {
-			return nil, err
-		}
-		return map[string]int64{"sequence": v}, nil
+		return s.callMessageCursor(ctx, raw)
 	default:
 		return nil, errUnknownTool
 	}
 }
 
-type compactResult struct {
-	value any
-	text  string
+func (s *Server) callGetMessage(ctx context.Context, raw json.RawMessage) (any, error) {
+	var a struct {
+		ContextID string `json:"context_id"`
+		MessageID string `json:"message_id"`
+	}
+	if err := decode(raw, &a); err != nil {
+		return nil, err
+	}
+	if err := required("context_id", a.ContextID, "message_id", a.MessageID); err != nil {
+		return nil, err
+	}
+	return comitia.LookupMessage(ctx, s.API, s.Credential, a.ContextID, a.MessageID)
+}
+
+func (s *Server) callMessageSchemas(ctx context.Context, name string, raw json.RawMessage) (any, error) {
+	var a struct {
+		Schema string `json:"schema"`
+	}
+	if name == "list_message_schemas" {
+		if err := decode(raw, &struct{}{}); err != nil {
+			return nil, err
+		}
+	} else {
+		if err := decode(raw, &a); err != nil {
+			return nil, err
+		}
+		if err := required("schema", a.Schema); err != nil {
+			return nil, err
+		}
+	}
+	api, ok := s.API.(comitia.MessageSchemaAPI)
+	if !ok {
+		return nil, comitia.Invalidf("message schema discovery unsupported by API")
+	}
+	if name == "list_message_schemas" {
+		return api.ListMessageSchemas(ctx, s.Credential)
+	}
+	return api.GetMessageSchema(ctx, s.Credential, a.Schema)
+}
+
+func (s *Server) callSendMessage(ctx context.Context, raw json.RawMessage) (any, error) {
+	var a struct {
+		RecipientSessionIDs []string                 `json:"recipient_session_ids"`
+		RecipientInstances  []string                 `json:"recipient_instances"`
+		TaskFence           *comitia.TaskFence       `json:"task_fence"`
+		ContextID           string                   `json:"context_id"`
+		DedupeKey           string                   `json:"dedupe_key"`
+		Body                string                   `json:"body"`
+		Envelope            *comitia.MessageEnvelope `json:"envelope"`
+		AgentInstance       *comitia.AgentInstance   `json:"agent_instance"`
+	}
+	if err := decode(raw, &a); err != nil {
+		return nil, err
+	}
+	if err := required("context_id", a.ContextID, "dedupe_key", a.DedupeKey); err != nil {
+		return nil, err
+	}
+	return s.API.AppendMessage(ctx, s.Credential, a.ContextID, comitia.MessageInput{RecipientSessionIDs: a.RecipientSessionIDs, RecipientInstances: a.RecipientInstances, TaskFence: a.TaskFence, DedupeKey: a.DedupeKey, Body: a.Body, Envelope: a.Envelope, AgentInstance: s.InstanceDefaults.Message(a.AgentInstance)})
+}
+
+func (s *Server) callListParticipants(ctx context.Context, raw json.RawMessage) (any, error) {
+	var a struct {
+		Page      bool   `json:"page"`
+		AfterID   string `json:"after_id"`
+		ContextID string `json:"context_id"`
+		Limit     *int   `json:"limit"`
+	}
+	if err := decode(raw, &a); err != nil {
+		return nil, err
+	}
+	if err := required("context_id", a.ContextID); err != nil {
+		return nil, err
+	}
+	limit := 100
+	if a.Limit != nil {
+		limit = *a.Limit
+	}
+	if limit < 1 || limit > 1000 {
+		return nil, comitia.Invalidf("limit must be between 1 and 1000")
+	}
+	if a.Page || a.AfterID != "" {
+		return comitia.ListParticipantPage(ctx, s.API, s.Credential, a.ContextID, a.AfterID, limit)
+	}
+	return s.API.ListParticipants(ctx, s.Credential, a.ContextID, limit)
+}
+
+func (s *Server) callReplayMessages(ctx context.Context, raw json.RawMessage) (any, error) {
+	var a struct {
+		comitia.MessageFilters
+		Page      bool   `json:"page"`
+		Compact   bool   `json:"compact"`
+		ContextID string `json:"context_id"`
+		After     *int64 `json:"after"`
+		Limit     int    `json:"limit"`
+	}
+	if err := decode(raw, &a); err != nil {
+		return nil, err
+	}
+	if err := required("context_id", a.ContextID); err != nil {
+		return nil, err
+	}
+	if a.Limit == 0 {
+		a.Limit = 100
+	}
+	filters, err := presenceFilters(s.InstanceDefaults, a.MessageFilters)
+	if err != nil {
+		return nil, err
+	}
+	if err := comitia.CheckMessageQueryAPI(s.API, filters); err != nil {
+		return nil, err
+	}
+	after, err := messageAfter(a.After, filters)
+	if err != nil {
+		return nil, err
+	}
+	if a.Page || filters.FromCursor {
+		page, err := comitia.ReplayMessagePage(ctx, s.API, s.Credential, a.ContextID, after, a.Limit, filters)
+		if !a.Page {
+			return cursorMessageResult(page), err
+		}
+		return messageResult(page, a.Compact), err
+	}
+	value, err := s.API.ReplayMessages(ctx, s.Credential, a.ContextID, after, a.Limit, filters)
+	return messageResult(value, a.Compact), err
+}
+
+func (s *Server) callWaitMessages(ctx context.Context, raw json.RawMessage) (any, error) {
+	var a struct {
+		comitia.MessageFilters
+		Page           bool     `json:"page"`
+		Compact        bool     `json:"compact"`
+		ContextID      string   `json:"context_id"`
+		After          *int64   `json:"after"`
+		TimeoutSeconds *float64 `json:"timeout_seconds"`
+	}
+	if err := decode(raw, &a); err != nil {
+		return nil, err
+	}
+	if err := required("context_id", a.ContextID); err != nil {
+		return nil, err
+	}
+	timeout := 30 * time.Second
+	if a.TimeoutSeconds != nil {
+		var err error
+		timeout, err = comitia.MessageWaitTimeout(*a.TimeoutSeconds)
+		if err != nil {
+			return nil, err
+		}
+	}
+	filters, err := presenceFilters(s.InstanceDefaults, a.MessageFilters)
+	if err != nil {
+		return nil, err
+	}
+	if err := comitia.CheckMessageQueryAPI(s.API, filters); err != nil {
+		return nil, err
+	}
+	after, err := messageAfter(a.After, filters)
+	if err != nil {
+		return nil, err
+	}
+	if a.Page || filters.FromCursor {
+		page, err := comitia.WaitMessagePage(ctx, s.API, s.Credential, a.ContextID, after, timeout, filters)
+		if !a.Page {
+			return cursorMessageResult(page), err
+		}
+		return messageResult(page, a.Compact), err
+	}
+	value, err := s.API.WaitMessages(ctx, s.Credential, a.ContextID, after, timeout, filters)
+	return messageResult(value, a.Compact), err
+}
+
+func (s *Server) callAckMessages(ctx context.Context, raw json.RawMessage) (any, error) {
+	var a struct {
+		ContextID     string  `json:"context_id"`
+		Sequence      *int64  `json:"sequence"`
+		AgentInstance *string `json:"agent_instance"`
+	}
+	if err := decode(raw, &a); err != nil {
+		return nil, err
+	}
+	if err := required("context_id", a.ContextID); err != nil {
+		return nil, err
+	}
+	if a.Sequence == nil {
+		return nil, comitia.Invalidf("sequence required")
+	}
+	instance, err := instanceID(s.InstanceDefaults, a.AgentInstance)
+	if err != nil {
+		return nil, err
+	}
+	if err := s.API.AckMessages(ctx, s.Credential, a.ContextID, *a.Sequence, instance); err != nil {
+		return nil, err
+	}
+	return map[string]any{"ok": true}, nil
+}
+
+func (s *Server) callMessageCursor(ctx context.Context, raw json.RawMessage) (any, error) {
+	var a struct {
+		AgentInstance *string `json:"agent_instance"`
+		ContextID     string  `json:"context_id"`
+	}
+	if err := decode(raw, &a); err != nil {
+		return nil, err
+	}
+	if err := required("context_id", a.ContextID); err != nil {
+		return nil, err
+	}
+	instance, err := instanceID(s.InstanceDefaults, a.AgentInstance)
+	if err != nil {
+		return nil, err
+	}
+	v, err := s.API.MessageCursor(ctx, s.Credential, a.ContextID, instance)
+	if err != nil {
+		return nil, err
+	}
+	return map[string]int64{"sequence": v}, nil
 }
 
 func messageResult(value any, compact bool) any {

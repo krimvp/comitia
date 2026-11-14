@@ -1,3 +1,5 @@
+// Grant tools: grant_context, revoke_grant and permission parsing.
+
 package mcp
 
 import (

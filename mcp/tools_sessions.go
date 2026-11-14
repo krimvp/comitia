@@ -1,3 +1,6 @@
+// Session tools: delegate_session with its private credential files, and
+// revoke_session.
+
 package mcp
 
 import (

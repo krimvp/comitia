@@ -1,3 +1,5 @@
+// Presence tools: list_instances and set_instance_resume.
+
 package mcp
 
 import (

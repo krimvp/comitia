@@ -1,3 +1,5 @@
+// Context tools: get, archive, create, list contexts and children, references.
+
 package mcp
 
 import (
@@ -22,112 +24,132 @@ func contextTools() []map[string]any {
 func (s *Server) callContexts(ctx context.Context, name string, raw json.RawMessage) (any, error) {
 	switch name {
 	case "get_context", "archive_context":
-		var a struct {
-			ContextID string `json:"context_id"`
-		}
-		if err := decode(raw, &a); err != nil {
-			return nil, err
-		}
-		if err := required("context_id", a.ContextID); err != nil {
-			return nil, err
-		}
-		if name == "get_context" {
-			return s.API.GetContext(ctx, s.Credential, a.ContextID)
-		}
-		if err := s.API.ArchiveContext(ctx, s.Credential, a.ContextID); err != nil {
-			return nil, err
-		}
-		return map[string]bool{"archived": true}, nil
+		return s.callGetOrArchiveContext(ctx, name, raw)
 	case "add_reference":
-		var a struct {
-			ContextID string `json:"context_id"`
-			Kind      string `json:"kind"`
-			URI       string `json:"uri"`
-		}
-		if err := decode(raw, &a); err != nil {
-			return nil, err
-		}
-		if err := required("context_id", a.ContextID, "kind", a.Kind, "uri", a.URI); err != nil {
-			return nil, err
-		}
-		return s.API.AddReference(ctx, s.Credential, comitia.AddReferenceInput{ContextID: a.ContextID, Kind: a.Kind, URI: a.URI})
+		return s.callAddReference(ctx, raw)
 	case "list_references":
-		var a struct {
-			ContextID string `json:"context_id"`
-			AfterID   string `json:"after_id"`
-			Limit     *int   `json:"limit"`
-		}
-		if err := decode(raw, &a); err != nil {
-			return nil, err
-		}
-		if err := required("context_id", a.ContextID); err != nil {
-			return nil, err
-		}
-		limit := 100
-		if a.Limit != nil {
-			limit = *a.Limit
-		}
-		return comitia.ListReferences(ctx, s.API, s.Credential, a.ContextID, a.AfterID, limit)
+		return s.callListReferences(ctx, raw)
 	case "create_context":
-		var a struct {
-			ParentContextID string `json:"parent_context_id"`
-			Name            string `json:"name"`
-			TaskID          string `json:"task_id"`
-			ParentReadable  bool   `json:"parent_readable"`
-		}
-		if err := decode(raw, &a); err != nil {
-			return nil, err
-		}
-		if err := required("parent_context_id", a.ParentContextID, "name", a.Name); err != nil {
-			return nil, err
-		}
-		return s.API.CreateChildContext(ctx, s.Credential, comitia.CreateChildContextInput{ParentContextID: a.ParentContextID, Name: a.Name, TaskID: a.TaskID, ParentReadable: a.ParentReadable})
+		return s.callCreateContext(ctx, raw)
 	case "list_contexts", "list_child_contexts":
-		var a struct {
-			ParentContextID string `json:"parent_context_id"`
-			AfterID         string `json:"after_id"`
-			Limit           *int   `json:"limit"`
-		}
-		// A parent is only an argument to the child listing.
-		if name == "list_contexts" {
-			var page struct {
-				AfterID string `json:"after_id"`
-				Limit   *int   `json:"limit"`
-			}
-			if err := decode(raw, &page); err != nil {
-				return nil, err
-			}
-			a.AfterID, a.Limit = page.AfterID, page.Limit
-		} else {
-			if err := decode(raw, &a); err != nil {
-				return nil, err
-			}
-			if err := required("parent_context_id", a.ParentContextID); err != nil {
-				return nil, err
-			}
-		}
-		limit := 100
-		if a.Limit != nil {
-			limit = *a.Limit
-		}
-		if limit < 1 || limit > 1000 {
-			return nil, comitia.Invalidf("limit must be between 1 and 1000")
-		}
-		if len(a.AfterID) > 128 {
-			return nil, comitia.Invalidf("after_id must be at most 128 bytes")
-		}
-		var contexts []comitia.WorkContext
-		var err error
-		if name == "list_contexts" {
-			contexts, err = s.API.ListContexts(ctx, s.Credential, a.AfterID, limit)
-		} else {
-			contexts, err = s.API.ListChildContexts(ctx, s.Credential, a.ParentContextID, a.AfterID, limit)
-		}
-		if contexts == nil {
-			contexts = []comitia.WorkContext{}
-		}
-		return contexts, err
+		return s.callListContexts(ctx, name, raw)
 	default:
 		return nil, errUnknownTool
 	}
+}
+
+func (s *Server) callGetOrArchiveContext(ctx context.Context, name string, raw json.RawMessage) (any, error) {
+	var a struct {
+		ContextID string `json:"context_id"`
+	}
+	if err := decode(raw, &a); err != nil {
+		return nil, err
+	}
+	if err := required("context_id", a.ContextID); err != nil {
+		return nil, err
+	}
+	if name == "get_context" {
+		return s.API.GetContext(ctx, s.Credential, a.ContextID)
+	}
+	if err := s.API.ArchiveContext(ctx, s.Credential, a.ContextID); err != nil {
+		return nil, err
+	}
+	return map[string]bool{"archived": true}, nil
+}
+
+func (s *Server) callAddReference(ctx context.Context, raw json.RawMessage) (any, error) {
+	var a struct {
+		ContextID string `json:"context_id"`
+		Kind      string `json:"kind"`
+		URI       string `json:"uri"`
+	}
+	if err := decode(raw, &a); err != nil {
+		return nil, err
+	}
+	if err := required("context_id", a.ContextID, "kind", a.Kind, "uri", a.URI); err != nil {
+		return nil, err
+	}
+	return s.API.AddReference(ctx, s.Credential, comitia.AddReferenceInput{ContextID: a.ContextID, Kind: a.Kind, URI: a.URI})
+}
+
+func (s *Server) callListReferences(ctx context.Context, raw json.RawMessage) (any, error) {
+	var a struct {
+		ContextID string `json:"context_id"`
+		AfterID   string `json:"after_id"`
+		Limit     *int   `json:"limit"`
+	}
+	if err := decode(raw, &a); err != nil {
+		return nil, err
+	}
+	if err := required("context_id", a.ContextID); err != nil {
+		return nil, err
+	}
+	limit := 100
+	if a.Limit != nil {
+		limit = *a.Limit
+	}
+	return comitia.ListReferences(ctx, s.API, s.Credential, a.ContextID, a.AfterID, limit)
+}
+
+func (s *Server) callCreateContext(ctx context.Context, raw json.RawMessage) (any, error) {
+	var a struct {
+		ParentContextID string `json:"parent_context_id"`
+		Name            string `json:"name"`
+		TaskID          string `json:"task_id"`
+		ParentReadable  bool   `json:"parent_readable"`
+	}
+	if err := decode(raw, &a); err != nil {
+		return nil, err
+	}
+	if err := required("parent_context_id", a.ParentContextID, "name", a.Name); err != nil {
+		return nil, err
+	}
+	return s.API.CreateChildContext(ctx, s.Credential, comitia.CreateChildContextInput{ParentContextID: a.ParentContextID, Name: a.Name, TaskID: a.TaskID, ParentReadable: a.ParentReadable})
+}
+
+func (s *Server) callListContexts(ctx context.Context, name string, raw json.RawMessage) (any, error) {
+	var a struct {
+		ParentContextID string `json:"parent_context_id"`
+		AfterID         string `json:"after_id"`
+		Limit           *int   `json:"limit"`
+	}
+	// A parent is only an argument to the child listing.
+	if name == "list_contexts" {
+		var page struct {
+			AfterID string `json:"after_id"`
+			Limit   *int   `json:"limit"`
+		}
+		if err := decode(raw, &page); err != nil {
+			return nil, err
+		}
+		a.AfterID, a.Limit = page.AfterID, page.Limit
+	} else {
+		if err := decode(raw, &a); err != nil {
+			return nil, err
+		}
+		if err := required("parent_context_id", a.ParentContextID); err != nil {
+			return nil, err
+		}
+	}
+	limit := 100
+	if a.Limit != nil {
+		limit = *a.Limit
+	}
+	if limit < 1 || limit > 1000 {
+		return nil, comitia.Invalidf("limit must be between 1 and 1000")
+	}
+	if len(a.AfterID) > 128 {
+		return nil, comitia.Invalidf("after_id must be at most 128 bytes")
+	}
+	var contexts []comitia.WorkContext
+	var err error
+	if name == "list_contexts" {
+		contexts, err = s.API.ListContexts(ctx, s.Credential, a.AfterID, limit)
+	} else {
+		contexts, err = s.API.ListChildContexts(ctx, s.Credential, a.ParentContextID, a.AfterID, limit)
+	}
+	if contexts == nil {
+		contexts = []comitia.WorkContext{}
+	}
+	return contexts, err
 }

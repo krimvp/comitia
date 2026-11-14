@@ -1,3 +1,6 @@
+// Server info tools (server_info, storage_status) and the unknown-field hint
+// that consults server_info to tell a stale client from a misspelt field.
+
 package mcp
 
 import (

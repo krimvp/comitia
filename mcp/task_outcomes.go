@@ -1,3 +1,5 @@
+// The fail_task and cancel_task tools: their shared schema and handler.
+
 package mcp
 
 import (
