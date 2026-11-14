@@ -50,8 +50,8 @@ jobs:
       - run: go test -race -timeout 20m ./...
 
       - name: Repeat race and crash recovery checks
-        # The pattern selected 30 tests when they all lived in the public API package;
-        # fail rather than repeat fewer if tests move or are renamed.
+        # The pattern selects at least 30 tests in these packages; fail rather
+        # than repeat fewer if tests move or are renamed.
         run: |
           pattern='TestCrashRecovery|TestSecurity|TestSQLite'
           packages='./pkg/comitia ./internal/service ./internal/sqlstore'

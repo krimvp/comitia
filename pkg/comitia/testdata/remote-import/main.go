@@ -26,7 +26,7 @@ func main() {
 	}
 	for _, path := range []string{":memory:", os.Args[1]} {
 		store, err := comitia.OpenSQLite(path)
-		if store != nil || !errors.Is(err, comitia.ErrInvalid) || !strings.Contains(err.Error(), "sqlite.OpenSQLite") {
+		if store != nil || !errors.Is(err, comitia.ErrInvalid) || !strings.HasSuffix(err.Error(), "SQLite driver unavailable; use "+os.Args[2]) {
 			fmt.Fprintf(os.Stderr, "missing-driver migration error: store=%v err=%v\n", store, err)
 			os.Exit(1)
 		}

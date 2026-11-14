@@ -366,8 +366,9 @@ class BuildProvenanceTest(unittest.TestCase):
                 build = next(command for command in commands if command[0] == 'go')
                 self.assertIn('-ldflags', build)
                 flags = build[build.index('-ldflags')+1]
-                self.assertIn('github.com/krimvp/comitia/pkg/comitia.Revision='+'a'*40, flags)
-                self.assertIn('github.com/krimvp/comitia/pkg/comitia.Dirty='+dirty, flags)
+                # The whole flag string: the linker ignores -X for a package that does not exist.
+                self.assertEqual(flags, '-X github.com/krimvp/comitia/pkg/comitia.Revision='+'a'*40
+                                 +' -X github.com/krimvp/comitia/pkg/comitia.Dirty='+dirty)
 
     def test_git_unavailable_build_stamps_unknown(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -383,7 +384,8 @@ class BuildProvenanceTest(unittest.TestCase):
             with mock.patch.object(local.subprocess, 'run', side_effect=run):
                 local.install_binary(root)
             self.assertIn('-ldflags', commands[0])
-            self.assertIn('github.com/krimvp/comitia/pkg/comitia.Revision=unknown', commands[0][commands[0].index('-ldflags')+1])
+            self.assertEqual(commands[0][commands[0].index('-ldflags')+1],
+                             '-X github.com/krimvp/comitia/pkg/comitia.Revision=unknown -X github.com/krimvp/comitia/pkg/comitia.Dirty=unknown')
 
     def test_clean_checkout_stays_clean_after_import(self):
         repo = Path(__file__).resolve().parent.parent

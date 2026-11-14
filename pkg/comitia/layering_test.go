@@ -164,9 +164,12 @@ func TestInternalLayering(t *testing.T) {
 // production code or tests, imports a package of the module's internal/ tree
 // directly. Only direct imports are checked; the public API package and
 // pkg/sqlite import internal packages, so the adapters depend on them
-// indirectly. The examples are held to the same rule, since they show the
+// indirectly. Every other package under pkg/ (pkg/sqlite, pkg/storetest and
+// any added later) is held to the same rule, since its exports are public
+// API; the facade, pkg/comitia, is the one package under pkg/ that imports
+// the implementation. The examples are held to it too, since they show the
 // public API.
-var adapterPatterns = []string{"./cmd/...", "./pkg/mcp/...", "./pkg/httpapi/...", "./examples/..."}
+var adapterPatterns = []string{"./cmd/...", "./pkg/...", "./examples/..."}
 
 // adapterMayImport lists the internal packages the adapters may nevertheless
 // import directly, one per line: internal packages meant for the adapters.
@@ -188,7 +191,7 @@ func adapterViolations(pkgs []listedPackage) []string {
 			for _, imp := range imports.list {
 				dep, ok := strings.CutPrefix(imp, module+"/")
 				if ok && strings.HasPrefix(dep, "internal/") && !adapterMayImport[dep] {
-					out = append(out, fmt.Sprintf("%s %s; adapters reach the implementation only through the public API package and pkg/sqlite (or add it to adapterMayImport)", imports.who, dep))
+					out = append(out, fmt.Sprintf("%s %s; outside the public API package, packages under cmd/, examples/ and pkg/ reach the implementation only through it (or add the internal package to adapterMayImport)", imports.who, dep))
 				}
 			}
 		}
@@ -197,12 +200,15 @@ func adapterViolations(pkgs []listedPackage) []string {
 }
 
 func TestAdapterImports(t *testing.T) {
-	pkgs := listPackages(t, adapterPatterns...)
+	var pkgs []listedPackage
 	listed := map[string]bool{}
-	for _, p := range pkgs {
+	for _, p := range listPackages(t, adapterPatterns...) {
 		listed[p.ImportPath] = true
+		if p.ImportPath != facade {
+			pkgs = append(pkgs, p)
+		}
 	}
-	for _, adapter := range []string{"cmd/comitia", "pkg/mcp", "pkg/httpapi"} {
+	for _, adapter := range []string{"cmd/comitia", "pkg/mcp", "pkg/httpapi", "pkg/httpapi/internal/legacy", "pkg/sqlite", "pkg/storetest", "examples/embedded"} {
 		if !listed[module+"/"+adapter] {
 			t.Fatalf("adapter %s not listed", adapter)
 		}
@@ -217,10 +223,12 @@ func TestAdapterImportsRejectViolations(t *testing.T) {
 		{ImportPath: module + "/pkg/mcp", Imports: []string{facade, module + "/internal/model"}},
 		{ImportPath: module + "/pkg/httpapi", TestImports: []string{module + "/pkg/httpapi/internal/legacy", module + "/pkg/sqlite"}, XTestImports: []string{module + "/internal/service"}},
 		{ImportPath: module + "/cmd/comitia", Imports: []string{module + "/pkg/httpapi", module + "/pkg/mcp", module + "/pkg/sqlite"}},
+		{ImportPath: module + "/pkg/sqlite", Imports: []string{facade, module + "/internal/sqlstore"}},
 	})
 	want := []string{
-		"pkg/mcp imports internal/model; adapters reach the implementation only through the public API package and pkg/sqlite (or add it to adapterMayImport)",
-		"tests of pkg/httpapi import internal/service; adapters reach the implementation only through the public API package and pkg/sqlite (or add it to adapterMayImport)",
+		"pkg/mcp imports internal/model; outside the public API package, packages under cmd/, examples/ and pkg/ reach the implementation only through it (or add the internal package to adapterMayImport)",
+		"tests of pkg/httpapi import internal/service; outside the public API package, packages under cmd/, examples/ and pkg/ reach the implementation only through it (or add the internal package to adapterMayImport)",
+		"pkg/sqlite imports internal/sqlstore; outside the public API package, packages under cmd/, examples/ and pkg/ reach the implementation only through it (or add the internal package to adapterMayImport)",
 	}
 	if strings.Join(got, "\n") != strings.Join(want, "\n") {
 		t.Fatalf("violations:\n%s\nwant:\n%s", strings.Join(got, "\n"), strings.Join(want, "\n"))
@@ -248,22 +256,86 @@ func TestInternalLayeringRejectsViolations(t *testing.T) {
 	}
 }
 
+// goDirectories are the top-level directories that may hold Go files, each
+// with what it is for. go list ./... finds packages in these alone.
+var goDirectories = map[string]string{
+	"cmd":      "the commands: cmd/comitia",
+	"examples": "programs that show the public API, compiled by the tests",
+	"internal": "the implementation, importable only from inside this module",
+	"pkg":      "the packages other modules import",
+}
+
 // The repository root holds the module files and the documents a reader looks
-// for first (README.md, CONTRIBUTING.md, ...); Go packages live under cmd/,
-// pkg/, internal/ and examples/. A Go file at the root would be a package at
-// the module path, beside the public API in pkg/comitia.
-func TestRepositoryRootHasNoGoFiles(t *testing.T) {
-	root := moduleRoot(t)
-	entries, err := os.ReadDir(root)
-	if err != nil {
-		t.Fatal(err)
+// for first (README.md, CONTRIBUTING.md, ...); Go code lives only under
+// goDirectories. A Go file at the root would be a package at the module path,
+// beside the public API in pkg/comitia, and one in a new top-level directory
+// (client/) a public import path outside pkg/. The files checked are those of
+// repositoryFiles, so an ignored leftover such as httpapi/ in a clone from
+// before the move to pkg/ does not count, and a new directory not yet added
+// to git does.
+func TestGoCodeStaysInItsDirectories(t *testing.T) {
+	_, files := repositoryFiles(t)
+	if len(files) == 0 {
+		t.Fatal("no repository files listed")
 	}
-	for _, e := range entries {
-		if strings.HasSuffix(e.Name(), ".go") {
-			t.Errorf("%s is at the repository root; put Go code in a package under cmd/, pkg/, internal/ or examples/", e.Name())
+	for _, v := range goPlacementViolations(files) {
+		t.Error(v)
+	}
+}
+
+// goPlacementViolations names each Go file outside goDirectories, a testdata
+// directory at the root, and each entry of goDirectories that holds no Go
+// file, given module-relative file paths.
+func goPlacementViolations(files []string) []string {
+	var out []string
+	holds := map[string]bool{}
+	rootTestdata := false
+	for _, rel := range files {
+		top, _, nested := strings.Cut(rel, "/")
+		if nested && top == "testdata" && !rootTestdata {
+			rootTestdata = true
+			out = append(out, "testdata/ is at the repository root; test data belongs beside the package that reads it")
 		}
-		if e.Name() == "testdata" {
-			t.Errorf("testdata/ is at the repository root; test data belongs beside the package that reads it")
+		if !strings.HasSuffix(rel, ".go") {
+			continue
 		}
+		if _, ok := goDirectories[top]; nested && ok {
+			holds[top] = true
+			continue
+		}
+		out = append(out, fmt.Sprintf("%s is outside %s; put Go code in a package under one of them (or, deliberately, add a directory to goDirectories)", rel, strings.Join(goDirectoryNames(), ", ")))
+	}
+	for _, dir := range goDirectoryNames() {
+		if !holds[strings.TrimSuffix(dir, "/")] {
+			out = append(out, fmt.Sprintf("%s holds no Go file; remove it from goDirectories", dir))
+		}
+	}
+	return out
+}
+
+func goDirectoryNames() []string {
+	var names []string
+	for dir := range goDirectories {
+		names = append(names, dir+"/")
+	}
+	sort.Strings(names)
+	return names
+}
+
+func TestGoPlacementRejectsViolations(t *testing.T) {
+	got := goPlacementViolations([]string{
+		"README.md", "go.mod", "zz.go", "client/client.go", ".github/x.go", "scripts/x.py",
+		"cmd/comitia/main.go", "internal/model/model.go", "pkg/comitia/api.go",
+		"testdata/a.json", "testdata/b.json", "internal/service/testdata/x.go",
+	})
+	want := []string{
+		"zz.go is outside cmd/, examples/, internal/, pkg/; put Go code in a package under one of them (or, deliberately, add a directory to goDirectories)",
+		"client/client.go is outside cmd/, examples/, internal/, pkg/; put Go code in a package under one of them (or, deliberately, add a directory to goDirectories)",
+		".github/x.go is outside cmd/, examples/, internal/, pkg/; put Go code in a package under one of them (or, deliberately, add a directory to goDirectories)",
+		"testdata/ is at the repository root; test data belongs beside the package that reads it",
+		"examples/ holds no Go file; remove it from goDirectories",
+	}
+	if strings.Join(got, "\n") != strings.Join(want, "\n") {
+		t.Fatalf("violations:\n%s\nwant:\n%s", strings.Join(got, "\n"), strings.Join(want, "\n"))
 	}
 }

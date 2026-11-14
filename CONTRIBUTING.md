@@ -76,7 +76,9 @@ Run the whole sequence before you ask for review.
 ## Layout
 
 The root holds the module files and these documents; Go code lives in `cmd/`,
-`pkg/` (the packages other modules import), `internal/` and `examples/`.
+`pkg/` (the packages other modules import), `internal/` and `examples/`. A clone
+from before the move to `pkg/` keeps an ignored `httpapi/` directory at the root
+(browser test dependencies); delete it.
 
 - `pkg/comitia`: the public API only, aliases and forwarders over `internal/`.
 - `internal/model`, `internal/schema`, `internal/sqlstore`, `internal/service`,
