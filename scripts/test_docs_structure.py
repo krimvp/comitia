@@ -20,6 +20,7 @@ WORD_BASELINE = {
     'docs/CONNECTING.md': 881,
     # Reviewed #65 owner budget for consumer/request/supervisor/merge workflows.
     'docs/durable-coordination.md': 2200,
+    'docs/README.md': 432,
     'docs/RUNBOOK.md': 17,
     'docs/USING-COMITIA.md': 1338,
     'docs/agent-world.md': 77,
