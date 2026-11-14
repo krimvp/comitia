@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/krimvp/comitia"
@@ -15,87 +14,6 @@ import (
 var ErrTaskMutationReceiptsUnsupported = fmt.Errorf("%w: server does not support task mutation receipts (operation_id); upgrade the server before retrying", comitia.ErrInvalid)
 
 var ErrClaimRecoveryUnsupported = fmt.Errorf("%w: claim recovery unsupported by this server; upgrade the server before retrying", comitia.ErrInvalid)
-
-func (h *handler) taskRoutes() map[string]endpoint {
-	return map[string]endpoint{
-		"tasks/fail":   h.taskOutcomeEndpoint(false),
-		"tasks/cancel": h.taskOutcomeEndpoint(true),
-		"tasks/create": typedEndpoint(func(ctx context.Context, token string, q createTaskRequest) (taskResult, error) {
-			if q.Task == nil {
-				return taskResult{}, comitia.Invalidf("task required")
-			}
-			v, err := comitia.CreateTaskOperation(ctx, h.api, token, q.ContextID, comitia.TaskInput(*q.Task))
-			return taskResult{ptr(taskDTO(v))}, err
-		}),
-		"tasks/get": typedEndpoint(func(ctx context.Context, token string, q taskRequest) (taskResult, error) {
-			v, err := h.api.GetTask(ctx, token, q.TaskID)
-			return taskResult{ptr(taskDTO(v))}, err
-		}),
-		"tasks/list": typedEndpoint(func(ctx context.Context, token string, q listTasksRequest) (listTasksResult, error) {
-			limit, err := listLimit(q.Limit)
-			if err != nil {
-				return listTasksResult{}, err
-			}
-			if q.Page || q.AfterID != "" {
-				v, err := comitia.ListTaskPageFiltered(ctx, h.api, token, q.ContextID, q.Status, q.filters(), q.AfterID, limit)
-				if err != nil {
-					return listTasksResult{}, err
-				}
-				return listTasksResult{TaskPage: ptr(wireTaskPage(v))}, nil
-			}
-			v, err := comitia.ListTasksFiltered(ctx, h.api, token, q.ContextID, q.Status, q.filters(), limit)
-			return listTasksResult{Tasks: ptr(mapSlice(v, func(t comitia.Task) taskDTO { return taskDTO(t) }))}, err
-		}),
-		"tasks/claim": typedEndpoint(func(ctx context.Context, token string, q claimRequest) (claimResult, error) {
-			lease, err := durationSeconds(q.LeaseSeconds, q.TTL, 300*time.Second, q.OpenEnded)
-			if err != nil {
-				return claimResult{}, err
-			}
-			var instances []comitia.AgentInstance
-			if q.ClaimInstance != nil {
-				instances = append(instances, *q.ClaimInstance)
-			}
-			v, err := comitia.ClaimTaskOperation(ctx, h.api, token, q.TaskID, lease, q.OperationID, instances...)
-			return claimResult{ptr(wireClaim(v))}, err
-		}),
-		"tasks/recover": typedEndpoint(func(ctx context.Context, token string, q recoverClaimRequest) (claimResult, error) {
-			if q.LeaseVersion == nil {
-				return claimResult{}, comitia.Invalidf("lease_version required")
-			}
-			var instances []comitia.AgentInstance
-			if q.ClaimInstance != nil {
-				instances = append(instances, *q.ClaimInstance)
-			}
-			v, err := comitia.RecoverClaim(ctx, h.api, token, q.TaskID, *q.LeaseVersion, instances...)
-			return claimResult{ptr(wireClaim(v))}, err
-		}),
-		"tasks/renew": typedEndpoint(func(ctx context.Context, token string, q renewRequest) (claimResult, error) {
-			if q.LeaseVersion == nil {
-				return claimResult{}, comitia.Invalidf("lease_version required")
-			}
-			lease, err := durationSeconds(q.LeaseSeconds, q.TTL, 300*time.Second, q.OpenEnded)
-			if err != nil {
-				return claimResult{}, err
-			}
-			v, err := comitia.RenewClaimOperation(ctx, h.api, token, q.TaskID, q.ClaimToken, *q.LeaseVersion, lease, q.OperationID)
-			return claimResult{ptr(wireClaim(v))}, err
-		}),
-		"tasks/complete": typedEndpoint(func(ctx context.Context, token string, q finishTaskRequest) (taskResult, error) {
-			if q.LeaseVersion == nil {
-				return taskResult{}, comitia.Invalidf("lease_version required")
-			}
-			v, err := h.api.CompleteTask(ctx, token, q.TaskID, q.ClaimToken, *q.LeaseVersion)
-			return taskResult{ptr(taskDTO(v))}, err
-		}),
-		"tasks/release": typedEndpoint(func(ctx context.Context, token string, q finishTaskRequest) (taskResult, error) {
-			if q.LeaseVersion == nil {
-				return taskResult{}, comitia.Invalidf("lease_version required")
-			}
-			v, err := h.api.ReleaseTask(ctx, token, q.TaskID, q.ClaimToken, *q.LeaseVersion)
-			return taskResult{ptr(taskDTO(v))}, err
-		}),
-	}
-}
 
 func (c *Client) CreateTask(ctx context.Context, token, id string, input comitia.TaskInput) (comitia.Task, error) {
 	var out taskResult
@@ -220,10 +138,70 @@ func (c *Client) ReleaseTask(ctx context.Context, token, id, key string, version
 	return comitia.Task(*out.Task), nil
 }
 
-// unknownField reports a strict decoder rejection, from either an endpoint-DTO
-// Handler or the older request-union Handler, of a member it predates.
-func unknownField(err error, name string) bool {
-	return errors.Is(err, comitia.ErrInvalid) && strings.Contains(err.Error(), `unknown field "`+name+`"`)
+var _ comitia.TaskMutationAPI = (*Client)(nil)
+
+var ErrTaskFiltersUnsupported = fmt.Errorf("%w: server does not support task filters; upgrade the server before retrying", comitia.ErrInvalid)
+
+func filteredTaskRequest(cid string, status comitia.TaskStatus, f comitia.TaskFilters, after string, limit int, page bool) listTasksRequest {
+	return listTasksRequest{ContextID: cid, Status: status, Claimable: f.Claimable, OwnerSession: f.OwnerSession, OwnerInstance: f.OwnerInstance, Mine: f.Mine, AfterID: after, Limit: ptr(limit), Page: page}
+}
+func taskFilterError(err error) error {
+	for _, name := range []string{"claimable", "owner_session", "owner_instance", "mine"} {
+		if unknownField(err, name) {
+			return ErrTaskFiltersUnsupported
+		}
+	}
+	return err
+}
+func (c *Client) ListTasksFiltered(ctx context.Context, token, cid string, status comitia.TaskStatus, f comitia.TaskFilters, limit int) ([]comitia.Task, error) {
+	f = f.WithInstance(c.InstanceDefaults)
+	if f == (comitia.TaskFilters{}) {
+		return c.ListTasks(ctx, token, cid, status, limit)
+	}
+	var out tasksResult
+	err := c.call(ctx, token, "tasks/list", filteredTaskRequest(cid, status, f, "", limit, false), &out)
+	return mapSlice(out.Tasks, func(t taskDTO) comitia.Task { return comitia.Task(t) }), taskFilterError(err)
+}
+func (c *Client) ListTasksPageFiltered(ctx context.Context, token, cid string, status comitia.TaskStatus, f comitia.TaskFilters, after string, limit int) (comitia.TaskPage, error) {
+	f = f.WithInstance(c.InstanceDefaults)
+	if f == (comitia.TaskFilters{}) {
+		return c.ListTasksPage(ctx, token, cid, status, after, limit)
+	}
+	var out struct {
+		TaskPage *taskPageDTO `json:"task_page,omitempty"`
+	}
+	err := c.call(ctx, token, "tasks/list", filteredTaskRequest(cid, status, f, after, limit, true), &out)
+	if pagingUnsupported(err) || err == nil && out.TaskPage == nil {
+		return comitia.TaskPage{}, ErrTaskFiltersUnsupported
+	}
+	if err != nil {
+		return comitia.TaskPage{}, taskFilterError(err)
+	}
+	return out.TaskPage.core(), nil
 }
 
-var _ comitia.TaskMutationAPI = (*Client)(nil)
+var _ comitia.TaskFilterAPI = (*Client)(nil)
+
+var ErrTaskOutcomesUnsupported = fmt.Errorf("%w: server does not support terminal task outcomes; upgrade the server before retrying", comitia.ErrInvalid)
+
+func (c *Client) FailTask(ctx context.Context, token, tid string, in comitia.TaskOutcomeInput) (comitia.Task, error) {
+	return c.taskOutcome(ctx, token, tid, in, "fail")
+}
+
+func (c *Client) CancelTask(ctx context.Context, token, tid string, in comitia.TaskOutcomeInput) (comitia.Task, error) {
+	return c.taskOutcome(ctx, token, tid, in, "cancel")
+}
+
+func (c *Client) taskOutcome(ctx context.Context, token, tid string, in comitia.TaskOutcomeInput, action string) (comitia.Task, error) {
+	var out taskResult
+	err := c.call(ctx, token, "tasks/"+action, taskOutcomeRequest{tid, in.ClaimToken, ptr(in.LeaseVersion), in.Reason, in.OperationID}, &out)
+	if errors.Is(err, comitia.ErrNotFound) || unknownField(err, "reason") || unknownField(err, "operation_id") {
+		return comitia.Task{}, ErrTaskOutcomesUnsupported
+	}
+	if err = requiredResult(err, out.Task); err != nil {
+		return comitia.Task{}, err
+	}
+	return comitia.Task(*out.Task), nil
+}
+
+var _ comitia.TaskOutcomeAPI = (*Client)(nil)
