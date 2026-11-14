@@ -61,15 +61,24 @@ func TestServerInfoSessionAndFeatures(t *testing.T) {
 }
 
 func TestBuildVersion(t *testing.T) {
-	old := model.Version
-	t.Cleanup(func() { model.Version = old })
-	model.Version = ""
+	// The root installs model.BuildStamp; this package cannot import the
+	// root, so it replaces the reader. The root's tests assign the public
+	// variables themselves.
+	old := model.BuildStamp
+	t.Cleanup(func() { model.BuildStamp = old })
+	model.BuildStamp = func() (string, string, string) { return "", "", "" }
 	if got := model.BuildVersion(); got != "dev" {
 		t.Fatalf("fallback=%q", got)
 	}
-	model.Version = "v1.2.3"
+	model.BuildStamp = func() (string, string, string) { return "v1.2.3", "rev", "true" }
 	if got := model.BuildVersion(); got != "v1.2.3" {
 		t.Fatalf("ldflags override=%q", got)
+	}
+	f := setup(t, ":memory:")
+	defer f.store.Close()
+	info, err := f.svc.ServerInfo(context.Background(), f.admin.Token)
+	if err != nil || info.Version != "v1.2.3" || info.Build != (model.BuildInfo{Version: "v1.2.3", Revision: "rev", Dirty: "true"}) {
+		t.Fatalf("ServerInfo ignores the stamp: %+v %v", info, err)
 	}
 }
 
