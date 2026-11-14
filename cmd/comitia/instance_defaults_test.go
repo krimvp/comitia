@@ -15,6 +15,36 @@ import (
 	"github.com/krimvp/comitia/pkg/httpapi"
 )
 
+// unhurriedStore lets every transaction finish whatever its context's
+// deadline. A read heartbeat has a 25 ms budget and a watch poll the watch's
+// timeout (docs/presence.md), which a slow machine (-race, a loaded runner)
+// exceeds: a CLI read there records no presence, and the poll returns no
+// messages. With this store the tests below judge the instance defaults, not
+// the machine's speed; internal/service tests the budgets themselves.
+type unhurriedStore struct{ comitia.Store }
+
+func (s unhurriedStore) View(ctx context.Context, fn func(comitia.ReadStore) error) error {
+	return s.Store.View(context.WithoutCancel(ctx), fn)
+}
+
+func (s unhurriedStore) Update(ctx context.Context, fn func(comitia.WriteStore) error) error {
+	return s.Store.Update(context.WithoutCancel(ctx), fn)
+}
+
+// unhurried makes every store the CLI opens in this test an unhurriedStore.
+func unhurried(t *testing.T) {
+	t.Helper()
+	opened := openStore
+	openStore = func(path string) (comitia.Store, error) {
+		st, err := opened(path)
+		if err != nil {
+			return nil, err
+		}
+		return unhurriedStore{st}, nil
+	}
+	t.Cleanup(func() { openStore = opened })
+}
+
 func instanceCommandSetup(t *testing.T, remote bool) ([]string, string) {
 	t.Helper()
 	t.Setenv("COMITIA_AGENT_INSTANCE", "")
@@ -220,6 +250,7 @@ func TestWatchInstanceDefault(t *testing.T) {
 }
 
 func TestPresenceCommandsUseInstanceDefaults(t *testing.T) {
+	unhurried(t)
 	for _, remote := range []bool{false, true} {
 		t.Run(strconv.FormatBool(remote), func(t *testing.T) {
 			base, _ := instanceCommandSetup(t, remote)

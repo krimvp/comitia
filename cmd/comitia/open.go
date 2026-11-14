@@ -17,6 +17,15 @@ import (
 // remoteTimeout bounds each remote call; it stays above the longest server-side wait.
 var remoteTimeout = comitia.MaxMessageWait + 10*time.Second
 
+// openStore opens the embedded store; a test may wrap what it returns.
+var openStore = func(path string) (comitia.Store, error) {
+	st, e := sqlite.OpenSQLite(path)
+	if e != nil {
+		return nil, e
+	}
+	return st, nil
+}
+
 func open(cfg config) (comitia.API, func(), error) {
 	if cfg.serverURL != "" {
 		if u, e := url.Parse(cfg.serverURL); e == nil && strings.HasSuffix(strings.TrimRight(u.Path, "/"), "/v1") {
@@ -25,7 +34,7 @@ func open(cfg config) (comitia.API, func(), error) {
 		c, e := httpapi.NewClientWithInstanceDefaults(cfg.serverURL, &http.Client{Timeout: remoteTimeout}, cfg.instances)
 		return c, func() {}, e
 	}
-	store, e := sqlite.OpenSQLite(cfg.db)
+	store, e := openStore(cfg.db)
 	if e != nil {
 		return nil, func() {}, e
 	}
