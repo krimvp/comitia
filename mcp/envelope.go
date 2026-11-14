@@ -1,3 +1,5 @@
+// The message envelope input schema shared by send_message.
+
 package mcp
 
 func envelopeSchema() map[string]any {

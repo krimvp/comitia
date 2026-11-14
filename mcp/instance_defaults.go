@@ -1,3 +1,5 @@
+// Resolving self-reported agent instance IDs from configured defaults.
+
 package mcp
 
 import "github.com/krimvp/comitia"

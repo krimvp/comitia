@@ -1,3 +1,5 @@
+// Task tools: create, claim, recover, renew, complete, release, get and list.
+
 package mcp
 
 import (
@@ -28,165 +30,197 @@ func (s *Server) callTasks(ctx context.Context, name string, raw json.RawMessage
 	case "fail_task", "cancel_task":
 		return s.callTaskOutcome(ctx, name, raw)
 	case "create_task":
-		var a struct {
-			OperationID string `json:"operation_id"`
-			ContextID   string `json:"context_id"`
-			Title       string `json:"title"`
-			Body        string `json:"body"`
-		}
-		if err := decode(raw, &a); err != nil {
-			return nil, err
-		}
-		if err := required("context_id", a.ContextID, "title", a.Title); err != nil {
-			return nil, err
-		}
-		return comitia.CreateTaskOperation(ctx, s.API, s.Credential, a.ContextID, comitia.TaskInput{Title: a.Title, Body: a.Body, OperationID: a.OperationID})
+		return s.callCreateTask(ctx, raw)
 	case "claim_task":
-		var a struct {
-			OperationID   string                 `json:"operation_id"`
-			TaskID        string                 `json:"task_id"`
-			LeaseSeconds  int64                  `json:"lease_seconds"`
-			OpenEnded     bool                   `json:"open_ended"`
-			AgentInstance *comitia.AgentInstance `json:"agent_instance"`
-		}
-		if err := decode(raw, &a); err != nil {
-			return nil, err
-		}
-		if err := required("task_id", a.TaskID); err != nil {
-			return nil, err
-		}
-		d, e := lease(a.LeaseSeconds, a.OpenEnded)
-		if e != nil {
-			return nil, e
-		}
-		var instance []comitia.AgentInstance
-		if owner := s.InstanceDefaults.Message(a.AgentInstance); owner != nil {
-			instance = append(instance, *owner)
-		}
-		return comitia.ClaimTaskOperation(ctx, s.API, s.Credential, a.TaskID, d, a.OperationID, instance...)
+		return s.callClaimTask(ctx, raw)
 	case "recover_claim":
-		var a struct {
-			TaskID        string                 `json:"task_id"`
-			LeaseVersion  *int64                 `json:"lease_version"`
-			AgentInstance *comitia.AgentInstance `json:"agent_instance"`
-		}
-		if err := decode(raw, &a); err != nil {
-			return nil, err
-		}
-		if err := required("task_id", a.TaskID); err != nil {
-			return nil, err
-		}
-		if a.LeaseVersion == nil {
-			return nil, comitia.Invalidf("lease_version required")
-		}
-		var instance []comitia.AgentInstance
-		if owner := s.InstanceDefaults.Message(a.AgentInstance); owner != nil {
-			instance = append(instance, *owner)
-		}
-		return comitia.RecoverClaim(ctx, s.API, s.Credential, a.TaskID, *a.LeaseVersion, instance...)
+		return s.callRecoverClaim(ctx, raw)
 	case "renew_task":
-		var a struct {
-			OperationID  string `json:"operation_id"`
-			TaskID       string `json:"task_id"`
-			ClaimToken   string `json:"claim_token"`
-			LeaseVersion *int64 `json:"lease_version"`
-			LeaseSeconds int64  `json:"lease_seconds"`
-			OpenEnded    bool   `json:"open_ended"`
-		}
-		if err := decode(raw, &a); err != nil {
-			return nil, err
-		}
-		if err := required("task_id", a.TaskID, "claim_token", a.ClaimToken); err != nil {
-			return nil, err
-		}
-		if a.LeaseVersion == nil {
-			return nil, comitia.Invalidf("lease_version required")
-		}
-		d, e := lease(a.LeaseSeconds, a.OpenEnded)
-		if e != nil {
-			return nil, e
-		}
-		return comitia.RenewClaimOperation(ctx, s.API, s.Credential, a.TaskID, a.ClaimToken, *a.LeaseVersion, d, a.OperationID)
+		return s.callRenewTask(ctx, raw)
 	case "complete_task":
-		var a struct {
-			TaskID       string `json:"task_id"`
-			ClaimToken   string `json:"claim_token"`
-			LeaseVersion *int64 `json:"lease_version"`
-		}
-		if err := decode(raw, &a); err != nil {
-			return nil, err
-		}
-		if err := required("task_id", a.TaskID, "claim_token", a.ClaimToken); err != nil {
-			return nil, err
-		}
-		if a.LeaseVersion == nil {
-			return nil, comitia.Invalidf("lease_version required")
-		}
-		return s.API.CompleteTask(ctx, s.Credential, a.TaskID, a.ClaimToken, *a.LeaseVersion)
+		return s.callCompleteTask(ctx, raw)
 	case "release_task":
-		var a struct {
-			TaskID       string `json:"task_id"`
-			ClaimToken   string `json:"claim_token"`
-			LeaseVersion *int64 `json:"lease_version"`
-		}
-		if err := decode(raw, &a); err != nil {
-			return nil, err
-		}
-		if err := required("task_id", a.TaskID); err != nil {
-			return nil, err
-		}
-		if a.LeaseVersion == nil {
-			return nil, comitia.Invalidf("lease_version required")
-		}
-		return s.API.ReleaseTask(ctx, s.Credential, a.TaskID, a.ClaimToken, *a.LeaseVersion)
+		return s.callReleaseTask(ctx, raw)
 	case "get_task":
-		var a struct {
-			TaskID string `json:"task_id"`
-		}
-		if err := decode(raw, &a); err != nil {
-			return nil, err
-		}
-		if err := required("task_id", a.TaskID); err != nil {
-			return nil, err
-		}
-		return s.API.GetTask(ctx, s.Credential, a.TaskID)
+		return s.callGetTask(ctx, raw)
 	case "list_tasks":
-		var a struct {
-			Claimable     bool   `json:"claimable"`
-			OwnerSession  string `json:"owner_session"`
-			OwnerInstance string `json:"owner_instance"`
-			Mine          bool   `json:"mine"`
-			Page          bool   `json:"page"`
-			AfterID       string `json:"after_id"`
-			ContextID     string `json:"context_id"`
-			Status        string `json:"status"`
-			Limit         *int   `json:"limit"`
-		}
-		if err := decode(raw, &a); err != nil {
-			return nil, err
-		}
-		if err := required("context_id", a.ContextID); err != nil {
-			return nil, err
-		}
-		limit := 100
-		if a.Limit != nil {
-			limit = *a.Limit
-		}
-		if limit < 1 || limit > 1000 {
-			return nil, comitia.Invalidf("limit must be between 1 and 1000")
-		}
-		status := comitia.TaskStatus(a.Status)
-		if a.Status != "" && status != comitia.TaskPending && status != comitia.TaskLeased && status != comitia.TaskCompleted && status != comitia.TaskFailed && status != comitia.TaskCancelled {
-			return nil, comitia.Invalidf("status must be pending, leased, completed, failed or cancelled")
-		}
-		f := (comitia.TaskFilters{Claimable: a.Claimable, OwnerSession: a.OwnerSession, OwnerInstance: a.OwnerInstance, Mine: a.Mine}).WithInstance(s.InstanceDefaults)
-		if a.Page || a.AfterID != "" {
-			return comitia.ListTaskPageFiltered(ctx, s.API, s.Credential, a.ContextID, status, f, a.AfterID, limit)
-		}
-		return comitia.ListTasksFiltered(ctx, s.API, s.Credential, a.ContextID, status, f, limit)
+		return s.callListTasks(ctx, raw)
 	default:
 		return nil, errUnknownTool
 	}
+}
+
+func (s *Server) callCreateTask(ctx context.Context, raw json.RawMessage) (any, error) {
+	var a struct {
+		OperationID string `json:"operation_id"`
+		ContextID   string `json:"context_id"`
+		Title       string `json:"title"`
+		Body        string `json:"body"`
+	}
+	if err := decode(raw, &a); err != nil {
+		return nil, err
+	}
+	if err := required("context_id", a.ContextID, "title", a.Title); err != nil {
+		return nil, err
+	}
+	return comitia.CreateTaskOperation(ctx, s.API, s.Credential, a.ContextID, comitia.TaskInput{Title: a.Title, Body: a.Body, OperationID: a.OperationID})
+}
+
+func (s *Server) callClaimTask(ctx context.Context, raw json.RawMessage) (any, error) {
+	var a struct {
+		OperationID   string                 `json:"operation_id"`
+		TaskID        string                 `json:"task_id"`
+		LeaseSeconds  int64                  `json:"lease_seconds"`
+		OpenEnded     bool                   `json:"open_ended"`
+		AgentInstance *comitia.AgentInstance `json:"agent_instance"`
+	}
+	if err := decode(raw, &a); err != nil {
+		return nil, err
+	}
+	if err := required("task_id", a.TaskID); err != nil {
+		return nil, err
+	}
+	d, e := lease(a.LeaseSeconds, a.OpenEnded)
+	if e != nil {
+		return nil, e
+	}
+	var instance []comitia.AgentInstance
+	if owner := s.InstanceDefaults.Message(a.AgentInstance); owner != nil {
+		instance = append(instance, *owner)
+	}
+	return comitia.ClaimTaskOperation(ctx, s.API, s.Credential, a.TaskID, d, a.OperationID, instance...)
+}
+
+func (s *Server) callRecoverClaim(ctx context.Context, raw json.RawMessage) (any, error) {
+	var a struct {
+		TaskID        string                 `json:"task_id"`
+		LeaseVersion  *int64                 `json:"lease_version"`
+		AgentInstance *comitia.AgentInstance `json:"agent_instance"`
+	}
+	if err := decode(raw, &a); err != nil {
+		return nil, err
+	}
+	if err := required("task_id", a.TaskID); err != nil {
+		return nil, err
+	}
+	if a.LeaseVersion == nil {
+		return nil, comitia.Invalidf("lease_version required")
+	}
+	var instance []comitia.AgentInstance
+	if owner := s.InstanceDefaults.Message(a.AgentInstance); owner != nil {
+		instance = append(instance, *owner)
+	}
+	return comitia.RecoverClaim(ctx, s.API, s.Credential, a.TaskID, *a.LeaseVersion, instance...)
+}
+
+func (s *Server) callRenewTask(ctx context.Context, raw json.RawMessage) (any, error) {
+	var a struct {
+		OperationID  string `json:"operation_id"`
+		TaskID       string `json:"task_id"`
+		ClaimToken   string `json:"claim_token"`
+		LeaseVersion *int64 `json:"lease_version"`
+		LeaseSeconds int64  `json:"lease_seconds"`
+		OpenEnded    bool   `json:"open_ended"`
+	}
+	if err := decode(raw, &a); err != nil {
+		return nil, err
+	}
+	if err := required("task_id", a.TaskID, "claim_token", a.ClaimToken); err != nil {
+		return nil, err
+	}
+	if a.LeaseVersion == nil {
+		return nil, comitia.Invalidf("lease_version required")
+	}
+	d, e := lease(a.LeaseSeconds, a.OpenEnded)
+	if e != nil {
+		return nil, e
+	}
+	return comitia.RenewClaimOperation(ctx, s.API, s.Credential, a.TaskID, a.ClaimToken, *a.LeaseVersion, d, a.OperationID)
+}
+
+func (s *Server) callCompleteTask(ctx context.Context, raw json.RawMessage) (any, error) {
+	var a struct {
+		TaskID       string `json:"task_id"`
+		ClaimToken   string `json:"claim_token"`
+		LeaseVersion *int64 `json:"lease_version"`
+	}
+	if err := decode(raw, &a); err != nil {
+		return nil, err
+	}
+	if err := required("task_id", a.TaskID, "claim_token", a.ClaimToken); err != nil {
+		return nil, err
+	}
+	if a.LeaseVersion == nil {
+		return nil, comitia.Invalidf("lease_version required")
+	}
+	return s.API.CompleteTask(ctx, s.Credential, a.TaskID, a.ClaimToken, *a.LeaseVersion)
+}
+
+func (s *Server) callReleaseTask(ctx context.Context, raw json.RawMessage) (any, error) {
+	var a struct {
+		TaskID       string `json:"task_id"`
+		ClaimToken   string `json:"claim_token"`
+		LeaseVersion *int64 `json:"lease_version"`
+	}
+	if err := decode(raw, &a); err != nil {
+		return nil, err
+	}
+	if err := required("task_id", a.TaskID); err != nil {
+		return nil, err
+	}
+	if a.LeaseVersion == nil {
+		return nil, comitia.Invalidf("lease_version required")
+	}
+	return s.API.ReleaseTask(ctx, s.Credential, a.TaskID, a.ClaimToken, *a.LeaseVersion)
+}
+
+func (s *Server) callGetTask(ctx context.Context, raw json.RawMessage) (any, error) {
+	var a struct {
+		TaskID string `json:"task_id"`
+	}
+	if err := decode(raw, &a); err != nil {
+		return nil, err
+	}
+	if err := required("task_id", a.TaskID); err != nil {
+		return nil, err
+	}
+	return s.API.GetTask(ctx, s.Credential, a.TaskID)
+}
+
+func (s *Server) callListTasks(ctx context.Context, raw json.RawMessage) (any, error) {
+	var a struct {
+		Claimable     bool   `json:"claimable"`
+		OwnerSession  string `json:"owner_session"`
+		OwnerInstance string `json:"owner_instance"`
+		Mine          bool   `json:"mine"`
+		Page          bool   `json:"page"`
+		AfterID       string `json:"after_id"`
+		ContextID     string `json:"context_id"`
+		Status        string `json:"status"`
+		Limit         *int   `json:"limit"`
+	}
+	if err := decode(raw, &a); err != nil {
+		return nil, err
+	}
+	if err := required("context_id", a.ContextID); err != nil {
+		return nil, err
+	}
+	limit := 100
+	if a.Limit != nil {
+		limit = *a.Limit
+	}
+	if limit < 1 || limit > 1000 {
+		return nil, comitia.Invalidf("limit must be between 1 and 1000")
+	}
+	status := comitia.TaskStatus(a.Status)
+	if a.Status != "" && status != comitia.TaskPending && status != comitia.TaskLeased && status != comitia.TaskCompleted && status != comitia.TaskFailed && status != comitia.TaskCancelled {
+		return nil, comitia.Invalidf("status must be pending, leased, completed, failed or cancelled")
+	}
+	f := (comitia.TaskFilters{Claimable: a.Claimable, OwnerSession: a.OwnerSession, OwnerInstance: a.OwnerInstance, Mine: a.Mine}).WithInstance(s.InstanceDefaults)
+	if a.Page || a.AfterID != "" {
+		return comitia.ListTaskPageFiltered(ctx, s.API, s.Credential, a.ContextID, status, f, a.AfterID, limit)
+	}
+	return comitia.ListTasksFiltered(ctx, s.API, s.Credential, a.ContextID, status, f, limit)
 }
 
 func openEnded() map[string]any {

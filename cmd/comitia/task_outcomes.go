@@ -1,3 +1,5 @@
+// The terminal task commands task-fail and task-cancel, routed from runTasks.
+
 package main
 
 import (

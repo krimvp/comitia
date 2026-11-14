@@ -1,3 +1,5 @@
+// The presence commands: instances and instance-resume.
+
 package main
 
 import (

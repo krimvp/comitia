@@ -50,7 +50,14 @@ jobs:
       - run: go test -race -timeout 20m ./...
 
       - name: Repeat race and crash recovery checks
-        run: go test -race -timeout 20m -count=10 -run 'TestCrashRecovery|TestSecurity|TestSQLite' .
+        # The pattern selected 30 tests when they all lived in the root package;
+        # fail rather than repeat fewer if tests move or are renamed.
+        run: |
+          pattern='TestCrashRecovery|TestSecurity|TestSQLite'
+          packages='. ./internal/service ./internal/sqlstore'
+          count=$(go test -list "$pattern" $packages | grep -c '^Test' || true)
+          if [ "$count" -lt 30 ]; then echo "only $count tests match $pattern in $packages; expected at least 30"; exit 1; fi
+          go test -race -timeout 20m -count=10 -run "$pattern" $packages
       - name: Build Linux binary
         run: |
           CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath \

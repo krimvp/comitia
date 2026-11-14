@@ -1,5 +1,7 @@
 //go:build !unix
 
+// Sessions directory ownership check where no portable owner check exists.
+
 package mcp
 
 import "os"

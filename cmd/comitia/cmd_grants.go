@@ -1,3 +1,5 @@
+// The grant commands: grant, grant-revoke and credential-check.
+
 package main
 
 import (

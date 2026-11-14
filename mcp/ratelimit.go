@@ -1,3 +1,6 @@
+// Rate limiting for the HTTP transport: per-credential token buckets, the
+// unverified-credential gate and the per-credential long-poll cap.
+
 package mcp
 
 import (
