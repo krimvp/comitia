@@ -75,7 +75,7 @@ evaluator stores runner metadata verbatim in the result document, so a Jev resul
 is auditable per check without a separate evidence file.
 
 Jev is an automated grader in the sense of `GraderKind` `automated` in
-`evaluation.go`: a grader that is separate from the agents under evaluation and
+`internal/schema/evaluation.go`: a grader that is separate from the agents under evaluation and
 whose evidence is calibrated probabilities, not a rerun of the agent. Reference
 it that way in `comitia.evaluation-result.v1` messages that cite a Jev-graded
 trial.
