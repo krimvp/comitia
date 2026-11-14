@@ -95,11 +95,11 @@ func runTaskList(ctx context.Context, cfg config, api comitia.API, out *json.Enc
 	if err := requireFlags(fs, "context-id"); err != nil {
 		return err
 	}
-	if cfg.parseOnly {
-		return nil
-	}
 	if *limit < 1 || *limit > comitia.MaxListLimit {
 		return comitia.Invalidf("limit must be between 1 and %d", comitia.MaxListLimit)
+	}
+	if cfg.parseOnly {
+		return nil
 	}
 	st, e := parseTaskStatus(*status)
 	if e != nil {
@@ -140,15 +140,7 @@ func runTaskClaim(ctx context.Context, cfg config, api comitia.API, out *json.En
 	if cfg.parseOnly {
 		return nil
 	}
-	owner := cfg.instances.Message(nil)
-	if flagProvided(fs, "agent-instance") {
-		owner = &comitia.AgentInstance{ID: *instanceID, Label: *instanceLabel}
-	} else if flagProvided(fs, "agent-instance-label") {
-		if owner == nil {
-			owner = &comitia.AgentInstance{}
-		}
-		owner.Label = *instanceLabel
-	}
+	owner := messageInstance(cfg, fs, *instanceID, *instanceLabel)
 	var instance []comitia.AgentInstance
 	if owner != nil {
 		instance = append(instance, *owner)

@@ -5,7 +5,6 @@ package main
 import (
 	"context"
 	"encoding/json"
-	"flag"
 	"fmt"
 	"io"
 	"os"
@@ -30,9 +29,7 @@ func runPresence(ctx context.Context, cfg config, api comitia.API, out *json.Enc
 		if cfg.parseOnly {
 			return nil
 		}
-		limited := false
-		fs.Visit(func(f *flag.Flag) { limited = limited || f.Name == "limit" })
-		if *page || *after != "" || limited {
+		if *page || *after != "" || flagProvided(fs, "limit") {
 			v, err := comitia.ListInstancePage(ctx, api, needCredential(cfg), *cid, *after, *limit)
 			if err != nil {
 				return err

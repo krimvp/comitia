@@ -109,7 +109,7 @@ func run(ctx context.Context, args []string) error {
 		cfg.instances = instances
 	}
 	if cmd == "bootstrap" && cfg.serverURL != "" {
-		return errors.New("bootstrap is available only with embedded SQLite")
+		return comitia.Invalidf("bootstrap is available only with embedded SQLite")
 	}
 	if cmd == "serve" {
 		_, depth, count, _, err := serveFlags(args)
