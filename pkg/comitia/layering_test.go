@@ -164,9 +164,12 @@ func TestInternalLayering(t *testing.T) {
 // production code or tests, imports a package of the module's internal/ tree
 // directly. Only direct imports are checked; the public API package and
 // pkg/sqlite import internal packages, so the adapters depend on them
-// indirectly. The examples are held to the same rule, since they show the
+// indirectly. Every other package under pkg/ (pkg/sqlite, pkg/storetest and
+// any added later) is held to the same rule, since its exports are public
+// API; the facade, pkg/comitia, is the one package under pkg/ that imports
+// the implementation. The examples are held to it too, since they show the
 // public API.
-var adapterPatterns = []string{"./cmd/...", "./pkg/mcp/...", "./pkg/httpapi/...", "./examples/..."}
+var adapterPatterns = []string{"./cmd/...", "./pkg/...", "./examples/..."}
 
 // adapterMayImport lists the internal packages the adapters may nevertheless
 // import directly, one per line: internal packages meant for the adapters.
@@ -197,12 +200,15 @@ func adapterViolations(pkgs []listedPackage) []string {
 }
 
 func TestAdapterImports(t *testing.T) {
-	pkgs := listPackages(t, adapterPatterns...)
+	var pkgs []listedPackage
 	listed := map[string]bool{}
-	for _, p := range pkgs {
+	for _, p := range listPackages(t, adapterPatterns...) {
 		listed[p.ImportPath] = true
+		if p.ImportPath != facade {
+			pkgs = append(pkgs, p)
+		}
 	}
-	for _, adapter := range []string{"cmd/comitia", "pkg/mcp", "pkg/httpapi"} {
+	for _, adapter := range []string{"cmd/comitia", "pkg/mcp", "pkg/httpapi", "pkg/httpapi/internal/legacy", "pkg/sqlite", "pkg/storetest", "examples/embedded"} {
 		if !listed[module+"/"+adapter] {
 			t.Fatalf("adapter %s not listed", adapter)
 		}

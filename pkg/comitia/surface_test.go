@@ -25,8 +25,10 @@ import (
 var update = flag.Bool("update", false, "rewrite testdata/api_surface.golden from the current tree")
 
 // The public packages whose exported API is frozen: every importable path of
-// the module that is not internal or a command. The internal packages behind
-// them may change freely as long as this surface does not.
+// the module that is not internal or a command, that is every package under
+// pkg/ outside an internal directory (TestPublicPackagesListed checks this
+// against go list). The internal packages behind them may change freely as
+// long as this surface does not.
 var publicPackages = []string{facade, module + "/pkg/sqlite", module + "/pkg/storetest", module + "/pkg/httpapi", module + "/pkg/mcp"}
 
 // errorTexts holds the exported error variables of the public packages by
@@ -89,6 +91,52 @@ func TestPublicAPISurface(t *testing.T) {
 			"If the change is deliberate, run\n\tgo test ./pkg/comitia -run TestPublicAPISurface -update\n"+
 			"and commit pkg/comitia/%s with it.", strings.Join(publicPackages, ", "), lineDiff(string(want), got), surfaceGolden)
 	}
+}
+
+// A package added under pkg/ is public API: it must be listed in
+// publicPackages, so the golden pins its surface, and the adapter rule
+// (TestAdapterImports) holds it to the public API, as it does every package
+// under pkg/ but the facade. Adding one is deliberate: list it here and
+// regenerate the golden.
+func TestPublicPackagesListed(t *testing.T) {
+	var public []string
+	for _, p := range listPackages(t, "./pkg/...") {
+		if !isInternalPath(p.ImportPath) {
+			public = append(public, p.ImportPath)
+		}
+	}
+	listed := append([]string{}, publicPackages...)
+	sort.Strings(public)
+	sort.Strings(listed)
+	if strings.Join(public, " ") != strings.Join(listed, " ") {
+		t.Errorf("go list ./pkg/... finds the public packages\n\t%s\npublicPackages lists\n\t%s\n"+
+			"list every public package in publicPackages and run\n\tgo test ./pkg/comitia -run TestPublicAPISurface -update",
+			strings.Join(public, "\n\t"), strings.Join(listed, "\n\t"))
+	}
+	golden, err := os.ReadFile(surfaceGolden)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var headers []string
+	for _, line := range strings.Split(string(golden), "\n") {
+		if path, ok := strings.CutPrefix(line, "## "); ok {
+			headers = append(headers, path)
+		}
+	}
+	if strings.Join(headers, " ") != strings.Join(publicPackages, " ") {
+		t.Errorf("%s covers %v, publicPackages lists %v; regenerate it with -update", surfaceGolden, headers, publicPackages)
+	}
+}
+
+// isInternalPath reports whether an import path has an internal element,
+// which makes it importable only from inside this module.
+func isInternalPath(path string) bool {
+	for _, elem := range strings.Split(path, "/") {
+		if elem == "internal" {
+			return true
+		}
+	}
+	return false
 }
 
 // apiSurface lists every exported object of the public packages, read from
