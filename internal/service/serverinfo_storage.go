@@ -63,9 +63,16 @@ var errCredentialCheck = errors.New("storage status: credential check failed")
 func (s *Service) StorageStatus(ctx context.Context, raw string) (model.StorageStatus, error) {
 	// Authenticate under the caller's context, not the probe's budget: a lookup
 	// cut by that budget would tell a valid administrator "unauthenticated"
-	// exactly when storage is slow.
-	if err := s.store.View(ctx, func(r model.ReadStore) error { _, err := s.storageAdmin(r, raw); return err }); err != nil {
-		if errors.Is(err, model.ErrUnauthenticated) || errors.Is(err, model.ErrForbidden) {
+	// exactly when storage is slow. Only a lookup that failed inside the View
+	// gets errCredentialCheck; a failure of the View itself is returned
+	// unchanged, as on every other operation.
+	var lookupFailed bool
+	if err := s.store.View(ctx, func(r model.ReadStore) error {
+		_, err := s.storageAdmin(r, raw)
+		lookupFailed = err != nil && !errors.Is(err, model.ErrUnauthenticated) && !errors.Is(err, model.ErrForbidden)
+		return err
+	}); err != nil {
+		if !lookupFailed {
 			return model.StorageStatus{}, err
 		}
 		if ctx.Err() != nil {

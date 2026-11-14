@@ -333,3 +333,37 @@ func TestStorageStatusSlowCredentialLookup(t *testing.T) {
 		t.Fatalf("cancelled caller: %v", err)
 	}
 }
+
+// failingView fails View before calling its callback.
+type failingView struct {
+	model.Store
+	err error
+}
+
+func (s failingView) View(context.Context, func(model.ReadStore) error) error { return s.err }
+
+// A failure of the authentication View itself is returned unchanged, storage
+// class included, as on every other operation; only a lookup failing inside it
+// is hidden from a caller not yet known to be an administrator.
+func TestStorageStatusReturnsViewFailureUnchanged(t *testing.T) {
+	f := setup(t, ":memory:")
+	defer f.store.Close()
+	for _, want := range []error{storageBusyError{}, context.DeadlineExceeded} {
+		svc, err := New(model.Config{Store: failingView{f.store, want}, Clock: f.svc.now})
+		if err != nil {
+			t.Fatal(err)
+		}
+		status, err := svc.StorageStatus(context.Background(), f.admin.Token)
+		if err != want || status != (model.StorageStatus{}) {
+			t.Fatalf("view failure %v: status=%+v err=%v class=%s", want, status, err, model.FailureClass(err))
+		}
+	}
+	if class := model.FailureClass(storageBusyError{}); class != "storage_busy" {
+		t.Fatalf("class=%s", class)
+	}
+}
+
+type storageBusyError struct{}
+
+func (storageBusyError) Error() string { return "database is locked" }
+func (storageBusyError) Code() int     { return 5 }
