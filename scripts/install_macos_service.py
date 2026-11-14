@@ -288,8 +288,8 @@ def install_viewer(repo, root, local_bin, run, context, owner):
         with os.fdopen(descriptor, 'w') as stream:
             stream.write(secrets.token_urlsafe(32) + '\n')
     viewer = root/'viewer'
-    shutil.copytree(repo/'httpapi/ui/world-prototype', viewer, dirs_exist_ok=True,
-                    ignore=shutil.ignore_patterns('__pycache__', '*.pyc'))
+    shutil.copytree(repo/'tools/world-viewer', viewer, dirs_exist_ok=True,
+                    ignore=shutil.ignore_patterns('__pycache__', '*.pyc', '*.test.mjs'))
     viewer_launcher = root/'bin/comitia-viewer'
     viewer_launcher.write_text('#!/bin/sh\nexec /usr/bin/python3 ' + shlex.quote(str(viewer/'launch.py')) + '\n')
     viewer_launcher.chmod(0o700)

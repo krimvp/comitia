@@ -397,6 +397,11 @@ class MacOSInstallerTest(Base):
         self.assertNotIn(str(root/'credentials/owner.json'), arguments)
         self.assertEqual(mode(root/'credentials/viewer-launch-key'), 0o600)
         self.assertTrue((self.home/'.local/bin/comitia-viewer').is_symlink())
+        # The snapshot layout is what the launchd job and comitia-viewer run; source tests stay behind.
+        installed = {p.relative_to(root/'viewer').as_posix() for p in (root/'viewer').rglob('*')}
+        self.assertLessEqual({'serve.py', 'launch.py', 'private_files.py', 'index.html', 'viewer-session.mjs', 'vendor/three.module.js'}, installed)
+        self.assertFalse({p for p in installed if p.endswith('.test.mjs')})
+        self.assertIn(str(root/'viewer/launch.py'), (root/'bin/comitia-viewer').read_text())
         self.assertTrue((self.home/'.agents/skills/comitia/SKILL.md').exists())
         self.assertTrue((self.home/'.claude/skills/comitia/SKILL.md').exists())
 

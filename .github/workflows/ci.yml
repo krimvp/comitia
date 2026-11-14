@@ -43,7 +43,7 @@ jobs:
         with:
           node-version: 22
       - name: Inspector state and landing page tests
-        run: node --test httpapi/ui-tests/*.test.mjs site/*.test.mjs
+        run: node --test httpapi/ui-tests/*.test.mjs site/*.test.mjs tools/world-viewer/*.test.mjs
       - run: go vet ./...
       - name: Documentation structure, onboarding, evaluation and installer tests
         run: python3 -m unittest scripts/test_*.py
