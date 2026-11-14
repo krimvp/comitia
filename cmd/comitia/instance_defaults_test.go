@@ -5,10 +5,12 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strconv"
 	"testing"
 	"time"
@@ -18,19 +20,20 @@ import (
 )
 
 // unhurriedStore lets every transaction finish whatever its context's
-// deadline. A read heartbeat has a 25 ms budget and a watch poll the watch's
-// timeout (docs/presence.md), which a slow machine (-race, a loaded runner)
-// exceeds: a CLI read there records no presence, and the poll returns no
-// messages. With this store the tests below judge the instance defaults, not
-// the machine's speed; internal/service tests the budgets themselves.
-type unhurriedStore struct{ comitia.Store }
+// deadline. A read heartbeat has a 25 ms budget (docs/presence.md), which a
+// slow machine (-race, a loaded runner) exceeds, and a CLI read there records
+// no presence; with this store the tests below judge the instance defaults,
+// not the machine's speed, and internal/service tests the budget itself. It
+// embeds the SQLite store, so the optional interfaces it implements, such as
+// ChangeVersionStore, still reach the service.
+type unhurriedStore struct{ *comitia.SQLiteStore }
 
 func (s unhurriedStore) View(ctx context.Context, fn func(comitia.ReadStore) error) error {
-	return s.Store.View(context.WithoutCancel(ctx), fn)
+	return s.SQLiteStore.View(context.WithoutCancel(ctx), fn)
 }
 
 func (s unhurriedStore) Update(ctx context.Context, fn func(comitia.WriteStore) error) error {
-	return s.Store.Update(context.WithoutCancel(ctx), fn)
+	return s.SQLiteStore.Update(context.WithoutCancel(ctx), fn)
 }
 
 // unhurried makes every store the CLI opens in this test an unhurriedStore.
@@ -42,9 +45,27 @@ func unhurried(t *testing.T) {
 		if err != nil {
 			return nil, err
 		}
-		return unhurriedStore{st}, nil
+		sqliteStore, ok := st.(*comitia.SQLiteStore)
+		if !ok {
+			st.Close()
+			return nil, fmt.Errorf("unhurried: store is %T, not *comitia.SQLiteStore", st)
+		}
+		return unhurriedStore{sqliteStore}, nil
 	}
 	t.Cleanup(func() { openStore = opened })
+}
+
+// The wrapper must not hide a method of the store it wraps, or the service
+// would take another path in these tests than in production.
+func TestUnhurriedStoreKeepsStoreMethods(t *testing.T) {
+	var _ comitia.ChangeVersionStore = unhurriedStore{}
+	wrapped := reflect.TypeOf(unhurriedStore{})
+	sqliteStore := reflect.TypeOf(&comitia.SQLiteStore{})
+	for i := 0; i < sqliteStore.NumMethod(); i++ {
+		if _, ok := wrapped.MethodByName(sqliteStore.Method(i).Name); !ok {
+			t.Errorf("unhurriedStore hides %s", sqliteStore.Method(i).Name)
+		}
+	}
 }
 
 func instanceCommandSetup(t *testing.T, remote bool) ([]string, string) {
