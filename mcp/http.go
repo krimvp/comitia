@@ -293,8 +293,6 @@ func (t *httpTransport) withoutDelegation(req request) (response, bool) {
 	return r, false
 }
 
-// bearerCredential extracts a scoped Comitia credential from the request. The
-// credential is never accepted as a tool argument.
 // bearerCredential extracts the caller's credential. The Authorization header is
 // preferred, but a credential may also arrive as a path suffix, as
 // /mcp/<credential>.
