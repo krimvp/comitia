@@ -247,3 +247,23 @@ func TestInternalLayeringRejectsViolations(t *testing.T) {
 		t.Fatalf("violations:\n%s\nwant:\n%s", strings.Join(got, "\n"), strings.Join(want, "\n"))
 	}
 }
+
+// The repository root holds the module files and the documents a reader looks
+// for first (README.md, CONTRIBUTING.md, ...); Go packages live under cmd/,
+// pkg/, internal/ and examples/. A Go file at the root would be a package at
+// the module path, beside the public API in pkg/comitia.
+func TestRepositoryRootHasNoGoFiles(t *testing.T) {
+	root := moduleRoot(t)
+	entries, err := os.ReadDir(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, e := range entries {
+		if strings.HasSuffix(e.Name(), ".go") {
+			t.Errorf("%s is at the repository root; put Go code in a package under cmd/, pkg/, internal/ or examples/", e.Name())
+		}
+		if e.Name() == "testdata" {
+			t.Errorf("testdata/ is at the repository root; test data belongs beside the package that reads it")
+		}
+	}
+}
