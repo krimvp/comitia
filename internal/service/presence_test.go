@@ -372,15 +372,18 @@ func TestPresenceHeartbeatTransactionBudget(t *testing.T) {
 
 // slowHeartbeatStore models a machine too slow to finish a heartbeat in its
 // budget: the first `slow` Updates run only once their deadline has passed.
+// touchInstance discards the Update's error, so one without a deadline is
+// counted in unbudgeted for the test to check.
 type slowHeartbeatStore struct {
 	model.Store
-	slow int
+	slow, unbudgeted int
 }
 
 func (s *slowHeartbeatStore) Update(ctx context.Context, fn func(model.WriteStore) error) error {
 	if s.slow > 0 {
 		s.slow--
 		if _, ok := ctx.Deadline(); !ok {
+			s.unbudgeted++
 			return errors.New("read heartbeat without a budget")
 		}
 		<-ctx.Done()
@@ -400,8 +403,8 @@ func TestDroppedReadHeartbeatIsRecordedByTheNextRead(t *testing.T) {
 	if _, err := f.svc.ReplayMessages(ctx, raw, cid, 0, 10, instanceFilter("worker")); err != nil {
 		t.Fatal(err)
 	}
-	if elapsed := time.Since(started); slow.slow != 0 || elapsed > time.Second {
-		t.Fatalf("heartbeat not attempted under its default budget: pending=%d elapsed=%v", slow.slow, elapsed)
+	if elapsed := time.Since(started); slow.slow != 0 || slow.unbudgeted != 0 || elapsed > time.Second {
+		t.Fatalf("heartbeat not attempted under its default budget: pending=%d unbudgeted=%d elapsed=%v", slow.slow, slow.unbudgeted, elapsed)
 	}
 	if rows, err := f.svc.ListInstances(ctx, raw, cid); err != nil || len(rows) != 0 {
 		t.Fatalf("expired heartbeat recorded presence: %v %v", rows, err)
@@ -412,6 +415,28 @@ func TestDroppedReadHeartbeatIsRecordedByTheNextRead(t *testing.T) {
 	}
 	if rows, err := f.svc.ListInstances(ctx, raw, cid); err != nil || len(rows) != 1 || rows[0].ID != "worker" || !rows[0].LastSeen.Equal(*f.now) {
 		t.Fatalf("next read did not record presence: %v %v", rows, err)
+	}
+
+	// An existing row: once it is due again, a dropped heartbeat leaves it
+	// unchanged and the next read records the current time.
+	recorded := *f.now
+	*f.now = f.now.Add(model.InstanceHeartbeatInterval)
+	f.svc.heartbeatBudget, slow.slow = 0, 1
+	if _, err := f.svc.ReplayMessages(ctx, raw, cid, 0, 10, instanceFilter("worker")); err != nil {
+		t.Fatal(err)
+	}
+	if slow.slow != 0 || slow.unbudgeted != 0 {
+		t.Fatalf("due heartbeat not attempted under its default budget: pending=%d unbudgeted=%d", slow.slow, slow.unbudgeted)
+	}
+	if rows, err := f.svc.ListInstances(ctx, raw, cid); err != nil || len(rows) != 1 || !rows[0].LastSeen.Equal(recorded) {
+		t.Fatalf("expired heartbeat moved last seen: %v %v", rows, err)
+	}
+	landReadHeartbeats(f)
+	if _, err := f.svc.ReplayMessages(ctx, raw, cid, 0, 10, instanceFilter("worker")); err != nil {
+		t.Fatal(err)
+	}
+	if rows, err := f.svc.ListInstances(ctx, raw, cid); err != nil || len(rows) != 1 || !rows[0].LastSeen.Equal(*f.now) {
+		t.Fatalf("next read did not refresh presence: %v %v", rows, err)
 	}
 }
 

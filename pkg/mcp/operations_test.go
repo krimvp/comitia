@@ -136,7 +136,7 @@ func TestStorageToolAndBuildIdentity(t *testing.T) {
 			t.Fatalf("non-admin=%v", err)
 		}
 		s.Credential = admin.Token
-		result := callTool(t, s, "storage_status", map[string]any{}).(comitia.StorageStatus)
+		result := awaitWriteReady(t, s)
 		if !result.WriteReady || result.WriteAttempts == 0 {
 			t.Fatalf("storage=%+v", result)
 		}
@@ -144,6 +144,24 @@ func TestStorageToolAndBuildIdentity(t *testing.T) {
 		if info.Build != comitia.BuildIdentity() {
 			t.Fatalf("build=%+v", info.Build)
 		}
+	}
+}
+
+// awaitWriteReady calls storage_status until it reports write_ready and returns
+// that status. The probe has a 250 ms budget (docs/message-protocol.md), which a
+// slow machine (-race, a loaded runner) can exceed; it then correctly reports
+// write_ready false, and a later probe is ready again.
+func awaitWriteReady(t *testing.T, s *Server) comitia.StorageStatus {
+	t.Helper()
+	for deadline := time.Now().Add(30 * time.Second); ; {
+		status := callTool(t, s, "storage_status", map[string]any{}).(comitia.StorageStatus)
+		if status.WriteReady {
+			return status
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("storage_status not write_ready: last %+v", status)
+		}
+		time.Sleep(10 * time.Millisecond)
 	}
 }
 

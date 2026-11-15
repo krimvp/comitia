@@ -1024,9 +1024,12 @@ may supply a `DiagnosticHook` instead of the default log.
 Capability discovery and the inspector loading successfully do not establish
 write availability. An administrator can call the `storage_status` MCP tool with
 `{}`, send `POST /v1/storage_status` with `{}`, or use `StorageStatusAPI` in Go.
-The probe shares a 250 ms context budget across authentication and a write
-transaction that inserts a principal row and rolls it back, verifying writer
-admission and that pages can be written. Custom stores must honor context
+The credential is checked first under the caller's context, so slow storage
+cannot make it look invalid. A lookup failing for another reason returns
+`internal` without `failure_class`, or `deadline_exceeded` or `cancelled` when
+the caller's own context ended. The probe then has a 250 ms context budget
+for a write transaction that checks the credential again, inserts a principal
+row and rolls it back, verifying writer admission and that pages can be written. Custom stores must honor context
 cancellation and roll back an `Update` whose callback returns an error. The result includes `write_ready`, `probe_duration_ms`,
 `write_attempts`, `write_failures`, `last_write_duration_ms`,
 `last_write_failure_duration_ms`, `max_write_duration_ms` and optional

@@ -1,12 +1,16 @@
 package main
 
 import (
+	"bufio"
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
+	"io"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strconv"
 	"testing"
 	"time"
@@ -14,6 +18,55 @@ import (
 	"github.com/krimvp/comitia/pkg/comitia"
 	"github.com/krimvp/comitia/pkg/httpapi"
 )
+
+// unhurriedStore lets every transaction finish whatever its context's
+// deadline. A read heartbeat has a 25 ms budget (docs/presence.md), which a
+// slow machine (-race, a loaded runner) exceeds, and a CLI read there records
+// no presence; with this store the tests below judge the instance defaults,
+// not the machine's speed, and internal/service tests the budget itself. It
+// embeds the SQLite store, so the optional interfaces it implements, such as
+// ChangeVersionStore, still reach the service.
+type unhurriedStore struct{ *comitia.SQLiteStore }
+
+func (s unhurriedStore) View(ctx context.Context, fn func(comitia.ReadStore) error) error {
+	return s.SQLiteStore.View(context.WithoutCancel(ctx), fn)
+}
+
+func (s unhurriedStore) Update(ctx context.Context, fn func(comitia.WriteStore) error) error {
+	return s.SQLiteStore.Update(context.WithoutCancel(ctx), fn)
+}
+
+// unhurried makes every store the CLI opens in this test an unhurriedStore.
+func unhurried(t *testing.T) {
+	t.Helper()
+	opened := openStore
+	openStore = func(path string) (comitia.Store, error) {
+		st, err := opened(path)
+		if err != nil {
+			return nil, err
+		}
+		sqliteStore, ok := st.(*comitia.SQLiteStore)
+		if !ok {
+			st.Close()
+			return nil, fmt.Errorf("unhurried: store is %T, not *comitia.SQLiteStore", st)
+		}
+		return unhurriedStore{sqliteStore}, nil
+	}
+	t.Cleanup(func() { openStore = opened })
+}
+
+// The wrapper must not hide a method of the store it wraps, or the service
+// would take another path in these tests than in production.
+func TestUnhurriedStoreKeepsStoreMethods(t *testing.T) {
+	var _ comitia.ChangeVersionStore = unhurriedStore{}
+	wrapped := reflect.TypeOf(unhurriedStore{})
+	sqliteStore := reflect.TypeOf(&comitia.SQLiteStore{})
+	for i := 0; i < sqliteStore.NumMethod(); i++ {
+		if _, ok := wrapped.MethodByName(sqliteStore.Method(i).Name); !ok {
+			t.Errorf("unhurriedStore hides %s", sqliteStore.Method(i).Name)
+		}
+	}
+}
 
 func instanceCommandSetup(t *testing.T, remote bool) ([]string, string) {
 	t.Helper()
@@ -183,35 +236,95 @@ func TestAdministrativeCommandsIgnoreInvalidInstanceEnvironment(t *testing.T) {
 }
 
 func TestWatchInstanceDefault(t *testing.T) {
+	unhurried(t)
 	for _, remote := range []bool{false, true} {
 		t.Run(strconv.FormatBool(remote), func(t *testing.T) {
 			base, cid := instanceCommandSetup(t, remote)
 			command(t, append(base, "send", "--context-id", cid, "--dedupe-key", "m", "--body", "ready")...)
 			t.Setenv("COMITIA_AGENT_INSTANCE", "worker")
-			watch := func(extra ...string) {
+			target := config{db: base[1]}
+			if remote {
+				target = config{serverURL: base[1]}
+			}
+			api, closeAPI, err := open(target)
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer closeAPI()
+			// watch runs until cancelled. Stop it once it has printed the message
+			// and acknowledged it under instance's cursor, however long a slow
+			// machine takes; the bound only ends a watch that is stuck.
+			watch := func(instance string, extra ...string) {
 				t.Helper()
 				old := os.Stdout
-				devNull, err := os.OpenFile(os.DevNull, os.O_WRONLY, 0)
+				r, w, err := os.Pipe()
 				if err != nil {
 					t.Fatal(err)
 				}
-				defer func() { os.Stdout = old; _ = devNull.Close() }()
-				os.Stdout = devNull
-				ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-				defer cancel()
-				if err := run(ctx, append(append(base, "watch", "--context-id", cid, "--timeout-seconds", "0.1"), extra...)); err != nil {
-					t.Fatal(err)
+				printed := make(chan struct{})
+				go func() {
+					line := bufio.NewReader(r)
+					if _, err := line.ReadString('\n'); err == nil {
+						close(printed)
+					}
+					_, _ = io.Copy(io.Discard, line)
+					_ = r.Close()
+				}()
+				os.Stdout = w
+				ctx, cancel := context.WithCancel(context.Background())
+				done := make(chan error, 1)
+				// A wait discards a scan that ends after the wait's timeout, so a
+				// short timeout would return nothing on a slow machine whatever
+				// the store; the watch is cancelled once it has acknowledged.
+				go func() {
+					done <- run(ctx, append(append(append([]string{}, base...), "watch", "--context-id", cid, "--timeout-seconds", "30"), extra...))
+				}()
+				var ended error
+				stopped := false
+				stop := func() {
+					if !stopped {
+						cancel()
+						ended, stopped = <-done, true
+					}
+				}
+				defer func() { stop(); os.Stdout = old; _ = w.Close() }()
+				bound := time.After(2 * time.Minute)
+				select {
+				case <-printed:
+				case ended = <-done:
+					stopped = true
+					t.Fatalf("watch ended before printing: %v", ended)
+				case <-bound:
+					t.Fatal("watch printed nothing")
+				}
+				// The acknowledgement follows the print.
+				for {
+					sequence, err := api.MessageCursor(context.Background(), base[3], cid, instance)
+					if err == nil && sequence == 1 {
+						break
+					}
+					select {
+					case ended = <-done:
+						stopped = true
+						t.Fatalf("watch ended before acknowledging: %v", ended)
+					case <-bound:
+						t.Fatalf("watch did not acknowledge under %q: cursor %d %v", instance, sequence, err)
+					case <-time.After(10 * time.Millisecond):
+					}
+				}
+				if stop(); ended != nil {
+					t.Fatal(ended)
 				}
 			}
 			cursor := append(base, "cursor", "--context-id", cid)
-			watch()
+			watch("worker")
 			if got := command(t, cursor...); got["sequence"] != float64(1) {
 				t.Fatalf("default watch cursor: %v", got)
 			}
 			if got := command(t, append(cursor, "--agent-instance", "")...); got["sequence"] != float64(0) {
 				t.Fatalf("default watch moved legacy cursor: %v", got)
 			}
-			watch("--agent-instance", "")
+			watch("", "--agent-instance", "")
 			if got := command(t, append(cursor, "--agent-instance", "")...); got["sequence"] != float64(1) {
 				t.Fatalf("explicit legacy watch cursor: %v", got)
 			}
@@ -220,6 +333,7 @@ func TestWatchInstanceDefault(t *testing.T) {
 }
 
 func TestPresenceCommandsUseInstanceDefaults(t *testing.T) {
+	unhurried(t)
 	for _, remote := range []bool{false, true} {
 		t.Run(strconv.FormatBool(remote), func(t *testing.T) {
 			base, _ := instanceCommandSetup(t, remote)

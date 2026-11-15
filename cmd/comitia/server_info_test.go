@@ -48,7 +48,7 @@ func TestServerInfoAndValidationCLI(t *testing.T) {
 		if mode == "remote" {
 			args = base
 		}
-		status := command(t, append(args, "storage-status")...)
+		status := awaitWriteReady(t, args...)
 		if status["write_ready"] != true || status["write_attempts"].(float64) < 1 {
 			t.Fatalf("%s status=%v", mode, status)
 		}
@@ -74,5 +74,23 @@ func TestServerInfoAndValidationCLI(t *testing.T) {
 		if !errors.Is(err, comitia.ErrInvalid) || (!strings.Contains(err.Error(), "title") && !strings.Contains(err.Error(), "limit") && !strings.Contains(err.Error(), "task-id")) || strings.Contains(err.Error(), owner.Token) {
 			t.Fatalf("validation=%v", err)
 		}
+	}
+}
+
+// awaitWriteReady runs storage-status until it reports write_ready and returns
+// that status. The probe has a 250 ms budget (docs/message-protocol.md), which a
+// slow machine (-race, a loaded runner) can exceed; it then correctly reports
+// write_ready false, and a later probe is ready again.
+func awaitWriteReady(t *testing.T, args ...string) map[string]any {
+	t.Helper()
+	for deadline := time.Now().Add(30 * time.Second); ; {
+		status := command(t, append(append([]string{}, args...), "storage-status")...)
+		if status["write_ready"] == true {
+			return status
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("storage-status not write_ready: last %v", status)
+		}
+		time.Sleep(10 * time.Millisecond)
 	}
 }

@@ -14,15 +14,20 @@ import (
 	"github.com/krimvp/comitia/internal/sqlstore"
 )
 
+// blockedWrites blocks a write until its context ends, recording when the
+// write arrived and the deadline it came with.
 type blockedWrites struct {
 	model.Store
-	block   bool
-	updates int
+	block              bool
+	updates            int
+	received, deadline time.Time
 }
 
 func (s *blockedWrites) Update(ctx context.Context, fn func(model.WriteStore) error) error {
 	s.updates++
 	if s.block {
+		s.received = time.Now()
+		s.deadline, _ = ctx.Deadline()
 		<-ctx.Done()
 		return ctx.Err()
 	}
@@ -62,22 +67,57 @@ func TestStorageProbeBoundAndAuthorization(t *testing.T) {
 	if err != nil || status.WriteReady || status.WriteFailures != 1 || status.WriteAttempts != 1 || status.LastWriteErrorClass != "deadline_exceeded" {
 		t.Fatalf("status=%+v err=%v", status, err)
 	}
-	if elapsed := time.Since(start); elapsed < model.StorageProbeTimeout || elapsed > time.Second {
-		t.Fatalf("probe took %s", elapsed)
+	// Bounded by the budget: the write came with a deadline at most the budget
+	// away and was released only when it passed. These follow from the order of
+	// the measurements, not from the machine's speed.
+	elapsed := time.Since(start)
+	if blocked.deadline.IsZero() || blocked.deadline.Sub(blocked.received) > model.StorageProbeTimeout || elapsed < model.StorageProbeTimeout {
+		t.Fatalf("probe not bounded by its budget: received=%v deadline=%v elapsed=%s", blocked.received, blocked.deadline, elapsed)
 	}
-	if status.ProbeDurationMS < 200 || status.LastWriteDurationMS < 200 || status.MaxWriteDurationMS < status.LastWriteDurationMS {
-		t.Fatalf("missing latency: %+v", status)
+	// The probe's clock starts before its deadline is set and the write's
+	// before the store receives it, so each covers the wait it reports.
+	waited := blocked.deadline.Sub(blocked.received).Milliseconds()
+	if status.ProbeDurationMS < model.StorageProbeTimeout.Milliseconds() || status.ProbeDurationMS > elapsed.Milliseconds() ||
+		status.LastWriteDurationMS < waited || status.LastWriteDurationMS > status.ProbeDurationMS ||
+		status.LastWriteFailureDurationMS != status.LastWriteDurationMS || status.MaxWriteDurationMS < status.LastWriteDurationMS {
+		t.Fatalf("missing latency: %+v waited=%dms elapsed=%s", status, waited, elapsed)
 	}
 	blocked.block = false
-	next, err := svc.StorageStatus(ctx, f.admin.Token)
-	if err != nil || !next.WriteReady || next.WriteFailures != 1 || next.WriteAttempts != 2 || next.LastWriteErrorClass != "deadline_exceeded" {
-		t.Fatalf("recovery=%+v err=%v", next, err)
+	// Each probe that is not ready counts one more failure.
+	next, probes := awaitWriteReady(t, svc, f.admin.Token, func() {})
+	if next.WriteFailures != uint64(probes) || next.WriteAttempts != uint64(probes)+1 || next.LastWriteErrorClass != "deadline_exceeded" {
+		t.Fatalf("recovery=%+v probes=%d", next, probes)
 	}
-	if _, err := svc.CreatePrincipal(ctx, f.admin.Token, "writer"); err != nil {
-		t.Fatal(err)
+	// A real write before the probe clears the class; a probe that is not ready sets it again.
+	next, _ = awaitWriteReady(t, svc, f.admin.Token, func() {
+		if _, err := svc.CreatePrincipal(ctx, f.admin.Token, "writer"); err != nil {
+			t.Fatal(err)
+		}
+	})
+	if next.LastWriteErrorClass != "" {
+		t.Fatalf("after real write=%+v", next)
 	}
-	if next, err = svc.StorageStatus(ctx, f.admin.Token); err != nil || !next.WriteReady || next.LastWriteErrorClass != "" {
-		t.Fatalf("after real write=%+v err=%v", next, err)
+}
+
+// awaitWriteReady runs prepare and the probe until the probe reports
+// write_ready, and returns that status with the number of probes it took. The
+// probe has a 250 ms budget, which a slow machine (-race, a loaded runner) can
+// exceed; it then correctly reports write_ready false.
+func awaitWriteReady(t *testing.T, svc *Service, token string, prepare func()) (model.StorageStatus, int) {
+	t.Helper()
+	for probes, deadline := 1, time.Now().Add(30*time.Second); ; probes++ {
+		prepare()
+		status, err := svc.StorageStatus(context.Background(), token)
+		if err != nil {
+			t.Fatalf("storage status: %v", err)
+		}
+		if status.WriteReady {
+			return status, probes
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("probe not write_ready: last %+v", status)
+		}
+		time.Sleep(10 * time.Millisecond)
 	}
 }
 
@@ -112,7 +152,6 @@ func TestStorageProbeDetectsReadOnlyDatabase(t *testing.T) {
 func TestStorageProbeLeavesNoRows(t *testing.T) {
 	f := setup(t, ":memory:")
 	defer f.store.Close()
-	ctx := context.Background()
 	count := func() (n int) {
 		if err := sqlstore.DB(f.store).QueryRow("SELECT count(*) FROM principals").Scan(&n); err != nil {
 			t.Fatal(err)
@@ -120,9 +159,11 @@ func TestStorageProbeLeavesNoRows(t *testing.T) {
 		return n
 	}
 	before := count()
-	if status, err := f.svc.StorageStatus(ctx, f.admin.Token); err != nil || !status.WriteReady {
-		t.Fatalf("status=%+v err=%v", status, err)
-	}
+	awaitWriteReady(t, f.svc, f.admin.Token, func() {
+		if after := count(); after != before {
+			t.Fatalf("probe left rows: %d -> %d", before, after)
+		}
+	})
 	if after := count(); after != before {
 		t.Fatalf("probe left rows: %d -> %d", before, after)
 	}
@@ -152,3 +193,216 @@ func TestStorageCountersConcurrentAndDomainRejection(t *testing.T) {
 		t.Fatalf("before=%+v after=%+v", before, after)
 	}
 }
+
+// slowCredentials makes the credential lookup outlast any deadline: under a
+// context with a deadline the lookup waits for that context to end and fails
+// with its error, as a store that honours cancellation but is slower than the
+// deadline does; without a deadline it completes. slowView applies this to the
+// lookup in View, slowWrite to the one inside Update; viewErr makes the lookup in
+// View fail with that error instead.
+type slowCredentials struct {
+	model.Store
+	slowView, slowWrite bool
+	viewErr             error
+	beforeUpdate        func()
+	updates             int
+}
+
+// slowLookup is the lookup slowCredentials gives a ReadStore or WriteStore.
+func slowLookup(ctx context.Context, err error, lookup func() (model.Session, error)) (model.Session, error) {
+	if err != nil {
+		return model.Session{}, err
+	}
+	if _, ok := ctx.Deadline(); ok {
+		<-ctx.Done()
+		return model.Session{}, ctx.Err()
+	}
+	return lookup()
+}
+
+type slowRead struct {
+	model.ReadStore
+	ctx context.Context
+	err error
+}
+
+func (r slowRead) SessionByTokenHash(h string) (model.Session, error) {
+	return slowLookup(r.ctx, r.err, func() (model.Session, error) { return r.ReadStore.SessionByTokenHash(h) })
+}
+
+type slowWrite struct {
+	model.WriteStore
+	ctx context.Context
+}
+
+func (w slowWrite) SessionByTokenHash(h string) (model.Session, error) {
+	return slowLookup(w.ctx, nil, func() (model.Session, error) { return w.WriteStore.SessionByTokenHash(h) })
+}
+
+func (s *slowCredentials) View(ctx context.Context, fn func(model.ReadStore) error) error {
+	return s.Store.View(ctx, func(r model.ReadStore) error {
+		if s.slowView || s.viewErr != nil {
+			return fn(slowRead{ReadStore: r, ctx: ctx, err: s.viewErr})
+		}
+		return fn(r)
+	})
+}
+
+func (s *slowCredentials) Update(ctx context.Context, fn func(model.WriteStore) error) error {
+	s.updates++
+	if s.beforeUpdate != nil {
+		s.beforeUpdate()
+	}
+	return s.Store.Update(ctx, func(w model.WriteStore) error {
+		if s.slowWrite {
+			return fn(slowWrite{WriteStore: w, ctx: ctx})
+		}
+		return fn(w)
+	})
+}
+
+type storageIOError struct{}
+
+func (storageIOError) Error() string { return "disk I/O error" }
+func (storageIOError) Code() int     { return 10 }
+
+// A valid administrator must not be told unauthenticated because the credential
+// lookup was slower than the probe's budget, while refused credentials stay
+// refused and learn nothing about storage.
+func TestStorageStatusSlowCredentialLookup(t *testing.T) {
+	f := setup(t, ":memory:")
+	defer f.store.Close()
+	ctx := context.Background()
+	slow := &slowCredentials{Store: f.store}
+	svc, err := New(model.Config{Store: slow, Clock: f.svc.now})
+	if err != nil {
+		t.Fatal(err)
+	}
+	p, err := f.svc.CreatePrincipal(ctx, f.admin.Token, "reader")
+	if err != nil {
+		t.Fatal(err)
+	}
+	reader, err := f.svc.MintSession(ctx, f.admin.Token, p.ID, time.Hour)
+	if err != nil {
+		t.Fatal(err)
+	}
+	revoked, err := f.svc.MintSession(ctx, f.admin.Token, f.admin.Session.PrincipalID, time.Hour)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := f.svc.RevokeSession(ctx, f.admin.Token, revoked.Session.ID); err != nil {
+		t.Fatal(err)
+	}
+
+	slow.slowView = true
+	awaitWriteReady(t, svc, f.admin.Token, func() {})
+	probes := slow.updates
+	for _, tc := range []struct {
+		name, token string
+		want        error
+	}{{"invalid", "invalid", model.ErrUnauthenticated}, {"revoked", revoked.Token, model.ErrUnauthenticated}, {"non-admin", reader.Token, model.ErrForbidden}} {
+		if status, err := svc.StorageStatus(ctx, tc.token); !errors.Is(err, tc.want) || status != (model.StorageStatus{}) {
+			t.Fatalf("%s: status=%+v err=%v", tc.name, status, err)
+		}
+	}
+	if slow.updates != probes {
+		t.Fatalf("a refused caller reached the write probe: updates=%d, want %d", slow.updates, probes)
+	}
+
+	slow.slowView, slow.slowWrite = false, true
+	status, err := svc.StorageStatus(ctx, f.admin.Token)
+	if err != nil || status.WriteReady || status.LastWriteErrorClass != "deadline_exceeded" {
+		t.Fatalf("slow write lookup: status=%+v err=%v", status, err)
+	}
+	slow.slowWrite = false
+
+	// The write re-checks the credential: one revoked after the View is refused.
+	second, err := f.svc.MintSession(ctx, f.admin.Token, f.admin.Session.PrincipalID, time.Hour)
+	if err != nil {
+		t.Fatal(err)
+	}
+	slow.beforeUpdate = func() {
+		if err := f.svc.RevokeSession(ctx, f.admin.Token, second.Session.ID); err != nil {
+			t.Error(err)
+		}
+	}
+	if status, err := svc.StorageStatus(ctx, second.Token); !errors.Is(err, model.ErrUnauthenticated) || status != (model.StorageStatus{}) {
+		t.Fatalf("revoked during probe: status=%+v err=%v", status, err)
+	}
+	slow.beforeUpdate = nil
+
+	// A storage failure in the lookup is not an authentication failure, and a
+	// caller not known to be an administrator learns no storage class from it.
+	slow.viewErr = storageIOError{}
+	before := slow.updates
+	status, err = svc.StorageStatus(ctx, f.admin.Token)
+	if err == nil || errors.Is(err, model.ErrUnauthenticated) || model.FailureClass(err) != "internal" || status != (model.StorageStatus{}) || slow.updates != before {
+		t.Fatalf("lookup failure: status=%+v err=%v class=%s", status, err, model.FailureClass(err))
+	}
+	slow.viewErr = nil
+
+	cancelled, cancel := context.WithCancel(ctx)
+	cancel()
+	if _, err := svc.StorageStatus(cancelled, f.admin.Token); !errors.Is(err, context.Canceled) {
+		t.Fatalf("cancelled caller: %v", err)
+	}
+}
+
+// unhurried lets every transaction finish whatever its context's deadline, so a
+// healthy store is never too slow for the probe's budget.
+type unhurried struct{ model.Store }
+
+func (s unhurried) View(ctx context.Context, fn func(model.ReadStore) error) error {
+	return s.Store.View(context.WithoutCancel(ctx), fn)
+}
+
+func (s unhurried) Update(ctx context.Context, fn func(model.WriteStore) error) error {
+	return s.Store.Update(context.WithoutCancel(ctx), fn)
+}
+
+func TestFirstStorageProbeOnHealthyStoreIsReady(t *testing.T) {
+	f := setup(t, ":memory:")
+	defer f.store.Close()
+	svc, err := New(model.Config{Store: unhurried{f.store}, Clock: f.svc.now})
+	if err != nil {
+		t.Fatal(err)
+	}
+	status, err := svc.StorageStatus(context.Background(), f.admin.Token)
+	if err != nil || !status.WriteReady || status.WriteAttempts != 1 || status.WriteFailures != 0 || status.LastWriteErrorClass != "" || status.LastWriteFailureDurationMS != 0 || status.MaxWriteDurationMS < status.LastWriteDurationMS {
+		t.Fatalf("first probe: status=%+v err=%v", status, err)
+	}
+}
+
+// failingView fails View before calling its callback.
+type failingView struct {
+	model.Store
+	err error
+}
+
+func (s failingView) View(context.Context, func(model.ReadStore) error) error { return s.err }
+
+// A failure of the authentication View itself is returned unchanged, storage
+// class included, as on every other operation; only a lookup failing inside it
+// is hidden from a caller not yet known to be an administrator.
+func TestStorageStatusReturnsViewFailureUnchanged(t *testing.T) {
+	f := setup(t, ":memory:")
+	defer f.store.Close()
+	for _, want := range []error{storageBusyError{}, context.DeadlineExceeded} {
+		svc, err := New(model.Config{Store: failingView{f.store, want}, Clock: f.svc.now})
+		if err != nil {
+			t.Fatal(err)
+		}
+		status, err := svc.StorageStatus(context.Background(), f.admin.Token)
+		if err != want || status != (model.StorageStatus{}) {
+			t.Fatalf("view failure %v: status=%+v err=%v class=%s", want, status, err, model.FailureClass(err))
+		}
+	}
+	if class := model.FailureClass(storageBusyError{}); class != "storage_busy" {
+		t.Fatalf("class=%s", class)
+	}
+}
+
+type storageBusyError struct{}
+
+func (storageBusyError) Error() string { return "database is locked" }
+func (storageBusyError) Code() int     { return 5 }

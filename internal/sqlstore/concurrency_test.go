@@ -13,7 +13,19 @@ import (
 
 // Each store has its own *sql.DB and therefore its own SQLite connection and
 // file locks, like separate CLI processes sharing one database file.
+//
+// Every opener of a fresh file migrates under the write lock in turn; a
+// migration that finds nothing left to do still holds the lock for its
+// checks, about 0.1 s under -race and over 1 s on a starved machine, so the
+// last of 16 openers can wait longer than the 15 s lockWait promises. The
+// test widens that bound, which it does not assert, to 5 minutes, which a
+// starved machine stays well within (about 20 s seen) while a real lock
+// deadlock still fails with the store's own error rather than the package
+// timeout, and judges only that all opens and writes succeed.
 func TestSQLiteConcurrentOpenAndWritesOnFreshFile(t *testing.T) {
+	wait := lockWait
+	lockWait = 5 * time.Minute
+	t.Cleanup(func() { lockWait = wait })
 	path := filepath.Join(t.TempDir(), "fresh.db")
 	const stores, writes = 16, 20
 	var start, done sync.WaitGroup

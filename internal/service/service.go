@@ -92,22 +92,41 @@ type authInfo struct {
 	now       time.Time
 }
 
+// auth reports every failed credential lookup as ErrUnauthenticated.
 func (s *Service) auth(r model.ReadStore, raw string) (authInfo, error) {
+	a, e := s.lookupCredential(r, raw)
+	if e != nil {
+		return a, model.ErrUnauthenticated
+	}
+	return a, nil
+}
+
+// lookupCredential is auth keeping a failed lookup's own error: ErrUnauthenticated
+// only for a missing, revoked or expired session or a missing principal (a
+// store's ErrNotFound), any other lookup error unchanged. Only StorageStatus
+// uses it, so that slow storage is not reported as a bad credential there.
+func (s *Service) lookupCredential(r model.ReadStore, raw string) (authInfo, error) {
 	var a authInfo
 	if raw == "" {
 		return a, model.ErrUnauthenticated
 	}
 	ss, e := r.SessionByTokenHash(tokenHash(raw))
-	if e != nil {
+	if errors.Is(e, model.ErrNotFound) {
 		return a, model.ErrUnauthenticated
+	}
+	if e != nil {
+		return a, e
 	}
 	now := s.now().UTC()
 	if ss.RevokedAt != nil || !ss.ExpiresAt.After(now) {
 		return a, model.ErrUnauthenticated
 	}
 	p, e := r.Principal(ss.PrincipalID)
-	if e != nil {
+	if errors.Is(e, model.ErrNotFound) {
 		return a, model.ErrUnauthenticated
+	}
+	if e != nil {
+		return a, e
 	}
 	return authInfo{session: ss, principal: p, now: now}, nil
 }
